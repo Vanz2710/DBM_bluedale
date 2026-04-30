@@ -1,0 +1,95 @@
+/* Reset and General Styling */
+* {
+    box-sizing: border-box;
+}
+
+body, html {
+    height: 100%;
+    margin: 0;
+    font-family: 'Segoe UI', sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: url('Building.png') no-repeat center center fixed;
+    background-size: cover;
+}
+
+/* The Semi-Transparent Card */
+.login-card {
+    background: rgba(255, 255, 255, 0.9); 
+    padding: 60px;
+    border-radius: 40px; 
+    width: 100%;
+    max-width: 600px;
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.3);
+    text-align: left;
+}
+
+/* Logo container - FIXED */
+.logo-container {
+    text-align: center;
+    margin-bottom: 40px;
+}
+
+.logo-container img {
+    width: 100%;
+    max-width: 350px; /* Limits the logo to a reasonable size */
+    height: auto;
+}
+
+/* Form Groups - FIXED */
+.input-group {
+    margin-bottom: 25px;
+}
+
+label {
+    display: block;
+    font-size: 1.4rem;
+    font-weight: 500;
+    color: #333;
+    margin-bottom: 8px;
+}
+
+input {
+    width: 100%;
+    padding: 15px 20px;
+    border: none;
+    border-radius: 15px; 
+    background: #f0f2f5; 
+    font-size: 1.1rem;
+    outline: none;
+}
+
+input::placeholder {
+    font-style: italic;
+    color: #999;
+}
+
+/* Login Button */
+.login-btn {
+    width: 100%;
+    padding: 15px;
+    background-color: #5d78ff; 
+    color: white;
+    border: none;
+    border-radius: 15px;
+    font-size: 1.2rem;
+    font-weight: bold;
+    cursor: pointer;
+    margin-top: 20px;
+    transition: 0.3s;
+}
+
+.login-btn:hover {
+    background-color: #4a64e6;
+}
+
+/* Error message */
+.error-msg {
+    color: #d8000c;
+    background-color: #ffbaba;
+    padding: 10px;
+    border-radius: 10px;
+    text-align: center;
+    margin-bottom: 20px;
+}

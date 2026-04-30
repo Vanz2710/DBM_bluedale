@@ -1,0 +1,151 @@
+/* General Page Styling */
+body {
+    margin: 0;
+    padding: 0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #f4f7ff;
+}
+
+/* Navbar with Gradient */
+.navbar {
+    background: linear-gradient(to right, #3949ab, #7e57c2, #ba68c8);
+    display: flex;
+    align-items: center;
+    padding: 10px 40px;
+    height: 70px;
+}
+
+.logo img {
+    height: 40px;
+    background: white; /* Logo inside a white box as per image */
+    padding: 5px 15px;
+    border-radius: 4px;
+}
+
+.nav-links {
+    list-style: none;
+    display: flex;
+    margin-left: 40px;
+    gap: 20px;
+}
+
+.nav-links li a {
+    color: white;
+    text-decoration: none;
+    font-size: 0.95rem;
+    font-weight: 500;
+    transition: 0.2s;
+}
+
+/* Yellow Highlight for Active Page */
+.nav-links a.active {
+    color: #ffd700 !important; 
+    text-decoration: underline !important;
+    text-underline-offset: 5px;
+    font-weight: bold;
+}
+
+.nav-links a:hover {
+    color: #ffd700;
+}
+
+/* Toolbar Styling */
+.toolbar {
+    padding: 15px 40px;
+    display: flex;
+    align-items: center;
+    background-color: #d1e3ff; 
+}
+
+/* Main Form Container */
+.main-card {
+    width: 65%;
+    margin: 40px auto;
+    background: white;
+    border-radius: 40px;
+    padding-bottom: 40px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+    min-height: 500px;
+}
+
+/* The Blue "ADD DATA" Bar */
+.blue-header {
+    background: #5d78ff;
+    color: white;
+    padding: 12px 30px;
+    font-size: 32px;
+    font-weight: 800;
+    margin: 30px;
+    border-radius: 15px;
+    display: inline-block;
+    width: calc(100% - 100px);
+}
+
+.form-body {
+    padding: 0 60px;
+}
+
+.section-title {
+    font-size: 24px;
+    margin-bottom: 5px;
+    color: #333;
+}
+
+/* Input Group Styling */
+.input-group {
+    margin-bottom: 15px;
+}
+
+.required-label {
+    font-size: 13px;
+    color: #333;
+    margin-bottom: 3px;
+}
+
+input, select, textarea {
+    width: 100%;
+    max-width: 450px;
+    padding: 10px 15px;
+    border: none;
+    background: #d9d9d9;
+    border-radius: 10px;
+    font-style: italic;
+    color: #444;
+    outline: none;
+    display: block;
+}
+
+textarea {
+    max-width: 420px;
+    height: 120px;
+    resize: none;
+    margin-top: 15px;
+}
+
+/* Button Styling */
+.btn-wrapper {
+    text-align: center;
+    margin-top: 20px;
+}
+
+.next-submit-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+}
+
+.next-submit-btn img {
+    width: 110px;
+}
+
+/* State Styling */
+.error-text {
+    color: #ff0000 !important;
+    font-weight: bold;
+}
+
+.disabled-btn {
+    opacity: 0.5;
+    cursor: not-allowed;
+}

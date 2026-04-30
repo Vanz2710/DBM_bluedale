@@ -1,0 +1,152 @@
+/* General Page Background Gradient */
+body {
+    margin: 0;
+    padding: 0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #f4f7ff;
+}
+
+/* Navbar with Gradient */
+.navbar {
+    background: linear-gradient(to right, #3949ab, #7e57c2, #ba68c8);
+    display: flex;
+    align-items: center;
+    padding: 10px 40px;
+    height: 70px;
+}
+
+.logo img {
+    height: 40px;
+    background: white; /* Logo inside a white box as per image */
+    padding: 5px 15px;
+    border-radius: 4px;
+}
+
+.nav-links {
+    list-style: none;
+    display: flex;
+    margin-left: 40px;
+    gap: 20px;
+}
+
+.nav-links li a {
+    color: white;
+    text-decoration: none;
+    font-size: 0.95rem;
+    font-weight: 500;
+    transition: 0.2s;
+}
+
+/* Yellow Highlight for Active Page */
+.nav-links a.active {
+    color: #ffd700 !important; 
+    text-decoration: underline !important;
+    text-underline-offset: 5px;
+    font-weight: bold;
+}
+
+.nav-links a:hover {
+    color: #ffd700;
+}
+
+/* Main White Card Container */
+.main-card {
+    background: white;
+    width: 90%;
+    max-width: 950px;
+    margin: 40px auto;
+    border-radius: 40px;
+    padding-bottom: 60px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+}
+
+/* Blue Pill Header Bars */
+.header-bar {
+    background-color: #5d78ff;
+    color: white;
+    text-align: center;
+    font-size: 28px;
+    font-weight: bold;
+    padding: 12px;
+    margin: 25px 40px;
+    border-radius: 100px; /* Pill Shape */
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+/* Company Information Layout */
+.info-flex-container {
+    display: flex;
+    padding: 0 80px;
+    justify-content: space-between;
+}
+
+.info-grid {
+    display: grid;
+    grid-template-columns: 140px 1fr;
+    gap: 12px 10px;
+    font-size: 14px;
+}
+
+.info-grid .label { font-weight: bold; color: #333; }
+.info-grid .value { color: #555; }
+
+.icon-folder { width: 45px; vertical-align: middle; }
+
+/* Right Side Company Buttons */
+.info-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 15px;
+}
+
+.btn-todo { width: 130px; }
+.icon-yellow-edit { width: 45px; }
+
+/* PIC Section Layout */
+.pic-section-wrapper {
+    padding: 0 80px;
+}
+
+.btn-add-new { width: 45px; margin-bottom: 10px; }
+
+.pic-row {
+    display: flex;
+    align-items: center;
+    gap: 30px;
+    margin-top: 15px;
+}
+
+.pic-circle {
+    background: black;
+    color: white;
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-weight: bold;
+    font-size: 18px;
+    flex-shrink: 0;
+}
+
+.pic-details {
+    flex-grow: 1;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px 40px;
+}
+
+.pic-item strong { display: block; font-size: 11px; color: #333; }
+.pic-item span { font-size: 14px; color: #555; }
+
+/* PIC Action Icons (Edit/Delete) */
+.pic-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.icon-pic-action { width: 45px; }

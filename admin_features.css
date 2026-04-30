@@ -1,0 +1,120 @@
+body {
+    margin: 0;
+    padding: 0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #f4f7ff;
+}
+
+/* Navbar with Gradient */
+.navbar {
+    background: linear-gradient(to right, #3949ab, #7e57c2, #ba68c8);
+    display: flex;
+    align-items: center;
+    padding: 10px 40px;
+    height: 70px;
+}
+
+.logo img {
+    height: 40px;
+    background: white; /* Logo inside a white box as per image */
+    padding: 5px 15px;
+    border-radius: 4px;
+}
+
+.nav-links {
+    list-style: none;
+    display: flex;
+    margin-left: 40px;
+    gap: 20px;
+}
+
+.nav-links li a {
+    color: white;
+    text-decoration: none;
+    font-size: 0.95rem;
+    font-weight: 500;
+    transition: 0.2s;
+}
+
+/* Yellow Highlight for Active Page */
+.nav-links a.active {
+    color: #ffd700 !important; 
+    text-decoration: underline !important;
+    text-underline-offset: 5px;
+    font-weight: bold;
+}
+
+.nav-links a:hover {
+    color: #ffd700;
+}
+
+/* Toolbar Styling */
+.toolbar {
+    padding: 15px 40px;
+    display: flex;
+    align-items: center;
+    background-color: #d1e3ff; 
+}
+
+/* Main Card */
+.main-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding-top: 60px;
+}
+
+.white-card {
+    background: white;
+    width: 750px;
+    border-radius: 40px;
+    padding-bottom: 50px;
+    box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+}
+
+.blue-title-bar {
+    background-color: #5d78ff;
+    color: white;
+    font-size: 32px;
+    font-weight: bold;
+    padding: 15px 30px;
+    margin: 30px;
+    border-radius: 20px;
+}
+
+.form-content { padding: 0 60px; }
+
+h3 { color: #333; font-weight: 400; margin-bottom: 30px; }
+
+/* Inputs */
+.input-group { margin-bottom: 25px; }
+
+input, select {
+    width: 450px;
+    padding: 15px 25px;
+    background-color: #e0e0e0;
+    border: none;
+    border-radius: 12px;
+    font-size: 16px;
+    font-style: italic;
+    color: #444;
+    outline: none;
+    appearance: none; /* Removes default arrow for select */
+}
+
+/* Register Button */
+.register-btn {
+    background-color: #5d78ff;
+    color: white;
+    border: none;
+    padding: 12px 60px;
+    font-size: 18px;
+    font-weight: bold;
+    border-radius: 20px;
+    cursor: pointer;
+    box-shadow: 0 4px 10px rgba(93, 120, 255, 0.4);
+}
+
+.alert { padding: 10px; border-radius: 10px; margin-bottom: 10px; width: 450px; }
+.success { background: #d4edda; color: #155724; }
+.error { background: #f8d7da; color: #721c24; }

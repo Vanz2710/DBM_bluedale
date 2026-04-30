@@ -1,0 +1,143 @@
+/* Page Background split color as seen in screenshot */
+body {
+    margin: 0;
+    padding: 0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #f4f7ff;
+}
+
+/* Navbar with Gradient */
+.navbar {
+    background: linear-gradient(to right, #3949ab, #7e57c2, #ba68c8);
+    display: flex;
+    align-items: center;
+    padding: 10px 40px;
+    height: 70px;
+}
+
+.logo img {
+    height: 40px;
+    background: white; /* Logo inside a white box as per image */
+    padding: 5px 15px;
+    border-radius: 4px;
+}
+
+.nav-links {
+    list-style: none;
+    display: flex;
+    margin-left: 40px;
+    gap: 20px;
+}
+
+.nav-links li a {
+    color: white;
+    text-decoration: none;
+    font-size: 0.95rem;
+    font-weight: 500;
+    transition: 0.2s;
+}
+
+/* Yellow Highlight for Active Page */
+.nav-links a.active {
+    color: #ffd700 !important; 
+    text-decoration: underline !important;
+    text-underline-offset: 5px;
+    font-weight: bold;
+}
+
+.nav-links a:hover {
+    color: #ffd700;
+}
+
+/* Toolbar Styling */
+.toolbar {
+    padding: 15px 40px;
+    display: flex;
+    align-items: center;
+    background-color: #d1e3ff; 
+}
+.main-container {
+    display: flex;
+    justify-content: center;
+    padding-top: 50px;
+}
+
+.white-card {
+    background: white;
+    width: 800px;
+    border-radius: 40px;
+    min-height: 500px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+    overflow: hidden;
+}
+
+/* Blue Header inside the card */
+.blue-title-bar {
+    background-color: #5d78ff;
+    color: white;
+    font-size: 36px;
+    font-weight: bold;
+    padding: 15px 40px;
+    margin: 30px;
+    border-radius: 20px;
+}
+
+.form-content {
+    padding: 0 70px;
+}
+
+.section-title {
+    font-size: 24px;
+    color: #333;
+    margin-bottom: 5px;
+}
+
+/* Input Styles */
+.input-group {
+    margin-bottom: 15px;
+}
+
+.input-group label {
+    display: block;
+    font-size: 11px;
+    color: #666;
+    margin-bottom: 4px;
+}
+
+input {
+    width: 450px;
+    padding: 12px 20px;
+    background-color: #e0e0e0; /* Grey background */
+    border: none;
+    border-radius: 12px;
+    font-size: 16px;
+    outline: none;
+}
+
+input::placeholder {
+    font-style: italic;
+    text-align: center; /* Centered placeholder text */
+    color: #333;
+}
+
+/* Register Button matching the screenshot */
+.button-container {
+    margin-top: 40px;
+    margin-bottom: 40px;
+}
+
+.register-btn {
+    background-color: #5d78ff;
+    color: white;
+    border: none;
+    padding: 10px 60px;
+    font-size: 18px;
+    font-weight: bold;
+    border-radius: 20px;
+    cursor: pointer;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+.register-btn:hover {
+    background-color: #4a63e0;
+}

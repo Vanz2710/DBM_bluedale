@@ -1,0 +1,150 @@
+body {
+    margin: 0;
+    padding: 0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #f4f7ff;
+}
+
+/* Navbar with Gradient */
+.navbar {
+    background: linear-gradient(to right, #3949ab, #7e57c2, #ba68c8);
+    display: flex;
+    align-items: center;
+    padding: 10px 40px;
+    height: 70px;
+}
+
+.logo img {
+    height: 40px;
+    background: white; /* Logo inside a white box as per image */
+    padding: 5px 15px;
+    border-radius: 4px;
+}
+
+.nav-links {
+    list-style: none;
+    display: flex;
+    margin-left: 40px;
+    gap: 20px;
+}
+
+.nav-links li a {
+    color: white;
+    text-decoration: none;
+    font-size: 0.95rem;
+    font-weight: 500;
+    transition: 0.2s;
+}
+
+/* Yellow Highlight for Active Page */
+.nav-links a.active {
+    color: #ffd700 !important; 
+    text-decoration: underline !important;
+    text-underline-offset: 5px;
+    font-weight: bold;
+}
+
+.nav-links a:hover {
+    color: #ffd700;
+}
+
+/* CONTAINER & CARD */
+.reminder-container {
+    display: flex; justify-content: center; padding: 40px 20px;
+}
+
+.reminder-card {
+    background: white;
+    width: 800px;
+    border-radius: 30px;
+    padding: 0 0 30px 0;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+    overflow: hidden;
+}
+
+.reminder-header {
+    background-color: #5c6bc0; /* Blue pill color */
+    color: white;
+    font-size: 32px;
+    font-weight: bold;
+    text-align: center;
+    padding: 10px;
+    margin: 20px 40px;
+    border-radius: 15px;
+}
+
+/* GRID LAYOUT */
+.form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    padding: 0 40px;
+    gap: 40px;
+}
+
+.input-box {
+    margin-bottom: 15px;
+}
+
+.input-box label {
+    display: block;
+    font-size: 12px;
+    color: #333;
+    margin-bottom: 5px;
+    font-style: italic;
+}
+
+.input-box input, .input-box select, .remark-section textarea {
+    width: 100%;
+    padding: 10px;
+    border: none;
+    background-color: #d9d9d9; /* Grey from your image */
+    border-radius: 10px;
+    font-size: 14px;
+    outline: none;
+}
+
+.remark-section {
+    padding: 0 40px;
+    margin-top: 10px;
+}
+
+.remark-section textarea {
+    height: 100px;
+    resize: none;
+}
+
+/* SEARCH FIELD SPECIFIC */
+.search-wrapper {
+    border: 3px solid black;
+    border-radius: 5px;
+    overflow: hidden;
+}
+
+/* BUTTON */
+.button-section {
+    display: flex;
+    justify-content: center;
+    margin-top: 20px;
+}
+
+.btn-done {
+    background-color: #5c6bc0;
+    color: white;
+    border: none;
+    padding: 10px 60px;
+    border-radius: 20px;
+    font-size: 18px;
+    font-weight: bold;
+    cursor: pointer;
+    text-transform: lowercase;
+}
+
+.btn-done:hover { background-color: #3f51b5; }
+
+/* Select2 Customization to match grey style */
+.select2-container--default .select2-selection--single {
+    background-color: #d9d9d9 !important;
+    border: none !important;
+    height: 40px !important;
+    border-radius: 0px !important;
+}

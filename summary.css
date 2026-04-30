@@ -1,0 +1,223 @@
+body {
+    margin: 0;
+    padding: 0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #f4f7ff;
+}
+
+/* Navbar with Gradient */
+.navbar {
+    background: linear-gradient(to right, #3949ab, #7e57c2, #ba68c8);
+    display: flex;
+    align-items: center;
+    padding: 10px 40px;
+    height: 70px;
+}
+
+.logo img {
+    height: 40px;
+    background: white; /* Logo inside a white box as per image */
+    padding: 5px 15px;
+    border-radius: 4px;
+}
+
+.nav-links {
+    list-style: none;
+    display: flex;
+    margin-left: 40px;
+    gap: 20px;
+}
+
+.nav-links li a {
+    color: white;
+    text-decoration: none;
+    font-size: 0.95rem;
+    font-weight: 500;
+    transition: 0.2s;
+}
+
+/* Yellow Highlight for Active Page */
+.nav-links a.active {
+    color: #ffd700 !important; 
+    text-decoration: underline !important;
+    text-underline-offset: 5px;
+    font-weight: bold;
+}
+
+.nav-links a:hover {
+    color: #ffd700;
+}
+
+/* Toolbar Styling */
+.toolbar {
+    padding: 15px 40px;
+    display: flex;
+    align-items: center;
+    background-color: #d1e3ff; 
+}
+
+.year-box {
+    background: #e0e0e0;
+    padding: 10px 40px;
+    border-radius: 20px;
+    font-weight: bold;
+    font-size: 1.2rem;
+}
+
+.search-container {
+    margin: 0 30px;
+    display: flex;
+    background: white;
+    border-radius: 25px;
+    padding: 5px 15px;
+    width: 300px;
+}
+
+.search-container input {
+    border: none;
+    outline: none;
+    width: 100%;
+    padding: 8px;
+}
+
+.search-btn {
+    background: #3f51b5;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 35px;
+    height: 35px;
+    cursor: pointer;
+}
+
+.export-btn {
+    background: #90ee90; /* Light green */
+    border: none;
+    padding: 10px 30px;
+    border-radius: 20px;
+    font-weight: bold;
+    font-size: 1.1rem;
+    box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
+    cursor: pointer;
+}
+
+/* ... Keep Navbar/Toolbar CSS same ... */
+
+.table-container { 
+    
+    padding: 10px; 
+    overflow-x: auto; }
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    background: white;
+    font-size: 11px;
+}
+
+/* Headers matching the Image */
+thead th {
+    background-color: #4b5d8f; /* Darker blue from screenshot */
+    color: white;
+    padding: 8px 4px;
+    border: 1px solid #7488bc;
+    text-transform: uppercase;
+    font-weight: bold;
+}
+
+thead th i { font-size: 8px; margin-left: 3px; color: #a5b4fc; }
+
+/* Filter row styling */
+.filter-row td {
+    background: #4b5d8f;
+    padding: 5px;
+    border: 1px solid #7488bc;
+}
+
+.filter-row select {
+    width: 100%;
+    border-radius: 12px; /* Rounded selects from screenshot */
+    border: none;
+    padding: 4px 8px;
+    font-size: 11px;
+    background: white;
+    cursor: pointer;
+}
+
+tbody td {
+    border: 1px solid #e2e8f0;
+    padding: 10px 5px;
+    text-align: center;
+    color: #444;
+}
+
+tbody tr:nth-child(even) { background-color: #f8fafc; }
+
+/* Styling for the Company Name column */
+tbody td:nth-child(9) {
+    font-weight: 50;
+}
+
+/* --- NEW STYLES TO MATCH IMAGE --- */
+
+/* Make the meta columns (Status, Type, etc.) very small */
+th:nth-child(2), th:nth-child(3), th:nth-child(4), 
+th:nth-child(5), th:nth-child(6), th:nth-child(7), th:nth-child(8) {
+    width: 60px !important;
+    font-size: 10px;
+}
+
+/* Apply width and alignment to both Header and Cells */
+th:nth-child(9), td:nth-child(9) {
+    width: 280px;
+    text-align: left;
+    padding-left: 15px;
+}
+
+/* Apply transparency ONLY to the data cells, NOT the header */
+td:nth-child(9) {
+    background-color: transparent;
+}
+
+td:nth-child(9) a {
+    
+    text-decoration: none;
+    font-weight: normal;
+}
+
+/* Make the Month columns (Jan-Dec) consistent */
+thead tr.main-headers th:nth-last-child(-n+12) {
+    width: 85px;
+    text-align: center;
+}
+
+/* Styling for the Green/Red Date Boxes (Badges) */
+.task-badge {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: bold;
+    text-align: center;
+    width: 80%;
+}
+
+.badge-green {
+    background-color: #9df3c4; /* Soft Green */
+    color: #1b5e20;
+}
+
+.badge-red {
+    background-color: #ffb3ba; /* Soft Pink/Red */
+    color: #b71c1c;
+}
+
+/* Clean up table borders and background */
+tbody td {
+    background-color: transparent !important;
+    border: 0.5px solid #dcdcdc;
+}
+
+tbody tr:nth-child(even) {
+    background-color: rgba(255, 255, 255, 0.3); /* Slight white tint for rows */
+}

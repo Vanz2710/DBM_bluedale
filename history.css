@@ -1,0 +1,162 @@
+body {
+    margin: 0;
+    padding: 0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #f4f7ff;
+}
+
+/* Navbar with Gradient */
+.navbar {
+    background: linear-gradient(to right, #3949ab, #7e57c2, #ba68c8);
+    display: flex;
+    align-items: center;
+    padding: 10px 40px;
+    height: 70px;
+}
+
+.logo img {
+    height: 40px;
+    background: white; /* Logo inside a white box as per image */
+    padding: 5px 15px;
+    border-radius: 4px;
+}
+
+.nav-links {
+    list-style: none;
+    display: flex;
+    margin-left: 40px;
+    gap: 20px;
+}
+
+.nav-links li a {
+    color: white;
+    text-decoration: none;
+    font-size: 0.95rem;
+    font-weight: 500;
+    transition: 0.2s;
+}
+
+/* Yellow Highlight for Active Page */
+.nav-links a.active {
+    color: #ffd700 !important; 
+    text-decoration: underline !important;
+    text-underline-offset: 5px;
+    font-weight: bold;
+}
+
+.nav-links a:hover {
+    color: #ffd700;
+}
+
+/* Toolbar Styling */
+.toolbar {
+    padding: 15px 40px;
+    display: flex;
+    align-items: center;
+    background-color: #d1e3ff; 
+}
+
+.main-container {
+    display: flex;
+    justify-content: center;
+    padding-top: 50px;
+    padding-bottom: 50px; /* Add some space at the bottom */
+}
+
+.white-card {
+    background: white;
+    width: 1000px; /* Adjusted width to fit all columns */
+    max-width: 95%; /* Responsive on smaller screens */
+    border-radius: 20px;
+    box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+    overflow: hidden; /* Ensures content respects border-radius */
+}
+
+.header-bar {
+    background-color: #f7e099; /* Yellowish background as in image */
+    color: #5b4600; /* Darker text for contrast */
+    font-size: 24px;
+    font-weight: bold;
+    padding: 15px 30px;
+    text-align: center;
+    border-bottom: 1px solid #e0c87a;
+}
+
+.history-table {
+    padding: 20px;
+    color: #333;
+}
+
+.table-header, .task-row {
+    display: flex;
+    align-items: center;
+    padding: 10px 0;
+}
+
+.table-header {
+    font-weight: bold;
+    background-color: #f0f0f0; /* Light grey header background */
+    border-bottom: 2px solid #ddd;
+    padding: 12px 0;
+    font-size: 14px;
+    text-transform: uppercase;
+}
+
+.task-row {
+    border-bottom: 1px solid #eee;
+}
+
+.task-row:last-child {
+    border-bottom: none; /* No border for the last row */
+}
+
+.col {
+    padding: 0 10px;
+    font-size: 13px;
+    /* Use flex-basis for initial width and flex-grow for remaining space */
+    flex-grow: 1; 
+    flex-shrink: 0;
+    overflow: hidden;
+    text-overflow: ellipsis; /* Add ellipsis for overflowed text */
+    white-space: normal; /* Allow text to wrap within the column */
+}
+
+/* Specific column widths/flex to match image proportions */
+.col.date { flex-basis: 90px; }   /* DATE */
+.col.cs { flex-basis: 80px; }     /* CS */
+.col.task { flex-basis: 120px; }  /* TASK */
+.col.action { flex-basis: 150px; } /* ACTION */
+.col.remark { flex-basis: 300px; flex-grow: 2; } /* REMARK - takes more space */
+.col.todo { flex-basis: 100px; text-align: right; } /* TODO button */
+
+/* Allow remark text to wrap but for other columns, keep it single line if possible */
+.col.remark { white-space: normal; } 
+.col.date, .col.cs, .col.task, .col.action { white-space: nowrap; } /* Try to keep these on one line */
+
+
+.todo-btn {
+    background-color: #5d78ff;
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 15px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: bold;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    white-space: nowrap;
+    text-decoration: none; /* Ensure no underline if it becomes a link */
+}
+
+.todo-btn:hover { background-color: #4a63e0; }
+.todo-btn i { font-size: 12px; }
+
+.no-tasks {
+    text-align: center;
+    padding: 30px;
+    color: #777;
+    font-style: italic;
+    font-size: 1.1em;
+}
