@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(& \"C:\\\\xampp\\\\apache\\\\bin\\\\httpd.exe\" -t 2>&1)",
+      "PowerShell(& \"C:\\\\xampp\\\\apache\\\\bin\\\\httpd.exe\" -k restart 2>&1)",
+      "PowerShell(Get-ChildItem -Path \"C:\\\\xampp\\\\CRM_BGOC\\\\app\\\\Http\" -Force | Select-Object Name, @{Name=\"Type\";Expression={if\\($_.PSIsContainer\\){\"DIR\"}else{\"FILE\"}}} | Format-Table -AutoSize)",
+      "Bash(Get-Content \"C:\\\\Users\\\\paula\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--xampp-htdocs-library-crm-v2\\\\31de71dd-67ee-46a0-8f88-ea6d40c9e215\\\\tasks\\\\brygeaxtu.output\" -Wait)",
+      "Bash(Select-String -Pattern \"spatie|Discovered|Lock|error|Error|Writing\" --Line-Buffered)",
+      "Bash(find \"C:/xampp/CRM_BGOC/resources\" -name \"*.vue\" -type f | head -50)",
+      "Read(//c/xampp/CRM_BGOC/resources/**)",
+      "Read(//c/xampp/CRM_BGOC/app/Http/Controllers/Api/**)",
+      "Bash(npm run *)",
+      "Bash(php artisan *)",
+      "Bash(Get-ChildItem -Path resources\\\\views -Recurse -Filter *.blade.php)",
+      "Bash(Select-Object -ExpandProperty FullName)"
+    ]
+  }
+}
