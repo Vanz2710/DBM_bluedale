@@ -1,0 +1,461 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CRM BGOC Upgrade Gantt Chart</title>
+<style>
+:root {
+  --color-text-primary: #172033;
+  --color-text-secondary: #46546a;
+  --color-text-tertiary: #7b8797;
+  --color-text-info: #1d4ed8;
+  --color-text-success: #15803d;
+  --color-text-warning: #b45309;
+  --color-background-primary: #ffffff;
+  --color-background-secondary: #f7f9fc;
+  --color-background-info: #dbeafe;
+  --color-background-success: #dcfce7;
+  --color-background-warning: #fef3c7;
+  --color-border-secondary: #d9e1ec;
+  --color-border-tertiary: #e6ebf2;
+  --color-border-info: #93c5fd;
+  --color-border-success: #86efac;
+  --color-border-warning: #fcd34d;
+  --border-radius-md: 8px;
+  --border-radius-lg: 12px;
+  --font-mono: Consolas, "Courier New", monospace;
+}
+body {
+  margin: 0;
+  padding: 24px;
+  background: #eef2f7;
+  color: var(--color-text-primary);
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+}
+.page {
+  max-width: 1440px;
+  margin: 0 auto;
+  background: #ffffff;
+  border: 1px solid #e1e7f0;
+  border-radius: 12px;
+  box-shadow: 0 12px 40px rgba(15, 23, 42, 0.08);
+  padding: 22px;
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+</style>
+</head>
+<body>
+<main class="page">
+<h2 class="sr-only">CRM BGOC upgrade Gantt chart version 3. Includes April prototype phase marked done, then 9 Laravel development phases from 4 May to 18 July 2026. System completion target 18 July, Ammar last day 31 July.</h2>
+
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+.gw { padding: 1rem 0; font-size: 12px; color: var(--color-text-primary); }
+
+.stats { display: grid; grid-template-columns: repeat(5,1fr); gap: 8px; margin-bottom: 14px; }
+.stat { background: var(--color-background-secondary); border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-md); padding: 10px 12px; }
+.stat-l { font-size: 10px; color: var(--color-text-tertiary); margin-bottom: 4px; }
+.stat-v { font-size: 15px; font-weight: 500; margin-bottom: 2px; }
+.stat-s { font-size: 10px; color: var(--color-text-tertiary); }
+.stat.hi { border-color: var(--color-border-success); }
+.stat.hi .stat-v { color: var(--color-text-success); }
+.stat.wa { border-color: var(--color-border-warning); }
+.stat.wa .stat-v { color: var(--color-text-warning); }
+
+.legend { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.lpill { display: flex; align-items: center; gap: 5px; background: var(--color-background-secondary); border: 0.5px solid var(--color-border-tertiary); border-radius: 20px; padding: 3px 9px; font-size: 10px; color: var(--color-text-secondary); }
+.ldot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.ldiam { width: 7px; height: 7px; border-radius: 1px; transform: rotate(45deg); flex-shrink: 0; }
+
+.tw { overflow-x: auto; border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-lg); }
+table { border-collapse: collapse; width: 100%; }
+
+.th-mo { background: var(--color-background-secondary); text-align: center; font-size: 10px; font-weight: 500; color: var(--color-text-secondary); padding: 4px 2px; border-bottom: 0.5px solid var(--color-border-tertiary); border-left: 0.5px solid var(--color-border-tertiary); }
+.th-ms { background: var(--color-background-secondary); text-align: center; font-size: 9px; padding: 2px; border-bottom: 0.5px solid var(--color-border-tertiary); }
+.th-ms.tc { background: var(--color-background-info); }
+.th-ms.gc { background: var(--color-background-success); }
+.th-ms.ap { background: var(--color-background-secondary); opacity: 0.6; }
+.th-wk { background: var(--color-background-secondary); text-align: center; font-size: 8px; color: var(--color-text-tertiary); padding: 2px 1px 3px; border-bottom: 0.5px solid var(--color-border-secondary); white-space: nowrap; }
+.th-wk.tc { background: var(--color-background-info); }
+.th-wk.gc { background: var(--color-background-success); }
+.th-wk.ap { opacity: 0.5; }
+.th-task { background: var(--color-background-secondary); padding: 4px 10px; text-align: left; font-size: 10px; font-weight: 500; color: var(--color-text-secondary); border-bottom: 0.5px solid var(--color-border-secondary); }
+
+.ph-row td { background: var(--color-background-secondary); padding: 5px 10px; border-top: 0.5px solid var(--color-border-tertiary); }
+.ph-row:first-child td { border-top: none; }
+.ph-in { display: flex; align-items: center; gap: 7px; }
+.ph-bar { width: 3px; height: 12px; border-radius: 2px; flex-shrink: 0; }
+.ph-nm { font-size: 11px; font-weight: 500; }
+.badge { font-size: 8px; font-weight: 500; padding: 1px 5px; border-radius: 3px; color: #fff; }
+.bd { background: #5F5E5A; }
+.b0 { background: #A32D2D; }
+.b1 { background: #854F0B; }
+.b01 { background: #7A4010; }
+.bbuf { background: #3B6D11; }
+
+.tk-row td { border-bottom: 0.5px solid var(--color-border-tertiary); height: 26px; }
+.tk-row:last-child td { border-bottom: none; }
+.tk-nm { padding: 0 8px 0 18px; font-size: 11px; color: var(--color-text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tk-in { display: flex; align-items: center; justify-content: space-between; gap: 4px; }
+.tk-tx { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 10px; }
+.who { font-size: 8px; padding: 1px 4px; border-radius: 3px; flex-shrink: 0; font-family: var(--font-mono); }
+.wv { color: var(--color-text-info); background: var(--color-background-info); border: 0.5px solid var(--color-border-info); }
+.wa { color: var(--color-text-warning); background: var(--color-background-warning); border: 0.5px solid var(--color-border-warning); }
+.wb { color: var(--color-text-secondary); background: var(--color-background-secondary); border: 0.5px solid var(--color-border-tertiary); }
+
+.bc { width: 46px; min-width: 46px; padding: 4px 0; height: 26px; }
+.bc.tc { background: var(--color-background-info); }
+.bc.gc { background: var(--color-background-success); }
+.bc.ap { opacity: 0.45; }
+.bar { height: 18px; opacity: 0.8; }
+.bar.done-bar { opacity: 0.4; background-image: repeating-linear-gradient(45deg, transparent, transparent 3px, rgba(255,255,255,0.15) 3px, rgba(255,255,255,0.15) 4px); }
+
+.ms-l { display: flex; align-items: center; justify-content: center; gap: 2px; }
+.ms-d { width: 5px; height: 5px; border-radius: 1px; transform: rotate(45deg); display: inline-block; flex-shrink: 0; }
+.ms-t { font-size: 8px; font-weight: 500; white-space: nowrap; }
+
+.fl { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.fli { display: flex; align-items: center; gap: 4px; font-size: 10px; color: var(--color-text-tertiary); }
+.fldot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+
+.note { margin-top: 14px; background: var(--color-background-secondary); border: 0.5px solid var(--color-border-tertiary); border-left: 3px solid var(--color-border-warning); border-radius: 0 var(--border-radius-md) var(--border-radius-md) 0; padding: 10px 14px; font-size: 11px; color: var(--color-text-secondary); line-height: 1.7; }
+.note strong { color: var(--color-text-primary); font-weight: 500; }
+
+.devkey { display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap; align-items: center; }
+.dki { display: flex; align-items: center; gap: 5px; font-size: 10px; color: var(--color-text-secondary); }
+
+.apr-label { font-size: 9px; font-weight: 500; color: var(--color-text-tertiary); background: var(--color-background-secondary); border: 0.5px dashed var(--color-border-tertiary); border-radius: 3px; padding: 1px 5px; }
+</style>
+
+<div class="gw">
+
+<div class="stats">
+  <div class="stat"><div class="stat-l">Prototype started</div><div class="stat-v">1 Apr 2026</div><div class="stat-s">Plain PHP · no planning</div></div>
+  <div class="stat"><div class="stat-l">Planning started</div><div class="stat-v">4 May 2026</div><div class="stat-s">Laravel build begins</div></div>
+  <div class="stat hi"><div class="stat-l">Completion target</div><div class="stat-v">18 Jul 2026</div><div class="stat-s">End of week 11</div></div>
+  <div class="stat wa"><div class="stat-l">Grace period</div><div class="stat-v">19–31 Jul</div><div class="stat-s">Buffer · Ammar's last weeks</div></div>
+  <div class="stat"><div class="stat-l">Developers</div><div class="stat-v">2 → 1</div><div class="stat-s">Ammar ends 31 Jul · Vance ends 28 Aug</div></div>
+</div>
+
+<div class="legend">
+  <div class="lpill"><div class="ldiam" style="background:#5F5E5A;"></div>April prototype — plain PHP, done, reference only</div>
+  <div class="lpill"><div class="ldiam" style="background:#7F77DD;"></div>Boss presentation — 11 May</div>
+  <div class="lpill"><div class="ldiam" style="background:#3B6D11;"></div>System complete — 18 Jul</div>
+  <div class="lpill"><div class="ldiam" style="background:#854F0B;"></div>Ammar last day — 31 Jul</div>
+  <div class="lpill"><div class="ldot" style="background:var(--color-text-info);opacity:0.5;"></div>Today · 4 May</div>
+  <div class="lpill"><div class="ldot" style="background:var(--color-text-success);opacity:0.4;"></div>Grace period</div>
+</div>
+
+<div class="tw"><table id="gt"></table></div>
+<div class="fl" id="fl"></div>
+
+<div class="note">
+  <strong>April context:</strong> Ammar began building plain PHP CRM screens from 1 April against <code>dbm_bluedale</code> (company list, PICs, todos, export, admin lookups). Vance built the root BGOC prototype against <code>bluedale2_crmbgoc</code> (dashboard, contacts list/view, full import system, data health, exhibitions, travel hub). This work is reference code only — the Laravel upgrade starts fresh from 4 May using the standardized BGOC schema.<br><br>
+  <strong>Hours:</strong> 25 guaranteed IT hours/week per developer (1–6 pm), with additional morning hours when available. AI-assisted development compresses estimated build time by ~40%.<br><br>
+  <strong>Module ownership:</strong> Vance — Contacts, Tracking General, Tracking Travel Guide, Admin. Ammar — Todos, Follow-ups, Forecasts, Projects, Billboard, Tempboard, Performance.
+</div>
+
+<div class="devkey">
+  <div class="dki"><span class="who wv">Vance</span> Contacts · Tracking · Admin</div>
+  <div class="dki"><span class="who wa">Ammar</span> Todos · Forecasts · Billboard · Performance</div>
+  <div class="dki"><span class="who wb">Both</span> Shared / paired sessions</div>
+</div>
+
+</div>
+
+<script>
+const APR_WEEKS = [
+  {n:"A1", d:"1–4 Apr",   mo:"April 2026 — Prototype (plain PHP, reference only)", ap:true},
+  {n:"A2", d:"7–11 Apr",  mo:"April 2026 — Prototype (plain PHP, reference only)", ap:true},
+  {n:"A3", d:"14–18 Apr", mo:"April 2026 — Prototype (plain PHP, reference only)", ap:true},
+  {n:"A4", d:"21–25 Apr", mo:"April 2026 — Prototype (plain PHP, reference only)", ap:true},
+  {n:"A5", d:"28Apr–2May",mo:"April 2026 — Prototype (plain PHP, reference only)", ap:true},
+];
+
+const DEV_WEEKS = [
+  {n:1,  d:"4–8 May",   mo:"May 2026"},
+  {n:2,  d:"11–15 May", mo:"May 2026"},
+  {n:3,  d:"18–22 May", mo:"May 2026"},
+  {n:4,  d:"25–29 May", mo:"May 2026"},
+  {n:5,  d:"1–5 Jun",   mo:"Jun 2026"},
+  {n:6,  d:"8–12 Jun",  mo:"Jun 2026"},
+  {n:7,  d:"15–19 Jun", mo:"Jun 2026"},
+  {n:8,  d:"22–26 Jun", mo:"Jun 2026"},
+  {n:9,  d:"29J–3 Jul", mo:"Jul 2026"},
+  {n:10, d:"6–10 Jul",  mo:"Jul 2026"},
+  {n:11, d:"14–18 Jul", mo:"Jul 2026"},
+  {n:12, d:"21–25 Jul", mo:"Jul 2026"},
+  {n:13, d:"28–31 Jul", mo:"Jul 2026"},
+];
+
+const ALL_WEEKS = [...APR_WEEKS, ...DEV_WEEKS];
+const TODAY_W = 1, PRESENT_W = 2, COMPLETE_W = 11, AMMAR_W = 13;
+
+const PHASES = [
+  {
+    name:"April prototype — plain PHP (reference only, not migrated to Laravel)",
+    color:"#888780", badgeCls:"bd", badgeTxt:"done",
+    apOnly: true,
+    tasks:[
+      {t:"BGOC DB connection · dashboard · analytics · nav shell",   a1:1,a2:3, w:"wv"},
+      {t:"Contact list, search, filters, pagination, profile view",  a1:1,a2:4, w:"wv"},
+      {t:"Full import system — upload, mapper, processor, dedup",    a1:2,a2:5, w:"wv"},
+      {t:"BGOC migration script · data health pages",                a1:3,a2:5, w:"wv"},
+      {t:"Exhibitions & Travel Hub directories (legacy read-only)",  a1:4,a2:5, w:"wv"},
+      {t:"Login/logout · company list, add, edit, detail, history",  a1:1,a2:4, w:"wa"},
+      {t:"Full PIC CRUD · todo/task list, add, edit, export",        a1:2,a2:5, w:"wa"},
+      {t:"Summary screen · Excel export · admin lookup creation",    a1:3,a2:5, w:"wa"},
+    ]
+  },
+  {
+    name:"Pre-work & planning — week 1 (4–8 May)",
+    color:"#5F5E5A", badgeCls:"bd", badgeTxt:"done",
+    tasks:[
+      {t:"Study & document current CRM system",                      s:1,e:1, w:"wb"},
+      {t:"ERD, use cases, technical documentation",                  s:1,e:1, w:"wb"},
+      {t:"Tech stack log · API inventory · permissions matrix",      s:1,e:1, w:"wb"},
+      {t:"Data migration specification",                             s:1,e:1, w:"wb"},
+      {t:"Gantt chart & work plan proposal",                         s:1,e:2, w:"wb"},
+    ]
+  },
+  {
+    name:"Phase 1 — Environment & framework setup",
+    color:"#378ADD", badgeCls:"b0", badgeTxt:"P0",
+    tasks:[
+      {t:"Laravel 11 · PHP 8.2 · Node 20 · MySQL 8 install",        s:2,e:2, w:"wb"},
+      {t:"Breeze auth · Sanctum SPA · Spatie permissions",           s:2,e:3, w:"wv"},
+      {t:"Vite 5 + Vue 3 build pipeline",                            s:2,e:3, w:"wa"},
+      {t:"Base Vue router + permission guard scaffold",               s:3,e:3, w:"wa"},
+      {t:"Laracasts & Vue Mastery — framework fundamentals",         s:2,e:3, w:"wb"},
+    ]
+  },
+  {
+    name:"Phase 2 — Database & migrations",
+    color:"#7F77DD", badgeCls:"b0", badgeTxt:"P0",
+    tasks:[
+      {t:"Write all Laravel migrations from SQL schema",             s:3,e:4, w:"wv"},
+      {t:"Fix contact_text_colors PK · boolean columns",             s:4,e:4, w:"wv"},
+      {t:"Separate WordPress tables to own database",                s:4,e:4, w:"wa"},
+      {t:"Roles & permissions seeder (Spatie)",                      s:4,e:5, w:"wb"},
+      {t:"Lookup data seeders — statuses, types, categories…",      s:4,e:5, w:"wa"},
+      {t:"Production migration scripts + rollback plan",             s:5,e:5, w:"wb"},
+    ]
+  },
+  {
+    name:"Phase 3 — Security & auth middleware",
+    color:"#E24B4A", badgeCls:"b0", badgeTxt:"P0",
+    tasks:[
+      {t:"Sanctum middleware on all API routes",                     s:4,e:5, w:"wv"},
+      {t:"Backend policies — replace frontend-only guards",          s:5,e:5, w:"wv"},
+      {t:"Admin route protection → 403 for non-admin",               s:5,e:6, w:"wv"},
+      {t:"Remove $request→all() · field whitelisting",               s:5,e:6, w:"wa"},
+      {t:"Standardize Spatie permission names",                      s:6,e:6, w:"wb"},
+    ]
+  },
+  {
+    name:"Phase 4 — Core modules backend",
+    color:"#3B6D11", badgeCls:"b01", badgeTxt:"P0/P1",
+    tasks:[
+      {t:"FormRequest validation classes — all modules",             s:5,e:7, w:"wb"},
+      {t:"Contacts — CRUD, incharges, import/export, summary",      s:5,e:7, w:"wv"},
+      {t:"To-dos — CRUD, date views, actions, export",               s:5,e:7, w:"wa"},
+      {t:"Follow-ups — CRUD, team visibility, export",               s:6,e:7, w:"wa"},
+      {t:"Forecasts — products, results, summary, export",           s:7,e:8, w:"wv"},
+      {t:"Projects — CRUD and date filters",                         s:7,e:8, w:"wa"},
+    ]
+  },
+  {
+    name:"Phase 5 — Extended modules backend",
+    color:"#0F6E56", badgeCls:"b1", badgeTxt:"P1",
+    tasks:[
+      {t:"Billboard — CRUD + missing site/size endpoints",           s:8,e:9,  w:"wa"},
+      {t:"Tempboard — CRUD and year filter",                         s:8,e:9,  w:"wv"},
+      {t:"Tracking General — master + 9-stage WIP workflow",         s:8,e:10, w:"wv"},
+      {t:"Tracking Travel Guide — master + package WIP",             s:9,e:10, w:"wv"},
+      {t:"Performance — targets, benchmarks, dashboard",             s:8,e:9,  w:"wa"},
+      {t:"Admin — users, roles, permissions, master data",           s:9,e:10, w:"wb"},
+      {t:"Announcements — create, broadcast, list",                  s:10,e:10, w:"wa"},
+    ]
+  },
+  {
+    name:"Phase 6 — Frontend Vue components",
+    color:"#993556", badgeCls:"b1", badgeTxt:"P1",
+    tasks:[
+      {t:"Contacts Vue — list, create, edit, info, summary",        s:7,e:9,  w:"wv"},
+      {t:"Todos & Follow-ups Vue components",                        s:7,e:9,  w:"wa"},
+      {t:"Forecasts & Projects Vue components",                      s:8,e:9,  w:"wv"},
+      {t:"Billboard & Tempboard Vue components",                     s:9,e:10, w:"wa"},
+      {t:"Tracking General & Travel Guide Vue",                      s:9,e:10, w:"wv"},
+      {t:"Performance & Admin Vue components",                       s:10,e:11, w:"wa"},
+      {t:"Normalize form validation error display",                  s:10,e:11, w:"wb"},
+      {t:"Permission-based nav — mirror backend guards",             s:10,e:11, w:"wa"},
+    ]
+  },
+  {
+    name:"Phase 7 — Exports, imports & files",
+    color:"#854F0B", badgeCls:"b01", badgeTxt:"P0/P1",
+    tasks:[
+      {t:"Confirm & test all Excel exports (maatwebsite)",           s:10,e:11, w:"wv"},
+      {t:"Contact import with real sample files",                    s:11,e:11, w:"wv"},
+      {t:"Migrate public assets, logos & tutorial files",            s:11,e:11, w:"wa"},
+      {t:"Storage link — remove /linkstorage, add deploy step",      s:11,e:11, w:"wa"},
+    ]
+  },
+  {
+    name:"Phase 8 — Testing",
+    color:"#0C447C", badgeCls:"b01", badgeTxt:"P0/P1",
+    tasks:[
+      {t:"Auth & API permission boundary tests",                     s:10,e:11, w:"wb"},
+      {t:"CRUD tests — contacts, todos, forecasts, projects",        s:11,e:11, w:"wv"},
+      {t:"Export & import tests",                                    s:11,e:11, w:"wa"},
+      {t:"Tracking WIP auto-create & workflow tests",                s:11,e:11, w:"wv"},
+      {t:"Admin role/permission & seeder tests",                     s:11,e:11, w:"wb"},
+    ]
+  },
+  {
+    name:"Grace period — UAT & bug fixes  (19–31 Jul)",
+    color:"#3DB87A", badgeCls:"bbuf", badgeTxt:"buffer",
+    tasks:[
+      {t:"UAT by module owners — sign-off per use case",             s:12,e:13, w:"wb"},
+      {t:"Bug fixes & edge case resolution",                         s:12,e:13, w:"wb"},
+      {t:"Production migration dry run",                             s:12,e:13, w:"wv"},
+      {t:"Handover notes — Ammar to Vance",                          s:13,e:13, w:"wb"},
+    ]
+  },
+  {
+    name:"Phase 9 — Deployment  (Aug · Vance solo)",
+    color:"#993C1D", badgeCls:"b0", badgeTxt:"P0",
+    tasks:[
+      {t:"Deploy to new server environment",                         s:13,e:13, w:"wv"},
+      {t:"Monitor logs & verify permissions post-cutover",           s:13,e:13, w:"wv"},
+      {t:"Final documentation & handover package",                   s:13,e:13, w:"wv"},
+    ]
+  },
+];
+
+const TW = 230, AWW = 38, WW = 48;
+
+function colCls(w) {
+  if (w.ap) return "ap";
+  if (w.n === TODAY_W) return "tc";
+  if (w.n >= 12) return "gc";
+  return "";
+}
+
+// Build month header spans
+const moSpans = [];
+let curMo = ALL_WEEKS[0].mo, cnt = 0;
+ALL_WEEKS.forEach(w => {
+  if (w.mo === curMo) { cnt++; }
+  else { moSpans.push({mo: curMo, span: cnt, isAp: curMo.includes('April')}); curMo = w.mo; cnt = 1; }
+});
+moSpans.push({mo: curMo, span: cnt, isAp: curMo.includes('April')});
+
+const t = document.getElementById('gt');
+let h = '<thead>';
+
+// Month row
+h += '<tr>';
+h += `<th class="th-task" style="width:${TW}px;min-width:${TW}px;"></th>`;
+moSpans.forEach(ms => {
+  const w = ms.isAp ? AWW : WW;
+  const colW = ms.span * (ms.isAp ? AWW : WW);
+  h += `<th class="th-mo" colspan="${ms.span}" style="width:${colW}px;${ms.isAp?'opacity:0.5;font-style:italic;':''}">${ms.isAp ? 'April 2026 — prototype only (plain PHP)' : ms.mo}</th>`;
+});
+h += '</tr>';
+
+// Milestone row
+h += '<tr>';
+h += `<th class="th-task" style="width:${TW}px;min-width:${TW}px;border-bottom:0.5px solid var(--color-border-tertiary);"></th>`;
+ALL_WEEKS.forEach(w => {
+  const cc = colCls(w);
+  const ww = w.ap ? AWW : WW;
+  let inner = '';
+  if (!w.ap) {
+    if (w.n === PRESENT_W)  inner = `<div class="ms-l"><span class="ms-d" style="background:#7F77DD;"></span><span class="ms-t" style="color:#7F77DD;">11 May</span></div>`;
+    else if (w.n === COMPLETE_W) inner = `<div class="ms-l"><span class="ms-d" style="background:#3B6D11;"></span><span class="ms-t" style="color:#3B6D11;">18 Jul</span></div>`;
+    else if (w.n === AMMAR_W)    inner = `<div class="ms-l"><span class="ms-d" style="background:#854F0B;"></span><span class="ms-t" style="color:#854F0B;">31 Jul</span></div>`;
+    else if (w.n === TODAY_W)    inner = `<div class="ms-l"><span class="ms-t" style="color:var(--color-text-info);">today</span></div>`;
+  }
+  h += `<th class="th-ms ${cc}" style="width:${ww}px;min-width:${ww}px;">${inner}</th>`;
+});
+h += '</tr>';
+
+// Week date row
+h += '<tr>';
+h += `<th class="th-task" style="width:${TW}px;min-width:${TW}px;">Task</th>`;
+ALL_WEEKS.forEach(w => {
+  const cc = colCls(w);
+  const ww = w.ap ? AWW : WW;
+  h += `<th class="th-wk ${cc}" style="width:${ww}px;min-width:${ww}px;">${w.d}</th>`;
+});
+h += '</tr></thead><tbody>';
+
+// Phase + task rows
+PHASES.forEach((ph, pi) => {
+  h += `<tr class="ph-row"><td colspan="${ALL_WEEKS.length+1}">
+    <div class="ph-in">
+      <div class="ph-bar" style="background:${ph.color};"></div>
+      <span class="ph-nm" style="color:${ph.color};">${ph.name}</span>
+      <span class="badge ${ph.badgeCls}">${ph.badgeTxt}</span>
+    </div>
+  </td></tr>`;
+
+  ph.tasks.forEach((tk, ti) => {
+    const rowbg = ti%2===0 ? 'var(--color-background-primary)' : 'var(--color-background-secondary)';
+    const whoLabel = tk.w==='wv'?'Vance':tk.w==='wa'?'Ammar':'Both';
+    h += `<tr class="tk-row" style="background:${rowbg};">`;
+    h += `<td class="tk-nm" style="width:${TW}px;min-width:${TW}px;">
+      <div class="tk-in">
+        <span class="tk-tx">${tk.t}</span>
+        <span class="who ${tk.w}">${whoLabel}</span>
+      </div>
+    </td>`;
+
+    ALL_WEEKS.forEach(w => {
+      const cc = colCls(w);
+      const ww = w.ap ? AWW : WW;
+      let active = false;
+      if (w.ap && ph.apOnly) {
+        const aNum = parseInt(w.n.replace('A',''));
+        active = aNum >= tk.a1 && aNum <= tk.a2;
+      } else if (!w.ap && !ph.apOnly) {
+        active = w.n >= tk.s && w.n <= tk.e;
+      }
+
+      if (!active) { h += `<td class="bc ${cc}" style="width:${ww}px;min-width:${ww}px;"></td>`; return; }
+
+      const isFirst  = w.ap ? (parseInt(w.n.replace('A',''))===tk.a1) : (w.n===tk.s);
+      const isLast   = w.ap ? (parseInt(w.n.replace('A',''))===tk.a2) : (w.n===tk.e);
+      const isSingle = w.ap ? (tk.a1===tk.a2) : (tk.s===tk.e);
+      const br = isSingle?'4px':isFirst?'4px 0 0 4px':isLast?'0 4px 4px 0':'0';
+      const ml = isFirst?'2px':'0', mr = isLast?'2px':'0';
+      const doneBar = ph.apOnly ? 'done-bar' : '';
+
+      h += `<td class="bc ${cc}" style="width:${ww}px;min-width:${ww}px;">
+        <div class="bar ${doneBar}" style="background:${ph.color};border-radius:${br};margin-left:${ml};margin-right:${mr};"></div>
+      </td>`;
+    });
+    h += '</tr>';
+  });
+});
+
+h += '</tbody>';
+t.innerHTML = h;
+
+document.getElementById('fl').innerHTML = PHASES.map(p=>`<div class="fli"><div class="fldot" style="background:${p.color};"></div>${p.name.replace(/Phase \d+ — /,'').replace(/ \(.*\)/,'').replace(/April prototype.*/,'April prototype — plain PHP').replace(/Pre-work.*/,'Pre-work & planning').replace(/Grace period.*/,'Grace period & UAT')}</div>`).join('');
+</script>
+</main>
+</body>
+</html>
