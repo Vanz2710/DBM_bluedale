@@ -34,7 +34,7 @@
       <button class="btn btn-primary" @click="load">Search</button>
     </div>
 
-    <div v-if="loading" class="loading-msg">Loading…</div>
+    <LoadingSpinner v-if="loading" />
     <div v-else class="table-wrap">
       <div class="table-header-bar">
         <span>{{ dateLabel }} — {{ meta.total ?? 0 }} record(s)</span>
@@ -84,6 +84,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import api from '../api.js';
+import LoadingSpinner from '../components/LoadingSpinner.vue';
 
 const date    = ref(new Date().toISOString().slice(0, 10));
 const search  = ref('');
@@ -180,4 +181,18 @@ tbody tr:hover { background: #f8fafc; }
 .btn-edit { background: #fefce8; }
 .btn-edit:hover { background: #ca8a04; }
 .empty-state { text-align: center; padding: 48px; color: #94a3b8; font-size: 14px; }
+
+/* Responsive */
+@media (max-width: 768px) {
+  .page { padding: 16px 12px; }
+  .page-banner { flex-direction: column; align-items: flex-start; gap: 12px; }
+  .table-wrap { overflow-x: auto; }
+  table { min-width: 750px; }
+}
+@media (max-width: 640px) {
+  .page { padding: 12px 8px; }
+  .filter-group { flex: 1 1 45%; }
+  .filter-group.wide { flex: 1 1 100%; }
+  .filter-group.wide input { width: 100%; }
+}
 </style>

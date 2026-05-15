@@ -117,4 +117,9 @@ async function handleLogin() {
 }
 .btn-login:disabled { opacity: 0.6; cursor: not-allowed; }
 .btn-login:hover:not(:disabled) { opacity: 0.92; }
+
+/* Responsive */
+@media (max-width: 480px) {
+  .login-card { padding: 32px 24px; border-radius: 14px; }
+}
 </style>

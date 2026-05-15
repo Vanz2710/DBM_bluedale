@@ -8,7 +8,7 @@
       </div>
     </div>
 
-    <div v-if="loading" class="loading-msg">Loading…</div>
+    <LoadingSpinner v-if="loading" />
 
     <template v-else-if="contact">
       <div class="profile-header">
@@ -115,6 +115,7 @@
 import { ref, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
 import api from '../api.js';
+import LoadingSpinner from '../components/LoadingSpinner.vue';
 
 const route = useRoute();
 const id = route.params.id;
@@ -165,4 +166,19 @@ tbody tr:hover { background: #f8fafc; }
 .no-data { font-size: 14px; color: #94a3b8; font-style: italic; padding: 8px 0; margin: 0; }
 .todo-date { font-size: 12px; font-weight: 700; color: #64748b; white-space: nowrap; }
 .task-badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; background: #eff6ff; color: #3b82f6; }
+
+/* Responsive */
+@media (max-width: 768px) {
+  .page { padding: 16px 12px; }
+  .page-header { flex-direction: column; align-items: flex-start; gap: 10px; }
+  .card { padding: 16px 14px; overflow-x: auto; }
+  .info-grid { grid-template-columns: 1fr; gap: 14px; }
+  .profile-header { padding: 20px; }
+  .profile-header h1 { font-size: 18px; }
+  table { min-width: 500px; }
+}
+@media (max-width: 640px) {
+  .page { padding: 12px 8px; }
+  .header-actions { flex-wrap: wrap; }
+}
 </style>

@@ -72,7 +72,7 @@
 
     <!-- Table -->
     <div class="table-wrap">
-      <div v-if="loading" class="loading-msg">Loading…</div>
+      <LoadingSpinner v-if="loading" />
       <table v-else>
         <thead>
           <tr>
@@ -122,6 +122,7 @@
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue';
 import axios from '../api.js';
+import LoadingSpinner from '../components/LoadingSpinner.vue';
 
 const loading  = ref(true);
 const contacts = ref([]);
@@ -221,4 +222,19 @@ tbody tr:hover { background:#f8fafc; }
 .page-btn:hover { border-color:#3498db; color:#3498db; }
 .page-btn.active { background:#3498db; color:white; border-color:#3498db; font-weight:700; }
 .page-btn:disabled { color:#cbd5e1; cursor:not-allowed; }
+
+/* Responsive */
+@media (max-width: 768px) {
+  .page { padding: 16px 12px; }
+  .page-banner { flex-direction: column; gap: 12px; padding: 20px 20px; }
+  .banner-count { font-size: 28px; text-align: left; }
+  .table-wrap { overflow-x: auto; }
+  table { min-width: 680px; }
+}
+@media (max-width: 640px) {
+  .page { padding: 12px 8px; }
+  .filter-group { flex: 1 1 100%; min-width: 100%; }
+  .filter-group.wide { min-width: 100%; }
+  .btn-actions { width: 100%; }
+}
 </style>

@@ -8,11 +8,12 @@ class ToDo extends Model
 {
     protected $table = 'to_dos';
 
-    protected $fillable = ['contact_id', 'user_id', 'task_id', 'todo_date', 'date_created', 'todo_remark'];
+    protected $fillable = ['contact_id', 'user_id', 'task_id', 'todo_date', 'date_created', 'todo_remark', 'completion_status', 'completed_at'];
 
     protected $casts = [
         'todo_date'    => 'date',
         'date_created' => 'date',
+        'completed_at' => 'datetime',
     ];
 
     public function contact()

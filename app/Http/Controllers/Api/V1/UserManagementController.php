@@ -22,7 +22,7 @@ class UserManagementController extends Controller
         $request->validate([
             'name'                  => 'required|string|max:255',
             'email'                 => 'required|email|unique:users,email',
-            'password'              => ['required', Password::min(8), 'confirmed'],
+            'password'              => ['required', Password::min(8)->mixedCase()->numbers()->symbols(), 'confirmed'],
             'password_confirmation' => 'required',
             'role'                  => 'nullable|string|exists:roles,name',
         ]);
@@ -48,7 +48,7 @@ class UserManagementController extends Controller
         $request->validate([
             'name'                  => 'sometimes|required|string|max:255',
             'email'                 => 'sometimes|required|email|unique:users,email,' . $user->id,
-            'password'              => ['sometimes', 'nullable', Password::min(8), 'confirmed'],
+            'password'              => ['sometimes', 'nullable', Password::min(8)->mixedCase()->numbers()->symbols(), 'confirmed'],
             'password_confirmation' => 'required_with:password',
         ]);
 

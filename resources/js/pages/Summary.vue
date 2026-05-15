@@ -67,7 +67,7 @@
       </div>
     </div>
 
-    <div v-if="loading" class="loading-msg">Loading…</div>
+    <LoadingSpinner v-if="loading" />
     <div v-else class="table-wrap">
       <table>
         <thead>
@@ -116,6 +116,7 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import api from '../api.js';
+import LoadingSpinner from '../components/LoadingSpinner.vue';
 
 const months = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
 const years = Array.from({ length: 7 }, (_, i) => 2024 + i);
@@ -209,4 +210,18 @@ tbody tr:hover { background: #f8fafc; }
 .badge-date { font-weight: 700; font-size: 10px; display: block; }
 .badge-info { display: block; font-size: 8px; opacity: 0.8; }
 .empty-state { text-align: center; padding: 40px; color: #94a3b8; font-size: 14px; }
+
+/* Responsive */
+@media (max-width: 768px) {
+  .page { padding: 16px 12px; }
+  .table-wrap { overflow-x: auto; }
+  table { min-width: 900px; }
+}
+@media (max-width: 640px) {
+  .page { padding: 12px 8px; }
+  .filter-group { flex: 1 1 45%; }
+  .filter-group.wide { flex: 1 1 100%; }
+  .filter-group.wide input { width: 100%; }
+  .filter-actions { width: 100%; }
+}
 </style>

@@ -5,7 +5,7 @@
       <p>Update company information</p>
     </div>
     <div class="card">
-      <div v-if="loading" class="loading-msg">Loading…</div>
+      <LoadingSpinner v-if="loading" />
       <form v-else @submit.prevent="submit">
         <div v-if="error" class="error-box">{{ error }}</div>
         <div class="form-group">
@@ -80,6 +80,7 @@
 import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import api from '../api.js';
+import LoadingSpinner from '../components/LoadingSpinner.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -175,4 +176,15 @@ onMounted(async () => {
 .btn-cancel { background: #f1f5f9; color: #64748b; }
 .btn-save { flex: 1; background: #f59e0b; color: white; justify-content: center; }
 .btn-save:disabled { background: #94a3b8; cursor: not-allowed; }
+
+/* Responsive */
+@media (max-width: 768px) {
+  .page { padding: 16px 12px; }
+  .card { padding: 20px 16px; }
+  .form-row { grid-template-columns: 1fr; }
+}
+@media (max-width: 640px) {
+  .page { padding: 12px 8px; }
+  .btn-row { flex-wrap: wrap; }
+}
 </style>

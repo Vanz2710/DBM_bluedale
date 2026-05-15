@@ -36,18 +36,19 @@ class GlobalTodoController extends Controller
 
         $todos->getCollection()->transform(function ($t) {
             return [
-                'id'           => $t->id,
-                'todo_date'    => $t->todo_date?->format('d-m-Y'),
-                'date_created' => $t->date_created?->format('d-m-Y'),
-                'todo_remark'  => $t->todo_remark,
-                'task'         => $t->task?->name,
-                'task_id'      => $t->task_id,
-                'user'         => $t->user?->name,
-                'user_id'      => $t->user_id,
-                'contact_id'   => $t->contact_id,
-                'contact_name' => $t->contact?->name,
-                'status'       => $t->contact?->status?->name,
-                'type'         => $t->contact?->type?->name,
+                'id'                => $t->id,
+                'todo_date'         => $t->todo_date?->format('d-m-Y'),
+                'date_created'      => $t->date_created?->format('d-m-Y'),
+                'todo_remark'       => $t->todo_remark,
+                'task'              => $t->task?->name,
+                'task_id'           => $t->task_id,
+                'user'              => $t->user?->name,
+                'user_id'           => $t->user_id,
+                'contact_id'        => $t->contact_id,
+                'contact_name'      => $t->contact?->name,
+                'status'            => $t->contact?->status?->name,
+                'type'              => $t->contact?->type?->name,
+                'completion_status' => $t->completion_status ?? 'pending',
             ];
         });
 
@@ -117,6 +118,21 @@ class GlobalTodoController extends Controller
     {
         ToDo::findOrFail($id)->delete();
         return response()->json(['status' => 'success']);
+    }
+
+    public function updateStatus(Request $request, string $id)
+    {
+        $todo = ToDo::findOrFail($id);
+
+        $validated = $request->validate([
+            'status' => 'required|in:pending,completed,cancelled',
+        ]);
+
+        $todo->completion_status = $validated['status'];
+        $todo->completed_at      = $validated['status'] === 'completed' ? now() : null;
+        $todo->save();
+
+        return response()->json(['status' => 'success', 'completion_status' => $todo->completion_status]);
     }
 
     public function export(Request $request)

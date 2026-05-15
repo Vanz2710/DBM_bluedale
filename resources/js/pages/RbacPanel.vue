@@ -46,7 +46,7 @@
           <span class="panel-title">Roles</span>
           <span class="count-badge">{{ roles.length }}</span>
         </div>
-        <div v-if="loading" class="loading-msg">Loading…</div>
+        <LoadingSpinner v-if="loading" />
         <table v-else>
           <thead>
             <tr><th>#</th><th>Role</th><th>Description</th><th>Permissions</th><th>Actions</th></tr>
@@ -104,7 +104,7 @@
           <span class="panel-title">Permissions</span>
           <span class="count-badge">{{ permissions.length }}</span>
         </div>
-        <div v-if="loading" class="loading-msg">Loading…</div>
+        <LoadingSpinner v-if="loading" />
         <table v-else>
           <thead>
             <tr><th>#</th><th>Permission</th><th>Description</th><th>Actions</th></tr>
@@ -149,17 +149,45 @@
           </div>
           <div class="form-field">
             <label>Password</label>
-            <input v-model="userForm.password" type="password" placeholder="Min. 8 characters">
+            <div class="pw-wrap">
+              <input v-model="userForm.password" :type="showUserPw ? 'text' : 'password'" placeholder="Min. 8 characters">
+              <button type="button" class="pw-toggle" @click="showUserPw = !showUserPw" tabindex="-1">
+                <svg v-if="showUserPw" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                </svg>
+                <svg v-else xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                </svg>
+              </button>
+            </div>
+            <div v-if="userForm.password" class="pw-hints">
+              <span :class="['hint', pwCheck(userForm.password).upper  ? 'ok' : 'fail']">A–Z</span>
+              <span :class="['hint', pwCheck(userForm.password).num    ? 'ok' : 'fail']">0–9</span>
+              <span :class="['hint', pwCheck(userForm.password).sym    ? 'ok' : 'fail']">!@#</span>
+              <span :class="['hint', pwCheck(userForm.password).length ? 'ok' : 'fail']">8+ chars</span>
+            </div>
           </div>
           <div class="form-field">
             <label>Confirm Password</label>
-            <input v-model="userForm.password_confirmation" type="password" placeholder="Repeat password">
+            <div class="pw-wrap">
+              <input v-model="userForm.password_confirmation" :type="showUserConfPw ? 'text' : 'password'" placeholder="Repeat password">
+              <button type="button" class="pw-toggle" @click="showUserConfPw = !showUserConfPw" tabindex="-1">
+                <svg v-if="showUserConfPw" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                </svg>
+                <svg v-else xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                </svg>
+              </button>
+            </div>
           </div>
         </div>
         <div v-if="formError" class="form-error">{{ formError }}</div>
         <div class="form-actions">
           <button class="btn btn-primary" @click="createUser"
-            :disabled="!userForm.name.trim() || !userForm.email.trim() || !userForm.password.trim()">
+            :disabled="!userForm.name.trim() || !userForm.email.trim() || !pwStrong(userForm.password)">
             Add User
           </button>
         </div>
@@ -170,7 +198,7 @@
           <span class="panel-title">Users</span>
           <span class="count-badge">{{ users.length }}</span>
         </div>
-        <div v-if="loading" class="loading-msg">Loading…</div>
+        <LoadingSpinner v-if="loading" />
         <table v-else>
           <thead>
             <tr><th>#</th><th>Name</th><th>Email</th><th>Roles</th><th>Joined</th><th>Actions</th></tr>
@@ -277,18 +305,46 @@
               </div>
               <div class="form-field">
                 <label>New Password <span class="optional">leave blank to keep current</span></label>
-                <input v-model="editUserForm.password" type="password" class="edit-input" placeholder="New password…">
+                <div class="pw-wrap">
+                  <input v-model="editUserForm.password" :type="showEditPw ? 'text' : 'password'" class="edit-input" placeholder="New password…">
+                  <button type="button" class="pw-toggle" @click="showEditPw = !showEditPw" tabindex="-1">
+                    <svg v-if="showEditPw" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                    </svg>
+                    <svg v-else xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                  </button>
+                </div>
+                <div v-if="editUserForm.password" class="pw-hints">
+                  <span :class="['hint', pwCheck(editUserForm.password).upper  ? 'ok' : 'fail']">A–Z</span>
+                  <span :class="['hint', pwCheck(editUserForm.password).num    ? 'ok' : 'fail']">0–9</span>
+                  <span :class="['hint', pwCheck(editUserForm.password).sym    ? 'ok' : 'fail']">!@#</span>
+                  <span :class="['hint', pwCheck(editUserForm.password).length ? 'ok' : 'fail']">8+ chars</span>
+                </div>
               </div>
               <div class="form-field" v-if="editUserForm.password">
                 <label>Confirm New Password</label>
-                <input v-model="editUserForm.password_confirmation" type="password" class="edit-input" placeholder="Confirm new password…">
+                <div class="pw-wrap">
+                  <input v-model="editUserForm.password_confirmation" :type="showEditConfPw ? 'text' : 'password'" class="edit-input" placeholder="Confirm new password…">
+                  <button type="button" class="pw-toggle" @click="showEditConfPw = !showEditConfPw" tabindex="-1">
+                    <svg v-if="showEditConfPw" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                    </svg>
+                    <svg v-else xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
           <div class="modal-foot">
             <button class="btn btn-ghost" @click="closeEditUserModal">Cancel</button>
             <button class="btn btn-primary" @click="saveEditUser"
-              :disabled="!editUserForm.name.trim() || !editUserForm.email.trim()">Save Changes</button>
+              :disabled="!editUserForm.name.trim() || !editUserForm.email.trim() || (editUserForm.password && !pwStrong(editUserForm.password))">Save Changes</button>
           </div>
         </div>
       </div>
@@ -300,6 +356,7 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue';
 import api from '../api.js';
+import LoadingSpinner from '../components/LoadingSpinner.vue';
 
 const tabs = [
   { key: 'roles',       label: 'Roles' },
@@ -326,6 +383,25 @@ const editingPerm = ref(null);
 const permModal     = reactive({ open: false, role: null, selected: [] });
 const roleModal     = reactive({ open: false, user: null, selected: [] });
 const editUserModal = reactive({ open: false, user: null, error: '' });
+
+const showUserPw     = ref(false);
+const showUserConfPw = ref(false);
+const showEditPw     = ref(false);
+const showEditConfPw = ref(false);
+
+function pwCheck(pw) {
+  return {
+    upper:  /[A-Z]/.test(pw),
+    num:    /[0-9]/.test(pw),
+    sym:    /[^A-Za-z0-9]/.test(pw),
+    length: pw.length >= 8,
+  };
+}
+
+function pwStrong(pw) {
+  const c = pwCheck(pw);
+  return c.upper && c.num && c.sym && c.length;
+}
 
 function tabCount(key) {
   if (key === 'roles')       return roles.value.length || null;
@@ -473,6 +549,7 @@ async function createUser() {
     users.value.push(res.data.data);
     userForm.name = ''; userForm.email = ''; userForm.password = '';
     userForm.password_confirmation = ''; userForm.role = '';
+    showUserPw.value = false; showUserConfPw.value = false;
   } catch (e) { handleError(e); }
 }
 
@@ -491,6 +568,7 @@ function openEditUserModal(user) {
   editUserForm.email  = user.email;
   editUserForm.password = '';
   editUserForm.password_confirmation = '';
+  showEditPw.value = false; showEditConfPw.value = false;
   editUserModal.open  = true;
 }
 
@@ -605,6 +683,40 @@ onMounted(() => switchTab('roles'));
 .optional { font-weight: 400; color: #94a3b8; font-size: 11px; margin-left: 4px; }
 
 .form-error { margin: 0 24px; padding: 10px 14px; background: #fef2f2; color: #dc2626; font-size: 12px; font-weight: 600; border-radius: 8px; border: 1px solid #fecaca; }
+
+/* ── Password toggle & strength hints ── */
+.pw-wrap {
+  display: flex; align-items: center;
+  border: 1.5px solid #e2e8f0; border-radius: 8px;
+  overflow: hidden; transition: border-color 0.15s;
+}
+.pw-wrap:focus-within {
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99,102,241,0.08);
+}
+.pw-wrap input {
+  flex: 1; min-width: 0;
+  height: 38px; padding: 0 12px;
+  border: none !important; box-shadow: none !important;
+  outline: none; background: transparent;
+  font-size: 13px; color: #0f172a;
+}
+.pw-wrap .edit-input {
+  border: none !important; box-shadow: none !important;
+  height: 38px; border-radius: 0;
+}
+.pw-toggle {
+  flex-shrink: 0; width: 36px; height: 38px;
+  padding: 0; border: none; border-left: 1px solid #e2e8f0;
+  background: transparent; color: #94a3b8;
+  cursor: pointer; display: flex; align-items: center;
+  justify-content: center; transition: color 0.15s, background 0.15s;
+}
+.pw-toggle:hover { color: #475569; background: #f8fafc; }
+.pw-hints { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 5px; }
+.hint { font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 10px; }
+.hint.ok   { background: #dcfce7; color: #166534; }
+.hint.fail { background: #fee2e2; color: #991b1b; }
 
 .form-actions {
   display: flex; gap: 8px; padding: 16px 24px 20px;
@@ -721,4 +833,25 @@ tbody tr:hover { background: #fafbff; }
   font-size: 13px; outline: none; width: 100%; box-sizing: border-box;
 }
 .edit-input:focus { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.08); }
+
+/* Responsive */
+@media (max-width: 1024px) {
+  .page { padding: 20px 16px; }
+  .form-grid-3 { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 768px) {
+  .page { padding: 16px 12px; }
+  .page-banner { flex-direction: column; align-items: flex-start; gap: 14px; }
+  .tab-group { flex-wrap: wrap; }
+  .panel { overflow-x: auto; }
+  table { min-width: 580px; }
+  .form-grid { grid-template-columns: 1fr; }
+  .form-grid-3 { grid-template-columns: 1fr; }
+  .edit-grid { grid-template-columns: 1fr; }
+  .modal { width: 95vw; }
+}
+@media (max-width: 640px) {
+  .page { padding: 12px 8px; }
+  .form-actions { flex-wrap: wrap; }
+}
 </style>

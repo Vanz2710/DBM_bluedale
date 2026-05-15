@@ -15,7 +15,7 @@
     </div>
 
     <div class="card">
-      <div v-if="loading" class="loading-msg">Loading…</div>
+      <LoadingSpinner v-if="loading" />
       <template v-else>
         <div class="add-form">
           <input v-model="newName" :placeholder="`Add new ${currentTab.label.toLowerCase()}…`" @keyup.enter="addItem">
@@ -58,6 +58,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import api from '../api.js';
+import LoadingSpinner from '../components/LoadingSpinner.vue';
 
 const tabs = [
   { key: 'statuses',   label: 'Statuses' },
@@ -207,4 +208,16 @@ tbody tr:hover { background: #f8fafc; }
 .btn-save:hover { background: #86efac; }
 .btn-cancel { background: #f1f5f9; color: #64748b; }
 .empty-state { text-align: center; padding: 32px; color: #94a3b8; font-size: 13px; }
+
+/* Responsive */
+@media (max-width: 768px) {
+  .page { padding: 16px 12px; }
+  .card { padding: 16px 14px; }
+  table { overflow-x: auto; display: block; }
+}
+@media (max-width: 640px) {
+  .page { padding: 12px 8px; }
+  .add-form { flex-wrap: wrap; }
+  .add-form input { flex: 1 1 100%; }
+}
 </style>

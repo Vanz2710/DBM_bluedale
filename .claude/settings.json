@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install *)",
+      "Bash(for f *)",
+      "Read(//c/xampp/htdocs/library_crm_v2/resources/js/**)",
+      "Bash(Remove-Item \"c:\\\\xampp\\\\htdocs\\\\library_crm_v2\\\\resources\\\\js\\\\pages\\\\Exhibitions.vue\" -Force)",
+      "Bash(Remove-Item \"c:\\\\xampp\\\\htdocs\\\\library_crm_v2\\\\app\\\\Http\\\\Controllers\\\\Api\\\\V1\\\\ExhibitionController.php\" -Force)",
+      "Bash(Get-ChildItem -Path \"c:\\\\xampp\\\\htdocs\\\\library_crm_v2\" -Directory)",
+      "Bash(Select-Object Name)"
+    ]
+  }
+}

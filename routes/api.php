@@ -7,15 +7,18 @@ use App\Http\Controllers\Api\V1\AnalyticsController;
 use App\Http\Controllers\Api\V1\ContactController;
 use App\Http\Controllers\Api\V1\ContactInchargeController;
 use App\Http\Controllers\Api\V1\DataHealthController;
-use App\Http\Controllers\Api\V1\ExhibitionController;
 use App\Http\Controllers\Api\V1\GlobalTodoController;
 use App\Http\Controllers\Api\V1\ImportController;
 use App\Http\Controllers\Api\V1\LookupController;
 use App\Http\Controllers\Api\V1\SummaryController;
 use App\Http\Controllers\Api\V1\PermissionController;
 use App\Http\Controllers\Api\V1\RoleController;
+use App\Http\Controllers\Api\V1\FollowUpController;
+use App\Http\Controllers\Api\V1\PerformanceController;
+use App\Http\Controllers\Api\V1\DealController;
+use App\Http\Controllers\Api\V1\ProjectController;
+use App\Http\Controllers\Api\V1\ReminderController;
 use App\Http\Controllers\Api\V1\ToDoController;
-use App\Http\Controllers\Api\V1\TravelController;
 use App\Http\Controllers\Api\V1\UserManagementController;
 
 // Auth (public)
@@ -31,8 +34,37 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('data-health', [DataHealthController::class, 'index']);
         Route::get('summary', [SummaryController::class, 'index']);
 
+        // Performance
+        Route::get('performance/overview', [PerformanceController::class, 'overview']);
+        Route::get('performance/team', [PerformanceController::class, 'team']);
+        Route::get('performance/report', [PerformanceController::class, 'report']);
+        Route::get('performance/targets/{userId}', [PerformanceController::class, 'targets']);
+        Route::put('performance/targets/{userId}', [PerformanceController::class, 'updateTargets']);
+        Route::get('performance/kpi-targets/{userId}', [PerformanceController::class, 'kpiTargets']);
+        Route::put('performance/kpi-targets/{userId}', [PerformanceController::class, 'updateKpiTargets']);
+
+        // Projects
+        Route::get('projects/export', [ProjectController::class, 'export']);
+        Route::get('projects/{id}/remark', [ProjectController::class, 'remark']);
+        Route::apiResource('projects', ProjectController::class)->only(['index', 'store', 'show', 'update', 'destroy']);
+
+        // Reminders
+        Route::get('reminders', [ReminderController::class, 'index']);
+        Route::post('reminders/read', [ReminderController::class, 'markRead']);
+
+        // Deals
+        Route::get('deals/export', [DealController::class, 'export']);
+        Route::get('deals/summary', [DealController::class, 'summary']);
+        Route::apiResource('deals', DealController::class)->only(['index', 'store', 'show', 'update', 'destroy']);
+
+        // Follow-ups
+        Route::get('followups/export', [FollowUpController::class, 'export']);
+        Route::patch('followups/{id}/status', [FollowUpController::class, 'updateStatus']);
+        Route::apiResource('followups', FollowUpController::class)->only(['index', 'store', 'show', 'update', 'destroy']);
+
         // Global to-do list
         Route::get('todos/export', [GlobalTodoController::class, 'export']);
+        Route::patch('todos/{id}/status', [GlobalTodoController::class, 'updateStatus']);
         Route::apiResource('todos', GlobalTodoController::class)->only(['index', 'store', 'show', 'update', 'destroy']);
 
         // Contacts (specific routes before apiResource to avoid conflicts)
@@ -50,12 +82,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('contacts/{contact}/todos/{todo}', [ToDoController::class, 'update']);
         Route::delete('contacts/{contact}/todos/{todo}', [ToDoController::class, 'destroy']);
 
-        Route::get('exhibitions', [ExhibitionController::class, 'index']);
-        Route::get('exhibitions/{id}', [ExhibitionController::class, 'show']);
-        Route::get('travel', [TravelController::class, 'index']);
-        Route::get('travel/{id}', [TravelController::class, 'show']);
-
-        Route::post('import/preview', [ImportController::class, 'preview']);
+Route::post('import/preview', [ImportController::class, 'preview']);
         Route::post('import/process', [ImportController::class, 'process']);
 
         // Admin lookup CRUD — admin & super-admin only
