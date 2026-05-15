@@ -48,7 +48,7 @@
       <div class="table-header-bar">
         {{ periodLabel }} — {{ meta.total ?? todos.length }} record(s)
       </div>
-      <div v-if="loading" class="loading-msg">Loading…</div>
+      <LoadingSpinner v-if="loading" />
       <table v-else>
         <thead>
           <tr>
@@ -56,20 +56,21 @@
             <th>No</th>
             <th>To Do Date</th>
             <th>Date Created</th>
-            <th>Status</th>
+            <th>Contact Status</th>
             <th>Type</th>
             <th>Company</th>
             <th>User</th>
             <th>Task</th>
             <th>Remark</th>
+            <th>Done</th>
             <th>Edit</th>
           </tr>
         </thead>
         <tbody>
           <tr v-if="todos.length === 0">
-            <td colspan="11" class="empty-state">No tasks found for this period.</td>
+            <td colspan="12" class="empty-state">No tasks found for this period.</td>
           </tr>
-          <tr v-for="(t, idx) in todos" :key="t.id">
+          <tr v-for="(t, idx) in todos" :key="t.id" :class="{ 'row-done': t.completion_status === 'completed' }">
             <td><input type="checkbox" :value="t.id" v-model="selectedIds"></td>
             <td>{{ meta.from ? meta.from + idx : idx + 1 }}</td>
             <td>{{ t.todo_date }}</td>
@@ -82,6 +83,14 @@
             <td>{{ t.user ?? '—' }}</td>
             <td>{{ t.task ?? '—' }}</td>
             <td>{{ t.todo_remark }}</td>
+            <td>
+              <button v-if="t.completion_status !== 'completed'"
+                      class="icon-btn btn-done" title="Mark complete"
+                      @click="markDone(t)">✓</button>
+              <button v-else
+                      class="icon-btn btn-undo" title="Mark pending"
+                      @click="markPending(t)">↩</button>
+            </td>
             <td>
               <router-link :to="`/todos/${t.id}/edit`" class="icon-btn btn-edit" title="Edit">✏️</router-link>
             </td>
@@ -102,6 +111,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import api from '../api.js';
+import LoadingSpinner from '../components/LoadingSpinner.vue';
 
 const view    = ref('Day');
 const date    = ref(new Date().toISOString().slice(0, 10));
@@ -151,6 +161,16 @@ function exportSelected() {
   const ids = selectedIds.value.join(',');
   const token = localStorage.getItem('crm_token');
   window.location.href = `/api/v1/todos/export?ids=${ids}&_token=${token}`;
+}
+
+async function markDone(todo) {
+  await api.patch(`/v1/todos/${todo.id}/status`, { status: 'completed' });
+  todo.completion_status = 'completed';
+}
+
+async function markPending(todo) {
+  await api.patch(`/v1/todos/${todo.id}/status`, { status: 'pending' });
+  todo.completion_status = 'pending';
 }
 
 onMounted(async () => {
@@ -222,6 +242,12 @@ tbody tr:hover { background: #f8fafc; }
 }
 .btn-edit { background: #fefce8; }
 .btn-edit:hover { background: #ca8a04; }
+.btn-done { background: #f0fdf4; color: #166534; font-weight: 700; border: none; cursor: pointer; }
+.btn-done:hover { background: #10b981; color: white; }
+.btn-undo { background: #f1f5f9; color: #64748b; font-weight: 700; border: none; cursor: pointer; }
+.btn-undo:hover { background: #94a3b8; color: white; }
+.row-done td { opacity: 0.55; text-decoration: line-through; text-decoration-color: #94a3b8; }
+.row-done .icon-btn { text-decoration: none; opacity: 1; }
 .empty-state { text-align: center; padding: 40px; color: #94a3b8; font-size: 14px; }
 .pagination {
   display: flex; align-items: center; justify-content: center; gap: 14px;
@@ -232,4 +258,18 @@ tbody tr:hover { background: #f8fafc; }
   background: white; cursor: pointer; font-size: 13px;
 }
 .pagination button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* Responsive */
+@media (max-width: 768px) {
+  .page { padding: 16px 12px; }
+  .page-banner { flex-direction: column; align-items: flex-start; gap: 12px; }
+  .table-wrap { overflow-x: auto; }
+  table { min-width: 700px; }
+}
+@media (max-width: 640px) {
+  .page { padding: 12px 8px; }
+  .filter-group { flex: 1 1 45%; }
+  .filter-group.wide { flex: 1 1 100%; }
+  .filter-group.wide input { width: 100%; }
+}
 </style>

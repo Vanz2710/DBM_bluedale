@@ -3,10 +3,10 @@
     <!-- Banner -->
     <div class="welcome-banner">
       <h1>Dashboard Overview</h1>
-      <p>Live summary of your CRM pipeline, exhibitions, travel directory, and contacts.</p>
+      <p>Live summary of your CRM pipeline and contacts.</p>
     </div>
 
-    <div v-if="loading" class="loading-msg">Loading analytics…</div>
+    <LoadingSpinner v-if="loading" />
 
     <template v-else>
       <!-- At a Glance -->
@@ -168,10 +168,8 @@
       <!-- Quick actions -->
       <p class="section-title">Quick Actions</p>
       <div class="quick-links">
-        <router-link to="/crm"         class="action-btn btn-blue">🏢 CRM Dashboard</router-link>
-        <router-link to="/exhibitions" class="action-btn btn-purple">🎪 Exhibitions</router-link>
-        <router-link to="/travel"      class="action-btn btn-teal">✈ Travel Hub</router-link>
-        <router-link to="/import"      class="action-btn btn-orange">📥 Import Data</router-link>
+        <router-link to="/crm"    class="action-btn btn-blue">🏢 CRM Dashboard</router-link>
+        <router-link to="/import" class="action-btn btn-orange">📥 Import Data</router-link>
       </div>
     </template>
   </div>
@@ -180,7 +178,23 @@
 <script setup>
 import { ref, computed, onMounted, nextTick } from 'vue';
 import axios from '../api.js';
-import Chart from 'chart.js/auto';
+import {
+  Chart,
+  LineController, LineElement, PointElement,
+  BarController, BarElement,
+  DoughnutController, ArcElement,
+  CategoryScale, LinearScale,
+  Tooltip, Legend, Filler,
+} from 'chart.js';
+
+Chart.register(
+  LineController, LineElement, PointElement,
+  BarController, BarElement,
+  DoughnutController, ArcElement,
+  CategoryScale, LinearScale,
+  Tooltip, Legend, Filler,
+);
+import LoadingSpinner from '../components/LoadingSpinner.vue';
 
 const loading = ref(true);
 const data = ref({});
@@ -310,4 +324,28 @@ onMounted(async () => {
 .btn-purple { background:#9b59b6; }
 .btn-teal   { background:#1abc9c; }
 .btn-orange { background:#e67e22; }
+
+/* Responsive */
+@media (max-width: 1024px) {
+  .stat-grid { grid-template-columns: repeat(2,1fr); }
+  .insights-grid { grid-template-columns: repeat(2,1fr); }
+  .chart-grid-3 { grid-template-columns: 1fr; }
+  .chart-grid-2 { grid-template-columns: 1fr; }
+  .quick-links { grid-template-columns: repeat(2,1fr); }
+}
+@media (max-width: 768px) {
+  .page { padding: 20px 14px; }
+  .welcome-banner { padding: 22px 20px; }
+  .welcome-banner h1 { font-size: 22px; }
+  .welcome-banner p { font-size: 14px; }
+  .stat-value { font-size: 32px; }
+}
+@media (max-width: 640px) {
+  .page { padding: 14px 10px; }
+  .stat-grid { grid-template-columns: 1fr; }
+  .insights-grid { grid-template-columns: 1fr; }
+  .quick-links { grid-template-columns: 1fr; }
+  .welcome-banner h1 { font-size: 20px; }
+  .stat-value { font-size: 28px; }
+}
 </style>

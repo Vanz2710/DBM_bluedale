@@ -271,4 +271,18 @@ function reset() {
 .summary-card.skipped  { border-top-color:#94a3b8; }
 .summary-label { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.8px; color:#94a3b8; margin-bottom:6px; }
 .summary-value { font-size:36px; font-weight:800; color:#1e293b; }
+
+/* Responsive */
+@media (max-width: 768px) {
+  .page { padding: 16px 12px; }
+  .page-banner { flex-direction: column; align-items: flex-start; gap: 12px; padding: 20px; }
+  .step-indicator { flex-wrap: wrap; }
+  .card { padding: 20px 16px; }
+  .map-row { grid-template-columns: 1fr; }
+  .result-banner { flex-direction: column; align-items: flex-start; }
+  .summary-row { grid-template-columns: 1fr; }
+}
+@media (max-width: 640px) {
+  .page { padding: 12px 8px; }
+}
 </style>

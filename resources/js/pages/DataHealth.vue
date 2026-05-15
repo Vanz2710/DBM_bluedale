@@ -11,7 +11,7 @@
       </div>
     </div>
 
-    <div v-if="loading" class="loading-msg">Loading…</div>
+    <LoadingSpinner v-if="loading" />
 
     <template v-else>
       <!-- Stats row -->
@@ -142,6 +142,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import axios from '../api.js';
+import LoadingSpinner from '../components/LoadingSpinner.vue';
 
 const loading = ref(true);
 const data    = ref({});
@@ -215,4 +216,22 @@ tbody td { padding:9px 14px; border-bottom:1px solid #f1f5f9; }
 tbody tr:last-child td { border-bottom:none; }
 .dup-pill { display:inline-block; background:#fee2e2; color:#dc2626; border-radius:20px; padding:1px 8px; font-size:11px; font-weight:700; }
 .all-good { text-align:center; padding:20px; color:#94a3b8; font-size:14px; }
+
+/* Responsive */
+@media (max-width: 1024px) {
+  .stats-row { grid-template-columns: repeat(2, 1fr); }
+  .missing-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 768px) {
+  .page { padding: 16px 12px; }
+  .page-banner { flex-direction: column; align-items: flex-start; gap: 12px; padding: 20px; }
+  .two-col { grid-template-columns: 1fr; }
+  .card { overflow-x: auto; }
+  table { min-width: 480px; }
+}
+@media (max-width: 640px) {
+  .page { padding: 12px 8px; }
+  .stats-row { grid-template-columns: 1fr 1fr; }
+  .missing-grid { grid-template-columns: 1fr; }
+}
 </style>

@@ -10,4 +10,17 @@ export default defineConfig({
         }),
         vue(),
     ],
+    build: {
+        rollupOptions: {
+            output: {
+                manualChunks(id) {
+                    if (id.includes('node_modules/chart.js'))   return 'vendor-chartjs';
+                    if (id.includes('node_modules/lottie-web')) return 'vendor-lottie';
+                    if (id.includes('node_modules/vue-router')) return 'vendor-vue';
+                    if (id.includes('node_modules/vue'))        return 'vendor-vue';
+                    if (id.includes('node_modules/axios'))      return 'vendor-axios';
+                },
+            },
+        },
+    },
 });

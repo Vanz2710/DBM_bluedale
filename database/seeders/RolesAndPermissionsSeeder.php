@@ -30,9 +30,6 @@ class RolesAndPermissionsSeeder extends Seeder
             'view analytics',
             'view summary',
             'view data-health',
-            // Exhibitions & Travel (read-only data)
-            'view exhibitions',
-            'view travel',
             // Admin lookups
             'manage lookups',
             // RBAC admin
@@ -61,7 +58,6 @@ class RolesAndPermissionsSeeder extends Seeder
             'view todos', 'create todos', 'edit todos', 'delete todos',
             'import contacts',
             'view analytics', 'view summary',
-            'view exhibitions', 'view travel',
         ]);
 
         // viewer: read-only
@@ -70,7 +66,6 @@ class RolesAndPermissionsSeeder extends Seeder
             'view contacts',
             'view todos',
             'view analytics', 'view summary',
-            'view exhibitions', 'view travel',
         ]);
     }
 }

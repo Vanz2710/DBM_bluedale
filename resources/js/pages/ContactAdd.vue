@@ -227,4 +227,15 @@ onMounted(async () => {
 .btn-next:disabled { background: #94a3b8; cursor: not-allowed; }
 .btn-save { flex: 1; background: #22c55e; color: white; justify-content: center; }
 .btn-save:disabled { background: #94a3b8; cursor: not-allowed; }
+
+/* Responsive */
+@media (max-width: 768px) {
+  .page { padding: 16px 12px; }
+  .card { padding: 20px 16px; }
+  .form-row { grid-template-columns: 1fr; }
+}
+@media (max-width: 640px) {
+  .page { padding: 12px 8px; }
+  .btn-row { flex-wrap: wrap; }
+}
 </style>
