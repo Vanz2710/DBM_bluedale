@@ -1,4 +1,5 @@
 const Login               = () => import('../pages/Login.vue');
+const VerifyEmail         = () => import('../pages/VerifyEmail.vue');
 const DealList            = () => import('../pages/DealList.vue');
 const DealAdd             = () => import('../pages/DealAdd.vue');
 const DealEdit            = () => import('../pages/DealEdit.vue');
@@ -27,9 +28,11 @@ const CrmView             = () => import('../pages/CrmView.vue');
 const DataHealth          = () => import('../pages/DataHealth.vue');
 const Import              = () => import('../pages/Import.vue');
 const Reminders           = () => import('../pages/Reminders.vue');
+const MyProfile           = () => import('../pages/MyProfile.vue');
 
 const routes = [
-    { path: '/login',                      component: Login,       name: 'login',        meta: { public: true } },
+    { path: '/login',        component: Login,       name: 'login',        meta: { public: true } },
+    { path: '/verify-email', component: VerifyEmail, name: 'verify-email', meta: { public: true } },
     { path: '/',                           component: Dashboard,   name: 'home' },
     { path: '/summary',                    component: Summary,     name: 'summary' },
     { path: '/list',                       component: DailyList,   name: 'list' },
@@ -58,24 +61,39 @@ const routes = [
 { path: '/data-health',                component: DataHealth,   name: 'data-health' },
     { path: '/import',                     component: Import,       name: 'import' },
     { path: '/reminders',                  component: Reminders,    name: 'reminders' },
+    { path: '/profile',                    component: MyProfile,    name: 'profile' },
 ];
 
 export default routes;
 
 export function setupGuard(router) {
     router.beforeEach((to, from, next) => {
-        const isPublic = to.meta?.public === true;
         const token    = localStorage.getItem('crm_token');
-        if (!isPublic && !token) {
-            return next({ name: 'login' });
+        const user     = JSON.parse(localStorage.getItem('crm_user') || 'null');
+        const isPublic = to.meta?.public === true;
+
+        // No token: allow public pages, redirect others to login
+        if (!token) {
+            return isPublic ? next() : next({ name: 'login' });
         }
+
+        // Has token + verified: redirect away from verify-email to dashboard
+        if (to.name === 'verify-email' && user?.email_verified) {
+            return next({ name: 'home' });
+        }
+
+        // Has token + unverified: only allow public routes and verify-email
+        if (!isPublic && !user?.email_verified && to.name !== 'verify-email') {
+            return next({ name: 'verify-email' });
+        }
+
         if (to.meta?.adminOnly) {
-            const user  = JSON.parse(localStorage.getItem('crm_user') || 'null');
             const roles = user?.roles ?? [];
             if (!roles.includes('admin') && !roles.includes('super-admin')) {
                 return next({ name: 'home' });
             }
         }
+
         next();
     });
 }

@@ -24,10 +24,33 @@ class AdminController extends Controller
         'tasks'      => [Task::class,            'name'],
     ];
 
+    // Each entity maps to one or more [table, foreign_key] pairs for counting usage.
+    private static array $usageMap = [
+        'statuses'   => [['contacts', 'status_id']],
+        'types'      => [['contacts', 'type_id']],
+        'industries' => [['contacts', 'industry_id']],
+        'categories' => [['contacts', 'category_id']],
+        'areas'      => [['contacts', 'area_id']],
+        'tasks'      => [['to_dos', 'task_id'], ['performance_targets', 'task_id']],
+    ];
+
     public function index(string $entity)
     {
         [$model] = $this->resolve($entity);
-        return response()->json(['data' => $model::orderBy('name')->get()]);
+        $modelTable = (new $model)->getTable();
+        $sources    = self::$usageMap[$entity];
+
+        $subParts = array_map(
+            fn($src) => "(SELECT COUNT(*) FROM {$src[0]} WHERE {$src[1]} = {$modelTable}.id)",
+            $sources
+        );
+        $usageExpr = implode(' + ', $subParts);
+
+        $items = $model::selectRaw("*, ({$usageExpr}) as usage_count")
+            ->orderBy('name')
+            ->get();
+
+        return response()->json(['data' => $items]);
     }
 
     public function store(Request $request, string $entity)
@@ -62,7 +85,20 @@ class AdminController extends Controller
     public function destroy(string $entity, string $id)
     {
         [$model] = $this->resolve($entity);
-        $model::findOrFail($id)->delete();
+        $item = $model::findOrFail($id);
+
+        $count = 0;
+        foreach (self::$usageMap[$entity] as [$table, $col]) {
+            $count += DB::table($table)->where($col, $id)->count();
+        }
+
+        if ($count > 0) {
+            return response()->json([
+                'message' => "Cannot delete \"{$item->name}\" — it is referenced by {$count} record(s). Remove those references first.",
+            ], 409);
+        }
+
+        $item->delete();
         return response()->json(['status' => 'success']);
     }
 

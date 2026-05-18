@@ -84,6 +84,7 @@
           <span class="user-name nav-text">{{ currentUser.name }}</span>
           <span class="user-email nav-text">{{ currentUser.email }}</span>
         </div>
+        <router-link to="/profile" class="btn-profile nav-text"><span v-html="SVGI.user"></span> My Profile</router-link>
         <button class="btn-logout nav-text" @click="logout" title="Logout"><span v-html="SVGI.logout"></span> Logout</button>
       </div>
 
@@ -105,7 +106,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, watch } from 'vue';
+import { ref, reactive, computed, watch, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import api from './api.js';
 import NotificationBell from './components/NotificationBell.vue';
@@ -116,13 +117,19 @@ const collapsed = ref(localStorage.getItem('sidebarCollapsed') === '1');
 const mobileOpen = ref(false);
 const currentUser = ref(JSON.parse(localStorage.getItem('crm_user') || 'null'));
 
-const isLogin = computed(() => route.name === 'login');
+const isLogin = computed(() => ['login', 'verify-email'].includes(route.name));
 const isAdminOrSuperAdmin = computed(() => {
   const roles = currentUser.value?.roles ?? [];
   return roles.includes('admin') || roles.includes('super-admin');
 });
 
 watch(collapsed, (v) => localStorage.setItem('sidebarCollapsed', v ? '1' : '0'));
+
+onMounted(() => {
+  window.addEventListener('user-profile-updated', () => {
+    currentUser.value = JSON.parse(localStorage.getItem('crm_user') || 'null');
+  });
+});
 
 // ─── Navigation icons ─────────────────────────────────────────────────────────
 const _s = (p) => `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
@@ -145,6 +152,7 @@ const SVGI = {
   chevronLeft:  _s('<polyline points="15 18 9 12 15 6"/>'),
   menu:         _s('<line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/>'),
   logout:       _s('<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>'),
+  user:         _s('<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>'),
 };
 
 // ─── Navigation config ────────────────────────────────────────────────────────
@@ -177,7 +185,7 @@ const ALL_GROUPS = [
   {
     key: 'admin', label: 'Administration', icon: SVGI.gear, color: 'purple', section: 'tools', adminOnly: true,
     items: [
-      { key: 'admin-panel',  to: '/admin',                     icon: SVGI.gear,   label: 'Admin Panel',    activeRoutes: ['admin'] },
+      { key: 'admin-panel',  to: '/admin',                     icon: SVGI.gear,   label: 'Lookup Settings', activeRoutes: ['admin'] },
       { key: 'rbac',         to: '/admin/rbac',                icon: SVGI.shield, label: 'Access Control', activeRoutes: ['rbac'] },
       { key: 'perf-targets', to: '/admin/performance-targets', icon: SVGI.target, label: 'Perf. Targets',  activeRoutes: ['perf-targets'] },
     ],
@@ -246,6 +254,7 @@ function toggleGroup(key) {
 // Auto-open the group that owns the current route
 watch(route, (newRoute) => {
   mobileOpen.value = false;
+  currentUser.value = JSON.parse(localStorage.getItem('crm_user') || 'null');
   const routeName = newRoute.name ?? '';
   for (const group of ALL_GROUPS) {
     if (group.items.some(item => item.activeRoutes.includes(routeName))) {
@@ -364,6 +373,8 @@ body { margin: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
 .user-info { display: flex; flex-direction: column; gap: 2px; margin-bottom: 8px; }
 .user-name { font-size: 13px; font-weight: 600; color: #cbd5e1; }
 .user-email { font-size: 11px; color: #475569; }
+.btn-profile { width: 100%; height: 32px; background: rgba(59,130,246,0.12); color: #93c5fd; border-radius: 7px; font-size: 12px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; padding: 0 10px; text-decoration: none; margin-bottom: 6px; }
+.btn-profile:hover { background: rgba(59,130,246,0.22); }
 .btn-logout { width: 100%; height: 32px; background: rgba(239,68,68,0.12); color: #f87171; border: none; border-radius: 7px; font-size: 12px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; padding: 0 10px; }
 .btn-logout:hover { background: rgba(239,68,68,0.22); }
 

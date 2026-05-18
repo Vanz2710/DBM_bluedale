@@ -1,41 +1,48 @@
 <template>
   <div class="page">
     <div class="page-banner">
-      <h1>Admin Panel</h1>
-      <p>Manage dropdown options and lookup values</p>
+      <h1>Lookup Settings</h1>
+      <p>Manage dropdown values used in contacts, tasks, filters, reports, and performance tracking.</p>
     </div>
 
-    <div class="tabs">
-      <button
-        v-for="tab in tabs" :key="tab.key"
-        class="tab-btn"
-        :class="{ active: activeTab === tab.key }"
-        @click="switchTab(tab.key)"
-      >{{ tab.label }}</button>
+    <div class="tabs-wrapper">
+      <div class="tab-group" v-for="group in TAB_GROUPS" :key="group.label">
+        <span class="tab-group-label">{{ group.label }}</span>
+        <button
+          v-for="tab in group.tabs" :key="tab.key"
+          class="tab-btn"
+          :class="{ active: activeTab === tab.key }"
+          @click="switchTab(tab.key)"
+        >{{ tab.label }}</button>
+      </div>
     </div>
 
     <div class="card">
       <LoadingSpinner v-if="loading" />
+      <div v-else-if="loadError" class="hint error-hint">{{ loadError }}</div>
       <template v-else>
         <div class="add-form">
-          <input v-model="newName" :placeholder="`Add new ${currentTab.label.toLowerCase()}…`" @keyup.enter="addItem">
+          <input v-model="newName" :placeholder="`Add new ${currentTab.label.toLowerCase()}...`" @keyup.enter="addItem">
           <button class="btn btn-add" @click="addItem" :disabled="!newName.trim()">+ Add</button>
         </div>
         <div v-if="addError" class="hint error-hint">{{ addError }}</div>
 
         <table>
           <thead>
-            <tr><th>#</th><th>Name</th><th>Action</th></tr>
+            <tr><th>#</th><th>Name</th><th>In Use</th><th>Action</th></tr>
           </thead>
           <tbody>
             <tr v-if="items.length === 0">
-              <td colspan="3" class="empty-state">No items yet.</td>
+              <td colspan="4" class="empty-state">No items yet.</td>
             </tr>
             <tr v-for="(item, idx) in items" :key="item.id">
               <td class="num">{{ idx + 1 }}</td>
               <td>
                 <input v-if="editId === item.id" v-model="editName" class="edit-input" @keyup.enter="saveEdit(item)" @keyup.escape="cancelEdit">
                 <span v-else>{{ item.name }}</span>
+              </td>
+              <td class="usage-cell">
+                <span :class="item.usage_count > 0 ? 'badge-used' : 'badge-unused'">{{ item.usage_count }}</span>
               </td>
               <td class="actions">
                 <template v-if="editId === item.id">
@@ -44,7 +51,12 @@
                 </template>
                 <template v-else>
                   <button class="btn-sm btn-edit" @click="startEdit(item)">Edit</button>
-                  <button class="btn-sm btn-delete" @click="deleteItem(item)">Delete</button>
+                  <button
+                    class="btn-sm btn-delete"
+                    @click="deleteItem(item)"
+                    :disabled="item.usage_count > 0"
+                    :title="item.usage_count > 0 ? 'In use by ' + item.usage_count + ' record(s) — remove references first' : 'Delete ' + item.name"
+                  >Delete</button>
                 </template>
               </td>
             </tr>
@@ -60,18 +72,31 @@ import { ref, computed, onMounted } from 'vue';
 import api from '../api.js';
 import LoadingSpinner from '../components/LoadingSpinner.vue';
 
-const tabs = [
-  { key: 'statuses',   label: 'Statuses' },
-  { key: 'types',      label: 'Types' },
-  { key: 'industries', label: 'Industries' },
-  { key: 'categories', label: 'Categories' },
-  { key: 'areas',      label: 'Areas' },
-  { key: 'tasks',      label: 'Tasks' },
+const TAB_GROUPS = [
+  {
+    label: 'Contact Fields',
+    tabs: [
+      { key: 'statuses',   label: 'Statuses' },
+      { key: 'types',      label: 'Types' },
+      { key: 'industries', label: 'Industries' },
+      { key: 'categories', label: 'Categories' },
+      { key: 'areas',      label: 'Areas' },
+    ],
+  },
+  {
+    label: 'Task / Performance',
+    tabs: [
+      { key: 'tasks', label: 'Tasks' },
+    ],
+  },
 ];
+
+const tabs = TAB_GROUPS.flatMap(g => g.tabs);
 
 const activeTab = ref('statuses');
 const items     = ref([]);
 const loading   = ref(false);
+const loadError = ref('');
 const newName   = ref('');
 const addError  = ref('');
 const editId    = ref(null);
@@ -80,12 +105,16 @@ const editName  = ref('');
 const currentTab = computed(() => tabs.find(t => t.key === activeTab.value));
 
 async function loadItems() {
-  loading.value = true;
+  loading.value  = true;
+  loadError.value = '';
   addError.value = '';
-  editId.value = null;
+  editId.value   = null;
   try {
     const res = await api.get(`/v1/admin/${activeTab.value}`);
     items.value = res.data.data ?? res.data;
+  } catch (e) {
+    loadError.value = e.response?.data?.message ?? 'Failed to load items.';
+    items.value = [];
   } finally {
     loading.value = false;
   }
@@ -93,7 +122,7 @@ async function loadItems() {
 
 function switchTab(key) {
   activeTab.value = key;
-  newName.value = '';
+  newName.value   = '';
   loadItems();
 }
 
@@ -114,12 +143,12 @@ async function addItem() {
 }
 
 function startEdit(item) {
-  editId.value = item.id;
+  editId.value   = item.id;
   editName.value = item.name;
 }
 
 function cancelEdit() {
-  editId.value = null;
+  editId.value   = null;
   editName.value = '';
 }
 
@@ -141,7 +170,9 @@ async function saveEdit(item) {
 }
 
 async function deleteItem(item) {
+  if (item.usage_count > 0) return;
   if (!confirm(`Delete "${item.name}"?`)) return;
+  addError.value = '';
   try {
     await api.delete(`/v1/admin/${activeTab.value}/${item.id}`);
     items.value = items.value.filter(i => i.id !== item.id);
@@ -154,7 +185,7 @@ onMounted(loadItems);
 </script>
 
 <style scoped>
-.page { padding: 24px 28px; max-width: 860px; }
+.page { padding: 24px 28px; max-width: 900px; }
 .page-banner {
   background: linear-gradient(135deg, #1a2f4a, #6366f1);
   border-radius: 10px; padding: 20px 28px; margin-bottom: 20px; color: white;
@@ -162,7 +193,12 @@ onMounted(loadItems);
 .page-banner h1 { font-size: 20px; font-weight: 700; margin: 0 0 4px; }
 .page-banner p { font-size: 13px; opacity: 0.8; margin: 0; }
 
-.tabs { display: flex; gap: 6px; margin-bottom: 16px; flex-wrap: wrap; }
+.tabs-wrapper { display: flex; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; align-items: center; }
+.tab-group { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.tab-group-label {
+  font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px;
+  color: #94a3b8; white-space: nowrap; padding-right: 2px;
+}
 .tab-btn {
   padding: 8px 16px; border-radius: 8px; border: 1.5px solid #e2e8f0;
   background: white; font-size: 13px; font-weight: 600; color: #64748b; cursor: pointer;
@@ -172,7 +208,6 @@ onMounted(loadItems);
 .tab-btn.active { background: #6366f1; border-color: #6366f1; color: white; }
 
 .card { background: white; border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); padding: 24px 28px; }
-.loading-msg { text-align: center; padding: 40px; color: #94a3b8; }
 
 .add-form { display: flex; gap: 10px; margin-bottom: 8px; }
 .add-form input {
@@ -193,7 +228,18 @@ tbody td { padding: 10px 12px; border-bottom: 1px solid #f1f5f9; font-size: 13px
 tbody tr:last-child td { border-bottom: none; }
 tbody tr:hover { background: #f8fafc; }
 .num { color: #94a3b8; font-size: 12px; width: 40px; }
-.actions { width: 140px; }
+.usage-cell { width: 80px; }
+.actions { width: 150px; }
+
+.badge-used {
+  display: inline-block; padding: 2px 8px; border-radius: 12px;
+  font-size: 11px; font-weight: 700; background: #fee2e2; color: #991b1b;
+}
+.badge-unused {
+  display: inline-block; padding: 2px 8px; border-radius: 12px;
+  font-size: 11px; font-weight: 700; background: #f1f5f9; color: #94a3b8;
+}
+
 .edit-input {
   width: 100%; height: 32px; padding: 0 10px; border: 1.5px solid #6366f1;
   border-radius: 6px; font-size: 13px; outline: none;
@@ -203,13 +249,13 @@ tbody tr:hover { background: #f8fafc; }
 .btn-edit   { background: #fefce8; color: #92400e; }
 .btn-edit:hover { background: #fde68a; }
 .btn-delete { background: #fee2e2; color: #991b1b; }
-.btn-delete:hover { background: #fca5a5; }
+.btn-delete:hover:not(:disabled) { background: #fca5a5; }
+.btn-delete:disabled { opacity: 0.4; cursor: not-allowed; }
 .btn-save   { background: #dcfce7; color: #166534; }
 .btn-save:hover { background: #86efac; }
 .btn-cancel { background: #f1f5f9; color: #64748b; }
 .empty-state { text-align: center; padding: 32px; color: #94a3b8; font-size: 13px; }
 
-/* Responsive */
 @media (max-width: 768px) {
   .page { padding: 16px 12px; }
   .card { padding: 16px 14px; }
