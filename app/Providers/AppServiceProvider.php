@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Models\Deal;
+use App\Observers\DealObserver;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 
@@ -17,5 +19,7 @@ class AppServiceProvider extends ServiceProvider
                 return true;
             }
         });
+
+        Deal::observe(DealObserver::class);
     }
 }

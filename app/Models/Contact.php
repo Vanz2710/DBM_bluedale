@@ -13,12 +13,15 @@ class Contact extends Model
         'name',
         'address',
         'remark',
+        'whatsapp_phone',
+        'lead_source',
         'user_id',
         'status_id',
         'type_id',
         'category_id',
         'industry_id',
         'area_id',
+        'territory_id',
     ];
 
     public function user()
@@ -51,6 +54,11 @@ class Contact extends Model
         return $this->belongsTo(ContactArea::class);
     }
 
+    public function territory()
+    {
+        return $this->belongsTo(Territory::class);
+    }
+
     public function incharges()
     {
         return $this->hasMany(ContactIncharge::class);
@@ -59,5 +67,20 @@ class Contact extends Model
     public function todos()
     {
         return $this->hasMany(ToDo::class)->orderByDesc('todo_date');
+    }
+
+    public function emails()
+    {
+        return $this->hasMany(ContactEmail::class)->orderByDesc('emailed_at');
+    }
+
+    public function calls()
+    {
+        return $this->hasMany(ContactCall::class)->orderByDesc('called_at');
+    }
+
+    public function whatsappMessages()
+    {
+        return $this->hasMany(WhatsAppMessage::class)->orderByDesc('timestamp');
     }
 }

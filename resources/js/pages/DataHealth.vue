@@ -106,14 +106,53 @@
         </div>
         <div v-if="!data.duplicates?.length" class="all-good">✓ No duplicate contact names found.</div>
         <table v-else>
-          <thead><tr><th>Contact Name</th><th>Occurrences</th></tr></thead>
+          <thead><tr><th>Contact Name</th><th>Occurrences</th><th>Action</th></tr></thead>
           <tbody>
             <tr v-for="d in data.duplicates" :key="d.name">
               <td><strong>{{ d.name ?? '(empty)' }}</strong></td>
               <td><span class="dup-pill">{{ d.cnt }}×</span></td>
+              <td>
+                <button class="btn-review" @click="openMerge(d.name)">Review &amp; Merge</button>
+              </td>
             </tr>
           </tbody>
         </table>
+      </div>
+
+      <!-- Merge Modal -->
+      <div v-if="mergeModal.open" class="modal-overlay" @click.self="closeMerge">
+        <div class="modal">
+          <div class="modal-header">
+            <span class="modal-title">Merge Duplicates — {{ mergeModal.name }}</span>
+            <button class="modal-close" @click="closeMerge">✕</button>
+          </div>
+          <div class="modal-body">
+            <p class="modal-hint">Select the contact record to <strong>keep</strong>. All todos, deals, projects, and PICs from the others will be moved to the kept record, and duplicates will be deleted.</p>
+            <div v-if="mergeModal.loading" class="modal-loading">Loading contacts…</div>
+            <div v-else class="merge-list">
+              <label v-for="c in mergeModal.contacts" :key="c.id" class="merge-row" :class="{ selected: mergeModal.keepId === c.id }">
+                <input type="radio" :value="c.id" v-model="mergeModal.keepId" class="merge-radio">
+                <div class="merge-info">
+                  <div class="merge-name">{{ c.name }}</div>
+                  <div class="merge-meta">
+                    ID #{{ c.id }}
+                    <span v-if="c.status?.name"> · {{ c.status.name }}</span>
+                    <span v-if="c.user?.name"> · {{ c.user.name }}</span>
+                    <span v-if="c.incharges_count > 0"> · {{ c.incharges_count }} PIC{{ c.incharges_count !== 1 ? 's' : '' }}</span>
+                    <span> · added {{ c.created_at }}</span>
+                  </div>
+                </div>
+                <span v-if="mergeModal.keepId === c.id" class="keep-badge">KEEP</span>
+              </label>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn-cancel" @click="closeMerge">Cancel</button>
+            <button class="btn-merge" :disabled="!mergeModal.keepId || mergeModal.merging || mergeModal.contacts.length < 2" @click="doMerge">
+              {{ mergeModal.merging ? 'Merging…' : `Merge ${mergeModal.contacts.length - 1} duplicate${mergeModal.contacts.length - 1 !== 1 ? 's' : ''}` }}
+            </button>
+          </div>
+        </div>
       </div>
 
       <!-- Distributions -->
@@ -140,12 +179,44 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, reactive, onMounted } from 'vue';
 import axios from '../api.js';
 import LoadingSpinner from '../components/LoadingSpinner.vue';
 
 const loading = ref(true);
 const data    = ref({});
+
+const mergeModal = reactive({
+  open: false, name: '', loading: false, merging: false,
+  contacts: [], keepId: null,
+});
+
+async function openMerge(name) {
+  mergeModal.open    = true;
+  mergeModal.name    = name;
+  mergeModal.loading = true;
+  mergeModal.contacts = [];
+  mergeModal.keepId  = null;
+  const res = await axios.get('/v1/contacts', { params: { search: name, per_page: 50 } });
+  mergeModal.contacts = (res.data.data ?? []).filter(c => c.name === name);
+  if (mergeModal.contacts.length > 0) mergeModal.keepId = mergeModal.contacts[0].id;
+  mergeModal.loading = false;
+}
+
+function closeMerge() {
+  mergeModal.open = false;
+}
+
+async function doMerge() {
+  if (!mergeModal.keepId) return;
+  mergeModal.merging = true;
+  const mergeIds = mergeModal.contacts.map(c => c.id).filter(id => id !== mergeModal.keepId);
+  await axios.post('/v1/contacts/merge', { keep_id: mergeModal.keepId, merge_ids: mergeIds });
+  mergeModal.merging = false;
+  mergeModal.open    = false;
+  const { data: res } = await axios.get('/v1/data-health');
+  data.value = res;
+}
 
 const fmt = (n) => (n ?? 0).toLocaleString();
 const pct = (n) => data.value.total > 0 ? Math.round((n ?? 0) / data.value.total * 100 * 10) / 10 + '%' : '—';
@@ -216,6 +287,53 @@ tbody td { padding:9px 14px; border-bottom:1px solid #f1f5f9; }
 tbody tr:last-child td { border-bottom:none; }
 .dup-pill { display:inline-block; background:#fee2e2; color:#dc2626; border-radius:20px; padding:1px 8px; font-size:11px; font-weight:700; }
 .all-good { text-align:center; padding:20px; color:#94a3b8; font-size:14px; }
+
+.btn-review {
+  background: #ede9fe; color: #6d28d9; border: none; border-radius: 6px;
+  padding: 4px 12px; font-size: 11px; font-weight: 700; cursor: pointer; white-space: nowrap;
+}
+.btn-review:hover { background: #7c3aed; color: white; }
+
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 1000;
+  display: flex; align-items: center; justify-content: center; padding: 20px;
+}
+.modal {
+  background: white; border-radius: 12px; width: 100%; max-width: 580px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.2); display: flex; flex-direction: column; max-height: 90vh;
+}
+.modal-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 18px 20px; border-bottom: 1px solid #f1f5f9;
+}
+.modal-title { font-size: 15px; font-weight: 700; color: #1e293b; }
+.modal-close  { background: none; border: none; font-size: 18px; color: #94a3b8; cursor: pointer; padding: 2px 6px; }
+.modal-close:hover { color: #ef4444; }
+.modal-body   { padding: 20px; overflow-y: auto; flex: 1; }
+.modal-hint   { font-size: 12px; color: #64748b; margin: 0 0 14px; line-height: 1.6; }
+.modal-loading { text-align: center; padding: 24px; color: #94a3b8; font-size: 13px; }
+.modal-footer {
+  display: flex; align-items: center; justify-content: flex-end; gap: 10px;
+  padding: 14px 20px; border-top: 1px solid #f1f5f9;
+}
+.btn-cancel { background: #f1f5f9; color: #64748b; border: none; border-radius: 8px; padding: 8px 20px; font-size: 13px; font-weight: 600; cursor: pointer; }
+.btn-cancel:hover { background: #e2e8f0; }
+.btn-merge  { background: #7c3aed; color: white; border: none; border-radius: 8px; padding: 8px 20px; font-size: 13px; font-weight: 700; cursor: pointer; }
+.btn-merge:hover:not(:disabled) { background: #6d28d9; }
+.btn-merge:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.merge-list { display: flex; flex-direction: column; gap: 8px; }
+.merge-row {
+  display: flex; align-items: center; gap: 12px;
+  border: 2px solid #e2e8f0; border-radius: 8px; padding: 12px 14px; cursor: pointer;
+  transition: border-color 0.15s;
+}
+.merge-row.selected { border-color: #7c3aed; background: #faf5ff; }
+.merge-radio { width: 16px; height: 16px; accent-color: #7c3aed; flex-shrink: 0; }
+.merge-info  { flex: 1; min-width: 0; }
+.merge-name  { font-size: 14px; font-weight: 700; color: #1e293b; }
+.merge-meta  { font-size: 11px; color: #94a3b8; margin-top: 2px; }
+.keep-badge  { background: #7c3aed; color: white; border-radius: 4px; padding: 2px 8px; font-size: 10px; font-weight: 700; white-space: nowrap; }
 
 /* Responsive */
 @media (max-width: 1024px) {

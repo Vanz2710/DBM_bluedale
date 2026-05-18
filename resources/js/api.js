@@ -12,14 +12,26 @@ api.interceptors.request.use((config) => {
     return config;
 });
 
-// Redirect to login on 401
+let _router = null;
+let _redirecting = false;
+
+export function setRouter(router) {
+    _router = router;
+}
+
+// Redirect to login on 401 (deduplicated — multiple concurrent 401s only redirect once)
 api.interceptors.response.use(
     (res) => res,
     (err) => {
-        if (err.response?.status === 401) {
+        if (err.response?.status === 401 && !_redirecting) {
+            _redirecting = true;
             localStorage.removeItem('crm_token');
             localStorage.removeItem('crm_user');
-            window.location.href = '/login';
+            if (_router) {
+                _router.push('/login').finally(() => { _redirecting = false; });
+            } else {
+                window.location.href = '/login';
+            }
         }
         return Promise.reject(err);
     }

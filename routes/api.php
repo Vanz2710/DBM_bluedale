@@ -19,12 +19,22 @@ use App\Http\Controllers\Api\V1\DealController;
 use App\Http\Controllers\Api\V1\ProjectController;
 use App\Http\Controllers\Api\V1\ReminderController;
 use App\Http\Controllers\Api\V1\ToDoController;
+use App\Http\Controllers\Api\V1\ContactEmailController;
+use App\Http\Controllers\Api\V1\ContactCallController;
+use App\Http\Controllers\Api\V1\WebhookController;
 use App\Http\Controllers\Api\V1\ProfileController;
+use App\Http\Controllers\Api\V1\UserSettingsController;
 use App\Http\Controllers\Api\V1\UserManagementController;
 use App\Http\Controllers\Api\V1\EmailVerificationController;
+use App\Http\Controllers\Api\V1\PublicLeadController;
+use App\Http\Controllers\Api\V1\TerritoryController;
+use App\Http\Controllers\Api\V1\UserDashboardController;
 
 // Auth (public)
 Route::post('auth/login', [AuthController::class, 'login']);
+
+// Public lead capture (no auth required)
+Route::post('public/lead', [PublicLeadController::class, 'store'])->middleware('throttle:10,1');
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('auth/logout', [AuthController::class, 'logout']);
@@ -37,6 +47,14 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('profile', [ProfileController::class, 'show']);
         Route::put('profile', [ProfileController::class, 'update']);
         Route::put('profile/password', [ProfileController::class, 'changePassword']);
+
+        // User settings/preferences
+        Route::get('me/settings', [UserSettingsController::class, 'show']);
+        Route::put('me/settings', [UserSettingsController::class, 'update']);
+
+        // Dashboard layout persistence
+        Route::get('user/dashboard-layout', [UserDashboardController::class, 'show']);
+        Route::put('user/dashboard-layout', [UserDashboardController::class, 'update']);
 
         Route::get('lookups', [LookupController::class, 'all']);
         Route::get('analytics', [AnalyticsController::class, 'summary']);
@@ -79,6 +97,7 @@ Route::middleware('auth:sanctum')->group(function () {
         // Contacts (specific routes before apiResource to avoid conflicts)
         Route::get('contacts/daily', [ContactController::class, 'daily']);
         Route::get('contacts/check-duplicate', [ContactController::class, 'checkDuplicate']);
+        Route::post('contacts/merge', [ContactController::class, 'merge']);
         Route::apiResource('contacts', ContactController::class);
 
         Route::get('contacts/{contact}/incharges', [ContactInchargeController::class, 'index']);
@@ -91,8 +110,32 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('contacts/{contact}/todos/{todo}', [ToDoController::class, 'update']);
         Route::delete('contacts/{contact}/todos/{todo}', [ToDoController::class, 'destroy']);
 
+        Route::get('contacts/{contact}/emails', [ContactEmailController::class, 'index']);
+        Route::post('contacts/{contact}/emails', [ContactEmailController::class, 'store']);
+        Route::delete('contacts/{contact}/emails/{email}', [ContactEmailController::class, 'destroy']);
+
+        Route::get('contacts/{contact}/calls', [ContactCallController::class, 'index']);
+        Route::post('contacts/{contact}/calls', [ContactCallController::class, 'store']);
+        Route::delete('contacts/{contact}/calls/{call}', [ContactCallController::class, 'destroy']);
+
 Route::post('import/preview', [ImportController::class, 'preview']);
         Route::post('import/process', [ImportController::class, 'process']);
+
+        // Territories (read: all users; write: admin only)
+        Route::get('territories', [TerritoryController::class, 'index']);
+        Route::get('territories/stats', [TerritoryController::class, 'stats']);
+        Route::middleware('role:admin|super-admin')->group(function () {
+            Route::post('territories', [TerritoryController::class, 'store']);
+            Route::put('territories/{territory}', [TerritoryController::class, 'update']);
+            Route::delete('territories/{territory}', [TerritoryController::class, 'destroy']);
+        });
+
+        // Webhooks — admin & super-admin only
+        Route::middleware('role:admin|super-admin')->group(function () {
+            Route::get('webhooks/events', [WebhookController::class, 'events']);
+            Route::post('webhooks/{webhook}/test', [WebhookController::class, 'test']);
+            Route::apiResource('webhooks', WebhookController::class)->only(['index', 'store', 'update', 'destroy']);
+        });
 
         // Admin lookup CRUD — admin & super-admin only
         Route::middleware('role:admin|super-admin')->group(function () {

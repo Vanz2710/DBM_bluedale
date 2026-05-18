@@ -49,12 +49,37 @@
           </div>
           <div class="form-row">
             <div class="form-group">
-              <label>Assigned User</label>
-              <select v-model="form.user_id">
-                <option value="">Select user</option>
-                <option v-for="u in lookups.users" :key="u.id" :value="u.id">{{ u.name }}</option>
+              <label>Territory</label>
+              <select v-model="form.territory_id">
+                <option value="">No territory</option>
+                <option v-for="t in lookups.territories" :key="t.id" :value="t.id">{{ t.name }}</option>
               </select>
             </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Lead Source</label>
+              <select v-model="form.lead_source">
+                <option value="manual">Manual Entry</option>
+                <option value="phone_call">Phone Call</option>
+                <option value="referral">Referral</option>
+                <option value="walk_in">Walk-in</option>
+                <option value="social_media">Social Media</option>
+                <option value="email_campaign">Email Campaign</option>
+                <option value="web_form">Web Form</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Assigned User</label>
+              <select v-model="form.user_id">
+                <option value="">Auto-assign (round-robin)</option>
+                <option v-for="u in lookups.users" :key="u.id" :value="u.id">{{ u.name }}</option>
+              </select>
+              <div class="hint">Leave blank to auto-assign to the next user in rotation</div>
+            </div>
+          </div>
+          <div class="form-row">
             <div class="form-group">
               <label>Date Created</label>
               <input type="date" v-model="form.created_at">
@@ -131,7 +156,8 @@ const lookups = ref({ industries: [], types: [], categories: [], areas: [], user
 
 const form = ref({
   name: '', industry_id: '', type_id: '', category_id: '',
-  area_id: '', user_id: '', address: '', created_at: new Date().toISOString().slice(0, 10),
+  area_id: '', territory_id: '', user_id: '', address: '', created_at: new Date().toISOString().slice(0, 10),
+  lead_source: 'manual',
 });
 
 const pic = ref({ name: '', phone: '', email: '', office: '' });

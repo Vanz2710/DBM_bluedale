@@ -29,10 +29,15 @@ const DataHealth          = () => import('../pages/DataHealth.vue');
 const Import              = () => import('../pages/Import.vue');
 const Reminders           = () => import('../pages/Reminders.vue');
 const MyProfile           = () => import('../pages/MyProfile.vue');
+const Reports             = () => import('../pages/Reports.vue');
+const Webhooks            = () => import('../pages/Webhooks.vue');
+const LeadForm            = () => import('../pages/LeadForm.vue');
+const Settings            = () => import('../pages/Settings.vue');
 
 const routes = [
     { path: '/login',        component: Login,       name: 'login',        meta: { public: true } },
     { path: '/verify-email', component: VerifyEmail, name: 'verify-email', meta: { public: true } },
+    { path: '/lead',         component: LeadForm,    name: 'lead-form',    meta: { public: true } },
     { path: '/',                           component: Dashboard,   name: 'home' },
     { path: '/summary',                    component: Summary,     name: 'summary' },
     { path: '/list',                       component: DailyList,   name: 'list' },
@@ -62,6 +67,9 @@ const routes = [
     { path: '/import',                     component: Import,       name: 'import' },
     { path: '/reminders',                  component: Reminders,    name: 'reminders' },
     { path: '/profile',                    component: MyProfile,    name: 'profile' },
+    { path: '/reports',                    component: Reports,      name: 'reports' },
+    { path: '/admin/webhooks',             component: Webhooks,     name: 'webhooks',     meta: { adminOnly: true } },
+    { path: '/settings',                   component: Settings,     name: 'settings' },
 ];
 
 export default routes;
