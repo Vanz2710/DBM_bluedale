@@ -47,11 +47,13 @@ class AuthController extends Controller
     private function userPayload(User $user): array
     {
         return [
-            'id'          => $user->id,
-            'name'        => $user->name,
-            'email'       => $user->email,
-            'roles'       => $user->getRoleNames(),
-            'permissions' => $user->getAllPermissions()->pluck('name'),
+            'id'                => $user->id,
+            'name'              => $user->name,
+            'email'             => $user->email,
+            'roles'             => $user->getRoleNames(),
+            'permissions'       => $user->getAllPermissions()->pluck('name'),
+            'email_verified'    => $user->hasVerifiedEmail(),
+            'email_verified_at' => $user->email_verified_at,
         ];
     }
 }

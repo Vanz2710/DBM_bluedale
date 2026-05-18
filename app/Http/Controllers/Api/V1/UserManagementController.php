@@ -13,7 +13,7 @@ class UserManagementController extends Controller
 {
     public function index()
     {
-        $users = User::with('roles:id,name')->get(['id', 'name', 'email', 'created_at']);
+        $users = User::with('roles:id,name')->get(['id', 'name', 'email', 'created_at', 'email_verified_at']);
         return response()->json(['data' => $users]);
     }
 
@@ -37,9 +37,12 @@ class UserManagementController extends Controller
             $user->assignRole($request->role);
         }
 
+        $user->sendEmailVerificationNotification();
+
         return response()->json([
-            'status' => 'success',
-            'data'   => $user->load('roles:id,name'),
+            'status'  => 'success',
+            'message' => 'User created. A verification email has been sent.',
+            'data'    => $user->load('roles:id,name'),
         ], 201);
     }
 
@@ -56,7 +59,16 @@ class UserManagementController extends Controller
         if ($request->filled('password')) {
             $data['password'] = Hash::make($request->password);
         }
+
+        $emailChanged = array_key_exists('email', $data) && $data['email'] !== $user->email;
+
         $user->update($data);
+
+        if ($emailChanged) {
+            $user->email_verified_at = null;
+            $user->save();
+            $user->sendEmailVerificationNotification();
+        }
 
         return response()->json([
             'status' => 'success',

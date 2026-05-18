@@ -27,8 +27,8 @@
           </div>
         </div>
         <div class="view-toggle">
-          <button :class="{ active: viewMode === 'pipeline' }" @click="setView('pipeline')" title="Pipeline view">⬛ Pipeline</button>
-          <button :class="{ active: viewMode === 'list' }" @click="setView('list')" title="List view">☰ List</button>
+          <button :class="{ active: viewMode === 'pipeline' }" @click="setView('pipeline')" title="Pipeline view">&#9646; Pipeline</button>
+          <button :class="{ active: viewMode === 'list' }" @click="setView('list')" title="List view">&#9776; List</button>
         </div>
         <router-link to="/deals/add" class="btn-add">+ Add Deal</router-link>
       </div>
@@ -52,7 +52,7 @@
       </select>
       <div class="date-range">
         <input type="date" v-model="fromDate" class="fc fc-date" title="Close date from">
-        <span class="date-sep">→</span>
+        <span class="date-sep">&#8594;</span>
         <input type="date" v-model="toDate" class="fc fc-date" title="Close date to">
       </div>
       <input v-model="search" @keyup.enter="applyFilters" class="fc fc-search" placeholder="Search title, company…" type="text">
@@ -63,34 +63,72 @@
     <!-- ── Pipeline (Kanban) ── -->
     <div v-if="viewMode === 'pipeline'" class="content">
       <div v-if="loading" class="loading-msg">Loading pipeline…</div>
-      <div v-else class="kanban-board">
-        <div v-for="stage in STAGES" :key="stage" class="kanban-col">
+      <div v-else class="kanban-board" :class="{ 'dragging-active': draggingId !== null }">
+        <div
+          v-for="(stage, si) in STAGES" :key="stage"
+          class="kanban-col"
+          :class="{ 'drop-over': dragOverStage === stage && dragOverStage !== currentDragStage }"
+          @dragover.prevent
+          @dragenter.prevent="onDragEnter(stage)"
+          @dragleave="onDragLeave($event, stage)"
+          @drop.prevent="onDrop($event, stage)"
+        >
           <div class="col-head" :class="`ch-${stageClass(stage)}`">
-            <span class="ch-name">{{ stage }}</span>
-            <span class="ch-count">{{ (pipelineByStage[stage] || []).length }}</span>
+            <div class="col-head-left">
+              <span class="ch-step">{{ si + 1 }}</span>
+              <span class="ch-name">{{ stage }}</span>
+            </div>
+            <div class="col-head-right">
+              <span class="ch-count">{{ (pipelineByStage[stage] || []).length }}</span>
+              <span v-if="colValue(stage) > 0" class="ch-val">{{ fmtValue(colValue(stage)) }}</span>
+            </div>
           </div>
           <div class="col-body">
             <div
               v-for="deal in (pipelineByStage[stage] || [])"
               :key="deal.id"
               class="deal-card"
-              :class="`dc-${stageClass(stage)}`"
+              :class="[`dc-${stageClass(stage)}`, {
+                'is-dragging': draggingId === deal.id,
+                'is-saving':   savingId === deal.id,
+              }]"
+              draggable="true"
+              @dragstart="onDragStart($event, deal)"
+              @dragend="onDragEnd"
             >
-              <div class="dc-title">{{ deal.title }}</div>
-              <div class="dc-company">{{ deal.contact_name ?? '—' }}</div>
-              <div class="dc-chips">
-                <span v-if="deal.value" class="dc-val">{{ fmtValue(deal.value) }}</span>
-                <span v-if="deal.probability != null" class="dc-prob">{{ deal.probability }}%</span>
-                <span v-if="deal.expected_close_date" class="dc-date">{{ fmt(deal.expected_close_date) }}</span>
-              </div>
-              <div class="dc-actions">
-                <router-link :to="`/deals/${deal.id}/edit`" class="dc-btn dc-edit">Edit</router-link>
-                <button class="dc-btn dc-del" @click="confirmDelete(deal)">Del</button>
+              <div class="dc-grip" title="Drag to move stage">&#8942;&#8942;</div>
+              <div class="dc-body">
+                <div class="dc-title">{{ deal.title }}</div>
+                <div class="dc-company">{{ deal.contact_name ?? '—' }}</div>
+                <div class="dc-chips">
+                  <span v-if="deal.value" class="dc-val">{{ fmtValue(deal.value) }}</span>
+                  <span v-if="deal.probability != null" class="dc-prob">{{ deal.probability }}%</span>
+                  <span v-if="deal.expected_close_date" class="dc-date">{{ fmt(deal.expected_close_date) }}</span>
+                </div>
+                <div class="dc-actions">
+                  <router-link :to="`/deals/${deal.id}/edit`" class="dc-btn dc-edit">Edit</router-link>
+                  <button class="dc-btn dc-del" @click="confirmDelete(deal)">Del</button>
+                </div>
               </div>
             </div>
-            <div v-if="(pipelineByStage[stage] || []).length === 0" class="col-empty">No deals</div>
+
+            <!-- Drop placeholder shown in empty columns while dragging -->
+            <div v-if="draggingId && (pipelineByStage[stage] || []).length === 0" class="drop-placeholder">
+              Drop here
+            </div>
+            <div v-else-if="(pipelineByStage[stage] || []).length === 0" class="col-empty">No deals</div>
           </div>
         </div>
+      </div>
+
+      <!-- Pipeline flow indicator -->
+      <div class="pipeline-legend">
+        <span v-for="(stage, si) in STAGES" :key="stage" class="pl-item">
+          <span class="pl-dot" :class="`pld-${stageClass(stage)}`"></span>
+          <span class="pl-name">{{ stage }}</span>
+          <span v-if="si < STAGES.length - 1" class="pl-arrow">›</span>
+        </span>
+        <span class="pl-hint">Drag cards to advance stage</span>
       </div>
     </div>
 
@@ -138,19 +176,24 @@
                 <td>{{ d.user_name ?? '—' }}</td>
                 <td>{{ d.entry_date ?? '—' }}</td>
                 <td class="td-actions">
-                  <router-link :to="`/deals/${d.id}/edit`" class="icon-btn ibtn-edit" title="Edit">✏️</router-link>
-                  <button class="icon-btn ibtn-del" title="Delete" @click="confirmDelete(d)">🗑️</button>
+                  <router-link :to="`/deals/${d.id}/edit`" class="icon-btn ibtn-edit" title="Edit">&#9998;</router-link>
+                  <button class="icon-btn ibtn-del" title="Delete" @click="confirmDelete(d)">&#128465;</button>
                 </td>
               </tr>
             </tbody>
           </table>
         </div>
         <div v-if="meta.last_page > 1" class="pagination">
-          <button :disabled="meta.current_page <= 1" @click="changePage(meta.current_page - 1)">← Prev</button>
+          <button :disabled="meta.current_page <= 1" @click="changePage(meta.current_page - 1)">&#8592; Prev</button>
           <span>Page {{ meta.current_page }} of {{ meta.last_page }}</span>
-          <button :disabled="meta.current_page >= meta.last_page" @click="changePage(meta.current_page + 1)">Next →</button>
+          <button :disabled="meta.current_page >= meta.last_page" @click="changePage(meta.current_page + 1)">Next &#8594;</button>
         </div>
       </div>
+    </div>
+
+    <!-- ── Move toast ── -->
+    <div v-if="moveToast" class="move-toast" :class="`toast-${moveToast.type}`">
+      {{ moveToast.message }}
     </div>
 
     <!-- ── Delete modal ── -->
@@ -204,6 +247,14 @@ const summary        = ref({ open_count: 0, open_value: 0, won_value: 0, lost_va
 const summaryLoading = ref(false);
 const deleteTarget   = ref(null);
 const deleting       = ref(false);
+
+// Drag-and-drop state
+const draggingId       = ref(null);
+const currentDragStage = ref(null);
+const dragOverStage    = ref(null);
+const savingId         = ref(null);
+const moveToast        = ref(null);
+let   toastTimer       = null;
 
 function stageClass(s) { return STAGE_CLASSES[s] ?? 'other'; }
 
@@ -264,6 +315,92 @@ const pipelineByStage = computed(() => {
   return g;
 });
 
+function colValue(stage) {
+  return (pipelineByStage.value[stage] || []).reduce((sum, d) => sum + (Number(d.value) || 0), 0);
+}
+
+// ── Drag-and-drop handlers ──
+
+function onDragStart(event, deal) {
+  draggingId.value       = deal.id;
+  currentDragStage.value = deal.stage;
+  event.dataTransfer.effectAllowed = 'move';
+  event.dataTransfer.setData('text/plain', String(deal.id));
+}
+
+function onDragEnd() {
+  draggingId.value       = null;
+  currentDragStage.value = null;
+  dragOverStage.value    = null;
+}
+
+function onDragEnter(stage) {
+  dragOverStage.value = stage;
+}
+
+function onDragLeave(event, stage) {
+  if (!event.currentTarget.contains(event.relatedTarget)) {
+    if (dragOverStage.value === stage) dragOverStage.value = null;
+  }
+}
+
+async function onDrop(event, targetStage) {
+  dragOverStage.value = null;
+
+  const dealId = draggingId.value;
+  draggingId.value       = null;
+  currentDragStage.value = null;
+
+  if (!dealId) return;
+
+  const deal = deals.value.find(d => d.id === dealId);
+  if (!deal || deal.stage === targetStage) return;
+
+  const oldStage  = deal.stage;
+  const oldStatus = deal.status;
+
+  // Auto-sync status when moving to terminal stages
+  let newStatus = deal.status;
+  if (targetStage === 'Won')  newStatus = 'won';
+  else if (targetStage === 'Lost') newStatus = 'lost';
+  else if (deal.status !== 'open') newStatus = 'open';
+
+  // Optimistic update
+  deal.stage  = targetStage;
+  deal.status = newStatus;
+  savingId.value = dealId;
+
+  try {
+    await api.put(`/v1/deals/${dealId}`, {
+      title:               deal.title,
+      stage:               targetStage,
+      contact_id:          deal.contact_id,
+      value:               deal.value,
+      probability:         deal.probability,
+      expected_close_date: deal.expected_close_date,
+      status:              newStatus,
+      lost_reason:         deal.lost_reason ?? null,
+      notes:               deal.notes ?? null,
+    });
+    loadSummary();
+    showToast(`Moved to "${targetStage}"`, 'success');
+  } catch {
+    deal.stage  = oldStage;
+    deal.status = oldStatus;
+    showToast('Move failed — please try again', 'error');
+  } finally {
+    savingId.value = null;
+  }
+}
+
+function showToast(message, type = 'success') {
+  moveToast.value = { message, type };
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { moveToast.value = null; }, 2800);
+}
+
+// ── Data loading ──
+
 async function load() {
   loading.value = true;
   try {
@@ -319,7 +456,7 @@ onMounted(() => { load(); loadSummary(); loadUsers(); });
 </script>
 
 <style scoped>
-/* ── Page shell: fills viewport, no page-level scroll ── */
+/* ── Page shell ── */
 .page {
   display: flex; flex-direction: column;
   height: calc(100vh - var(--topbar-h, 47px)); overflow: hidden;
@@ -390,7 +527,7 @@ onMounted(() => { load(); loadSummary(); loadUsers(); });
 .fb-search { background: #3b82f6; color: white; }
 .fb-export { background: #10b981; color: white; }
 
-/* ── Content area: fills remaining height ── */
+/* ── Content area ── */
 .content { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 
 /* ── Kanban board ── */
@@ -398,16 +535,39 @@ onMounted(() => { load(); loadSummary(); loadUsers(); });
   flex: 1; min-height: 0; overflow-x: auto; overflow-y: hidden;
   display: flex; gap: 10px; padding-bottom: 4px; align-items: flex-start;
 }
+
+/* When any card is being dragged, change cursor on board */
+.kanban-board.dragging-active { cursor: grabbing; }
+
+/* ── Kanban column ── */
 .kanban-col {
-  flex: 1 1 0; min-width: 155px; max-width: 230px;
+  flex: 1 1 0; min-width: 160px; max-width: 230px;
   display: flex; flex-direction: column;
   background: #f1f5f9; border-radius: 9px; overflow: hidden;
   height: 100%;
+  border: 2px solid transparent;
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
+
+/* Drop-over highlight */
+.kanban-col.drop-over {
+  border-color: #0d9488;
+  box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.18), inset 0 0 0 2000px rgba(13, 148, 136, 0.04);
+}
+
+/* ── Column header ── */
 .col-head {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 8px 12px; font-size: 11px; font-weight: 700;
+  padding: 9px 10px; font-size: 11px; font-weight: 700;
   text-transform: uppercase; letter-spacing: 0.4px; flex-shrink: 0;
+}
+.col-head-left  { display: flex; align-items: center; gap: 6px; }
+.col-head-right { display: flex; align-items: center; gap: 5px; flex-direction: column; align-items: flex-end; }
+
+.ch-step {
+  width: 16px; height: 16px; border-radius: 50%;
+  background: rgba(0,0,0,0.12); font-size: 9px; font-weight: 800;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
 }
 .ch-new-lead    { background: #dbeafe; color: #1d4ed8; }
 .ch-contacted   { background: #e0e7ff; color: #4338ca; }
@@ -415,23 +575,63 @@ onMounted(() => { load(); loadSummary(); loadUsers(); });
 .ch-negotiation { background: #ffedd5; color: #c2410c; }
 .ch-won         { background: #dcfce7; color: #15803d; }
 .ch-lost        { background: #fee2e2; color: #b91c1c; }
+
 .ch-count {
   background: rgba(0,0,0,0.1); border-radius: 20px;
   padding: 1px 7px; font-size: 10px;
 }
+.ch-val {
+  font-size: 9px; font-weight: 700; opacity: 0.75;
+  background: rgba(0,0,0,0.08); border-radius: 8px;
+  padding: 1px 5px; white-space: nowrap;
+}
+
+/* ── Column body ── */
 .col-body {
   flex: 1; min-height: 0; overflow-y: auto;
   padding: 8px; display: flex; flex-direction: column; gap: 6px;
 }
-.col-empty { text-align: center; font-size: 11px; color: #94a3b8; padding: 10px 0; }
-
-/* Deal card */
-.deal-card {
-  background: white; border-radius: 7px; padding: 9px 10px;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.07); border-left: 3px solid transparent;
-  transition: box-shadow 0.12s;
+.col-empty {
+  text-align: center; font-size: 11px; color: #94a3b8; padding: 12px 0;
 }
-.deal-card:hover { box-shadow: 0 3px 10px rgba(0,0,0,0.11); }
+
+/* Drop placeholder (empty column while dragging) */
+.drop-placeholder {
+  border: 2px dashed #0d9488; border-radius: 7px;
+  padding: 16px 8px; text-align: center;
+  font-size: 11px; color: #0d9488; font-weight: 600;
+  background: rgba(13, 148, 136, 0.05);
+  animation: pulse-border 1.2s ease-in-out infinite;
+}
+@keyframes pulse-border {
+  0%, 100% { border-color: #0d9488; opacity: 1; }
+  50% { border-color: #5eead4; opacity: 0.7; }
+}
+
+/* ── Deal card ── */
+.deal-card {
+  background: white; border-radius: 7px;
+  border-left: 3px solid transparent;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  cursor: grab;
+  display: flex; align-items: flex-start; gap: 4px;
+  transition: box-shadow 0.12s, opacity 0.12s, transform 0.1s;
+  user-select: none;
+}
+.deal-card:hover {
+  box-shadow: 0 4px 12px rgba(0,0,0,0.13);
+  transform: translateY(-1px);
+}
+.deal-card.is-dragging {
+  opacity: 0.35;
+  transform: scale(0.97);
+  cursor: grabbing;
+}
+.deal-card.is-saving {
+  opacity: 0.65;
+  pointer-events: none;
+}
+
 .dc-new-lead    { border-left-color: #3b82f6; }
 .dc-contacted   { border-left-color: #6366f1; }
 .dc-quotation   { border-left-color: #f59e0b; }
@@ -439,8 +639,20 @@ onMounted(() => { load(); loadSummary(); loadUsers(); });
 .dc-won         { border-left-color: #22c55e; }
 .dc-lost        { border-left-color: #ef4444; }
 
+/* Drag grip */
+.dc-grip {
+  padding: 9px 2px 9px 6px;
+  font-size: 11px; color: #cbd5e1; letter-spacing: -1px;
+  cursor: grab; flex-shrink: 0; line-height: 1;
+  transition: color 0.12s;
+}
+.deal-card:hover .dc-grip { color: #94a3b8; }
+
+/* Card body */
+.dc-body { padding: 9px 10px 9px 0; flex: 1; min-width: 0; }
+
 .dc-title   { font-size: 12px; font-weight: 700; color: #1e293b; margin-bottom: 2px; word-break: break-word; line-height: 1.3; }
-.dc-company { font-size: 10px; color: #64748b; margin-bottom: 5px; }
+.dc-company { font-size: 10px; color: #64748b; margin-bottom: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .dc-chips   { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 6px; }
 .dc-val  { font-size: 10px; font-weight: 700; color: #0d9488; background: #f0fdf4; padding: 1px 6px; border-radius: 8px; }
 .dc-prob { font-size: 10px; color: #64748b; background: #f1f5f9; padding: 1px 6px; border-radius: 8px; }
@@ -455,6 +667,23 @@ onMounted(() => { load(); loadSummary(); loadUsers(); });
 .dc-edit:hover { background: #fde68a; }
 .dc-del  { background: #fee2e2; color: #991b1b; }
 .dc-del:hover { background: #fca5a5; }
+
+/* ── Pipeline legend ── */
+.pipeline-legend {
+  display: flex; align-items: center; gap: 4px; flex-wrap: wrap;
+  padding: 5px 4px 0; flex-shrink: 0;
+}
+.pl-item  { display: flex; align-items: center; gap: 4px; }
+.pl-dot   { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.pld-new-lead    { background: #3b82f6; }
+.pld-contacted   { background: #6366f1; }
+.pld-quotation   { background: #f59e0b; }
+.pld-negotiation { background: #f97316; }
+.pld-won         { background: #22c55e; }
+.pld-lost        { background: #ef4444; }
+.pl-name  { font-size: 10px; color: #64748b; white-space: nowrap; }
+.pl-arrow { font-size: 11px; color: #cbd5e1; }
+.pl-hint  { font-size: 10px; color: #94a3b8; margin-left: 8px; font-style: italic; }
 
 /* ── List table ── */
 .table-wrap {
@@ -522,6 +751,22 @@ tbody tr:hover { background: #f8fafc; }
 }
 .pagination button:disabled { opacity: 0.4; cursor: not-allowed; }
 
+/* ── Move toast ── */
+.move-toast {
+  position: fixed; bottom: 24px; right: 24px; z-index: 3000;
+  padding: 10px 18px; border-radius: 9px;
+  font-size: 13px; font-weight: 600;
+  box-shadow: 0 6px 24px rgba(0,0,0,0.18);
+  animation: toast-in 0.22s ease;
+  pointer-events: none;
+}
+.toast-success { background: #0d9488; color: white; }
+.toast-error   { background: #ef4444; color: white; }
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
 /* ── Modal ── */
 .modal-backdrop {
   position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 2000;
@@ -541,6 +786,7 @@ tbody tr:hover { background: #f8fafc; }
 /* ── Responsive ── */
 @media (max-width: 1024px) {
   .stat-strip { display: none; }
+  .pipeline-legend { display: none; }
 }
 @media (max-width: 768px) {
   .page { padding: 10px 12px 8px; }

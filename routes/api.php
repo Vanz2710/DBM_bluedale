@@ -19,7 +19,9 @@ use App\Http\Controllers\Api\V1\DealController;
 use App\Http\Controllers\Api\V1\ProjectController;
 use App\Http\Controllers\Api\V1\ReminderController;
 use App\Http\Controllers\Api\V1\ToDoController;
+use App\Http\Controllers\Api\V1\ProfileController;
 use App\Http\Controllers\Api\V1\UserManagementController;
+use App\Http\Controllers\Api\V1\EmailVerificationController;
 
 // Auth (public)
 Route::post('auth/login', [AuthController::class, 'login']);
@@ -27,8 +29,15 @@ Route::post('auth/login', [AuthController::class, 'login']);
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('auth/logout', [AuthController::class, 'logout']);
     Route::get('auth/me', [AuthController::class, 'me']);
+    Route::post('auth/email/resend', [EmailVerificationController::class, 'resend'])
+        ->middleware('throttle:6,1');
 
-    Route::prefix('v1')->group(function () {
+    Route::prefix('v1')->middleware('verified')->group(function () {
+        // Profile (authenticated user's own profile)
+        Route::get('profile', [ProfileController::class, 'show']);
+        Route::put('profile', [ProfileController::class, 'update']);
+        Route::put('profile/password', [ProfileController::class, 'changePassword']);
+
         Route::get('lookups', [LookupController::class, 'all']);
         Route::get('analytics', [AnalyticsController::class, 'summary']);
         Route::get('data-health', [DataHealthController::class, 'index']);

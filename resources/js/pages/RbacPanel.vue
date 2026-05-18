@@ -185,6 +185,7 @@
           </div>
         </div>
         <div v-if="formError" class="form-error">{{ formError }}</div>
+        <div v-if="userCreatedMsg" class="form-success">{{ userCreatedMsg }}</div>
         <div class="form-actions">
           <button class="btn btn-primary" @click="createUser"
             :disabled="!userForm.name.trim() || !userForm.email.trim() || !pwStrong(userForm.password)">
@@ -201,10 +202,10 @@
         <LoadingSpinner v-if="loading" />
         <table v-else>
           <thead>
-            <tr><th>#</th><th>Name</th><th>Email</th><th>Roles</th><th>Joined</th><th>Actions</th></tr>
+            <tr><th>#</th><th>Name</th><th>Email</th><th>Roles</th><th>Verified</th><th>Joined</th><th>Actions</th></tr>
           </thead>
           <tbody>
-            <tr v-if="users.length === 0"><td colspan="6" class="empty-state">No users yet.</td></tr>
+            <tr v-if="users.length === 0"><td colspan="7" class="empty-state">No users yet.</td></tr>
             <tr v-for="(user, idx) in users" :key="user.id">
               <td class="num">{{ idx + 1 }}</td>
               <td class="user-name-cell">{{ user.name }}</td>
@@ -214,6 +215,10 @@
                   <span v-for="r in user.roles" :key="r.id" class="tag tag-purple">{{ r.name }}</span>
                   <span v-if="!user.roles?.length" class="muted">no role</span>
                 </div>
+              </td>
+              <td>
+                <span v-if="user.email_verified_at" class="tag tag-green">Verified</span>
+                <span v-else class="tag tag-orange">Pending</span>
               </td>
               <td class="muted date-cell">{{ formatDate(user.created_at) }}</td>
               <td class="actions-cell">
@@ -386,6 +391,7 @@ const editUserModal = reactive({ open: false, user: null, error: '' });
 
 const showUserPw     = ref(false);
 const showUserConfPw = ref(false);
+const userCreatedMsg = ref('');
 const showEditPw     = ref(false);
 const showEditConfPw = ref(false);
 
@@ -544,12 +550,14 @@ function formatDate(iso) {
 // --- Users ---
 async function createUser() {
   formError.value = '';
+  userCreatedMsg.value = '';
   try {
     const res = await api.post('/v1/rbac/users', userForm);
     users.value.push(res.data.data);
     userForm.name = ''; userForm.email = ''; userForm.password = '';
     userForm.password_confirmation = ''; userForm.role = '';
     showUserPw.value = false; showUserConfPw.value = false;
+    userCreatedMsg.value = res.data.message ?? 'User created. A verification email has been sent.';
   } catch (e) { handleError(e); }
 }
 
@@ -682,7 +690,8 @@ onMounted(() => switchTab('roles'));
 .form-field input:focus, .form-field select:focus { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.08); }
 .optional { font-weight: 400; color: #94a3b8; font-size: 11px; margin-left: 4px; }
 
-.form-error { margin: 0 24px; padding: 10px 14px; background: #fef2f2; color: #dc2626; font-size: 12px; font-weight: 600; border-radius: 8px; border: 1px solid #fecaca; }
+.form-error   { margin: 0 24px; padding: 10px 14px; background: #fef2f2; color: #dc2626; font-size: 12px; font-weight: 600; border-radius: 8px; border: 1px solid #fecaca; }
+.form-success { margin: 0 24px; padding: 10px 14px; background: #f0fdf4; color: #15803d; font-size: 12px; font-weight: 600; border-radius: 8px; border: 1px solid #bbf7d0; }
 
 /* ── Password toggle & strength hints ── */
 .pw-wrap {
@@ -761,6 +770,8 @@ tbody tr:hover { background: #fafbff; }
 .tag { font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 12px; }
 .tag-blue   { background: #dbeafe; color: #1d4ed8; }
 .tag-purple { background: #ede9fe; color: #6d28d9; }
+.tag-green  { background: #dcfce7; color: #15803d; }
+.tag-orange { background: #fff7ed; color: #c2410c; }
 
 /* ── Action buttons ── */
 .actions-cell { white-space: nowrap; width: 1%; }
