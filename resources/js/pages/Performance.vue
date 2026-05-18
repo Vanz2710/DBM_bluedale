@@ -63,6 +63,39 @@
           </div>
         </div>
 
+        <!-- Pipeline Forecast -->
+        <div v-if="dealSummary" class="section-card">
+          <div class="section-title">Pipeline Forecast</div>
+          <div class="forecast-grid">
+            <div class="forecast-stat">
+              <div class="forecast-label">Open Pipeline</div>
+              <div class="forecast-value">{{ formatCurrency(dealSummary.open_value) }}</div>
+              <div class="forecast-sub">{{ dealSummary.open_count }} open deal{{ dealSummary.open_count !== 1 ? 's' : '' }}</div>
+            </div>
+            <div class="forecast-stat highlight">
+              <div class="forecast-label">Weighted Forecast</div>
+              <div class="forecast-value">{{ formatCurrency(dealSummary.weighted_forecast) }}</div>
+              <div class="forecast-sub">value × probability</div>
+            </div>
+            <div class="forecast-stat green">
+              <div class="forecast-label">Won Value</div>
+              <div class="forecast-value">{{ formatCurrency(dealSummary.won_value) }}</div>
+              <div class="forecast-sub">{{ dealSummary.won_count }} deal{{ dealSummary.won_count !== 1 ? 's' : '' }} closed</div>
+            </div>
+          </div>
+          <div v-if="dealSummary.by_stage?.length" class="stage-bars">
+            <div class="stage-bars-title">Open Deals by Stage</div>
+            <div v-for="s in dealSummary.by_stage" :key="s.stage" class="stage-row">
+              <span class="stage-name">{{ s.stage }}</span>
+              <div class="stage-bar-wrap">
+                <div class="stage-bar-fill" :style="{ width: stageBarPct(s.total_value) + '%' }"></div>
+              </div>
+              <span class="stage-count">{{ s.count }}</span>
+              <span class="stage-val">{{ formatCurrency(s.total_value) }}</span>
+            </div>
+          </div>
+        </div>
+
         <!-- Target Progress Bars -->
         <div v-if="targetProgress.length > 0" class="section-card">
           <div class="section-title">Target Progress</div>
@@ -220,42 +253,87 @@
     <!-- ═══════════════════════════════ TEAM TAB ══════════════════════════════ -->
     <div v-if="activeTab === 'team' && isAdmin">
       <LoadingSpinner v-if="loadingTeam" />
-      <div v-else class="table-wrap">
-        <div class="table-header-bar">Team — {{ periodLabel }}</div>
-        <div class="table-scroll">
-          <table>
-            <thead>
-              <tr>
-                <th>User</th>
-                <th>Contacts Added</th>
-                <th>To-Dos Created</th>
-                <th>To-Dos Completed</th>
-                <th>To-Dos Overdue</th>
-                <th>Follow-Ups Created</th>
-                <th>Follow-Ups Done</th>
-                <th>Deals Won</th>
-                <th>Won Value</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-if="teamData.length === 0">
-                <td colspan="9" class="empty-state">No data.</td>
-              </tr>
-              <tr v-for="u in teamData" :key="u.user_id">
-                <td class="user-cell">{{ u.user_name }}</td>
-                <td class="num-cell">{{ u.contacts_added }}</td>
-                <td class="num-cell">{{ u.todos_created }}</td>
-                <td class="num-cell green-cell">{{ u.todos_completed }}</td>
-                <td class="num-cell" :class="{ 'red-cell': u.todos_overdue > 0 }">{{ u.todos_overdue }}</td>
-                <td class="num-cell">{{ u.followups_created }}</td>
-                <td class="num-cell green-cell">{{ u.followups_completed }}</td>
-                <td class="num-cell green-cell">{{ u.deals_won }}</td>
-                <td class="num-cell green-cell">{{ formatCurrency(u.won_deal_value) }}</td>
-              </tr>
-            </tbody>
-          </table>
+      <template v-else>
+        <!-- Quota Attainment Summary Cards -->
+        <div v-if="teamData.length > 0" class="quota-summary-grid">
+          <div v-for="u in teamData.filter(u => u.revenue_quota)" :key="u.user_id"
+               class="quota-card"
+               :class="{ 'quota-met': u.quota_attainment_pct >= 100, 'quota-low': u.quota_attainment_pct < 50 }">
+            <div class="quota-user">{{ u.user_name }}</div>
+            <div class="quota-bar-wrap">
+              <div class="quota-bar-fill" :style="{ width: u.quota_attainment_pct + '%' }"></div>
+            </div>
+            <div class="quota-numbers">
+              {{ formatCurrency(u.won_deal_value) }} / {{ formatCurrency(u.revenue_quota) }}
+              <span class="quota-pct" :class="{ 'pct-done': u.quota_attainment_pct >= 100 }">
+                {{ u.quota_attainment_pct }}%
+              </span>
+            </div>
+          </div>
+          <div v-if="!teamData.some(u => u.revenue_quota)" class="quota-hint">
+            No revenue quotas set. Go to the Targets tab to configure per-user quotas.
+          </div>
         </div>
-      </div>
+
+        <!-- Team Activity Table -->
+        <div class="table-wrap">
+          <div class="table-header-bar">Team Activity — {{ periodLabel }}</div>
+          <div class="table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>User</th>
+                  <th>Contacts Added</th>
+                  <th>To-Dos Created</th>
+                  <th>To-Dos Completed</th>
+                  <th>To-Dos Overdue</th>
+                  <th>Follow-Ups Created</th>
+                  <th>Follow-Ups Done</th>
+                  <th>Deals Won</th>
+                  <th>Won Value</th>
+                  <th>Quota</th>
+                  <th>Attainment</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-if="teamData.length === 0">
+                  <td colspan="11" class="empty-state">No data.</td>
+                </tr>
+                <tr v-for="u in teamData" :key="u.user_id">
+                  <td class="user-cell">{{ u.user_name }}</td>
+                  <td class="num-cell">{{ u.contacts_added }}</td>
+                  <td class="num-cell">{{ u.todos_created }}</td>
+                  <td class="num-cell green-cell">{{ u.todos_completed }}</td>
+                  <td class="num-cell" :class="{ 'red-cell': u.todos_overdue > 0 }">{{ u.todos_overdue }}</td>
+                  <td class="num-cell">{{ u.followups_created }}</td>
+                  <td class="num-cell green-cell">{{ u.followups_completed }}</td>
+                  <td class="num-cell green-cell">{{ u.deals_won }}</td>
+                  <td class="num-cell green-cell">{{ formatCurrency(u.won_deal_value) }}</td>
+                  <td class="num-cell">{{ u.revenue_quota ? formatCurrency(u.revenue_quota) : '—' }}</td>
+                  <td class="num-cell" :class="{ 'green-cell': u.quota_attainment_pct >= 100, 'red-cell': u.quota_attainment_pct !== null && u.quota_attainment_pct < 50 }">
+                    {{ u.quota_attainment_pct !== null ? u.quota_attainment_pct + '%' : '—' }}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Territory Breakdown -->
+        <div v-if="territoryStats.length > 0" class="section-card">
+          <div class="section-title">Territory Breakdown — {{ periodLabel }}</div>
+          <div class="territory-grid">
+            <div v-for="t in territoryStats" :key="t.id" class="territory-stat">
+              <div class="territory-name">{{ t.name }}</div>
+              <div class="territory-count">{{ t.contacts_in_period }}</div>
+              <div class="territory-label">new contacts</div>
+            </div>
+          </div>
+        </div>
+        <div v-else class="territory-empty">
+          No territories configured. Add territories in Admin → Territories to track geographic performance.
+        </div>
+      </template>
     </div>
 
     <!-- ═══════════════════════════════ TARGETS TAB ═══════════════════════════ -->
@@ -449,8 +527,12 @@ const report          = ref({});
 const loadingActivity = ref(false);
 
 // Team
-const teamData     = ref([]);
-const loadingTeam  = ref(false);
+const teamData       = ref([]);
+const territoryStats = ref([]);
+const loadingTeam    = ref(false);
+
+// Deal forecast
+const dealSummary = ref(null);
 
 // KPI Targets
 const editableTargets = ref({});
@@ -515,6 +597,11 @@ const targetProgress = computed(() => {
   }));
 });
 
+const stageBarPct = computed(() => {
+  const max = Math.max(...(dealSummary.value?.by_stage ?? []).map(s => Number(s.total_value) || 0), 1);
+  return (val) => Math.round((Number(val) || 0) / max * 100);
+});
+
 const hasAttentionItems = computed(() => {
   const o = overview.value;
   if (!o) return false;
@@ -574,13 +661,14 @@ function isUnderTarget(taskName) { const t = getTaskTarget(taskName, 1); return 
 
 // ─── Event handlers ──────────────────────────────────────────────────────────
 function onViewChange() {
-  if (activeTab.value === 'overview') loadOverview();
+  if (activeTab.value === 'overview') { loadOverview(); loadDealSummary(); }
   else if (activeTab.value === 'activity') loadActivity();
   else if (activeTab.value === 'team') loadTeam();
 }
 function onUserChange() {
   targetUserId.value = selectedUserId.value;
   loadOverview();
+  loadDealSummary();
   loadTaskTargets();
   loadActivity();
 }
@@ -618,6 +706,29 @@ async function loadOverview() {
   }
 }
 
+async function loadDealSummary() {
+  if (!selectedUserId.value) return;
+  const params = { ...periodParams(), user_id: selectedUserId.value };
+  if (params.view === 'week') {
+    params.from_date = params.start_date;
+    params.to_date   = params.end_date;
+    delete params.start_date; delete params.end_date;
+  } else if (params.view === 'month') {
+    const [y, m] = params.month.split('-');
+    params.from_date = `${y}-${m}-01`;
+    const last = new Date(y, m, 0);
+    params.to_date = `${y}-${m}-${String(last.getDate()).padStart(2,'0')}`;
+    delete params.month;
+  } else {
+    params.from_date = `${params.year}-01-01`;
+    params.to_date   = `${params.year}-12-31`;
+    delete params.year;
+  }
+  delete params.view;
+  const res = await api.get('/v1/deals/summary', { params });
+  dealSummary.value = res.data.data;
+}
+
 async function loadTaskTargets() {
   if (!selectedUserId.value) return;
   const res = await api.get(`/v1/performance/targets/${selectedUserId.value}`);
@@ -644,7 +755,8 @@ async function loadTeam() {
   loadingTeam.value = true;
   try {
     const res = await api.get('/v1/performance/team', { params: periodParams() });
-    teamData.value = res.data.data ?? [];
+    teamData.value       = res.data.data ?? [];
+    territoryStats.value = res.data.territories ?? [];
   } finally {
     loadingTeam.value = false;
   }
@@ -698,7 +810,7 @@ function exportActivityCSV() {
 // ─── Mount ───────────────────────────────────────────────────────────────────
 onMounted(async () => {
   await loadLookups();
-  await Promise.all([loadOverview(), loadTaskTargets(), loadActivity()]);
+  await Promise.all([loadOverview(), loadDealSummary(), loadTaskTargets(), loadActivity()]);
 });
 </script>
 
@@ -918,12 +1030,71 @@ tbody td { padding: 10px 14px; border-bottom: 1px solid #f1f5f9; color: #374151;
 .btn-save-targets:disabled { opacity: 0.6; cursor: not-allowed; }
 .save-success { font-size: 13px; color: #10b981; font-weight: 600; }
 
+/* Pipeline Forecast */
+.forecast-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px;
+}
+.forecast-stat {
+  background: #f8fafc; border-radius: 8px; padding: 14px 16px;
+  border-left: 4px solid #e2e8f0; text-align: center;
+}
+.forecast-stat.highlight { border-left-color: #7c3aed; background: #faf5ff; }
+.forecast-stat.green     { border-left-color: #10b981; background: #f0fdf4; }
+.forecast-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.7px; color: #94a3b8; margin-bottom: 6px; }
+.forecast-value { font-size: 20px; font-weight: 800; color: #1e293b; line-height: 1; }
+.forecast-sub   { font-size: 11px; color: #94a3b8; margin-top: 4px; }
+
+.stage-bars { margin-top: 4px; }
+.stage-bars-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.7px; color: #94a3b8; margin-bottom: 8px; }
+.stage-row { display: grid; grid-template-columns: 130px 1fr 32px 110px; align-items: center; gap: 10px; padding: 5px 0; }
+.stage-name { font-size: 12px; font-weight: 600; color: #374151; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.stage-bar-wrap { height: 8px; background: #f1f5f9; border-radius: 99px; overflow: hidden; }
+.stage-bar-fill { height: 100%; background: #7c3aed; border-radius: 99px; min-width: 2px; transition: width 0.4s; }
+.stage-count { font-size: 11px; font-weight: 700; color: #64748b; text-align: center; }
+.stage-val   { font-size: 11px; font-weight: 700; color: #374151; text-align: right; }
+
+/* Quota Attainment Cards */
+.quota-summary-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px; margin-bottom: 16px;
+}
+.quota-card {
+  background: white; border-radius: 10px; padding: 14px 16px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.07); border-left: 4px solid #7c3aed;
+}
+.quota-card.quota-met  { border-left-color: #10b981; }
+.quota-card.quota-low  { border-left-color: #ef4444; }
+.quota-user { font-size: 13px; font-weight: 700; color: #1e293b; margin-bottom: 8px; }
+.quota-bar-wrap { height: 8px; background: #f1f5f9; border-radius: 99px; overflow: hidden; margin-bottom: 6px; }
+.quota-bar-fill { height: 100%; background: #7c3aed; border-radius: 99px; min-width: 2px; transition: width 0.4s; max-width: 100%; }
+.quota-met  .quota-bar-fill { background: #10b981; }
+.quota-low  .quota-bar-fill { background: #ef4444; }
+.quota-numbers { font-size: 11px; color: #64748b; display: flex; justify-content: space-between; align-items: center; }
+.quota-pct { font-size: 12px; font-weight: 700; color: #7c3aed; }
+.pct-done  { color: #10b981; }
+.quota-hint { font-size: 12px; color: #94a3b8; padding: 16px 0; grid-column: 1 / -1; }
+
+/* Territory Breakdown */
+.territory-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px;
+}
+.territory-stat {
+  background: #f8fafc; border-radius: 8px; padding: 14px 12px; text-align: center;
+  border-top: 3px solid #7c3aed;
+}
+.territory-name  { font-size: 12px; font-weight: 700; color: #374151; margin-bottom: 6px; }
+.territory-count { font-size: 24px; font-weight: 800; color: #1e293b; line-height: 1; }
+.territory-label { font-size: 10px; color: #94a3b8; margin-top: 4px; }
+.territory-empty { font-size: 12px; color: #94a3b8; padding: 16px 0; margin-bottom: 16px; }
+
 /* Responsive */
 @media (max-width: 768px) {
   .page { padding: 16px 12px; }
   .page-banner { flex-direction: column; align-items: flex-start; gap: 12px; }
   .kpi-grid { grid-template-columns: repeat(2, 1fr); }
   .progress-row { grid-template-columns: 1fr 80px auto; }
+  .forecast-grid { grid-template-columns: 1fr; }
+  .stage-row { grid-template-columns: 100px 1fr 28px 90px; }
   table { min-width: 600px; }
   .attention-item { flex-wrap: wrap; }
 }

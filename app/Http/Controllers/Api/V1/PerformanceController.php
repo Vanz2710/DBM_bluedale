@@ -9,6 +9,7 @@ use App\Models\FollowUp;
 use App\Models\KpiTarget;
 use App\Models\PerformanceTarget;
 use App\Models\Project;
+use App\Models\Territory;
 use App\Models\ToDo;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -213,10 +214,19 @@ class PerformanceController extends Controller
         $toDt   = $to   . ' 23:59:59';
         $today  = now()->toDateString();
 
+        // Load all users' won_deal_value quota targets in one query
+        $quotaTargets = KpiTarget::where('metric', 'won_deal_value')
+            ->get()
+            ->keyBy('user_id');
+
         $users = User::orderBy('name')->get();
 
-        $result = $users->map(function ($u) use ($from, $to, $fromDt, $toDt, $today) {
-            $uid = $u->id;
+        $result = $users->map(function ($u) use ($from, $to, $fromDt, $toDt, $today, $quotaTargets) {
+            $uid        = $u->id;
+            $wonValue   = (float) Deal::where('user_id', $uid)->where('status', 'won')->whereBetween('updated_at', [$fromDt, $toDt])->sum('value');
+            $quota      = isset($quotaTargets[$uid]) ? (float) $quotaTargets[$uid]->target_value : null;
+            $quotaPct   = ($quota && $quota > 0) ? min(100, (int) round($wonValue / $quota * 100)) : null;
+
             return [
                 'user_id'             => $uid,
                 'user_name'           => $u->name,
@@ -227,13 +237,25 @@ class PerformanceController extends Controller
                 'followups_created'   => FollowUp::whereHas('todo', fn($q) => $q->where('user_id', $uid))->whereBetween('created_at', [$fromDt, $toDt])->count(),
                 'followups_completed' => FollowUp::whereHas('todo', fn($q) => $q->where('user_id', $uid))->where('completion_status', 'completed')->whereBetween('completed_at', [$fromDt, $toDt])->count(),
                 'deals_won'           => Deal::where('user_id', $uid)->where('status', 'won')->whereBetween('updated_at', [$fromDt, $toDt])->count(),
-                'won_deal_value'      => (float) Deal::where('user_id', $uid)->where('status', 'won')->whereBetween('updated_at', [$fromDt, $toDt])->sum('value'),
+                'won_deal_value'      => $wonValue,
+                'revenue_quota'       => $quota,
+                'quota_attainment_pct' => $quotaPct,
             ];
         });
 
+        // Territory breakdown: contacts per territory for the period
+        $territories = Territory::withCount(['contacts as contacts_in_period' => function ($q) use ($fromDt, $toDt) {
+            $q->whereBetween('created_at', [$fromDt, $toDt]);
+        }])->orderBy('name')->get()->map(fn($t) => [
+            'id'   => $t->id,
+            'name' => $t->name,
+            'contacts_in_period' => $t->contacts_in_period,
+        ]);
+
         return response()->json([
-            'data'   => $result,
-            'period' => ['from' => $from, 'to' => $to, 'view' => $view],
+            'data'        => $result,
+            'period'      => ['from' => $from, 'to' => $to, 'view' => $view],
+            'territories' => $territories,
         ]);
     }
 

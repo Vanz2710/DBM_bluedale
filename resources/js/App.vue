@@ -12,11 +12,11 @@
       <button class="sidebar-toggle" @click="collapsed = !collapsed" :title="collapsed ? 'Expand' : 'Collapse'" v-html="collapsed ? SVGI.chevronRight : SVGI.chevronLeft"></button>
 
       <router-link to="/" class="sidebar-brand">
-        <div class="brand-icon">B</div>
-        <span class="brand-text">
-          <span class="brand-name">Bluedale</span>
-          <span class="brand-sub">Data System</span>
-        </span>
+        <svg class="brand-logo" viewBox="0 0 160 48" xmlns="http://www.w3.org/2000/svg" aria-label="Bluedale Group of Companies">
+          <text x="80" y="28" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="22" font-weight="800" letter-spacing="2" fill="#f1f5f9">BLUEDALE</text>
+          <line x1="10" y1="32" x2="150" y2="32" stroke="#3b82f6" stroke-width="1.5"/>
+          <text x="80" y="43" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="8" font-weight="600" letter-spacing="2.5" fill="#94a3b8">GROUP OF COMPANIES</text>
+        </svg>
       </router-link>
 
       <!-- Main section -->
@@ -110,6 +110,7 @@ import { ref, reactive, computed, watch, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import api from './api.js';
 import NotificationBell from './components/NotificationBell.vue';
+import { applyTheme, useSettings } from './composables/useSettings.js';
 
 const route = useRoute();
 const router = useRouter();
@@ -125,10 +126,14 @@ const isAdminOrSuperAdmin = computed(() => {
 
 watch(collapsed, (v) => localStorage.setItem('sidebarCollapsed', v ? '1' : '0'));
 
+const { loadFromServer } = useSettings();
+
 onMounted(() => {
   window.addEventListener('user-profile-updated', () => {
     currentUser.value = JSON.parse(localStorage.getItem('crm_user') || 'null');
   });
+  // Sync user settings from server once on app mount (no-op if not logged in)
+  if (localStorage.getItem('crm_token')) loadFromServer();
 });
 
 // ─── Navigation icons ─────────────────────────────────────────────────────────
@@ -153,6 +158,7 @@ const SVGI = {
   menu:         _s('<line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/>'),
   logout:       _s('<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>'),
   user:         _s('<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>'),
+  sliders:      _s('<line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/>'),
 };
 
 // ─── Navigation config ────────────────────────────────────────────────────────
@@ -160,8 +166,9 @@ const ALL_GROUPS = [
   {
     key: 'overview', label: 'Overview', icon: SVGI.home, color: 'blue', section: 'main', adminOnly: false,
     items: [
-      { key: 'home',    to: '/',        icon: SVGI.home,  label: 'Dashboard', activeRoutes: ['home'] },
-      { key: 'summary', to: '/summary', icon: SVGI.chart, label: 'Summary',   activeRoutes: ['summary'] },
+      { key: 'home',    to: '/',         icon: SVGI.home,  label: 'Dashboard', activeRoutes: ['home'] },
+      { key: 'summary', to: '/summary',  icon: SVGI.chart, label: 'Summary',   activeRoutes: ['summary'] },
+      { key: 'reports', to: '/reports',  icon: SVGI.chart, label: 'Reports',   activeRoutes: ['reports'] },
     ],
   },
   {
@@ -187,7 +194,8 @@ const ALL_GROUPS = [
     items: [
       { key: 'admin-panel',  to: '/admin',                     icon: SVGI.gear,   label: 'Lookup Settings', activeRoutes: ['admin'] },
       { key: 'rbac',         to: '/admin/rbac',                icon: SVGI.shield, label: 'Access Control', activeRoutes: ['rbac'] },
-      { key: 'perf-targets', to: '/admin/performance-targets', icon: SVGI.target, label: 'Perf. Targets',  activeRoutes: ['perf-targets'] },
+      { key: 'perf-targets', to: '/admin/performance-targets', icon: SVGI.target,    label: 'Perf. Targets',  activeRoutes: ['perf-targets'] },
+      { key: 'webhooks',    to: '/admin/webhooks',             icon: SVGI.activity, label: 'Webhooks',       activeRoutes: ['webhooks'] },
     ],
   },
   {
@@ -195,6 +203,12 @@ const ALL_GROUPS = [
     items: [
       { key: 'import',      to: '/import',      icon: SVGI.download, label: 'Import Data', activeRoutes: ['import'] },
       { key: 'data-health', to: '/data-health', icon: SVGI.activity, label: 'Data Health', activeRoutes: ['data-health'] },
+    ],
+  },
+  {
+    key: 'preferences', label: 'Preferences', icon: SVGI.sliders, color: 'teal', section: 'tools', adminOnly: false,
+    items: [
+      { key: 'settings', to: '/settings', icon: SVGI.sliders, label: 'Settings', activeRoutes: ['settings'] },
     ],
   },
 ];
@@ -278,18 +292,40 @@ export default { name: 'App' };
 
 <style>
 *, *::before, *::after { box-sizing: border-box; }
-body { margin: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f0f2f5; }
-:root { --topbar-h: 47px; }
+
+:root {
+  --topbar-h: 47px;
+  --app-bg:        #f0f2f5;
+  --surface:       #ffffff;
+  --border:        #e2e8f0;
+  --text-1:        #1e293b;
+  --text-2:        #64748b;
+  --text-3:        #94a3b8;
+  --topbar-bg:     #ffffff;
+  --topbar-border: #e2e8f0;
+}
+[data-theme="dark"] {
+  --app-bg:        #0f172a;
+  --surface:       #1e293b;
+  --border:        #334155;
+  --text-1:        #f1f5f9;
+  --text-2:        #94a3b8;
+  --text-3:        #475569;
+  --topbar-bg:     #1e293b;
+  --topbar-border: #334155;
+}
+
+body { margin: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--app-bg); transition: background 0.2s; }
 
 .layout { display: flex; min-height: 100vh; }
 .layout.collapsed .sidebar { width: 76px; }
-.layout.collapsed .brand-text,
 .layout.collapsed .nav-label,
 .layout.collapsed .nav-text,
 .layout.collapsed .sidebar-footer,
 .layout.collapsed .sidebar-user { display: none; }
 .layout.collapsed .sidebar-toggle { right: 23px; }
-.layout.collapsed .sidebar-brand { justify-content: center; padding: 22px 0 20px; }
+.layout.collapsed .sidebar-brand { justify-content: center; padding: 16px 0 14px; }
+.layout.collapsed .brand-logo { width: 40px; height: 40px; }
 .layout.collapsed .nav-group-header { justify-content: center; padding: 10px 0; }
 .layout.collapsed .nav-link { justify-content: center; padding: 10px 0; }
 .layout.collapsed .nav-icon { width: auto; }
@@ -307,14 +343,9 @@ body { margin: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
   font-size: 14px; z-index: 2; transition: background 0.15s; }
 .sidebar-toggle:hover { background: rgba(255,255,255,0.1); color: #e2e8f0; }
 
-.sidebar-brand { display: flex; align-items: center; gap: 11px; padding: 22px 18px 20px;
+.sidebar-brand { display: flex; align-items: center; justify-content: center; padding: 18px 14px 16px;
   text-decoration: none; border-bottom: 1px solid rgba(255,255,255,0.06); flex-shrink: 0; }
-.brand-icon { width: 36px; height: 36px; background: linear-gradient(135deg,#3b82f6,#1d4ed8);
-  border-radius: 9px; display: flex; align-items: center; justify-content: center;
-  font-size: 17px; font-weight: 800; color: white; flex-shrink: 0; }
-.brand-text { display: flex; flex-direction: column; line-height: 1; }
-.brand-name { font-size: 14px; font-weight: 700; color: #f1f5f9; }
-.brand-sub  { font-size: 11px; color: #475569; margin-top: 3px; }
+.brand-logo { width: 148px; height: 46px; flex-shrink: 0; transition: width 0.2s ease, height 0.2s ease; }
 
 .nav-section { padding: 18px 10px 4px; }
 .nav-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.2px;
@@ -387,16 +418,16 @@ body { margin: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
 
 .app-topbar {
   display: flex; align-items: center; gap: 10px; padding: 8px 16px;
-  background: white; border-bottom: 1px solid #e2e8f0;
-  position: sticky; top: 0; z-index: 100;
+  background: var(--topbar-bg); border-bottom: 1px solid var(--topbar-border);
+  position: sticky; top: 0; z-index: 100; transition: background 0.2s, border-color 0.2s;
 }
 .topbar-right { margin-left: auto; display: flex; align-items: center; }
 .hamburger-btn {
-  background: none; border: 1.5px solid #e2e8f0; border-radius: 8px; width: 34px; height: 34px;
-  display: flex; align-items: center; justify-content: center; font-size: 18px; cursor: pointer; color: #334155; flex-shrink: 0;
+  background: none; border: 1.5px solid var(--border); border-radius: 8px; width: 34px; height: 34px;
+  display: flex; align-items: center; justify-content: center; font-size: 18px; cursor: pointer; color: var(--text-1); flex-shrink: 0;
 }
-.hamburger-btn:hover { background: #f1f5f9; }
-.mobile-title { font-size: 15px; font-weight: 700; color: #1e293b; }
+.hamburger-btn:hover { background: var(--app-bg); }
+.mobile-title { font-size: 15px; font-weight: 700; color: var(--text-1); }
 /* Desktop: hide hamburger and brand title */
 @media (min-width: 641px) {
   .hamburger-btn { display: none; }
@@ -406,9 +437,10 @@ body { margin: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
 /* Tablet (641px–1023px) */
 @media (min-width: 641px) and (max-width: 1023px) {
   .sidebar { width: 76px; }
-  .brand-text, .nav-label, .nav-text, .sidebar-footer, .sidebar-user { display: none !important; }
+  .nav-label, .nav-text, .sidebar-footer, .sidebar-user { display: none !important; }
+  .brand-logo { width: 40px; height: 40px; }
   .sidebar-toggle { right: 23px; }
-  .sidebar-brand { justify-content: center; padding: 22px 0 20px; }
+  .sidebar-brand { justify-content: center; padding: 16px 0 14px; }
   .nav-group-header { justify-content: center; padding: 10px 0; }
   .nav-link { justify-content: center; padding: 10px 0; }
   .nav-icon { width: auto !important; }
@@ -424,8 +456,6 @@ body { margin: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
   .layout.collapsed.mobile-open .sidebar { transform: translateX(0) !important; box-shadow: 4px 0 24px rgba(0,0,0,0.3); }
   .layout.mobile-open .mobile-overlay,
   .layout.collapsed.mobile-open .mobile-overlay { display: block; }
-  .layout.mobile-open .brand-text,
-  .layout.collapsed.mobile-open .brand-text,
   .layout.mobile-open .nav-text,
   .layout.collapsed.mobile-open .nav-text,
   .layout.mobile-open .nav-label,
@@ -435,7 +465,9 @@ body { margin: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
   .layout.mobile-open .sidebar-user,
   .layout.collapsed.mobile-open .sidebar-user { display: flex !important; }
   .layout.mobile-open .sidebar-brand,
-  .layout.collapsed.mobile-open .sidebar-brand { justify-content: flex-start !important; padding: 22px 18px 20px !important; }
+  .layout.collapsed.mobile-open .sidebar-brand { justify-content: center !important; padding: 18px 14px 16px !important; }
+  .layout.mobile-open .brand-logo,
+  .layout.collapsed.mobile-open .brand-logo { width: 148px !important; height: 46px !important; }
   .layout.mobile-open .nav-group-header,
   .layout.collapsed.mobile-open .nav-group-header { justify-content: flex-start !important; padding: 9px 10px !important; }
   .layout.mobile-open .nav-link,

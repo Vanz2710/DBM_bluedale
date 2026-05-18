@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Deal;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class DealController extends Controller
 {
@@ -82,11 +83,21 @@ class DealController extends Controller
                 });
             });
 
+        $openBase = (clone $base)->where('status', 'open');
+
         return response()->json(['data' => [
-            'open_count' => (clone $base)->where('status', 'open')->count(),
-            'open_value' => (clone $base)->where('status', 'open')->sum('value'),
-            'won_value'  => (clone $base)->where('status', 'won')->sum('value'),
-            'lost_value' => (clone $base)->where('status', 'lost')->sum('value'),
+            'open_count'         => (clone $openBase)->count(),
+            'open_value'         => (clone $openBase)->sum('value'),
+            'won_count'          => (clone $base)->where('status', 'won')->count(),
+            'won_value'          => (clone $base)->where('status', 'won')->sum('value'),
+            'lost_value'         => (clone $base)->where('status', 'lost')->sum('value'),
+            'weighted_forecast'  => (clone $openBase)->whereNotNull('value')->whereNotNull('probability')
+                                        ->sum(DB::raw('value * probability / 100')),
+            'by_stage'           => (clone $openBase)
+                                        ->select('stage', DB::raw('count(*) as count'), DB::raw('sum(value) as total_value'))
+                                        ->groupBy('stage')
+                                        ->orderByRaw("FIELD(stage, 'New Lead','Contacted','Quotation Sent','Negotiation','Won','Lost')")
+                                        ->get(),
         ]]);
     }
 
