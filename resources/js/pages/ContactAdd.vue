@@ -215,10 +215,10 @@ onMounted(async () => {
 .page-banner.green { background: linear-gradient(135deg, #1a2f4a, #22c55e); }
 .page-banner h1 { font-size: 18px; font-weight: 700; margin: 0 0 4px; }
 .page-banner p { font-size: 13px; opacity: 0.8; margin: 0; }
-.card { background: white; border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); padding: 28px 32px; }
+.card { background: var(--surface); border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); padding: 28px 32px; }
 .section-label {
   font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.7px;
-  color: #64748b; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid #e2e8f0;
+  color: var(--text-2); margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid var(--border);
 }
 .company-chip {
   background: #eff6ff; color: #1d4ed8; border-radius: 6px; padding: 8px 14px;
@@ -228,12 +228,12 @@ onMounted(async () => {
 .form-group { margin-bottom: 16px; }
 .form-group label {
   display: block; font-size: 11px; font-weight: 700;
-  text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; margin-bottom: 6px;
+  text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-2); margin-bottom: 6px;
 }
 .form-group input, .form-group select, .form-group textarea {
-  width: 100%; height: 40px; padding: 0 14px; border: 1.5px solid #e2e8f0;
-  border-radius: 8px; font-size: 13px; color: #1e293b; outline: none;
-  background: white; box-sizing: border-box;
+  width: 100%; height: 40px; padding: 0 14px; border: 1.5px solid var(--border);
+  border-radius: 8px; font-size: 13px; color: var(--text-1); outline: none;
+  background: var(--surface); box-sizing: border-box;
 }
 .form-group textarea { height: 80px; padding: 10px 14px; resize: vertical; }
 .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
@@ -248,7 +248,7 @@ onMounted(async () => {
 .req { color: #ef4444; }
 .btn-row { display: flex; gap: 10px; margin-top: 24px; }
 .btn { height: 42px; padding: 0 20px; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; border: none; text-decoration: none; display: flex; align-items: center; }
-.btn-cancel { background: #f1f5f9; color: #64748b; }
+.btn-cancel { background: var(--app-bg); color: var(--text-2); }
 .btn-next { flex: 1; background: #22c55e; color: white; justify-content: center; }
 .btn-next:disabled { background: #94a3b8; cursor: not-allowed; }
 .btn-save { flex: 1; background: #22c55e; color: white; justify-content: center; }

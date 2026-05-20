@@ -135,27 +135,27 @@ onMounted(async () => {
   display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px;
 }
 .report-tab {
-  height: 36px; padding: 0 16px; border: 1.5px solid #e2e8f0; border-radius: 8px;
-  background: white; color: #64748b; font-size: 13px; font-weight: 600; cursor: pointer;
+  height: 36px; padding: 0 16px; border: 1.5px solid var(--border); border-radius: 8px;
+  background: var(--surface); color: var(--text-2); font-size: 13px; font-weight: 600; cursor: pointer;
   transition: all 0.15s;
 }
 .report-tab.active { background: #7c3aed; color: white; border-color: #7c3aed; }
 .report-tab:hover:not(.active) { border-color: #7c3aed; color: #7c3aed; }
 
-.card { background: white; border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); padding: 20px 24px; }
-.card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding-bottom: 10px; border-bottom: 1px solid #f1f5f9; }
-.card-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.7px; color: #64748b; }
-.badge.total { background: #f1f5f9; color: #64748b; font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 20px; }
+.card { background: var(--surface); border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); padding: 20px 24px; }
+.card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+.card-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.7px; color: var(--text-2); }
+.badge.total { background: var(--app-bg); color: var(--text-2); font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 20px; }
 
 /* Horizontal bar chart */
 .dist-list { margin-bottom: 20px; }
-.dist-row { display: grid; grid-template-columns: 180px 1fr 52px 60px; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 1px solid #f8fafc; }
+.dist-row { display: grid; grid-template-columns: 180px 1fr 52px 60px; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--border); }
 .dist-row:last-child { border-bottom: none; }
 .dist-label { font-size: 13px; color: #374151; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.dist-bar-wrap { height: 10px; background: #f1f5f9; border-radius: 4px; overflow: hidden; }
+.dist-bar-wrap { height: 10px; background: var(--app-bg); border-radius: 4px; overflow: hidden; }
 .dist-bar-fill { height: 100%; background: #7c3aed; border-radius: 4px; min-width: 2px; transition: width 0.4s; }
-.dist-pct  { font-size: 11px; color: #94a3b8; text-align: right; }
-.dist-count { font-size: 13px; font-weight: 700; color: #1e293b; text-align: right; }
+.dist-pct  { font-size: 11px; color: var(--text-3); text-align: right; }
+.dist-count { font-size: 13px; font-weight: 700; color: var(--text-1); text-align: right; }
 
 /* Monthly vertical bar chart */
 .chart-wrap { margin-bottom: 20px; }
@@ -168,20 +168,20 @@ onMounted(async () => {
   transition: height 0.4s;
 }
 .month-bar-val { font-size: 9px; font-weight: 700; color: white; padding-top: 3px; }
-.month-label { font-size: 9px; color: #94a3b8; font-weight: 600; text-align: center; white-space: nowrap; }
+.month-label { font-size: 9px; color: var(--text-3); font-weight: 600; text-align: center; white-space: nowrap; }
 
 /* Table */
 .report-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 8px; }
 .report-table thead th {
-  background: #f8fafc; color: #64748b; font-size: 10px; font-weight: 700;
+  background: var(--app-bg); color: var(--text-2); font-size: 10px; font-weight: 700;
   text-transform: uppercase; letter-spacing: 0.7px; padding: 9px 12px;
-  border-bottom: 2px solid #e2e8f0; text-align: left;
+  border-bottom: 2px solid var(--border); text-align: left;
 }
-.report-table tbody td { padding: 9px 12px; border-bottom: 1px solid #f1f5f9; color: #374151; }
+.report-table tbody td { padding: 9px 12px; border-bottom: 1px solid var(--border); color: #374151; }
 .report-table tbody tr:last-child td { border-bottom: none; }
-.report-table tfoot td { padding: 9px 12px; font-weight: 700; color: #1e293b; background: #f8fafc; border-top: 2px solid #e2e8f0; }
+.report-table tfoot td { padding: 9px 12px; font-weight: 700; color: var(--text-1); background: var(--app-bg); border-top: 2px solid var(--border); }
 .num-cell { text-align: center; }
-.total-label { text-align: right; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: #94a3b8; }
+.total-label { text-align: right; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-3); }
 .total-val { color: #7c3aed; font-size: 15px; }
 
 @media (max-width: 768px) {

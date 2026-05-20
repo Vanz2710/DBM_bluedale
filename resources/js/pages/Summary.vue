@@ -171,22 +171,22 @@ onMounted(async () => {
 .page-banner p { font-size: 13px; opacity: 0.8; margin: 0; }
 
 .toolbar {
-  background: white; border-radius: 10px; padding: 14px 18px; margin-bottom: 18px;
+  background: var(--surface); border-radius: 10px; padding: 14px 18px; margin-bottom: 18px;
   box-shadow: 0 1px 4px rgba(0,0,0,0.07); display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap;
 }
 .filter-group { display: flex; flex-direction: column; gap: 4px; }
 .filter-group.wide input { width: 200px; }
-.filter-group label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.7px; color: #94a3b8; }
+.filter-group label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.7px; color: var(--text-3); }
 .filter-group select, .filter-group input {
-  height: 36px; padding: 0 10px; border: 1.5px solid #e2e8f0;
-  border-radius: 7px; font-size: 13px; color: #374151; outline: none; background: white;
+  height: 36px; padding: 0 10px; border: 1.5px solid var(--border);
+  border-radius: 7px; font-size: 13px; color: #374151; outline: none; background: var(--surface);
 }
 .filter-group select:focus, .filter-group input:focus { border-color: #3b82f6; }
 .year-select { font-size: 16px; font-weight: 700; border: none; background: none; cursor: pointer; height: 36px; }
 .filter-actions { display: flex; gap: 8px; align-items: flex-end; }
 .btn { height: 36px; padding: 0 14px; border: none; border-radius: 7px; cursor: pointer; font-size: 13px; font-weight: 600; }
 .btn-primary { background: #3b82f6; color: white; }
-.btn-reset { background: #f1f5f9; color: #64748b; }
+.btn-reset { background: var(--app-bg); color: var(--text-2); }
 .btn-export { background: #10b981; color: white; }
 
 .loading-msg { text-align: center; padding: 48px; color: #94a3b8; font-size: 14px; }

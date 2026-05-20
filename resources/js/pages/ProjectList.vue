@@ -257,55 +257,55 @@ onMounted(load);
 }
 
 .toolbar {
-  background: white; border-radius: 10px; padding: 14px 18px;
+  background: var(--surface); border-radius: 10px; padding: 14px 18px;
   margin-bottom: 18px; box-shadow: 0 1px 4px rgba(0,0,0,0.07);
   display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap;
 }
 .filter-group { display: flex; flex-direction: column; gap: 4px; }
 .filter-group.wide input { width: 220px; }
-.filter-group label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.7px; color: #94a3b8; }
+.filter-group label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.7px; color: var(--text-3); }
 .filter-group input[type="date"], .filter-group input[type="number"], .filter-group input:not([type]) {
-  height: 36px; padding: 0 10px; border: 1.5px solid #e2e8f0;
-  border-radius: 7px; font-size: 13px; outline: none; background: white;
+  height: 36px; padding: 0 10px; border: 1.5px solid var(--border);
+  border-radius: 7px; font-size: 13px; outline: none; background: var(--surface);
 }
 .filter-group input:focus { border-color: #0ea5e9; }
 
 .btn { height: 36px; padding: 0 14px; border: none; border-radius: 7px; cursor: pointer; font-size: 13px; font-weight: 600; }
 .btn-primary { background: #3b82f6; color: white; }
 .btn-export  { background: #10b981; color: white; }
-.btn-cancel  { background: #f1f5f9; color: #64748b; }
+.btn-cancel  { background: var(--app-bg); color: var(--text-2); }
 .btn-danger  { background: #ef4444; color: white; }
 .btn-danger:disabled { background: #94a3b8; cursor: not-allowed; }
 .btn-group label { visibility: hidden; }
 
-.table-wrap { background: white; border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); overflow: hidden; }
+.table-wrap { background: var(--surface); border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); overflow: hidden; }
 .table-header-bar {
-  background: #f8fafc; padding: 12px 16px;
-  font-size: 13px; font-weight: 700; color: #1e293b;
-  border-bottom: 2px solid #e2e8f0;
+  background: var(--app-bg); padding: 12px 16px;
+  font-size: 13px; font-weight: 700; color: var(--text-1);
+  border-bottom: 2px solid var(--border);
 }
-.sort-hint { font-weight: 400; color: #94a3b8; font-size: 12px; }
-.loading-msg { text-align: center; padding: 48px; color: #94a3b8; }
+.sort-hint { font-weight: 400; color: var(--text-3); font-size: 12px; }
+.loading-msg { text-align: center; padding: 48px; color: var(--text-3); }
 table { width: 100%; border-collapse: collapse; font-size: 12px; }
 thead th {
-  background: #f8fafc; color: #64748b; font-size: 10px; font-weight: 700;
+  background: var(--app-bg); color: var(--text-2); font-size: 10px; font-weight: 700;
   text-transform: uppercase; letter-spacing: 0.7px; padding: 10px 12px;
-  border-bottom: 2px solid #e2e8f0; text-align: left; white-space: nowrap;
+  border-bottom: 2px solid var(--border); text-align: left; white-space: nowrap;
 }
 thead th.sortable { cursor: pointer; user-select: none; }
 thead th.sortable:hover { color: #0ea5e9; background: #f0f9ff; }
 .sort-icon { font-size: 11px; }
-tbody td { padding: 10px 12px; border-bottom: 1px solid #f1f5f9; color: #374151; vertical-align: middle; }
+tbody td { padding: 10px 12px; border-bottom: 1px solid var(--border); color: #374151; vertical-align: middle; }
 tbody tr:last-child td { border-bottom: none; }
-tbody tr:hover { background: #f8fafc; }
+tbody tr:hover { background: var(--app-bg); }
 
-.company-link { color: #1e293b; font-weight: 600; text-decoration: none; }
+.company-link { color: var(--text-1); font-weight: 600; text-decoration: none; }
 .company-link:hover { color: #0ea5e9; }
 .project-name-cell { max-width: 220px; }
 .remark-cell { max-width: 180px; white-space: nowrap; overflow: hidden; display: flex; align-items: center; gap: 4px; }
 .remark-preview { overflow: hidden; text-overflow: ellipsis; flex: 1; }
 .remark-btn { background: none; border: none; cursor: pointer; font-size: 14px; padding: 0 2px; }
-.muted { color: #94a3b8; }
+.muted { color: var(--text-3); }
 
 .icon-btn {
   display: inline-flex; align-items: center; justify-content: center;
@@ -317,14 +317,14 @@ tbody tr:hover { background: #f8fafc; }
 .btn-del  { background: #fee2e2; }
 .btn-del:hover { background: #fca5a5; }
 
-.empty-state { text-align: center; padding: 40px; color: #94a3b8; font-size: 14px; }
+.empty-state { text-align: center; padding: 40px; color: var(--text-3); font-size: 14px; }
 .pagination {
   display: flex; align-items: center; justify-content: center; gap: 14px;
-  padding: 14px; border-top: 1px solid #f1f5f9; font-size: 13px;
+  padding: 14px; border-top: 1px solid var(--border); font-size: 13px;
 }
 .pagination button {
-  padding: 6px 14px; border: 1.5px solid #e2e8f0; border-radius: 7px;
-  background: white; cursor: pointer; font-size: 13px;
+  padding: 6px 14px; border: 1.5px solid var(--border); border-radius: 7px;
+  background: var(--surface); cursor: pointer; font-size: 13px;
 }
 .pagination button:disabled { opacity: 0.4; cursor: not-allowed; }
 
@@ -333,14 +333,14 @@ tbody tr:hover { background: #f8fafc; }
   display: flex; align-items: center; justify-content: center;
 }
 .modal {
-  background: white; border-radius: 12px; padding: 28px 32px;
+  background: var(--surface); border-radius: 12px; padding: 28px 32px;
   max-width: 480px; width: 90%; box-shadow: 0 20px 60px rgba(0,0,0,0.2);
 }
-.modal h3 { font-size: 16px; font-weight: 700; color: #1e293b; margin: 0 0 6px; }
-.modal p  { font-size: 13px; color: #64748b; margin: 0 0 16px; }
+.modal h3 { font-size: 16px; font-weight: 700; color: var(--text-1); margin: 0 0 6px; }
+.modal p  { font-size: 13px; color: var(--text-2); margin: 0 0 16px; }
 .modal-company { font-size: 12px; color: #0ea5e9; font-weight: 600; margin-bottom: 12px !important; }
 .remark-full {
-  background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;
+  background: var(--app-bg); border: 1px solid var(--border); border-radius: 8px;
   padding: 14px 16px; font-size: 13px; color: #374151; white-space: pre-wrap;
   max-height: 300px; overflow-y: auto; margin-bottom: 16px;
 }

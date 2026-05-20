@@ -194,17 +194,17 @@ onMounted(async () => {
 }
 .page-banner h1 { font-size: 18px; font-weight: 700; margin: 0 0 4px; }
 .page-banner p  { font-size: 13px; opacity: 0.8; margin: 0; }
-.card { background: white; border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); padding: 28px 32px; }
-.loading-msg { text-align: center; padding: 40px; color: #94a3b8; }
+.card { background: var(--surface); border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); padding: 28px 32px; }
+.loading-msg { text-align: center; padding: 40px; color: var(--text-3); }
 
 .context-box {
-  background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;
+  background: var(--app-bg); border: 1px solid var(--border); border-radius: 8px;
   padding: 14px 16px; margin-bottom: 20px;
   display: grid; grid-template-columns: 1fr 1fr; gap: 10px 20px;
 }
 .context-item { display: flex; flex-direction: column; gap: 2px; }
-.context-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #94a3b8; }
-.context-val { font-size: 13px; font-weight: 600; color: #1e293b; }
+.context-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-3); }
+.context-val { font-size: 13px; font-weight: 600; color: var(--text-1); }
 
 .duration-badge {
   display: inline-block; background: #e0f2fe; color: #0369a1;
@@ -214,11 +214,11 @@ onMounted(async () => {
 
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .form-group { margin-bottom: 16px; }
-.form-group label { display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; margin-bottom: 6px; }
+.form-group label { display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-2); margin-bottom: 6px; }
 .form-group input, .form-group textarea {
-  width: 100%; height: 40px; padding: 0 14px; border: 1.5px solid #e2e8f0;
-  border-radius: 8px; font-size: 13px; color: #1e293b; outline: none;
-  background: white; box-sizing: border-box;
+  width: 100%; height: 40px; padding: 0 14px; border: 1.5px solid var(--border);
+  border-radius: 8px; font-size: 13px; color: var(--text-1); outline: none;
+  background: var(--surface); box-sizing: border-box;
 }
 .form-group textarea { height: 120px; padding: 10px 14px; resize: vertical; }
 .form-group input:focus, .form-group textarea:focus {
@@ -227,8 +227,8 @@ onMounted(async () => {
 
 .search-wrap { position: relative; }
 .dropdown {
-  position: absolute; top: 100%; left: 0; right: 0; background: white;
-  border: 1.5px solid #e2e8f0; border-radius: 8px; z-index: 100;
+  position: absolute; top: 100%; left: 0; right: 0; background: var(--surface);
+  border: 1.5px solid var(--border); border-radius: 8px; z-index: 100;
   max-height: 220px; overflow-y: auto; box-shadow: 0 4px 12px rgba(0,0,0,0.1);
 }
 .dropdown-item {
@@ -242,7 +242,7 @@ onMounted(async () => {
 .req { color: #ef4444; }
 .btn-row { display: flex; gap: 10px; margin-top: 24px; }
 .btn { height: 42px; padding: 0 20px; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; border: none; text-decoration: none; display: inline-flex; align-items: center; }
-.btn-cancel { background: #f1f5f9; color: #64748b; }
+.btn-cancel { background: var(--app-bg); color: var(--text-2); }
 .btn-save   { flex: 1; background: #0ea5e9; color: white; justify-content: center; }
 .btn-save:disabled { background: #94a3b8; cursor: not-allowed; }
 

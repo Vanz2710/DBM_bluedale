@@ -1,7 +1,7 @@
 # CRM Feature Audit — Progress Tracker
 
 > Based on Zoho CRM feature reference checklist.
-> Last updated: 2026-05-21 (Customizable drag-and-drop widget dashboard)
+> Last updated: 2026-05-21 (WhatsApp history card + outbound reply in ContactView.vue)
 > Track status over time: ✅ IMPLEMENTED | ⚠️ PARTIAL | ❌ MISSING
 
 ---
@@ -61,7 +61,7 @@
 |---|---------|--------|-------|---------|
 | 4.1 | Email integration | ✅ IMPLEMENTED | contact_emails table + ContactEmailController; log sent/received emails against a contact; history displayed in ContactView.vue with inline form | 2026-05-18 |
 | 4.2 | Telephony & call logging | ✅ IMPLEMENTED | contact_calls table + ContactCallController; log inbound/outbound calls with duration + notes against a contact; Call Log card in ContactView.vue | 2026-05-18 |
-| 4.3 | WhatsApp & social | ✅ IMPLEMENTED | WhatsApp Business Cloud API webhook: inbound message ingestion, contact match/create, message logging (whatsapp_messages), round-robin rep assignment, auto-deal creation (New Lead stage), one-time auto-reply, in-app rep notification (notifications table); delivery/read status updates patched on outbound messages | 2026-05-19 |
+| 4.3 | WhatsApp & social | ✅ IMPLEMENTED | WhatsApp Business Cloud API webhook: inbound message ingestion, contact match/create, message logging (whatsapp_messages), round-robin rep assignment, auto-deal creation (New Lead stage), one-time auto-reply, in-app rep notification (notifications table); delivery/read status updates patched on outbound messages; WhatsApp History card in ContactView.vue (GET /v1/contacts/{id}/whatsapp-messages); outbound reply form (POST /v1/contacts/{id}/whatsapp-messages) with inbound/outbound direction badges | 2026-05-21 |
 | 4.4 | Live chat | ❌ MISSING | No chat widget | 2026-05-18 |
 | 4.5 | Task & activity management | ✅ IMPLEMENTED | ToDo + FollowUp models with full CRUD, completion tracking, linked to contacts | 2026-05-18 |
 | 4.6 | Smart inbox | ❌ MISSING | Reminders bell only; no unified inbox | 2026-05-18 |
@@ -159,10 +159,10 @@ WHATSAPP_PHONE_NUMBER_ID=# Phone Number ID from WhatsApp → Getting Started
 | Media files not downloaded | `media_id` is stored but the actual file is not fetched; use the Graph API (`GET /{media-id}`) to retrieve it if needed |
 
 ### Follow-up tasks
-- [ ] Expose `GET /api/v1/contacts/{contact}/whatsapp-messages` for display in ContactView.vue
-- [ ] Add WhatsApp message history card to ContactView.vue (matches email/call log pattern)
+- [x] Expose `GET /api/v1/contacts/{contact}/whatsapp-messages` for display in ContactView.vue
+- [x] Add WhatsApp message history card to ContactView.vue (matches email/call log pattern)
+- [x] Add outbound reply endpoint so reps can reply from the CRM
 - [ ] Surface WhatsApp lead notifications in the NotificationBell (read `GET /api/v1/me/notifications`)
-- [ ] Add outbound reply endpoint so reps can reply from the CRM
 - [ ] Extend WebhookDispatcher with a `whatsapp.lead.created` event
 
 ---
@@ -185,6 +185,7 @@ WHATSAPP_PHONE_NUMBER_ID=# Phone Number ID from WhatsApp → Getting Started
 | 2026-05-21 | 6.4 | ⚠️ → ✅ | territories table + Territory model; territory_id FK on contacts; TerritoryController (CRUD, admin write); territory filter on contacts index; territory picker in ContactAdd.vue; territories in /lookups; Team tab: per-user revenue quota vs attainment cards + Quota/Attainment columns; territory breakdown panel in Team tab |
 | 2026-05-21 | 6.1 | ✅ enhanced | Replaced static Dashboard.vue with fully interactive drag-and-drop widget system; DashboardContainer.vue (grid-layout-plus, 12-col grid, row-height 80px); 4 widget components (RevenueChartWidget, RecentContactsWidget, KpiStatsWidget, TasksWidget) each self-contained; layout saved per-user via `dashboard_layout` JSON column; migration + UserDashboardController + 8 feature tests |
 | 2026-05-21 | 7.2 | ❌ → ⚠️ | Dashboard layout designer now implemented (drag-and-drop, resizable, per-user persistent); general CRM form/page builder still absent |
+| 2026-05-21 | 4.3 | enhanced | WhatsApp History card added to ContactView.vue: GET whatsapp-messages on mount, inbound/outbound direction badges, send form (POST whatsapp-messages) for outbound replies from the CRM |
 
 ---
 

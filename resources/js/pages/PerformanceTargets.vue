@@ -131,32 +131,32 @@ onMounted(loadLookups);
 }
 .page-banner h1 { font-size: 18px; font-weight: 700; margin: 0 0 4px; }
 .page-banner p  { font-size: 13px; opacity: 0.8; margin: 0; }
-.card { background: white; border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); padding: 28px 32px; }
+.card { background: var(--surface); border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); padding: 28px 32px; }
 
 .form-group { margin-bottom: 20px; }
-.form-group label { display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; margin-bottom: 6px; }
+.form-group label { display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-2); margin-bottom: 6px; }
 .form-group select {
-  width: 100%; height: 40px; padding: 0 14px; border: 1.5px solid #e2e8f0;
-  border-radius: 8px; font-size: 13px; color: #1e293b; outline: none; background: white;
+  width: 100%; height: 40px; padding: 0 14px; border: 1.5px solid var(--border);
+  border-radius: 8px; font-size: 13px; color: var(--text-1); outline: none; background: var(--surface);
 }
 .form-group select:focus { border-color: #7c3aed; }
 
-.loading-msg { text-align: center; padding: 32px; color: #94a3b8; }
-.empty-hint { text-align: center; padding: 32px; color: #94a3b8; font-size: 14px; }
+.loading-msg { text-align: center; padding: 32px; color: var(--text-3); }
+.empty-hint { text-align: center; padding: 32px; color: var(--text-3); font-size: 14px; }
 
 .targets-section table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
 .targets-section thead th {
-  background: #f8fafc; color: #64748b; font-size: 10px; font-weight: 700;
+  background: var(--app-bg); color: var(--text-2); font-size: 10px; font-weight: 700;
   text-transform: uppercase; letter-spacing: 0.7px; padding: 10px 14px;
-  border-bottom: 2px solid #e2e8f0; text-align: left;
+  border-bottom: 2px solid var(--border); text-align: left;
 }
 .col-target { width: 140px; text-align: center; }
-.targets-section tbody td { padding: 10px 14px; border-bottom: 1px solid #f1f5f9; font-size: 13px; color: #374151; }
+.targets-section tbody td { padding: 10px 14px; border-bottom: 1px solid var(--border); font-size: 13px; color: #374151; }
 .targets-section tbody tr:last-child td { border-bottom: none; }
 .targets-section tbody tr:hover { background: #faf5ff; }
 
 .target-input {
-  width: 90px; height: 36px; padding: 0 10px; border: 1.5px solid #e2e8f0;
+  width: 90px; height: 36px; padding: 0 10px; border: 1.5px solid var(--border);
   border-radius: 7px; font-size: 13px; text-align: center; outline: none;
 }
 .target-input:focus { border-color: #7c3aed; box-shadow: 0 0 0 3px rgba(124,58,237,0.1); }

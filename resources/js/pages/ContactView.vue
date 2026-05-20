@@ -57,6 +57,10 @@
             <span v-if="contact.lead_source" :class="['source-badge', `source-${contact.lead_source}`]">{{ sourceLabel(contact.lead_source) }}</span>
             <span v-else class="info-value muted">—</span>
           </div>
+          <div v-if="contact.whatsapp_phone" class="info-field">
+            <span class="info-label">WhatsApp Phone</span>
+            <span class="info-value">{{ contact.whatsapp_phone }}</span>
+          </div>
         </div>
         <div v-if="contact.address" class="info-full">
           <div class="info-label">Address</div>
@@ -109,6 +113,39 @@
             </tr>
           </tbody>
         </table>
+      </div>
+
+      <div class="card">
+        <div class="card-title-row">
+          <div class="card-title">WhatsApp History ({{ whatsappMessages.length }})</div>
+          <button class="btn btn-whatsapp" @click="toggleWhatsappForm">
+            {{ showWhatsappForm ? 'Cancel' : '+ Send Message' }}
+          </button>
+        </div>
+
+        <div v-if="showWhatsappForm" class="email-form">
+          <div class="form-group">
+            <label class="form-label">Message</label>
+            <textarea v-model="newWhatsapp.message_text" class="form-textarea" rows="3" placeholder="Type your WhatsApp message..."></textarea>
+          </div>
+          <div class="form-actions">
+            <button class="btn btn-whatsapp-save" @click="sendWhatsapp" :disabled="sendingWhatsapp">
+              {{ sendingWhatsapp ? 'Sending...' : 'Send Message' }}
+            </button>
+          </div>
+        </div>
+
+        <p v-if="!whatsappMessages.length && !showWhatsappForm" class="no-data">No WhatsApp messages yet.</p>
+        <div v-for="msg in whatsappMessages" :key="msg.id" class="email-item">
+          <div class="email-header">
+            <span class="dir-badge" :class="msg.direction === 'inbound' ? 'received' : 'sent'">
+              {{ msg.direction === 'inbound' ? '↓ Inbound' : '↑ Outbound' }}
+            </span>
+            <span class="email-subject" v-if="msg.status">Status: {{ msg.status }}</span>
+            <span class="email-meta">{{ fmtDate(msg.created_at || msg.timestamp) }}</span>
+          </div>
+          <div v-if="msg.message_text" class="email-body">{{ msg.message_text }}</div>
+        </div>
       </div>
 
       <div class="card">
@@ -241,6 +278,12 @@ const showCallForm = ref(false);
 const savingCall = ref(false);
 const newCall = ref(defaultCallForm());
 
+// WhatsApp State
+const whatsappMessages = ref([]);
+const showWhatsappForm = ref(false);
+const sendingWhatsapp = ref(false);
+const newWhatsapp = ref({ message_text: '' });
+
 function defaultEmailForm() {
   const now = new Date();
   now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
@@ -255,7 +298,10 @@ function defaultCallForm() {
 
 function fmtDate(d) {
   if (!d) return '—';
-  return new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+  // Formats correctly to short month & time
+  const date = new Date(d);
+  return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) + ' ' + 
+         date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 }
 
 const SOURCE_LABELS = {
@@ -314,15 +360,44 @@ async function deleteCall(callId) {
   calls.value = calls.value.filter(c => c.id !== callId);
 }
 
+// WhatsApp Actions
+function toggleWhatsappForm() {
+  showWhatsappForm.value = !showWhatsappForm.value;
+  if (showWhatsappForm.value) newWhatsapp.value = { message_text: '' };
+}
+
+async function sendWhatsapp() {
+  if (!newWhatsapp.value.message_text.trim()) return;
+  sendingWhatsapp.value = true;
+  try {
+    const { data } = await api.post(`/v1/contacts/${id}/whatsapp-messages`, {
+      message_text: newWhatsapp.value.message_text
+    });
+    // Unshift the newly sent message to the top of the timeline
+    whatsappMessages.value.unshift(data.data);
+    showWhatsappForm.value = false;
+    newWhatsapp.value = { message_text: '' };
+  } catch (e) {
+    alert('Failed to send WhatsApp message. Check if backend endpoint is configured.');
+  } finally {
+    sendingWhatsapp.value = false;
+  }
+}
+
 onMounted(async () => {
-  const [contactRes, emailsRes, callsRes] = await Promise.all([
+  // Fetch all endpoints concurrently. Fallback added for new endpoints if not seeded.
+  const [contactRes, emailsRes, callsRes, whatsappRes] = await Promise.all([
     api.get(`/v1/contacts/${id}`),
     api.get(`/v1/contacts/${id}/emails`),
     api.get(`/v1/contacts/${id}/calls`).catch(() => ({ data: { data: [] } })),
+    api.get(`/v1/contacts/${id}/whatsapp-messages`).catch(() => ({ data: { data: [] } })),
   ]);
+  
   contact.value = contactRes.data.data;
   emails.value = emailsRes.data.data;
   calls.value = callsRes.data.data;
+  whatsappMessages.value = whatsappRes.data.data;
+  
   loading.value = false;
 });
 </script>
@@ -330,25 +405,25 @@ onMounted(async () => {
 <style scoped>
 .page { max-width: 980px; margin: 0 auto; padding: 24px 28px; }
 .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-.back-link { font-size: 13px; font-weight: 600; color: #64748b; text-decoration: none; }
+.back-link { font-size: 13px; font-weight: 600; color: var(--text-2); text-decoration: none; }
 .back-link:hover { color: #3b82f6; }
 .header-actions { display: flex; gap: 10px; }
 .btn { height: 38px; padding: 0 16px; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; border: none; text-decoration: none; display: inline-flex; align-items: center; }
 .btn-task { background: #22c55e; color: white; }
 .btn-edit { background: #f59e0b; color: white; }
-.loading-msg { padding: 60px; text-align: center; color: #94a3b8; }
+.loading-msg { padding: 60px; text-align: center; color: var(--text-3); }
 .profile-header { background: linear-gradient(135deg, #1a2f4a, #22c55e); border-radius: 10px; padding: 28px 32px; margin-bottom: 20px; color: white; }
 .profile-header h1 { font-size: 22px; font-weight: 700; margin: 0 0 10px; }
 .profile-meta { display: flex; gap: 10px; flex-wrap: wrap; }
 .meta-badge { display: inline-flex; align-items: center; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; background: rgba(255,255,255,0.15); color: rgba(255,255,255,0.9); }
-.card { background: white; border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); padding: 24px 28px; margin-bottom: 16px; }
-.card-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.7px; color: #64748b; margin: 0 0 20px; padding-bottom: 12px; border-bottom: 1px solid #f1f5f9; }
+.card { background: var(--surface); border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); padding: 24px 28px; margin-bottom: 16px; }
+.card-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.7px; color: var(--text-2); margin: 0 0 20px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
 .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px 32px; }
 .info-field { display: flex; flex-direction: column; gap: 4px; }
-.info-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: #94a3b8; }
-.info-value { font-size: 15px; color: #1e293b; font-weight: 500; }
-.info-value.muted, .muted { color: #94a3b8; font-weight: 400; font-style: italic; font-size: 14px; }
-.info-full { margin-top: 16px; padding-top: 16px; border-top: 1px solid #f1f5f9; }
+.info-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-3); }
+.info-value { font-size: 15px; color: var(--text-1); font-weight: 500; }
+.info-value.muted, .muted { color: var(--text-3); font-weight: 400; font-style: italic; font-size: 14px; }
+.info-full { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border); }
 .source-badge { display: inline-block; padding: 2px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
 .source-manual        { background: #f1f5f9; color: #475569; }
 .source-web_form      { background: #eff6ff; color: #1d4ed8; }
@@ -360,47 +435,58 @@ onMounted(async () => {
 .source-walk_in       { background: #f0fdfa; color: #0f766e; }
 .source-other         { background: #f8fafc; color: #64748b; }
 table { width: 100%; border-collapse: collapse; }
-thead th { background: #f8fafc; color: #64748b; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.7px; padding: 11px 14px; border-bottom: 2px solid #e2e8f0; text-align: left; }
-tbody td { padding: 12px 14px; border-bottom: 1px solid #f1f5f9; font-size: 13px; color: #374151; vertical-align: middle; }
+thead th { background: var(--app-bg); color: var(--text-2); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.7px; padding: 11px 14px; border-bottom: 2px solid var(--border); text-align: left; }
+tbody td { padding: 12px 14px; border-bottom: 1px solid var(--border); font-size: 13px; color: #374151; vertical-align: middle; }
 tbody tr:last-child td { border-bottom: none; }
-tbody tr:hover { background: #f8fafc; }
+tbody tr:hover { background: var(--app-bg); }
 .contact-email { color: #3b82f6; text-decoration: none; }
 .contact-email:hover { text-decoration: underline; }
-.no-data { font-size: 14px; color: #94a3b8; font-style: italic; padding: 8px 0; margin: 0; }
-.todo-date { font-size: 12px; font-weight: 700; color: #64748b; white-space: nowrap; }
+.no-data { font-size: 14px; color: var(--text-3); font-style: italic; padding: 8px 0; margin: 0; }
+.todo-date { font-size: 12px; font-weight: 700; color: var(--text-2); white-space: nowrap; }
 .task-badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; background: #eff6ff; color: #3b82f6; }
 
-.card-title-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 12px; border-bottom: 1px solid #f1f5f9; }
+.card-title-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
 .card-title-row .card-title { margin: 0; padding: 0; border: none; }
+
+/* Button Styles */
+.btn-whatsapp { height: 34px; padding: 0 14px; border-radius: 8px; font-size: 12px; font-weight: 700; background: #16a34a; color: white; border: none; cursor: pointer; }
+.btn-whatsapp:hover { background: #15803d; }
+.btn-whatsapp-save { height: 36px; padding: 0 18px; border-radius: 8px; font-size: 13px; font-weight: 700; background: #16a34a; color: white; border: none; cursor: pointer; }
+.btn-whatsapp-save:disabled { opacity: 0.6; cursor: not-allowed; }
+.btn-whatsapp-save:hover:not(:disabled) { background: #15803d; }
+
 .btn-email { height: 34px; padding: 0 14px; border-radius: 8px; font-size: 12px; font-weight: 700; background: #3b82f6; color: white; border: none; cursor: pointer; }
 .btn-email:hover { background: #2563eb; }
 .btn-call { height: 34px; padding: 0 14px; border-radius: 8px; font-size: 12px; font-weight: 700; background: #8b5cf6; color: white; border: none; cursor: pointer; }
 .btn-call:hover { background: #7c3aed; }
+
+/* Form and item styles */
 .dir-badge.outbound { background: #f5f3ff; color: #7c3aed; }
 .dir-badge.inbound { background: #fef3c7; color: #d97706; }
-.email-form { background: #f8fafc; border-radius: 8px; padding: 18px; margin-bottom: 16px; border: 1px solid #e2e8f0; }
+.email-form { background: var(--app-bg); border-radius: 8px; padding: 18px; margin-bottom: 16px; border: 1px solid var(--border); }
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
 .form-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
 .form-group:last-child { margin-bottom: 0; }
-.form-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: #64748b; }
-.form-input, .form-select, .form-textarea { width: 100%; padding: 8px 10px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 13px; color: #1e293b; background: white; box-sizing: border-box; }
+.form-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-2); }
+.form-input, .form-select, .form-textarea { width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; color: var(--text-1); background: var(--surface); box-sizing: border-box; }
 .form-input:focus, .form-select:focus, .form-textarea:focus { outline: none; border-color: #3b82f6; }
 .form-textarea { resize: vertical; font-family: inherit; }
 .form-actions { display: flex; justify-content: flex-end; margin-top: 14px; }
 .btn-save { height: 36px; padding: 0 18px; border-radius: 8px; font-size: 13px; font-weight: 700; background: #22c55e; color: white; border: none; cursor: pointer; }
 .btn-save:disabled { opacity: 0.6; cursor: not-allowed; }
 .btn-save:hover:not(:disabled) { background: #16a34a; }
-.email-item { border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px 16px; margin-bottom: 10px; }
+
+.email-item { border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; margin-bottom: 10px; }
 .email-item:last-child { margin-bottom: 0; }
 .email-header { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .dir-badge { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; white-space: nowrap; }
 .dir-badge.sent { background: #eff6ff; color: #3b82f6; }
 .dir-badge.received { background: #f0fdf4; color: #16a34a; }
-.email-subject { font-size: 14px; font-weight: 600; color: #1e293b; flex: 1; }
-.email-meta { font-size: 11px; color: #94a3b8; white-space: nowrap; }
-.btn-delete-email { margin-left: auto; background: none; border: none; color: #94a3b8; font-size: 13px; cursor: pointer; padding: 2px 6px; border-radius: 4px; }
+.email-subject { font-size: 14px; font-weight: 600; color: var(--text-1); flex: 1; }
+.email-meta { font-size: 11px; color: var(--text-3); white-space: nowrap; }
+.btn-delete-email { margin-left: auto; background: none; border: none; color: var(--text-3); font-size: 13px; cursor: pointer; padding: 2px 6px; border-radius: 4px; }
 .btn-delete-email:hover { color: #ef4444; background: #fef2f2; }
-.email-body { margin-top: 10px; font-size: 13px; color: #475569; white-space: pre-line; padding-top: 10px; border-top: 1px solid #f1f5f9; line-height: 1.5; }
+.email-body { margin-top: 10px; font-size: 13px; color: #475569; white-space: pre-line; padding-top: 10px; border-top: 1px solid var(--border); line-height: 1.5; }
 
 /* Responsive */
 @media (max-width: 768px) {

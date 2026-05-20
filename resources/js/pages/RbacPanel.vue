@@ -657,20 +657,20 @@ onMounted(() => switchTab('roles'));
 
 /* ── Panel (card) ── */
 .panel {
-  background: white; border-radius: 12px;
+  background: var(--surface); border-radius: 12px;
   box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 8px rgba(0,0,0,0.04);
   margin-bottom: 16px; overflow: hidden;
 }
 .panel-header {
   display: flex; align-items: center; gap: 10px;
-  padding: 16px 24px; border-bottom: 1px solid #f1f5f9;
+  padding: 16px 24px; border-bottom: 1px solid var(--border);
 }
-.panel-title { font-size: 14px; font-weight: 700; color: #0f172a; }
+.panel-title { font-size: 14px; font-weight: 700; color: var(--text-1); }
 .count-badge {
-  background: #f1f5f9; color: #64748b;
+  background: var(--app-bg); color: var(--text-2);
   font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 10px;
 }
-.loading-msg { text-align: center; padding: 48px; color: #94a3b8; font-size: 13px; }
+.loading-msg { text-align: center; padding: 48px; color: var(--text-3); font-size: 13px; }
 
 /* ── Forms ── */
 .form-grid {
@@ -683,12 +683,12 @@ onMounted(() => switchTab('roles'));
 .form-field label { font-size: 12px; font-weight: 600; color: #374151; }
 .form-field input, .form-field select {
   height: 38px; padding: 0 12px;
-  border: 1.5px solid #e2e8f0; border-radius: 8px;
-  font-size: 13px; color: #0f172a; outline: none;
+  border: 1.5px solid var(--border); border-radius: 8px;
+  font-size: 13px; color: var(--text-1); outline: none;
   transition: border-color 0.15s;
 }
 .form-field input:focus, .form-field select:focus { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.08); }
-.optional { font-weight: 400; color: #94a3b8; font-size: 11px; margin-left: 4px; }
+.optional { font-weight: 400; color: var(--text-3); font-size: 11px; margin-left: 4px; }
 
 .form-error   { margin: 0 24px; padding: 10px 14px; background: #fef2f2; color: #dc2626; font-size: 12px; font-weight: 600; border-radius: 8px; border: 1px solid #fecaca; }
 .form-success { margin: 0 24px; padding: 10px 14px; background: #f0fdf4; color: #15803d; font-size: 12px; font-weight: 600; border-radius: 8px; border: 1px solid #bbf7d0; }
@@ -696,7 +696,7 @@ onMounted(() => switchTab('roles'));
 /* ── Password toggle & strength hints ── */
 .pw-wrap {
   display: flex; align-items: center;
-  border: 1.5px solid #e2e8f0; border-radius: 8px;
+  border: 1.5px solid var(--border); border-radius: 8px;
   overflow: hidden; transition: border-color 0.15s;
 }
 .pw-wrap:focus-within {
@@ -708,7 +708,7 @@ onMounted(() => switchTab('roles'));
   height: 38px; padding: 0 12px;
   border: none !important; box-shadow: none !important;
   outline: none; background: transparent;
-  font-size: 13px; color: #0f172a;
+  font-size: 13px; color: var(--text-1);
 }
 .pw-wrap .edit-input {
   border: none !important; box-shadow: none !important;
@@ -716,12 +716,12 @@ onMounted(() => switchTab('roles'));
 }
 .pw-toggle {
   flex-shrink: 0; width: 36px; height: 38px;
-  padding: 0; border: none; border-left: 1px solid #e2e8f0;
-  background: transparent; color: #94a3b8;
+  padding: 0; border: none; border-left: 1px solid var(--border);
+  background: transparent; color: var(--text-3);
   cursor: pointer; display: flex; align-items: center;
   justify-content: center; transition: color 0.15s, background 0.15s;
 }
-.pw-toggle:hover { color: #475569; background: #f8fafc; }
+.pw-toggle:hover { color: #475569; background: var(--app-bg); }
 .pw-hints { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 5px; }
 .hint { font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 10px; }
 .hint.ok   { background: #dcfce7; color: #166534; }
@@ -729,7 +729,7 @@ onMounted(() => switchTab('roles'));
 
 .form-actions {
   display: flex; gap: 8px; padding: 16px 24px 20px;
-  border-top: 1px solid #f8fafc;
+  border-top: 1px solid var(--border);
 }
 
 /* ── Buttons ── */
@@ -740,30 +740,30 @@ onMounted(() => switchTab('roles'));
 .btn-primary { background: #6366f1; color: white; }
 .btn-primary:hover { background: #4f46e5; }
 .btn-primary:disabled { background: #c7d2fe; cursor: not-allowed; }
-.btn-ghost { background: #f1f5f9; color: #64748b; }
-.btn-ghost:hover { background: #e2e8f0; }
+.btn-ghost { background: var(--app-bg); color: var(--text-2); }
+.btn-ghost:hover { background: var(--border); }
 
 /* ── Table ── */
 table { width: 100%; border-collapse: collapse; }
 thead th {
-  background: #f8fafc; color: #64748b;
+  background: var(--app-bg); color: var(--text-2);
   font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px;
-  padding: 11px 16px; border-bottom: 1px solid #e2e8f0; text-align: left;
+  padding: 11px 16px; border-bottom: 1px solid var(--border); text-align: left;
 }
 tbody td {
-  padding: 12px 16px; border-bottom: 1px solid #f1f5f9;
+  padding: 12px 16px; border-bottom: 1px solid var(--border);
   font-size: 13px; color: #374151; vertical-align: middle;
 }
 tbody tr:last-child td { border-bottom: none; }
-tbody tr:hover { background: #fafbff; }
+tbody tr:hover { background: var(--app-bg); }
 .num { color: #cbd5e1; font-size: 12px; width: 40px; }
-.muted { color: #94a3b8; }
-.empty-state { text-align: center; padding: 40px; color: #94a3b8; font-size: 13px; }
+.muted { color: var(--text-3); }
+.empty-state { text-align: center; padding: 40px; color: var(--text-3); font-size: 13px; }
 
-.role-name { font-weight: 600; color: #1e293b; }
-.user-name-cell { font-weight: 500; color: #1e293b; }
+.role-name { font-weight: 600; color: var(--text-1); }
+.user-name-cell { font-weight: 500; color: var(--text-1); }
 .date-cell { font-size: 12px; white-space: nowrap; }
-.perm-code { background: #f1f5f9; color: #1e293b; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-family: monospace; }
+.perm-code { background: var(--app-bg); color: var(--text-1); padding: 2px 8px; border-radius: 4px; font-size: 12px; font-family: monospace; }
 
 /* ── Tags ── */
 .tag-wrap { display: flex; flex-wrap: wrap; gap: 4px; }
@@ -795,7 +795,7 @@ tbody tr:hover { background: #fafbff; }
   z-index: 100; padding: 20px;
 }
 .modal {
-  background: white; border-radius: 14px;
+  background: var(--surface); border-radius: 14px;
   width: 460px; max-width: 100%; max-height: 85vh;
   display: flex; flex-direction: column;
   box-shadow: 0 20px 60px rgba(0,0,0,0.2);
@@ -804,16 +804,16 @@ tbody tr:hover { background: #fafbff; }
 
 .modal-head {
   display: flex; align-items: flex-start; justify-content: space-between;
-  padding: 20px 24px 16px; border-bottom: 1px solid #f1f5f9;
+  padding: 20px 24px 16px; border-bottom: 1px solid var(--border);
 }
-.modal-title { font-size: 15px; font-weight: 700; color: #0f172a; }
-.modal-sub   { font-size: 12px; color: #94a3b8; margin-top: 2px; }
+.modal-title { font-size: 15px; font-weight: 700; color: var(--text-1); }
+.modal-sub   { font-size: 12px; color: var(--text-3); margin-top: 2px; }
 .modal-close {
   width: 28px; height: 28px; border-radius: 6px; border: none;
-  background: #f1f5f9; color: #64748b; font-size: 13px; cursor: pointer;
+  background: var(--app-bg); color: var(--text-2); font-size: 13px; cursor: pointer;
   display: flex; align-items: center; justify-content: center; flex-shrink: 0;
 }
-.modal-close:hover { background: #e2e8f0; }
+.modal-close:hover { background: var(--border); }
 
 .modal-body {
   flex: 1; overflow-y: auto; padding: 16px 24px;
@@ -825,22 +825,22 @@ tbody tr:hover { background: #fafbff; }
   padding: 8px 10px; border-radius: 8px; cursor: pointer;
   transition: background 0.1s;
 }
-.check-row:hover { background: #f8fafc; }
+.check-row:hover { background: var(--app-bg); }
 .check-row input { accent-color: #6366f1; width: 16px; height: 16px; flex-shrink: 0; }
 .check-label { font-size: 13px; color: #374151; }
 
 .modal-foot {
   display: flex; align-items: center; gap: 8px;
-  padding: 16px 24px; border-top: 1px solid #f1f5f9;
+  padding: 16px 24px; border-top: 1px solid var(--border);
 }
-.selected-count { font-size: 12px; color: #94a3b8; flex: 1; }
+.selected-count { font-size: 12px; color: var(--text-3); flex: 1; }
 .modal-foot .btn { height: 36px; }
 
 /* ── Edit user form inside modal ── */
 .edit-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 20px; }
 .edit-input {
   height: 38px; padding: 0 12px;
-  border: 1.5px solid #e2e8f0; border-radius: 8px;
+  border: 1.5px solid var(--border); border-radius: 8px;
   font-size: 13px; outline: none; width: 100%; box-sizing: border-box;
 }
 .edit-input:focus { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.08); }

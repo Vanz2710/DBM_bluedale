@@ -9,10 +9,10 @@ use App\Models\ContactIncharge;
 use App\Models\ContactIndustry;
 use App\Models\ContactStatus;
 use App\Models\ContactType;
-use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 
 class ImportController extends Controller
 {
@@ -129,10 +129,17 @@ class ImportController extends Controller
             return response()->json(['error' => 'PhpSpreadsheet not installed. Run: composer require phpoffice/phpspreadsheet'], 422);
         }
 
+        $allowedFields = [
+            'name', 'address', 'remark',
+            'status', 'client_type', 'industry', 'category',
+            'assigned_user', 'pic_name', 'email', 'phone_mobile',
+        ];
+
         $request->validate([
-            'temp_path'  => 'required|string',
-            'data_start' => 'required|integer|min:1',
-            'mapping'    => 'required|array',
+            'temp_path'  => ['required', 'string', 'regex:/^imports\/[a-zA-Z0-9\/._-]+$/'],
+            'data_start' => 'required|integer|min:1|max:1000',
+            'mapping'    => 'required|array|max:50',
+            'mapping.*'  => ['nullable', 'string', Rule::in($allowedFields)],
         ]);
 
         $fullPath = Storage::disk('local')->path($request->input('temp_path'));
@@ -172,7 +179,7 @@ class ImportController extends Controller
         DB::beginTransaction();
         try {
             for ($row = $dataStart; $row <= $highestRow; $row++) {
-                $name = trim((string)$sheet->getCell($nameCol . $row)->getValue());
+                $name = mb_substr(trim((string)$sheet->getCell($nameCol . $row)->getValue()), 0, 255);
                 if ($name === '') continue;
 
                 if (isset($existing[strtolower($name)])) { $skipped++; continue; }
@@ -185,8 +192,8 @@ class ImportController extends Controller
                     if ($val === '') continue;
 
                     switch ($field) {
-                        case 'address': $data['address'] = $val; break;
-                        case 'remark':  $data['remark'] = $val; break;
+                        case 'address': $data['address'] = mb_substr($val, 0, 500); break;
+                        case 'remark':  $data['remark'] = mb_substr($val, 0, 2000); break;
                         case 'status':
                             $val = $this->normalize($val, 'status');
                             if (!isset($statusMap[$val])) {
@@ -219,10 +226,6 @@ class ImportController extends Controller
                             $data['category_id'] = $categoryMap[$val] ?? null;
                             break;
                         case 'assigned_user':
-                            if (!isset($userMap[$val])) {
-                                User::create(['name' => $val, 'email' => strtolower(str_replace([' ', "'"], ['.', ''], $val)) . '@placeholder.com', 'password' => bcrypt('password')]);
-                                $userMap = User::pluck('id', 'name')->all();
-                            }
                             $data['user_id'] = $userMap[$val] ?? null;
                             break;
                     }
@@ -239,12 +242,13 @@ class ImportController extends Controller
                 $picEmail = $picEmailCol ? trim((string)$sheet->getCell($picEmailCol . $row)->getValue()) : '';
                 $picPhone = $picPhoneCol ? trim((string)$sheet->getCell($picPhoneCol . $row)->getValue()) : '';
 
+                $picEmail = filter_var($picEmail, FILTER_VALIDATE_EMAIL) ? $picEmail : '';
                 if ($picName || $picEmail || $picPhone) {
                     ContactIncharge::create([
                         'contact_id'   => $contact->id,
-                        'name'         => $picName ?: null,
+                        'name'         => $picName ? mb_substr($picName, 0, 255) : null,
                         'email'        => $picEmail ?: null,
-                        'phone_mobile' => $picPhone ?: null,
+                        'phone_mobile' => $picPhone ? mb_substr($picPhone, 0, 50) : null,
                     ]);
                 }
 
