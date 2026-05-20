@@ -13,6 +13,7 @@ class RolesAndPermissionsSeeder extends Seeder
     {
         app()[PermissionRegistrar::class]->forgetCachedPermissions();
 
+        // Convention: "verb noun" (lowercase, space-separated)
         $permissions = [
             // Contacts
             'view contacts',
@@ -24,15 +25,33 @@ class RolesAndPermissionsSeeder extends Seeder
             'create todos',
             'edit todos',
             'delete todos',
+            // Deals
+            'view deals',
+            'create deals',
+            'edit deals',
+            'delete deals',
+            // Projects
+            'view projects',
+            'create projects',
+            'edit projects',
+            'delete projects',
+            // Follow-ups
+            'view followups',
+            'create followups',
+            'edit followups',
+            'delete followups',
             // Import
             'import contacts',
             // Analytics & reporting
             'view analytics',
             'view summary',
             'view data-health',
-            // Admin lookups
+            'view performance',
+            // Admin-managed entities
             'manage lookups',
-            // RBAC admin
+            'manage webhooks',
+            'manage territories',
+            // RBAC (super-admin only)
             'manage roles',
             'manage permissions',
             'manage users',
@@ -42,30 +61,37 @@ class RolesAndPermissionsSeeder extends Seeder
             Permission::firstOrCreate(['name' => $name, 'guard_name' => 'web']);
         }
 
-        // super-admin: bypasses all checks via Gate::before in AuthServiceProvider
-        $superAdmin = Role::firstOrCreate(['name' => 'super-admin', 'guard_name' => 'web']);
+        // super-admin: bypasses all checks via Gate::before in AppServiceProvider
+        Role::firstOrCreate(['name' => 'super-admin', 'guard_name' => 'web']);
 
-        // admin: everything except RBAC management
+        // admin: full CRM access + admin tools, no RBAC management
         $admin = Role::firstOrCreate(['name' => 'admin', 'guard_name' => 'web']);
         $admin->syncPermissions(array_filter($permissions, fn($p) => !in_array($p, [
             'manage roles', 'manage permissions', 'manage users',
         ])));
 
-        // user: day-to-day CRM work
+        // user: full day-to-day CRM work, no admin tools
         $user = Role::firstOrCreate(['name' => 'user', 'guard_name' => 'web']);
         $user->syncPermissions([
             'view contacts', 'create contacts', 'edit contacts', 'delete contacts',
             'view todos', 'create todos', 'edit todos', 'delete todos',
+            'view deals', 'create deals', 'edit deals', 'delete deals',
+            'view projects', 'create projects', 'edit projects', 'delete projects',
+            'view followups', 'create followups', 'edit followups', 'delete followups',
             'import contacts',
-            'view analytics', 'view summary',
+            'view analytics', 'view summary', 'view performance',
         ]);
 
-        // viewer: read-only
+        // viewer: read-only across all CRM resources
         $viewer = Role::firstOrCreate(['name' => 'viewer', 'guard_name' => 'web']);
         $viewer->syncPermissions([
             'view contacts',
             'view todos',
-            'view analytics', 'view summary',
+            'view deals',
+            'view projects',
+            'view followups',
+            'view analytics',
+            'view summary',
         ]);
     }
 }

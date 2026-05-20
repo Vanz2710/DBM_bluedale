@@ -131,27 +131,27 @@ onMounted(async () => {
 }
 .page-banner h1 { font-size: 18px; font-weight: 700; margin: 0 0 4px; }
 .page-banner p  { font-size: 13px; opacity: 0.8; margin: 0; }
-.card { background: white; border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); padding: 28px 32px; }
-.loading-msg { text-align: center; padding: 40px; color: #94a3b8; }
+.card { background: var(--surface); border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); padding: 28px 32px; }
+.loading-msg { text-align: center; padding: 40px; color: var(--text-3); }
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .form-group { margin-bottom: 16px; }
-.form-group label { display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; margin-bottom: 6px; }
+.form-group label { display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-2); margin-bottom: 6px; }
 .form-group input, .form-group select, .form-group textarea {
-  width: 100%; height: 40px; padding: 0 14px; border: 1.5px solid #e2e8f0;
-  border-radius: 8px; font-size: 13px; color: #1e293b; outline: none;
-  background: white; box-sizing: border-box;
+  width: 100%; height: 40px; padding: 0 14px; border: 1.5px solid var(--border);
+  border-radius: 8px; font-size: 13px; color: var(--text-1); outline: none;
+  background: var(--surface); box-sizing: border-box;
 }
 .form-group textarea { height: 100px; padding: 10px 14px; resize: vertical; }
 .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
   border-color: #e11d48; box-shadow: 0 0 0 3px rgba(225,29,72,0.1);
 }
-.form-group select:disabled { background: #f8fafc; color: #94a3b8; cursor: not-allowed; }
+.form-group select:disabled { background: var(--app-bg); color: var(--text-3); cursor: not-allowed; }
 .hint { font-size: 11px; color: #f59e0b; margin-top: 4px; display: block; }
 .error-box { background: #fee2e2; color: #991b1b; border-radius: 8px; padding: 10px 14px; font-size: 13px; margin-bottom: 16px; }
 .req { color: #ef4444; }
 .btn-row { display: flex; gap: 10px; margin-top: 24px; }
 .btn { height: 42px; padding: 0 20px; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; border: none; text-decoration: none; display: inline-flex; align-items: center; }
-.btn-cancel { background: #f1f5f9; color: #64748b; }
+.btn-cancel { background: var(--app-bg); color: var(--text-2); }
 .btn-save   { flex: 1; background: #e11d48; color: white; justify-content: center; }
 .btn-save:disabled { background: #94a3b8; cursor: not-allowed; }
 

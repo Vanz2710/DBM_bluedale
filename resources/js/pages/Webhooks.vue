@@ -193,8 +193,8 @@ onMounted(async () => {
 <style scoped>
 .page { max-width: 900px; margin: 0 auto; padding: 24px 28px; }
 .page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; }
-.page-title { font-size: 20px; font-weight: 700; color: #1e293b; margin: 0 0 4px; }
-.page-sub { font-size: 13px; color: #64748b; margin: 0; }
+.page-title { font-size: 20px; font-weight: 700; color: var(--text-1); margin: 0 0 4px; }
+.page-sub { font-size: 13px; color: var(--text-2); margin: 0; }
 .btn { height: 36px; padding: 0 16px; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; border: none; }
 .btn-add { background: #3b82f6; color: white; }
 .btn-add:hover { background: #2563eb; }
@@ -202,30 +202,30 @@ onMounted(async () => {
 .btn-test:disabled { opacity: 0.6; cursor: not-allowed; }
 .btn-edit-sm { background: #fef9c3; color: #854d0e; border: 1px solid #fde68a; }
 .btn-delete { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
-.btn-cancel { background: #f1f5f9; color: #64748b; }
+.btn-cancel { background: var(--app-bg); color: var(--text-2); }
 .btn-save { background: #22c55e; color: white; }
 .btn-save:disabled { opacity: 0.6; cursor: not-allowed; }
-.card { background: white; border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); padding: 20px 24px; margin-bottom: 12px; }
+.card { background: var(--surface); border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); padding: 20px 24px; margin-bottom: 12px; }
 .card-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
 .card-left { flex: 1; min-width: 0; }
 .card-right { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.wh-name { font-size: 15px; font-weight: 700; color: #1e293b; margin-bottom: 4px; }
-.wh-url { font-size: 12px; color: #64748b; word-break: break-all; margin-bottom: 8px; }
+.wh-name { font-size: 15px; font-weight: 700; color: var(--text-1); margin-bottom: 4px; }
+.wh-url { font-size: 12px; color: var(--text-2); word-break: break-all; margin-bottom: 8px; }
 .wh-events { display: flex; gap: 6px; flex-wrap: wrap; }
 .event-badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; background: #eff6ff; color: #3b82f6; }
 .status-badge { display: inline-block; padding: 3px 10px; border-radius: 10px; font-size: 11px; font-weight: 700; }
 .status-badge.active { background: #f0fdf4; color: #16a34a; }
-.status-badge.inactive { background: #f8fafc; color: #94a3b8; }
+.status-badge.inactive { background: var(--app-bg); color: var(--text-3); }
 .test-result { margin-top: 10px; padding: 8px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; }
 .test-result.ok { background: #f0fdf4; color: #16a34a; }
 .test-result.fail { background: #fef2f2; color: #dc2626; }
-.empty-state { text-align: center; padding: 60px 20px; color: #94a3b8; font-size: 14px; font-style: italic; }
+.empty-state { text-align: center; padding: 60px 20px; color: var(--text-3); font-size: 14px; font-style: italic; }
 .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; z-index: 1000; }
-.modal { background: white; border-radius: 12px; padding: 28px 32px; width: 100%; max-width: 480px; box-shadow: 0 20px 60px rgba(0,0,0,0.2); }
-.modal-title { font-size: 16px; font-weight: 700; color: #1e293b; margin-bottom: 20px; }
+.modal { background: var(--surface); border-radius: 12px; padding: 28px 32px; width: 100%; max-width: 480px; box-shadow: 0 20px 60px rgba(0,0,0,0.2); }
+.modal-title { font-size: 16px; font-weight: 700; color: var(--text-1); margin-bottom: 20px; }
 .form-group { margin-bottom: 16px; }
-.form-label { display: block; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: #64748b; margin-bottom: 6px; }
-.form-input { width: 100%; padding: 8px 12px; border: 1.5px solid #e2e8f0; border-radius: 8px; font-size: 13px; color: #1e293b; box-sizing: border-box; }
+.form-label { display: block; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-2); margin-bottom: 6px; }
+.form-input { width: 100%; padding: 8px 12px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 13px; color: var(--text-1); box-sizing: border-box; }
 .form-input:focus { outline: none; border-color: #3b82f6; }
 .events-list { display: flex; flex-direction: column; gap: 8px; }
 .event-check { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #374151; cursor: pointer; }
