@@ -33,8 +33,16 @@ class FollowUpController extends Controller
             $query->where('action_type', $actionType);
         }
 
+        if ($todoId = $request->input('todo_id')) {
+            $query->where('todo_id', $todoId);
+        }
+
         if ($search = $request->input('search')) {
             $query->whereHas('todo.contact', fn($q) => $q->where('name', 'like', "%{$search}%"));
+        }
+
+        if ($status = $request->input('completion_status')) {
+            $query->where('completion_status', $status);
         }
 
         $followUps = $query->paginate($perPage);
@@ -120,6 +128,7 @@ class FollowUpController extends Controller
         $toMonth   = $request->input('to_month', now()->format('Y-m'));
         $ids       = $request->input('ids', '');
         $actionType = $request->input('action_type');
+        $todoId    = $request->input('todo_id');
 
         $query = FollowUp::with(['todo.contact.status', 'todo.contact.type', 'todo.user', 'todo.task']);
 
@@ -136,6 +145,10 @@ class FollowUpController extends Controller
 
             if ($actionType) {
                 $query->where('action_type', $actionType);
+            }
+
+            if ($todoId) {
+                $query->where('todo_id', $todoId);
             }
         }
 
@@ -174,18 +187,19 @@ class FollowUpController extends Controller
     private function format(FollowUp $f): array
     {
         return [
-            'id'           => $f->id,
-            'followup_date' => $f->followup_date?->format('d-m-Y'),
-            'action_type'  => $f->action_type,
-            'note'         => $f->note,
-            'todo_id'      => $f->todo_id,
-            'todo_date'    => $f->todo?->todo_date?->format('d-m-Y'),
-            'contact_id'   => $f->todo?->contact_id,
-            'contact_name' => $f->todo?->contact?->name,
-            'status'       => $f->todo?->contact?->status?->name,
-            'type'         => $f->todo?->contact?->type?->name,
-            'user'         => $f->todo?->user?->name,
-            'task'         => $f->todo?->task?->name,
+            'id'                => $f->id,
+            'followup_date'     => $f->followup_date?->format('d-m-Y'),
+            'action_type'       => $f->action_type,
+            'note'              => $f->note,
+            'completion_status' => $f->completion_status,
+            'todo_id'           => $f->todo_id,
+            'todo_date'         => $f->todo?->todo_date?->format('d-m-Y'),
+            'contact_id'        => $f->todo?->contact_id,
+            'contact_name'      => $f->todo?->contact?->name,
+            'status'            => $f->todo?->contact?->status?->name,
+            'type'              => $f->todo?->contact?->type?->name,
+            'user'              => $f->todo?->user?->name,
+            'task'              => $f->todo?->task?->name,
         ];
     }
 }

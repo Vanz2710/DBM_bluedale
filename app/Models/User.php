@@ -33,4 +33,9 @@ class User extends Authenticatable implements MustVerifyEmail
             'dashboard_layout'  => 'array',
         ];
     }
+
+    public function forecasts()
+    {
+        return $this->hasMany(Forecast::class);
+    }
 }

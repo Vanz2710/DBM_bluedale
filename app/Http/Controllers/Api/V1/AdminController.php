@@ -8,6 +8,9 @@ use App\Models\ContactCategory;
 use App\Models\ContactIndustry;
 use App\Models\ContactStatus;
 use App\Models\ContactType;
+use App\Models\ForecastProduct;
+use App\Models\ForecastResult;
+use App\Models\ForecastType;
 use App\Models\Task;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -22,6 +25,9 @@ class AdminController extends Controller
         'categories' => [ContactCategory::class, 'name'],
         'areas'      => [ContactArea::class,     'name'],
         'tasks'      => [Task::class,            'name'],
+        'forecast-products' => [ForecastProduct::class, 'name'],
+        'forecast-types'    => [ForecastType::class,    'name'],
+        'forecast-results'  => [ForecastResult::class,  'name'],
     ];
 
     // Each entity maps to one or more [table, foreign_key] pairs for counting usage.
@@ -32,6 +38,9 @@ class AdminController extends Controller
         'categories' => [['contacts', 'category_id']],
         'areas'      => [['contacts', 'area_id']],
         'tasks'      => [['to_dos', 'task_id'], ['performance_targets', 'task_id']],
+        'forecast-products' => [['forecasts', 'product_id']],
+        'forecast-types'    => [['forecasts', 'forecast_type_id']],
+        'forecast-results'  => [['forecasts', 'result_id']],
     ];
 
     public function index(string $entity)

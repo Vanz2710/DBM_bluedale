@@ -7,13 +7,14 @@ const Dashboard           = () => import('../pages/Dashboard.vue');
 const FollowUpList        = () => import('../pages/FollowUpList.vue');
 const FollowUpAdd         = () => import('../pages/FollowUpAdd.vue');
 const FollowUpEdit        = () => import('../pages/FollowUpEdit.vue');
+const ForecastList        = () => import('../pages/ForecastList.vue');
+const ForecastSummary     = () => import('../pages/ForecastSummary.vue');
 const ProjectList         = () => import('../pages/ProjectList.vue');
 const ProjectAdd          = () => import('../pages/ProjectAdd.vue');
 const ProjectEdit         = () => import('../pages/ProjectEdit.vue');
 const Performance         = () => import('../pages/Performance.vue');
 const PerformanceTargets  = () => import('../pages/PerformanceTargets.vue');
-const Summary             = () => import('../pages/Summary.vue');
-const DailyList           = () => import('../pages/DailyList.vue');
+const ContactList         = () => import('../pages/ContactList.vue');
 const ContactView         = () => import('../pages/ContactView.vue');
 const ContactAdd          = () => import('../pages/ContactAdd.vue');
 const ContactEdit         = () => import('../pages/ContactEdit.vue');
@@ -39,8 +40,7 @@ const routes = [
     { path: '/verify-email', component: VerifyEmail, name: 'verify-email', meta: { public: true } },
     { path: '/lead',         component: LeadForm,    name: 'lead-form',    meta: { public: true } },
     { path: '/',                           component: Dashboard,   name: 'home' },
-    { path: '/summary',                    component: Summary,     name: 'summary' },
-    { path: '/list',                       component: DailyList,   name: 'list' },
+    { path: '/list',                       component: ContactList, name: 'list' },
     { path: '/contacts/add',               component: ContactAdd,  name: 'contact-add' },
     { path: '/contacts/:id',               component: ContactView, name: 'contact-view' },
     { path: '/contacts/:id/edit',          component: ContactEdit, name: 'contact-edit' },
@@ -57,6 +57,8 @@ const routes = [
     { path: '/deals',                      component: DealList,           name: 'deals' },
     { path: '/deals/add',                  component: DealAdd,            name: 'deal-add' },
     { path: '/deals/:id/edit',             component: DealEdit,           name: 'deal-edit' },
+    { path: '/forecasts',                  component: ForecastList,        name: 'forecasts' },
+    { path: '/forecasts/summary',          component: ForecastSummary,     name: 'forecast-summary' },
     { path: '/performance',                component: Performance,        name: 'performance' },
     { path: '/admin/performance-targets',  component: PerformanceTargets, name: 'perf-targets', meta: { adminOnly: true } },
     { path: '/admin',                      component: AdminPanel,  name: 'admin',       meta: { adminOnly: true } },

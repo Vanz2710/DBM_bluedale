@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Models\FollowUp;
 use App\Models\ToDo;
 use Illuminate\Http\Request;
 
@@ -10,26 +11,42 @@ class GlobalTodoController extends Controller
 {
     public function index(Request $request)
     {
-        $view = $request->input('view', 'Day');
-        $date = $request->input('date', now()->toDateString());
-        $perPage = (int) $request->input('per_page', 100);
+        $view     = $request->input('view', 'All');
+        $date     = $request->input('date', now()->toDateString());
+        $fromDate = $request->input('from_date');
+        $toDate   = $request->input('to_date');
+        $perPage  = (int) $request->input('per_page', 100);
 
         $query = ToDo::with(['contact.status', 'contact.type', 'task', 'user'])
+            ->withCount('followUps')
+            ->addSelect(['last_followup_date' => FollowUp::select('followup_date')
+                ->whereColumn('todo_id', 'to_dos.id')
+                ->orderByDesc('followup_date')
+                ->limit(1)])
             ->orderByDesc('todo_date')
             ->orderByDesc('id');
 
-        match ($view) {
-            'Month' => $query->whereYear('todo_date', substr($date, 0, 4))
-                             ->whereMonth('todo_date', (int) substr($date, 5, 2)),
-            'Year'  => $query->whereYear('todo_date', substr($date, 0, 4)),
-            default => $query->whereDate('todo_date', $date),
-        };
+        if ($fromDate || $toDate) {
+            if ($fromDate) $query->whereDate('todo_date', '>=', $fromDate);
+            if ($toDate)   $query->whereDate('todo_date', '<=', $toDate);
+        } elseif ($view === 'Month') {
+            $query->whereYear('todo_date', substr($date, 0, 4))
+                  ->whereMonth('todo_date', (int) substr($date, 5, 2));
+        } elseif ($view === 'Year') {
+            $query->whereYear('todo_date', substr($date, 0, 4));
+        } elseif ($view === 'Day') {
+            $query->whereDate('todo_date', $date);
+        }
+        // 'All' = no date filter
 
         if ($search = $request->input('search')) {
             $query->whereHas('contact', fn($q) => $q->where('name', 'like', "%{$search}%"));
         }
         if ($userId = $request->input('user_id')) {
             $query->where('user_id', $userId);
+        }
+        if ($completionStatus = $request->input('completion_status')) {
+            $query->where('completion_status', $completionStatus);
         }
 
         $todos = $query->paginate($perPage);
@@ -49,6 +66,10 @@ class GlobalTodoController extends Controller
                 'status'            => $t->contact?->status?->name,
                 'type'              => $t->contact?->type?->name,
                 'completion_status' => $t->completion_status ?? 'pending',
+                'followups_count'   => (int) ($t->follow_ups_count ?? 0),
+                'last_followup_date' => $t->last_followup_date
+                    ? \Carbon\Carbon::parse($t->last_followup_date)->format('d-m-Y')
+                    : null,
             ];
         });
 

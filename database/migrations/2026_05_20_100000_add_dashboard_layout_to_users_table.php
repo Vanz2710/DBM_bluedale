@@ -9,14 +9,22 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('users', function (Blueprint $table) {
-            $table->json('dashboard_layout')->nullable()->after('settings');
+            $column = $table->json('dashboard_layout')->nullable();
+
+            if (Schema::hasColumn('users', 'settings')) {
+                $column->after('settings');
+            } elseif (Schema::hasColumn('users', 'job_title')) {
+                $column->after('job_title');
+            }
         });
     }
 
     public function down(): void
     {
-        Schema::table('users', function (Blueprint $table) {
-            $table->dropColumn('dashboard_layout');
-        });
+        if (Schema::hasColumn('users', 'dashboard_layout')) {
+            Schema::table('users', function (Blueprint $table) {
+                $table->dropColumn('dashboard_layout');
+            });
+        }
     }
 };

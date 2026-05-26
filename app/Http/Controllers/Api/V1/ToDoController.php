@@ -34,6 +34,9 @@ class ToDoController extends Controller
         if (empty($validated['date_created'])) {
             $validated['date_created'] = now()->toDateString();
         }
+        if (empty($validated['user_id'])) {
+            $validated['user_id'] = auth()->id();
+        }
 
         $todo = ToDo::create(array_merge($validated, ['contact_id' => $contactId]));
 

@@ -45,22 +45,6 @@
             </select>
           </div>
         </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label>Area</label>
-            <select v-model="form.area_id">
-              <option value="">— No change —</option>
-              <option v-for="a in lookups.areas" :key="a.id" :value="a.id">{{ a.name }}</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label>Assigned User</label>
-            <select v-model="form.user_id">
-              <option value="">— Unassigned —</option>
-              <option v-for="u in lookups.users" :key="u.id" :value="u.id">{{ u.name }}</option>
-            </select>
-          </div>
-        </div>
         <div class="form-group">
           <label>Address</label>
           <textarea v-model="form.address" rows="3" placeholder="Enter address"></textarea>
@@ -91,10 +75,10 @@ const error = ref('');
 const dupError = ref('');
 let dupTimer = null;
 
-const lookups = ref({ statuses: [], types: [], industries: [], categories: [], areas: [], users: [] });
+const lookups = ref({ statuses: [], types: [], industries: [], categories: [] });
 const form = ref({
   name: '', status_id: '', type_id: '', industry_id: '',
-  category_id: '', area_id: '', user_id: '', address: '',
+  category_id: '', address: '',
 });
 
 function checkDuplicate() {
@@ -138,8 +122,6 @@ onMounted(async () => {
     type_id:     c.type_id     ?? '',
     industry_id: c.industry_id ?? '',
     category_id: c.category_id ?? '',
-    area_id:     c.area_id     ?? '',
-    user_id:     c.user_id     ?? '',
     address:     c.address     ?? '',
   };
   lookups.value = lookupRes.data;
