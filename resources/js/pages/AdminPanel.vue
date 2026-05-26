@@ -89,6 +89,14 @@ const TAB_GROUPS = [
       { key: 'tasks', label: 'Tasks' },
     ],
   },
+  {
+    label: 'Forecasts',
+    tabs: [
+      { key: 'forecast-products', label: 'Products' },
+      { key: 'forecast-types',    label: 'Types' },
+      { key: 'forecast-results',  label: 'Results' },
+    ],
+  },
 ];
 
 const tabs = TAB_GROUPS.flatMap(g => g.tabs);

@@ -14,6 +14,7 @@ use App\Http\Controllers\Api\V1\SummaryController;
 use App\Http\Controllers\Api\V1\PermissionController;
 use App\Http\Controllers\Api\V1\RoleController;
 use App\Http\Controllers\Api\V1\FollowUpController;
+use App\Http\Controllers\Api\V1\ForecastController;
 use App\Http\Controllers\Api\V1\PerformanceController;
 use App\Http\Controllers\Api\V1\DealController;
 use App\Http\Controllers\Api\V1\ProjectController;
@@ -100,6 +101,16 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('deals', [DealController::class, 'store'])->middleware('can:create deals');
         Route::put('deals/{deal}', [DealController::class, 'update'])->middleware('can:edit deals');
         Route::delete('deals/{deal}', [DealController::class, 'destroy'])->middleware('can:delete deals');
+
+        // Forecasts
+        Route::get('forecasts/summary', [ForecastController::class, 'summary'])->middleware('can:view forecast summary');
+        Route::middleware('can:view forecasts')->group(function () {
+            Route::get('forecasts', [ForecastController::class, 'index']);
+            Route::get('forecasts/{forecast}', [ForecastController::class, 'show']);
+        });
+        Route::post('forecasts', [ForecastController::class, 'store'])->middleware('can:create forecasts');
+        Route::put('forecasts/{forecast}', [ForecastController::class, 'update'])->middleware('can:edit forecasts');
+        Route::delete('forecasts/{forecast}', [ForecastController::class, 'destroy'])->middleware('can:delete forecasts');
 
         // Follow-ups
         Route::middleware('can:view followups')->group(function () {

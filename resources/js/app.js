@@ -6,11 +6,23 @@ import routes, { setupGuard } from './router/index.js';
 import { setRouter } from './api.js';
 
 const router = createRouter({
-    history: createWebHistory(),
+    history: createWebHistory(import.meta.env.BASE_URL),
     routes,
 });
 
 setupGuard(router);
 setRouter(router);
+
+// When a lazy-loaded chunk fails (stale cache after rebuild), force a full reload
+router.onError((err, to) => {
+    const isChunkError = err.message && (
+        err.message.includes('Failed to fetch dynamically imported module') ||
+        err.message.includes('Importing a module script failed') ||
+        err.message.includes('Unable to preload CSS')
+    );
+    if (isChunkError) {
+        window.location.href = to.fullPath;
+    }
+});
 
 createApp(App).use(router).mount('#app');

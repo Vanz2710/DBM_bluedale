@@ -3,8 +3,8 @@
     <!-- Step 1 -->
     <template v-if="step === 1">
       <div class="page-banner green">
-        <h1>Add New Company</h1>
-        <p>Step 1 of 2 — Company information</p>
+        <h1>Add New Contact</h1>
+        <p>Step 1 of 2 — Contact Information</p>
       </div>
       <div class="card">
         <div class="section-label">Company Info</div>
@@ -17,10 +17,10 @@
           </div>
           <div class="form-row">
             <div class="form-group">
-              <label>Industry <span class="req">*</span></label>
-              <select v-model="form.industry_id" required>
-                <option value="">Select industry</option>
-                <option v-for="i in lookups.industries" :key="i.id" :value="i.id">{{ i.name }}</option>
+              <label>Status <span class="req">*</span></label>
+              <select v-model="form.status_id" required>
+                <option value="">Select status</option>
+                <option v-for="s in lookups.statuses" :key="s.id" :value="s.id">{{ s.name }}</option>
               </select>
             </div>
             <div class="form-group">
@@ -33,26 +33,17 @@
           </div>
           <div class="form-row">
             <div class="form-group">
+              <label>Industry <span class="req">*</span></label>
+              <select v-model="form.industry_id" required>
+                <option value="">Select industry</option>
+                <option v-for="i in lookups.industries" :key="i.id" :value="i.id">{{ i.name }}</option>
+              </select>
+            </div>
+            <div class="form-group">
               <label>Category / Product <span class="req">*</span></label>
               <select v-model="form.category_id" required>
                 <option value="">Select category</option>
                 <option v-for="c in lookups.categories" :key="c.id" :value="c.id">{{ c.name }}</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label>Area <span class="req">*</span></label>
-              <select v-model="form.area_id" required>
-                <option value="">Select area</option>
-                <option v-for="a in lookups.areas" :key="a.id" :value="a.id">{{ a.name }}</option>
-              </select>
-            </div>
-          </div>
-          <div class="form-row">
-            <div class="form-group">
-              <label>Territory</label>
-              <select v-model="form.territory_id">
-                <option value="">No territory</option>
-                <option v-for="t in lookups.territories" :key="t.id" :value="t.id">{{ t.name }}</option>
               </select>
             </div>
           </div>
@@ -70,16 +61,6 @@
                 <option value="other">Other</option>
               </select>
             </div>
-            <div class="form-group">
-              <label>Assigned User</label>
-              <select v-model="form.user_id">
-                <option value="">Auto-assign (round-robin)</option>
-                <option v-for="u in lookups.users" :key="u.id" :value="u.id">{{ u.name }}</option>
-              </select>
-              <div class="hint">Leave blank to auto-assign to the next user in rotation</div>
-            </div>
-          </div>
-          <div class="form-row">
             <div class="form-group">
               <label>Date Created</label>
               <input type="date" v-model="form.created_at">
@@ -152,11 +133,11 @@ const submitError = ref('');
 const dupError = ref('');
 let dupTimer = null;
 
-const lookups = ref({ industries: [], types: [], categories: [], areas: [], users: [] });
+const lookups = ref({ statuses: [], industries: [], types: [], categories: [] });
 
 const form = ref({
-  name: '', industry_id: '', type_id: '', category_id: '',
-  area_id: '', territory_id: '', user_id: '', address: '', created_at: new Date().toISOString().slice(0, 10),
+  name: '', status_id: '', industry_id: '', type_id: '', category_id: '',
+  address: '', created_at: new Date().toISOString().slice(0, 10),
   lead_source: 'manual',
 });
 

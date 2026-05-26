@@ -41,7 +41,7 @@
           </select>
         </div>
         <div class="filter-group">
-          <span class="filter-label">Assigned To</span>
+          <span class="filter-label">User</span>
           <select class="filter-select" v-model="filters.user_id">
             <option value="">All Users</option>
             <option v-for="u in lookups.users" :key="u.id" :value="u.id">{{ u.name }}</option>
@@ -81,13 +81,14 @@
             <th>Status</th>
             <th>Type</th>
             <th>Category</th>
-            <th>Assigned To</th>
+            <th>User</th>
+            <th>Forecasts</th>
             <th></th>
           </tr>
         </thead>
         <tbody>
           <tr v-if="contacts.length === 0">
-            <td colspan="7" class="empty-state">No records found matching your filters.</td>
+            <td colspan="8" class="empty-state">No records found matching your filters.</td>
           </tr>
           <tr v-for="c in contacts" :key="c.id">
             <td><span class="company-name">{{ c.name }}</span></td>
@@ -103,7 +104,15 @@
             <td>{{ c.category?.name ?? '—' }}</td>
             <td>{{ c.user?.name ?? '—' }}</td>
             <td>
+              <div class="forecast-cell">
+                <span class="forecast-count">{{ c.forecasts_count ?? 0 }}</span>
+                <small v-if="c.latest_forecast">{{ fmtDate(c.latest_forecast.forecast_date) }}</small>
+                <small v-else>No forecast</small>
+              </div>
+            </td>
+            <td class="row-actions">
               <router-link :to="{ name: 'crm-view', params: { id: c.id } }" class="view-link">View →</router-link>
+              <button type="button" class="forecast-link" @click="openForecastAdd(c)">Forecast</button>
             </td>
           </tr>
         </tbody>
@@ -116,6 +125,14 @@
       <button v-for="p in pageRange" :key="p" class="page-btn" :class="{ active: p === meta.current_page }" @click="goPage(p)">{{ p }}</button>
       <button class="page-btn" :disabled="meta.current_page >= meta.last_page" @click="goPage(meta.current_page + 1)">Next →</button>
     </div>
+
+    <ForecastFormModal
+      :open="forecastModal.open"
+      mode="add"
+      :prefilled-contact="forecastModal.prefilledContact"
+      @close="closeForecastModal"
+      @saved="onForecastSaved"
+    />
   </div>
 </template>
 
@@ -123,6 +140,7 @@
 import { ref, reactive, computed, onMounted } from 'vue';
 import axios from '../api.js';
 import LoadingSpinner from '../components/LoadingSpinner.vue';
+import ForecastFormModal from '../components/ForecastFormModal.vue';
 
 const loading  = ref(true);
 const contacts = ref([]);
@@ -134,6 +152,11 @@ const currentPage = ref(1);
 
 const filtersActive = computed(() => Object.values(filters).some(v => v !== ''));
 const fmt = (n) => (n ?? 0).toLocaleString();
+function fmtDate(value) {
+  if (!value) return '';
+  const [y, m, d] = String(value).slice(0, 10).split('-');
+  return `${d}-${m}-${y}`;
+}
 const pageRange = computed(() => {
   const p = meta.value.current_page ?? 1;
   const l = meta.value.last_page ?? 1;
@@ -163,6 +186,16 @@ async function fetchContacts() {
 function applyFilters() { currentPage.value = 1; fetchContacts(); }
 function resetFilters()  { Object.keys(filters).forEach(k => filters[k] = ''); currentPage.value = 1; fetchContacts(); }
 function goPage(p)       { currentPage.value = p; fetchContacts(); }
+
+const forecastModal = ref({ open: false, prefilledContact: null });
+function openForecastAdd(contact) {
+  forecastModal.value = { open: true, prefilledContact: { id: contact.id, name: contact.name } };
+}
+function closeForecastModal() { forecastModal.value.open = false; }
+function onForecastSaved() {
+  closeForecastModal();
+  fetchContacts();
+}
 
 onMounted(async () => {
   const [, res] = await Promise.all([
@@ -214,8 +247,14 @@ tbody tr:hover { background:var(--app-bg); }
 .badge-status   { background:#dbeafe; color:#1d4ed8; }
 .badge-type     { background:#fef3c7; color:#92400e; }
 
+.forecast-cell { display:flex; flex-direction:column; gap:2px; }
+.forecast-count { font-weight:800; color:#0369a1; }
+.forecast-cell small { color:var(--text-3); font-size:10px; white-space:nowrap; }
+.row-actions { display:flex; gap:6px; white-space:nowrap; }
 .view-link { display:inline-flex; align-items:center; font-size:12px; font-weight:600; color:#3498db; text-decoration:none; padding:5px 13px; border-radius:6px; border:1.5px solid #bfdbfe; }
 .view-link:hover { background:#3498db; color:white; }
+.forecast-link { display:inline-flex; align-items:center; font-size:12px; font-weight:600; color:#0284c7; background:transparent; text-decoration:none; padding:5px 12px; border-radius:6px; border:1.5px solid #bae6fd; cursor:pointer; }
+.forecast-link:hover { background:#0284c7; color:white; }
 
 .pagination { display:flex; gap:5px; justify-content:center; margin-top:24px; flex-wrap:wrap; }
 .page-btn { padding:7px 14px; border-radius:7px; font-size:14px; border:1.5px solid var(--border); color:var(--text-2); background:var(--surface); cursor:pointer; font-weight:500; }

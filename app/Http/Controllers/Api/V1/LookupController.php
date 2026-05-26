@@ -8,6 +8,9 @@ use App\Models\ContactCategory;
 use App\Models\ContactIndustry;
 use App\Models\ContactStatus;
 use App\Models\ContactType;
+use App\Models\ForecastProduct;
+use App\Models\ForecastResult;
+use App\Models\ForecastType;
 use App\Models\Task;
 use App\Models\Territory;
 use App\Models\User;
@@ -25,6 +28,9 @@ class LookupController extends Controller
             'territories' => Territory::orderBy('name')->get(),
             'users'       => User::orderBy('name')->get(['id', 'name']),
             'tasks'       => Task::orderBy('name')->get(),
+            'forecast_products' => ForecastProduct::orderBy('name')->get(),
+            'forecast_types'    => ForecastType::orderBy('name')->get(),
+            'forecast_results'  => ForecastResult::orderBy('name')->get(),
         ]);
     }
 }

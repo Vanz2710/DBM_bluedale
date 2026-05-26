@@ -60,12 +60,13 @@
 
 <script setup>
 import { ref, onMounted } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import api from '../api.js';
 import LoadingSpinner from '../components/LoadingSpinner.vue';
 
 const ACTION_TYPES = ['Call', 'Email', 'Meeting', 'Site Visit', 'Presentation', 'Proposal', 'Demo', 'Contract', 'Other'];
 
+const route       = useRoute();
 const router      = useRouter();
 const loading     = ref(true);
 const saving      = ref(false);
@@ -119,6 +120,21 @@ async function submit() {
 onMounted(async () => {
   const res = await api.get('/v1/contacts', { params: { per_page: 1000 } });
   contacts.value = res.data.data;
+
+  // If launched from "Log Follow-Up" on a ToDo row, pre-select the parent.
+  const prefillTodoId = route.query.todo_id;
+  if (prefillTodoId) {
+    try {
+      const todoRes = await api.get(`/v1/todos/${prefillTodoId}`);
+      const todo    = todoRes.data.data;
+      if (todo?.contact_id) {
+        contactId.value = todo.contact_id;
+        await onContactChange();
+        form.value.todo_id = Number(prefillTodoId);
+      }
+    } catch (_) { /* fall back to manual selection */ }
+  }
+
   loading.value  = false;
 });
 </script>

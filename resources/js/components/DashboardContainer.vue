@@ -3,32 +3,29 @@
     <!-- Header -->
     <div class="dash-header">
       <div class="dash-header-left">
-        <h1 class="dash-title">My Dashboard</h1>
+        <h1 class="dash-title">Dashboard</h1>
         <span v-if="editMode" class="edit-hint">
-          <Move :size="11" />
+          <Move :size="12" />
           Drag &amp; resize to customise
         </span>
       </div>
       <div class="dash-header-actions">
-        <button class="btn btn-ghost" @click="showPicker = true">
-          <Plus :size="13" /> Add Widget
-        </button>
         <button
-          class="btn"
-          :class="editMode ? 'btn-primary' : 'btn-ghost'"
+          class="btn btn-ghost"
+          :class="{ 'btn-ghost--active': editMode }"
           @click="editMode = !editMode"
+          :title="editMode ? 'Exit edit mode' : 'Rearrange widgets'"
         >
-          <LayoutGrid :size="13" />
+          <LayoutGrid :size="14" />
           {{ editMode ? 'Done' : 'Edit Layout' }}
         </button>
-        <button
-          class="btn btn-save"
-          :class="{ dirty }"
-          :disabled="saving"
-          @click="saveLayout"
-        >
-          <Save :size="13" />
-          {{ saving ? 'Saving…' : 'Save Layout' }}
+        <span
+          v-if="saveStatus !== 'idle'"
+          class="save-status"
+          :class="`save-status--${saveStatus}`"
+        >{{ saveStatus === 'saved' ? 'Saved' : saveStatus === 'error' ? 'Save failed' : 'Saving…' }}</span>
+        <button class="btn btn-primary" @click="showPicker = true">
+          <Plus :size="14" /> Add Widget
         </button>
       </div>
     </div>
@@ -120,16 +117,18 @@
 </template>
 
 <script setup>
-import { ref, watch, onMounted } from 'vue';
+import { ref, watch, onMounted, onUnmounted } from 'vue';
 import { GridLayout, GridItem } from 'grid-layout-plus';
-import { Plus, Save, X, LayoutGrid, Move, TrendingUp, Users, BarChart2, ClipboardList } from 'lucide-vue-next';
+import { Plus, X, LayoutGrid, Move, TrendingUp, Users, BarChart2, ClipboardList, Target, CalendarCheck } from 'lucide-vue-next';
 import api from '../api.js';
 import LoadingSpinner from './LoadingSpinner.vue';
 
-import RevenueChartWidget  from './widgets/RevenueChartWidget.vue';
-import RecentContactsWidget from './widgets/RecentContactsWidget.vue';
-import KpiStatsWidget      from './widgets/KpiStatsWidget.vue';
-import TasksWidget         from './widgets/TasksWidget.vue';
+import RevenueChartWidget       from './widgets/RevenueChartWidget.vue';
+import RecentContactsWidget     from './widgets/RecentContactsWidget.vue';
+import KpiStatsWidget           from './widgets/KpiStatsWidget.vue';
+import TasksWidget              from './widgets/TasksWidget.vue';
+import KpiTargetWidget          from './widgets/KpiTargetWidget.vue';
+import UpcomingFollowUpsWidget  from './widgets/UpcomingFollowUpsWidget.vue';
 
 // --- Registry -----------------------------------------------------------
 const widgetComponents = {
@@ -137,6 +136,8 @@ const widgetComponents = {
   RecentContactsWidget,
   KpiStatsWidget,
   TasksWidget,
+  KpiTargetWidget,
+  UpcomingFollowUpsWidget,
 };
 
 const WIDGET_CATALOG = [
@@ -168,6 +169,20 @@ const WIDGET_CATALOG = [
     icon: ClipboardList,
     defaultSize: { w: 8, h: 5 },
   },
+  {
+    type: 'KpiTargetWidget',
+    label: 'KPI Progress',
+    description: 'This month\'s targets vs actuals with progress bars',
+    icon: Target,
+    defaultSize: { w: 4, h: 6 },
+  },
+  {
+    type: 'UpcomingFollowUpsWidget',
+    label: 'Upcoming Follow-Ups',
+    description: 'Pending follow-ups due in the next 7 days',
+    icon: CalendarCheck,
+    defaultSize: { w: 4, h: 5 },
+  },
 ];
 
 const DEFAULT_LAYOUT = [
@@ -180,23 +195,42 @@ const DEFAULT_LAYOUT = [
 const ROW_HEIGHT = 80;
 
 // --- State --------------------------------------------------------------
-const layout      = ref([]);
-const editMode    = ref(false);
-const showPicker  = ref(false);
-const saving      = ref(false);
-const loadingLayout = ref(true);
-const dirty       = ref(false);
+const layout        = ref([]);
+const editMode      = ref(false);
+const showPicker    = ref(false);
+const loadingLayout = ref(false);
+const saveStatus    = ref('idle'); // 'idle' | 'pending' | 'saving' | 'saved' | 'error'
 
-// Mark dirty when layout changes (but not on the initial load)
 let initialised = false;
-watch(layout, () => {
-  if (initialised) dirty.value = true;
-}, { deep: true });
+let saveTimer   = null;
+let fadeTimer   = null;
+
+// --- Auto-save ----------------------------------------------------------
+function scheduleSave() {
+  if (!initialised) return;
+  clearTimeout(saveTimer);
+  if (saveStatus.value !== 'saving') saveStatus.value = 'pending';
+  saveTimer = setTimeout(doSave, 1200);
+}
+
+async function doSave() {
+  saveStatus.value = 'saving';
+  try {
+    await api.put('/v1/user/dashboard-layout', { layout: layout.value });
+    saveStatus.value = 'saved';
+    clearTimeout(fadeTimer);
+    fadeTimer = setTimeout(() => { saveStatus.value = 'idle'; }, 2000);
+  } catch {
+    saveStatus.value = 'error';
+    clearTimeout(fadeTimer);
+    fadeTimer = setTimeout(() => { saveStatus.value = 'idle'; }, 3000);
+  }
+}
+
+watch(layout, () => { scheduleSave(); }, { deep: true });
 
 // --- Actions ------------------------------------------------------------
-function onLayoutUpdated() {
-  if (initialised) dirty.value = true;
-}
+function onLayoutUpdated() { scheduleSave(); }
 
 function removeWidget(id) {
   layout.value = layout.value.filter(item => item.i !== id);
@@ -215,19 +249,13 @@ function addWidget(catalog) {
   showPicker.value = false;
 }
 
-async function saveLayout() {
-  saving.value = true;
-  try {
-    await api.put('/v1/user/dashboard-layout', { layout: layout.value });
-    dirty.value = false;
-  } catch (e) {
-    console.error('Failed to save layout:', e);
-  } finally {
-    saving.value = false;
-  }
-}
+onUnmounted(() => {
+  clearTimeout(saveTimer);
+  clearTimeout(fadeTimer);
+});
 
 // --- Mount --------------------------------------------------------------
+loadingLayout.value = true;
 onMounted(async () => {
   try {
     const { data } = await api.get('/v1/user/dashboard-layout');
@@ -245,9 +273,9 @@ onMounted(async () => {
 
 <style scoped>
 .dashboard {
-  max-width: 1400px;
+  max-width: 1500px;
   margin: 0 auto;
-  padding: 24px 20px 40px;
+  padding: 28px 28px 48px;
 }
 
 /* Header */
@@ -256,89 +284,114 @@ onMounted(async () => {
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
-  gap: 10px;
-  margin-bottom: 20px;
+  gap: 12px;
+  margin-bottom: 24px;
 }
 .dash-header-left {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
 }
 .dash-title {
-  font-size: 21px;
-  font-weight: 700;
-  color: var(--text-1, #1e293b);
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--text-1);
   margin: 0;
+  letter-spacing: -0.5px;
 }
 .edit-hint {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  font-size: 11px;
-  color: var(--text-3, #94a3b8);
-  background: var(--surface, #f8fafc);
-  border: 1px solid var(--border, #e2e8f0);
-  padding: 3px 9px;
-  border-radius: 20px;
+  gap: 5px;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--primary-text);
+  background: var(--primary-soft);
+  padding: 5px 11px;
+  border-radius: 999px;
 }
 .dash-header-actions {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: 8px;
 }
 
 /* Buttons */
 .btn {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 6px 13px;
-  font-size: 12.5px;
-  font-weight: 500;
-  border-radius: 6px;
+  gap: 6px;
+  padding: 9px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 999px;
   border: 1px solid transparent;
   cursor: pointer;
-  transition: background 0.15s, border-color 0.15s;
+  transition: background 0.15s, border-color 0.15s, color 0.15s, box-shadow 0.15s, transform 0.06s;
   white-space: nowrap;
-  line-height: 1.4;
+  line-height: 1.2;
 }
+.btn:active:not(:disabled) { transform: translateY(1px); }
 .btn:disabled { opacity: 0.55; cursor: not-allowed; }
 .btn-ghost {
-  background: transparent;
-  border-color: var(--border, #e2e8f0);
-  color: var(--text-2, #64748b);
+  background: var(--surface);
+  border-color: var(--border);
+  color: var(--text-2);
 }
-.btn-ghost:hover:not(:disabled) { background: var(--surface, #f8fafc); }
+.btn-ghost:hover:not(:disabled) {
+  background: var(--primary-soft);
+  border-color: var(--primary-soft);
+  color: var(--primary-text);
+}
+.btn-ghost--active {
+  background: var(--primary-soft) !important;
+  border-color: var(--primary-soft) !important;
+  color: var(--primary-text) !important;
+}
 .btn-primary {
-  background: #3b82f6;
-  color: #fff;
-  border-color: #3b82f6;
+  background: var(--primary);
+  color: var(--primary-on);
+  border-color: var(--primary);
+  box-shadow: 0 6px 18px -6px rgba(124,58,237,0.55);
 }
-.btn-primary:hover:not(:disabled) { background: #2563eb; }
-.btn-save {
-  background: transparent;
-  border-color: var(--border, #e2e8f0);
-  color: var(--text-2, #64748b);
+.btn-primary:hover:not(:disabled) {
+  background: var(--primary-hover);
+  border-color: var(--primary-hover);
 }
-.btn-save.dirty {
-  background: #10b981;
-  border-color: #10b981;
-  color: #fff;
+.save-status {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 12px;
+  border-radius: 999px;
+  white-space: nowrap;
 }
-.btn-save.dirty:hover:not(:disabled) { background: #059669; }
+.save-status--pending,
+.save-status--saving {
+  color: var(--text-3);
+  background: var(--surface-2, #f1f5f9);
+}
+.save-status--saved {
+  color: var(--success);
+  background: var(--success-soft);
+}
+.save-status--error {
+  color: var(--danger);
+  background: var(--danger-soft);
+}
 .btn-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   border: none;
   background: transparent;
-  color: var(--text-2, #64748b);
+  color: var(--text-2);
   cursor: pointer;
-  border-radius: 5px;
+  border-radius: 8px;
+  transition: background 0.12s, color 0.12s;
 }
-.btn-icon:hover { background: var(--surface, #f8fafc); }
+.btn-icon:hover { background: var(--primary-soft); color: var(--primary-text); }
 
 /* Canvas states */
 .canvas-loading,
@@ -347,65 +400,75 @@ onMounted(async () => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-height: 420px;
-  gap: 14px;
-  color: var(--text-3, #94a3b8);
+  min-height: 480px;
+  gap: 16px;
+  color: var(--text-3);
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
 }
-.empty-icon { color: #cbd5e1; }
-.empty-canvas p { font-size: 14px; margin: 0; }
+.empty-icon { color: var(--primary); opacity: 0.6; }
+.empty-canvas p { font-size: 14.5px; margin: 0; color: var(--text-2); }
 
-/* Grid canvas — let grid-layout-plus control sizing */
+/* Grid canvas */
 .grid-canvas { width: 100%; }
 
 /* Widget shell — fills the vgl-item */
 .widget-shell {
   position: relative;
   height: 100%;
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
   overflow: hidden;
-  background: #fff;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.07), 0 0 0 1px rgba(0, 0, 0, 0.04);
-  transition: box-shadow 0.15s;
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border-soft);
+  transition: box-shadow 0.18s, transform 0.18s, border-color 0.18s;
+}
+.widget-shell:hover {
+  box-shadow: var(--shadow-md);
 }
 .widget-shell--edit {
   cursor: move;
+  border-color: var(--primary);
   box-shadow:
-    0 0 0 2px #3b82f6,
-    0 4px 12px rgba(59, 130, 246, 0.18);
+    0 0 0 3px var(--primary-soft),
+    var(--shadow-md);
 }
 .widget-remove {
   position: absolute;
-  top: 7px;
-  right: 7px;
+  top: 10px;
+  right: 10px;
   z-index: 10;
-  width: 20px;
-  height: 20px;
+  width: 24px;
+  height: 24px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #ef4444;
+  background: var(--danger);
   color: #fff;
-  border: none;
+  border: 2px solid var(--surface);
   border-radius: 50%;
   cursor: pointer;
   padding: 0;
-  transition: background 0.12s;
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.12s, background 0.12s;
 }
-.widget-remove:hover { background: #dc2626; }
+.widget-remove:hover { background: #dc2626; transform: scale(1.08); }
 .widget-unknown {
   height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 12px;
-  color: #94a3b8;
+  color: var(--text-3);
 }
 
 /* Modal */
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.45);
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(4px);
   z-index: 1000;
   display: flex;
   align-items: center;
@@ -413,73 +476,89 @@ onMounted(async () => {
   padding: 20px;
 }
 .modal-box {
-  background: #fff;
-  border-radius: 12px;
+  background: var(--surface);
+  border-radius: var(--radius-xl);
   width: 100%;
-  max-width: 460px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.18);
+  max-width: 480px;
+  box-shadow: var(--shadow-lg);
   overflow: hidden;
+  border: 1px solid var(--border-soft);
 }
 .modal-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 18px 20px 14px;
-  border-bottom: 1px solid #f1f5f9;
+  padding: 20px 22px 16px;
+  border-bottom: 1px solid var(--border-soft);
 }
 .modal-title {
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 700;
-  color: #1e293b;
+  color: var(--text-1);
+  letter-spacing: -0.2px;
 }
 .widget-catalog {
-  padding: 14px 20px 20px;
+  padding: 16px 22px 22px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 .catalog-card {
   display: flex;
   align-items: center;
-  gap: 13px;
-  padding: 13px 14px;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
+  gap: 14px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
   cursor: pointer;
-  transition: border-color 0.15s, background 0.15s;
+  transition: border-color 0.15s, background 0.15s, transform 0.08s;
   background: transparent;
   text-align: left;
   width: 100%;
+  font-family: inherit;
 }
 .catalog-card:hover {
-  background: #f8fafc;
-  border-color: #3b82f6;
+  background: var(--primary-soft);
+  border-color: var(--primary);
+  transform: translateX(2px);
 }
-.catalog-icon { color: #3b82f6; flex-shrink: 0; }
+.catalog-icon {
+  color: var(--primary);
+  flex-shrink: 0;
+  width: 38px;
+  height: 38px;
+  padding: 8px;
+  background: var(--primary-soft);
+  border-radius: 10px;
+  box-sizing: content-box;
+}
+.catalog-card:hover .catalog-icon { background: #fff; }
 .catalog-name {
-  font-size: 13.5px;
+  font-size: 14px;
   font-weight: 600;
-  color: #1e293b;
+  color: var(--text-1);
 }
 .catalog-desc {
-  font-size: 11.5px;
-  color: #94a3b8;
-  margin-top: 2px;
+  font-size: 12px;
+  color: var(--text-3);
+  margin-top: 3px;
 }
 
 /* Responsive */
 @media (max-width: 640px) {
-  .dashboard { padding: 14px 10px 32px; }
+  .dashboard { padding: 16px 14px 32px; }
   .dash-header { flex-direction: column; align-items: flex-start; }
   .dash-header-actions { flex-wrap: wrap; }
+  .dash-title { font-size: 22px; }
+  .btn { padding: 8px 14px; font-size: 12.5px; }
 }
 </style>
 
-<!-- Override grid-layout-plus placeholder colour to a subtle blue -->
+<!-- Override grid-layout-plus placeholder colour to match new accent -->
 <style>
 .vgl-item--placeholder {
-  --vgl-placeholder-bg: #3b82f6;
-  --vgl-placeholder-opacity: 12%;
-  border-radius: 10px;
+  --vgl-placeholder-bg: #7c3aed;
+  --vgl-placeholder-opacity: 14%;
+  border-radius: 14px;
 }
 </style>

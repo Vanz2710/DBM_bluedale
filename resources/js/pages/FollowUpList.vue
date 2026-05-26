@@ -8,6 +8,17 @@
       <router-link to="/followups/add" class="btn-add">+ Add Follow-Up</router-link>
     </div>
 
+    <div v-if="todoFilter" class="filter-banner">
+      <span class="filter-badge">FILTERED</span>
+      <span v-if="todoFilterInfo">
+        Showing follow-ups for <strong>{{ todoFilterInfo.task }}</strong>
+        <span v-if="todoFilterInfo.todo_date"> (due {{ todoFilterInfo.todo_date }})</span>
+        — <strong>{{ todoFilterInfo.contact_name }}</strong>
+      </span>
+      <span v-else>Showing follow-ups for to-do #{{ todoFilter }}</span>
+      <button class="btn-clear-filter" @click="clearTodoFilter">Clear filter ✕</button>
+    </div>
+
     <div v-if="selectedIds.length > 0" class="selection-bar">
       <button class="btn-export-sel" @click="exportSelected">Export {{ selectedIds.length }} selected</button>
       <span>{{ selectedIds.length }} record(s) selected</span>
@@ -145,10 +156,16 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import api from '../api.js';
 import LoadingSpinner from '../components/LoadingSpinner.vue';
 
 const ACTION_TYPES = ['Call', 'Email', 'Meeting', 'Site Visit', 'Presentation', 'Proposal', 'Demo', 'Contract', 'Other'];
+
+const route  = useRoute();
+const router = useRouter();
+const todoFilter = ref(route.query.todo_id ? Number(route.query.todo_id) : null);
+const todoFilterInfo = ref(null); // { task, todo_date, contact_name }
 
 const today = new Date().toISOString().slice(0, 10);
 const thisMonth = today.slice(0, 7);
@@ -194,7 +211,15 @@ function buildParams() {
   }
   if (actionType.value) p.action_type = actionType.value;
   if (search.value)     p.search      = search.value;
+  if (todoFilter.value) p.todo_id     = todoFilter.value;
   return p;
+}
+
+function clearTodoFilter() {
+  todoFilter.value     = null;
+  todoFilterInfo.value = null;
+  router.replace({ query: {} });
+  load();
 }
 
 async function load() {
@@ -246,7 +271,24 @@ async function doDelete() {
   }
 }
 
-onMounted(load);
+onMounted(async () => {
+  // If filtered by a specific ToDo, fetch its details for the banner.
+  if (todoFilter.value) {
+    // Widen date range so we don't accidentally exclude the to-do's existing follow-ups.
+    fromDate.value = '2000-01-01';
+    toDate.value   = '2099-12-31';
+    try {
+      const todoRes = await api.get(`/v1/todos/${todoFilter.value}`);
+      const t = todoRes.data.data;
+      todoFilterInfo.value = {
+        task:         t.task?.name ?? 'Task',
+        todo_date:    t.todo_date ? String(t.todo_date).slice(0, 10) : null,
+        contact_name: t.contact?.name ?? '—',
+      };
+    } catch (_) { /* banner is best-effort */ }
+  }
+  load();
+});
 </script>
 
 <style scoped>
@@ -263,6 +305,22 @@ onMounted(load);
   padding: 9px 18px; text-decoration: none; font-size: 13px; font-weight: 700;
   border: 2px solid rgba(255,255,255,0.3); white-space: nowrap;
 }
+
+.filter-banner {
+  background: #ede9fe; color: #4c1d95; border: 1.5px solid #c4b5fd;
+  border-radius: 8px; padding: 10px 16px; margin-bottom: 14px;
+  display: flex; align-items: center; gap: 12px; font-size: 13px; flex-wrap: wrap;
+}
+.filter-badge {
+  background: #7c3aed; color: white; font-size: 10px; font-weight: 700;
+  padding: 2px 8px; border-radius: 4px; letter-spacing: 0.5px;
+}
+.btn-clear-filter {
+  margin-left: auto; background: transparent; color: #4c1d95;
+  border: 1.5px solid #c4b5fd; border-radius: 6px;
+  padding: 4px 12px; cursor: pointer; font-size: 12px; font-weight: 600;
+}
+.btn-clear-filter:hover { background: #c4b5fd; color: white; }
 
 .selection-bar {
   background: #1e293b; color: white; border-radius: 8px;

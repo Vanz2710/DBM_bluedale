@@ -186,7 +186,7 @@
                 </div>
                 <select v-model="localSettings.crm.default_landing" class="setting-select">
                   <option value="/">Dashboard</option>
-                  <option value="/list">Daily List</option>
+                  <option value="/list">Contacts</option>
                   <option value="/crm">CRM Dashboard</option>
                   <option value="/todos">To Do List</option>
                   <option value="/followups">Follow-Ups</option>

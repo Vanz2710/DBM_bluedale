@@ -83,4 +83,14 @@ class Contact extends Model
     {
         return $this->hasMany(WhatsAppMessage::class)->orderByDesc('timestamp');
     }
+
+    public function forecasts()
+    {
+        return $this->hasMany(Forecast::class)->orderByDesc('forecast_date');
+    }
+
+    public function latestForecast()
+    {
+        return $this->hasOne(Forecast::class)->latestOfMany('forecast_date');
+    }
 }

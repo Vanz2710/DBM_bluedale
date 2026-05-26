@@ -185,7 +185,7 @@ The planning docs describe a much bigger CRM system. Based on the current code, 
 
 | Module from docs | Current status | Where it exists |
 | --- | --- | --- |
-| Database structure | Mostly complete as SQL/docs | Root `sql/`, `documents/CRM_BGOC_ERD_Tables.md` |
+| Database structure | Mostly complete as SQL/docs | Root `sql/`, `docs/CRM_BGOC_ERD_Tables.md` |
 | Contacts | Partial in root, more operational in Ammar's app | Root `index.php`, `view.php`; Ammar `listPage.php`, `company_info.php`, `edit_company.php` |
 | Contact incharges/PICs | View/import in root, CRUD in Ammar's app | Root `view.php`, `process_import.php`; Ammar PIC files |
 | Todos | Read/import/health in root, CRUD in Ammar's app | Root `view.php`, `migrate_bgoc.php`; Ammar todo/task files |
