@@ -183,7 +183,8 @@ const ALL_GROUPS = [
   {
     key: 'crm-contacts', label: 'CRM & Contacts', icon: SVGI.folder, color: 'green', section: 'main', adminOnly: false,
     items: [
-      { key: 'list',      to: '/list',      icon: SVGI.list,      label: 'Contacts',      activeRoutes: ['list', 'contact-view', 'contact-add', 'contact-edit', 'task-add'] },
+      { key: 'list',             to: '/list',             icon: SVGI.list,    label: 'Contacts',         activeRoutes: ['list', 'contact-view', 'contact-add', 'contact-edit', 'task-add'] },
+      { key: 'contact-analysis', to: '/contact-analysis', icon: SVGI.chart,   label: 'Contact Analysis', activeRoutes: ['contact-analysis'] },
       { key: 'projects',  to: '/projects',  icon: SVGI.layers,    label: 'Projects',      activeRoutes: ['projects', 'project-add', 'project-edit'] },
       { key: 'deals',     to: '/deals',     icon: SVGI.briefcase, label: 'Deals (demo)', activeRoutes: ['deals', 'deal-add', 'deal-edit'] },
       { key: 'forecasts', to: '/forecasts', icon: SVGI.trending,  label: 'Forecasts',     activeRoutes: ['forecasts', 'forecast-summary'] },

@@ -9,6 +9,22 @@ class Contact extends Model
 {
     use HasFactory;
 
+    protected static function booted(): void
+    {
+        // reminder_reads uses a polymorphic source_id with no FK — clean up manually
+        // before the DB cascade deletes todos/followups (which would orphan the reads)
+        static::deleting(function (Contact $contact) {
+            $todoIds = $contact->todos()->pluck('id');
+            if ($todoIds->isNotEmpty()) {
+                $followUpIds = FollowUp::whereIn('todo_id', $todoIds)->pluck('id');
+                if ($followUpIds->isNotEmpty()) {
+                    ReminderRead::where('source_type', 'followup')->whereIn('source_id', $followUpIds)->delete();
+                }
+                ReminderRead::where('source_type', 'todo')->whereIn('source_id', $todoIds)->delete();
+            }
+        });
+    }
+
     protected $fillable = [
         'name',
         'address',

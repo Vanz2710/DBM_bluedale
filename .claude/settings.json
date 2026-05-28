@@ -83,7 +83,9 @@
       "Bash(php -r ' *)",
       "Bash(where pdftoppm *)",
       "Bash(where convert *)",
-      "Bash(where magick *)"
+      "Bash(where magick *)",
+      "Bash(xargs ls -la)",
+      "Bash(git check-ignore *)"
     ],
     "additionalDirectories": [
       "\\tmp\\ammar_crm\\app\\Http\\Controllers\\Api\\V1"

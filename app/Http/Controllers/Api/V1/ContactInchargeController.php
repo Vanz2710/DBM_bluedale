@@ -20,7 +20,7 @@ class ContactInchargeController extends Controller
         Contact::findOrFail($contactId);
 
         $validated = $request->validate([
-            'name'         => 'nullable|string|max:255',
+            'name'         => 'required|string|max:255',
             'email'        => 'nullable|email|max:255',
             'phone_mobile' => 'nullable|string|max:50',
             'phone_office' => 'nullable|string|max:50',
@@ -36,7 +36,7 @@ class ContactInchargeController extends Controller
         $pic = ContactIncharge::where('contact_id', $contactId)->findOrFail($id);
 
         $validated = $request->validate([
-            'name'         => 'nullable|string|max:255',
+            'name'         => 'sometimes|required|string|max:255',
             'email'        => 'nullable|email|max:255',
             'phone_mobile' => 'nullable|string|max:50',
             'phone_office' => 'nullable|string|max:50',
