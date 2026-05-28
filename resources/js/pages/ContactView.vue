@@ -165,12 +165,8 @@
         <table v-else class="data-table">
           <thead>
             <tr>
-              <th>Date</th>
-              <th>Task</th>
-              <th>User</th>
-              <th>Remark</th>
-              <th style="text-align:center">Follow-Ups</th>
-              <th>Status</th>
+              <th>Date</th><th>Task</th><th>User</th><th>Remark</th>
+              <th style="text-align:center">Follow-Ups</th><th>Status</th>
               <th style="text-align:center;width:80px">Actions</th>
             </tr>
           </thead>
@@ -186,7 +182,7 @@
                 </button>
               </td>
               <td>
-                <span class="status-pill" :class="`status-${td.completion_status ?? 'pending'}`">
+                <span class="status-pill" :class="td.completion_status === 'completed' ? 'pill-done' : td.completion_status === 'cancelled' ? 'pill-cancel' : 'pill-pending'">
                   {{ td.completion_status ?? 'pending' }}
                 </span>
               </td>
@@ -417,10 +413,10 @@ async function submitTaskFu() {
 }
 
 // ── Add Task ──
-const addTaskOpen   = ref(false);
-const addTaskSaving = ref(false);
-const addTaskError  = ref('');
-const addTaskForm   = ref({ task_id: '', todo_date: '', todo_remark: '' });
+const addTaskOpen        = ref(false);
+const addTaskSaving      = ref(false);
+const addTaskError       = ref('');
+const addTaskForm        = ref({ task_id: '', todo_date: '', todo_remark: '' });
 
 function openAddTaskPanel() {
   addTaskForm.value = { task_id: '', todo_date: new Date().toISOString().slice(0, 10), todo_remark: '' };

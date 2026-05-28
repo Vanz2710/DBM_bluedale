@@ -5,10 +5,17 @@ const api = axios.create({
     headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
 });
 
-// Attach token from localStorage on every request
+// Attach token from localStorage on every request.
+// Also strip the default JSON Content-Type for FormData requests so axios
+// can compute the correct multipart/form-data boundary.
 api.interceptors.request.use((config) => {
     const token = localStorage.getItem('crm_token');
     if (token) config.headers.Authorization = `Bearer ${token}`;
+    if (config.data instanceof FormData) {
+        delete config.headers['Content-Type'];
+        delete config.headers.common?.['Content-Type'];
+        delete config.headers.post?.['Content-Type'];
+    }
     return config;
 });
 

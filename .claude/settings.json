@@ -53,7 +53,40 @@
       "Bash(grep -A 5 \"INSERT INTO \\\\`forecast_types\\\\`\" \"C:\\\\xampp\\\\CRM_BGOC\\\\dump-bluedale_crmbgoc-202510151121.sql\")",
       "Bash(grep -A 30 \"^CREATE TABLE \\\\`wip_generals\\\\`\" \"C:\\\\xampp\\\\CRM_BGOC\\\\dump-bluedale_crmbgoc-202510151121.sql\")",
       "PowerShell(Remove-Item \"c:\\\\xampp\\\\htdocs\\\\library_crm_v2\\\\resources\\\\js\\\\pages\\\\Summary.vue\" -Confirm:$false)",
-      "Bash(findstr /i \"APP_URL VITE\")"
+      "Bash(findstr /i \"APP_URL VITE\")",
+      "Bash(node -e ' *)",
+      "Bash(Select-String -Pattern \"main-content|width: 248|width: 240|margin-left: 240|margin-left: 248\" -Context 0,0)",
+      "Bash(Select-Object -First 40)",
+      "Bash(Select-String -Pattern \"margin-left|width: 24\" -SimpleMatch)",
+      "Bash(Select-Object -First 30)",
+      "WebFetch(domain:api.github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(gh repo *)",
+      "Bash(find /tmp/ammar_crm -type f | sort | grep -v \".git\" | head -80)",
+      "Read(//tmp/**)",
+      "Bash(cp /tmp/ammar_crm/app/Http/Controllers/Api/V1/SocialMediaReminderController.php c:/xampp/htdocs/library_crm_v2/app/Http/Controllers/Api/V1/SocialMediaReminderController.php && echo \"OK\")",
+      "Bash(cp /tmp/ammar_crm/app/Models/AdvertisingProduct.php c:/xampp/htdocs/library_crm_v2/app/Models/AdvertisingProduct.php)",
+      "Bash(cp /tmp/ammar_crm/app/Models/AdvertisingProductBooking.php c:/xampp/htdocs/library_crm_v2/app/Models/AdvertisingProductBooking.php)",
+      "Bash(cp /tmp/ammar_crm/app/Support/SimplePdf.php c:/xampp/htdocs/library_crm_v2/app/Support/SimplePdf.php)",
+      "Bash(cp /tmp/ammar_crm/database/migrations/2026_05_21_000001_create_advertising_products_table.php c:/xampp/htdocs/library_crm_v2/database/migrations/)",
+      "Bash(cp /tmp/ammar_crm/database/migrations/2026_05_21_000002_create_advertising_product_bookings_table.php c:/xampp/htdocs/library_crm_v2/database/migrations/)",
+      "Bash(cp /tmp/ammar_crm/database/migrations/2026_05_21_000003_add_rental_dates_to_advertising_product_bookings_table.php c:/xampp/htdocs/library_crm_v2/database/migrations/)",
+      "Bash(cp /tmp/ammar_crm/database/migrations/2026_05_25_000004_add_detail_fields_to_advertising_products_table.php c:/xampp/htdocs/library_crm_v2/database/migrations/)",
+      "Bash(cp /tmp/ammar_crm/resources/js/pages/SocialMediaReminder.vue c:/xampp/htdocs/library_crm_v2/resources/js/pages/SocialMediaReminder.vue)",
+      "Bash(cp /tmp/ammar_crm/resources/js/pages/PostingCalendar.vue c:/xampp/htdocs/library_crm_v2/resources/js/pages/PostingCalendar.vue)",
+      "Bash(cp /tmp/ammar_crm/resources/js/pages/MarketingEmailDemo.vue c:/xampp/htdocs/library_crm_v2/resources/js/pages/MarketingEmailDemo.vue)",
+      "Bash(cp /tmp/ammar_crm/resources/js/pages/ProductAvailability.vue c:/xampp/htdocs/library_crm_v2/resources/js/pages/ProductAvailability.vue)",
+      "Bash(composer require *)",
+      "Bash(php -l app/Http/Controllers/Api/V1/ProductAvailabilityController.php)",
+      "Bash(php -l app/Models/AdvertisingProduct.php)",
+      "Bash(php -l config/proposal.php)",
+      "Bash(php -r ' *)",
+      "Bash(where pdftoppm *)",
+      "Bash(where convert *)",
+      "Bash(where magick *)"
+    ],
+    "additionalDirectories": [
+      "\\tmp\\ammar_crm\\app\\Http\\Controllers\\Api\\V1"
     ]
   }
 }

@@ -1,0 +1,27 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('advertising_products', function (Blueprint $table) {
+            $table->id();
+            $table->string('site_name');
+            $table->string('status')->default('Existing');
+            $table->string('type')->default('A1');
+            $table->string('product_type');
+            $table->timestamps();
+
+            $table->index(['product_type', 'site_name']);
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('advertising_products');
+    }
+};

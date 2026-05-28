@@ -167,6 +167,14 @@
         </select>
       </div>
       <div class="filter-group">
+        <label>Status</label>
+        <select v-model="todoStatus" @change="loadTodos">
+          <option value="">All</option>
+          <option value="pending">Pending</option>
+          <option value="completed">Completed</option>
+        </select>
+      </div>
+      <div class="filter-group">
         <label>Per Page</label>
         <input type="number" v-model.number="todoPerPage" @change="loadTodos" style="width:70px;">
       </div>
@@ -343,14 +351,13 @@
                   </thead>
                   <tbody>
                     <template v-for="td in drawer.contact.todos" :key="td.id">
-                      <!-- Task row -->
                       <tr :class="['todo-row', { 'todo-done-row': td.completion_status === 'completed' }]">
                         <td class="dtd-date">{{ fmtDate(td.todo_date) }}</td>
                         <td><span v-if="td.task" class="dtask-badge">{{ td.task.name }}</span><span v-else class="muted-dash">—</span></td>
                         <td>{{ td.user?.name ?? '—' }}</td>
                         <td style="white-space:pre-line;font-size:12px">{{ td.todo_remark || '—' }}</td>
                         <td class="todo-actions-cell">
-                          <button class="fu-count-badge" :class="{ 'fu-has-entries': td.follow_ups?.length }" :title="`${td.follow_ups?.length ?? 0} follow-up(s) — click to view/add`" @click="openTaskFuModal(td)">
+                          <button class="fu-count-badge" :class="{ 'fu-has-entries': td.follow_ups?.length }" :title="(td.follow_ups?.length ?? 0) + ' follow-up(s) — click to view/add'" @click="openTaskFuModal(td)">
                             📞 {{ td.follow_ups?.length ?? 0 }}
                           </button>
                           <button v-if="td.completion_status !== 'completed'" class="todo-done-btn" title="Mark complete" @click="toggleDrawerTodoDone(td, 'completed')">✓</button>
@@ -1271,6 +1278,7 @@ const todoView    = ref('All');
 const todoDate    = ref(new Date().toISOString().slice(0, 10));
 const todoSearch  = ref('');
 const todoUserId  = ref('');
+const todoStatus  = ref('pending');
 const todoPerPage = ref(50);
 const todoPage    = ref(1);
 const todos       = ref([]);
@@ -1499,8 +1507,9 @@ async function loadTodos() {
   todoLoading.value = true;
   try {
     const params = { view: todoView.value, date: todoDate.value, per_page: todoPerPage.value, page: todoPage.value };
-    if (todoSearch.value)  params.search  = todoSearch.value;
-    if (todoUserId.value)  params.user_id = todoUserId.value;
+    if (todoSearch.value)  params.search             = todoSearch.value;
+    if (todoUserId.value)  params.user_id            = todoUserId.value;
+    if (todoStatus.value)  params.completion_status  = todoStatus.value;
     const res = await api.get('/v1/todos', { params });
     todos.value    = res.data.data;
     todoMeta.value = res.data.meta ?? {};
@@ -1634,7 +1643,7 @@ async function openDrawerById(contactId) {
 
 // ── Shared drawer ──
 async function openDrawer(c) {
-  addTaskOpen.value = false;
+  addTaskOpen.value  = false;
   addTaskError.value = '';
   drawer.value = { open: true, loading: true, contact: null };
   try {
@@ -1646,7 +1655,7 @@ async function openDrawer(c) {
 }
 
 function closeDrawer() {
-  drawer.value.open      = false;
+  drawer.value.open     = false;
   addTaskOpen.value  = false;
   addTaskError.value = '';
 }
