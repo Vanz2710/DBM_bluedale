@@ -12,93 +12,30 @@
       </div>
     </div>
 
-    <div class="entry-panel">
-      <div class="field company-field">
-        <label>Company</label>
-        <div class="company-search">
-          <input
-            v-model="form.company_name"
-            placeholder="Search or type company name"
-            autocomplete="off"
-            @input="searchCompanies"
-            @focus="searchCompanies"
-            @keyup.enter="selectFirstCompany"
-          >
-          <div v-if="showCompanyResults" class="company-results">
-            <button v-for="company in companyResults" :key="company.id" type="button" @click="selectCompany(company)">
-              {{ company.name }}
-            </button>
-            <div v-if="!companyLoading && companyResults.length === 0" class="company-empty">No company found</div>
-            <div v-if="companyLoading" class="company-empty">Searching...</div>
-          </div>
-        </div>
-      </div>
-
-      <div class="field place-field">
-        <label>Place</label>
-        <select v-model="form.site_name" @change="applyPlaceDefaults">
-          <option value="">Select place</option>
-          <option v-for="place in placeOptions" :key="place.id" :value="place.site_name">
-            {{ place.site_name }}
-          </option>
-        </select>
-      </div>
-
-      <div class="field">
-        <label>Product</label>
-        <select v-model="form.product_type">
-          <option v-for="product in productOptions" :key="product" :value="product">{{ product }}</option>
-        </select>
-      </div>
-
-      <div class="field small">
-        <label>Month</label>
-        <select v-model.number="form.month">
-          <option v-for="month in months" :key="month.value" :value="month.value">{{ month.short }}</option>
-        </select>
-      </div>
-
-      <div class="field date-field">
-        <label>Start Rent</label>
-        <input v-model="form.start_date" type="date">
-      </div>
-
-      <div class="field date-field">
-        <label>End Rent</label>
-        <input v-model="form.end_date" type="date">
-      </div>
-
-      <button class="btn-add" :disabled="saving || !canAdd" @click="addBooking">
-        {{ saving ? 'Saving...' : '+ Save Booking' }}
-      </button>
-    </div>
-
     <div v-if="error" class="error-msg">{{ error }}</div>
 
-    <div class="toolbar">
-      <div class="field">
-        <label>Product Filter</label>
-        <select v-model="productFilter" @change="load">
-          <option value="">All products</option>
-          <option v-for="product in productOptions" :key="product" :value="product">{{ product }}</option>
-        </select>
+    <div class="action-bar">
+      <div class="action-bar-filters">
+        <div class="field">
+          <label>Product Filter</label>
+          <select v-model="productFilter" @change="load">
+            <option value="">All products</option>
+            <option v-for="product in productOptions" :key="product" :value="product">{{ product }}</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Search</label>
+          <input v-model="search" placeholder="Place or company" @keyup.enter="load">
+        </div>
+        <button class="btn-dark" @click="load">Search</button>
+        <button class="btn-clear" @click="clearFilters">Clear</button>
       </div>
-      <div class="field">
-        <label>Search</label>
-        <input v-model="search" placeholder="Place or company" @keyup.enter="load">
+      <div class="action-bar-actions">
+        <button class="btn-add" @click="openEntryModal()">+ Add Booking</button>
+        <button class="btn-proposal" :disabled="selectedProductIds.length === 0" @click="openProposalWizard">
+          Generate Proposal ({{ selectedProductIds.length }})
+        </button>
       </div>
-      <button class="btn-dark" @click="load">Search</button>
-      <button class="btn-clear" @click="clearFilters">Clear</button>
-    </div>
-
-    <div class="proposal-panel">
-      <div class="proposal-hint">
-        <span class="proposal-hint-eyebrow">Proposal Builder</span>
-        <p>Select sites from the table below, then launch the wizard to set client info, confirm photos, and generate the PDF.</p>
-      </div>
-      <button class="btn-proposal" :disabled="selectedProductIds.length === 0" @click="openProposalWizard">
-        Open Proposal Wizard ({{ selectedProductIds.length }} selected)
-      </button>
     </div>
 
     <div class="table-wrap">
@@ -108,25 +45,21 @@
       </div>
 
       <div v-if="loading" class="loading-msg">Loading...</div>
-      <table v-else>
+      <table v-else class="gantt-table">
         <thead>
           <tr>
             <th class="select-col" @click.stop>
               <input type="checkbox" :checked="allRowsSelected" :disabled="rows.length === 0" @change="toggleAllRows">
             </th>
-            <th class="no-col">No</th>
-            <th class="site-col">Place</th>
-            <th>Status</th>
-            <th>Type</th>
-            <th>Product</th>
-            <th v-for="month in months" :key="month.value">{{ month.short }}</th>
+            <th class="place-col">Place</th>
+            <th v-for="month in months" :key="month.value" class="month-th">{{ month.short }}</th>
           </tr>
         </thead>
         <tbody>
           <tr v-if="rows.length === 0">
-            <td colspan="18" class="empty-state">No product bookings yet.</td>
+            <td :colspan="months.length + 2" class="empty-state">No product bookings yet.</td>
           </tr>
-          <tr v-for="(row, index) in rows" :key="row.id" class="product-row" @click="openProductDetail(row)">
+          <tr v-for="(row, index) in rows" :key="row.id" class="product-row">
             <td class="select-col" @click.stop>
               <input
                 type="checkbox"
@@ -134,30 +67,32 @@
                 @change="toggleProductSelection(row.id)"
               >
             </td>
-            <td class="no-col">{{ index + 1 }}</td>
-            <td class="site-col">
-              <span class="cell-label place-label">{{ row.site_name }}</span>
-            </td>
-            <td><span class="cell-label center-label">{{ row.status }}</span></td>
-            <td><span class="cell-label center-label">{{ row.type }}</span></td>
-            <td><span class="cell-label center-label">{{ row.product_type }}</span></td>
-            <td v-for="month in months" :key="month.value" class="booking-cell" :class="{ booked: bookingFor(row, month.value) }">
-              <template v-if="bookingFor(row, month.value)">
-                <span class="cell-label booking-name">{{ bookingFor(row, month.value).company_name }}</span>
-                <div class="rent-dates">
-                  <span>{{ formatDate(bookingFor(row, month.value).start_date) }}</span>
-                  <span>{{ formatDate(bookingFor(row, month.value).end_date) }}</span>
+            <td class="place-col" @click.stop="openProductDetail(row)">
+              <div class="place-cell">
+                <div class="place-cell-main">
+                  <span class="place-cell-no">{{ index + 1 }}</span>
+                  <span class="place-cell-name" :title="row.site_name">{{ row.site_name }}</span>
                 </div>
-                <button
-                  type="button"
-                  class="booking-remove"
-                  title="Remove booking"
-                  @click.stop="removeBooking(row, bookingFor(row, month.value))"
-                >
-                  Delete
-                </button>
+                <div class="place-cell-meta">
+                  <span class="badge badge-product">{{ row.product_type }}</span>
+                  <span class="badge" :class="`badge-status-${row.status.toLowerCase().replace(' ', '-')}`">{{ row.status }}</span>
+                  <span class="badge badge-type">{{ row.type }}</span>
+                </div>
+              </div>
+            </td>
+            <td
+              v-for="month in months"
+              :key="month.value"
+              class="month-cell"
+              :class="{ booked: bookingFor(row, month.value) }"
+              @click.stop="openCellMenu(row, month.value)"
+            >
+              <template v-if="bookingFor(row, month.value)">
+                <div class="booking-bar" :title="`${bookingFor(row, month.value).company_name} · ${formatDate(bookingFor(row, month.value).start_date) || '—'} → ${formatDate(bookingFor(row, month.value).end_date) || '—'}`">
+                  {{ bookingFor(row, month.value).company_name }}
+                </div>
               </template>
-              <span v-else class="available-label">Available</span>
+              <span v-else class="avail-tick" aria-hidden="true"></span>
             </td>
           </tr>
         </tbody>
@@ -281,6 +216,119 @@
 
           <a class="map-link" :href="productMapUrl" target="_blank" rel="noopener">Open Location in Google Maps</a>
         </div>
+      </section>
+    </div>
+
+    <!-- Add / Edit Booking Modal -->
+    <div v-if="entryModalOpen" class="modal-backdrop" @click.self="closeEntryModal">
+      <section class="entry-modal" role="dialog" aria-modal="true">
+        <header class="entry-modal-head">
+          <div>
+            <h2>{{ form.site_name && form.id ? 'Edit Booking' : 'Add Booking' }}</h2>
+            <p>Reserve a month for a company at one of your advertising sites.</p>
+          </div>
+          <button type="button" class="detail-close" @click="closeEntryModal">&times;</button>
+        </header>
+
+        <div class="entry-modal-body">
+          <div class="field full">
+            <label>Company</label>
+            <div class="company-search">
+              <input
+                v-model="form.company_name"
+                placeholder="Search or type company name"
+                autocomplete="off"
+                @input="searchCompanies"
+                @focus="searchCompanies"
+                @keyup.enter="selectFirstCompany"
+              >
+              <div v-if="showCompanyResults" class="company-results">
+                <button v-for="company in companyResults" :key="company.id" type="button" @click="selectCompany(company)">
+                  {{ company.name }}
+                </button>
+                <div v-if="!companyLoading && companyResults.length === 0" class="company-empty">No company found</div>
+                <div v-if="companyLoading" class="company-empty">Searching...</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="field full">
+            <label>Place</label>
+            <select v-model="form.site_name" @change="applyPlaceDefaults">
+              <option value="">Select place</option>
+              <option v-for="place in placeOptions" :key="place.id" :value="place.site_name">
+                {{ place.site_name }}
+              </option>
+            </select>
+          </div>
+
+          <div class="entry-modal-grid">
+            <div class="field">
+              <label>Product</label>
+              <select v-model="form.product_type">
+                <option v-for="product in productOptions" :key="product" :value="product">{{ product }}</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Month</label>
+              <select v-model.number="form.month">
+                <option v-for="month in months" :key="month.value" :value="month.value">{{ month.short }}</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Start Rent</label>
+              <input v-model="form.start_date" type="date">
+            </div>
+            <div class="field">
+              <label>End Rent</label>
+              <input v-model="form.end_date" type="date">
+            </div>
+          </div>
+        </div>
+
+        <footer class="entry-modal-foot">
+          <button type="button" class="btn-clear" @click="closeEntryModal">Cancel</button>
+          <button type="button" class="btn-add" :disabled="saving || !canAdd" @click="saveFromModal">
+            {{ saving ? 'Saving…' : 'Save Booking' }}
+          </button>
+        </footer>
+      </section>
+    </div>
+
+    <!-- Cell Menu Modal (view / edit / delete booking, quick-add if empty) -->
+    <div v-if="cellMenu.open" class="modal-backdrop" @click.self="closeCellMenu">
+      <section class="cell-menu-modal" role="dialog" aria-modal="true">
+        <header class="cell-menu-head">
+          <div>
+            <span class="cell-menu-eyebrow">{{ monthLabel(cellMenu.month) }} {{ year }}</span>
+            <h2>{{ cellMenu.row?.site_name }}</h2>
+          </div>
+          <button type="button" class="detail-close" @click="closeCellMenu">&times;</button>
+        </header>
+
+        <div v-if="cellMenu.booking" class="cell-menu-body">
+          <dl class="cell-menu-dl">
+            <dt>Company</dt><dd>{{ cellMenu.booking.company_name }}</dd>
+            <dt>Start Date</dt>
+            <dd>
+              <input type="date" :value="cellMenu.booking.start_date?.split('T')[0]" @change="onCellDateChange($event, 'start_date')">
+            </dd>
+            <dt>End Date</dt>
+            <dd>
+              <input type="date" :value="cellMenu.booking.end_date?.split('T')[0]" @change="onCellDateChange($event, 'end_date')">
+            </dd>
+          </dl>
+        </div>
+        <div v-else class="cell-menu-body cell-menu-empty">
+          <p>This month is currently <strong>available</strong> at this site.</p>
+        </div>
+
+        <footer class="cell-menu-foot">
+          <button v-if="cellMenu.booking" type="button" class="btn-danger" @click="deleteFromCellMenu">Delete Booking</button>
+          <button type="button" class="btn-add" @click="addFromCellMenu">
+            {{ cellMenu.booking ? 'Add Another Month' : '+ Book This Month' }}
+          </button>
+        </footer>
       </section>
     </div>
 
@@ -516,6 +564,8 @@ const wizardSteps = [
 ];
 const uploadingPhoto = ref({ site_photo: false, site_map_photo: false });
 const uploadingPhotoFor = ref({});
+const entryModalOpen = ref(false);
+const cellMenu = ref({ open: false, row: null, month: null, booking: null });
 const editingDetails = ref(false);
 const savingDetails = ref(false);
 const detailForm = ref({
@@ -1034,6 +1084,78 @@ async function addBooking() {
   }
 }
 
+function openEntryModal(presets = {}) {
+  // Reset to a fresh form, then apply presets (used by quick-add from cell)
+  form.value = {
+    company_name: '',
+    contact_id: null,
+    site_name: '',
+    status: 'Existing',
+    type: 'A1',
+    product_type: 'Temp Board',
+    month: new Date().getMonth() + 1,
+    start_date: '',
+    end_date: '',
+    ...presets,
+  };
+  selectedContactId.value = presets.contact_id ?? null;
+  companyResults.value = [];
+  error.value = '';
+  entryModalOpen.value = true;
+}
+
+function closeEntryModal() {
+  entryModalOpen.value = false;
+}
+
+async function saveFromModal() {
+  await addBooking();
+  if (!error.value) closeEntryModal();
+}
+
+function openCellMenu(row, month) {
+  const booking = bookingFor(row, month);
+  cellMenu.value = { open: true, row, month, booking: booking ?? null };
+}
+
+function closeCellMenu() {
+  cellMenu.value = { open: false, row: null, month: null, booking: null };
+}
+
+function addFromCellMenu() {
+  const { row, month } = cellMenu.value;
+  const presets = {
+    site_name: row.site_name,
+    status: row.status,
+    type: row.type,
+    product_type: row.product_type,
+    month,
+  };
+  closeCellMenu();
+  openEntryModal(presets);
+}
+
+async function deleteFromCellMenu() {
+  const { row, booking } = cellMenu.value;
+  if (!booking) return;
+  if (!window.confirm(`Remove booking for ${booking.company_name}?`)) return;
+  await deleteBooking(row, booking);
+  closeCellMenu();
+}
+
+async function onCellDateChange(event, field) {
+  const value = event.target.value;
+  const { row, month } = cellMenu.value;
+  await updateBookingDate(row, month, field, value);
+  // Refresh local cellMenu.booking to latest
+  cellMenu.value.booking = bookingFor(row, month) ?? null;
+}
+
+function monthLabel(value) {
+  const m = months.find((mo) => mo.value === value);
+  return m ? m.short : '';
+}
+
 function upsertRow(row) {
   const prepared = normalizeRow(row);
   const index = rows.value.findIndex((item) => item.id === prepared.id);
@@ -1182,15 +1304,24 @@ onMounted(load);
   width: 88px; height: 34px; border: 1px solid #cbd5e1; border-radius: 7px; text-align: center;
   font-size: 14px; font-weight: 800;
 }
-.entry-panel, .toolbar, .proposal-panel {
-  background: #ffffff; border: 1px solid #dbe3ee; border-radius: 8px; padding: 14px;
-  margin-bottom: 14px; display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px;
+/* Compact action bar replaces old entry-panel + toolbar + proposal-panel */
+.action-bar {
+  background: #ffffff; border: 1px solid #dbe3ee; border-radius: 8px; padding: 12px 14px;
+  margin-bottom: 14px; display: flex; justify-content: space-between; align-items: flex-end;
+  gap: 16px; flex-wrap: wrap;
 }
-.field { display: flex; flex-direction: column; gap: 5px; min-width: 170px; }
+.action-bar-filters {
+  display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px; flex: 1; min-width: 280px;
+}
+.action-bar-actions {
+  display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+}
+.field { display: flex; flex-direction: column; gap: 5px; min-width: 150px; }
 .field.company-field { flex: 0 1 430px; min-width: 320px; }
 .field.place-field { flex: 0 1 480px; min-width: 340px; }
 .field.small { min-width: 112px; }
 .field.date-field { min-width: 138px; }
+.field.full { width: 100%; }
 .field label {
   font-size: 10px; font-weight: 850; text-transform: uppercase; letter-spacing: 0.7px; color: #64748b;
 }
@@ -1223,73 +1354,111 @@ onMounted(load);
   background: #fee2e2; color: #991b1b; border-radius: 8px; padding: 10px 14px; margin-bottom: 14px;
   font-size: 13px; font-weight: 750;
 }
-.table-wrap { background: white; border-radius: 8px; border: 1px solid #111827; overflow: auto; }
+.table-wrap {
+  background: white; border-radius: 8px; border: 1px solid #e5e7eb; overflow: auto;
+  position: relative;
+}
 .table-title {
-  background: #d9d21a; color: #111827; border-bottom: 2px solid #111827; padding: 9px 12px;
-  display: flex; justify-content: space-between; font-size: 12px; font-weight: 900; text-transform: uppercase;
+  background: #f8fafc; color: #0f172a; border-bottom: 1px solid #e5e7eb; padding: 10px 14px;
+  display: flex; justify-content: space-between; align-items: center;
+  font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px;
 }
 .loading-msg { text-align: center; padding: 44px; color: #64748b; }
-table { width: 100%; min-width: 1320px; border-collapse: collapse; font-size: 12px; }
-th, td { border: 1.5px solid #111827; }
-thead th {
-  background: #d9d21a; color: #111827; padding: 8px 7px; font-size: 11px; font-weight: 900;
-  text-transform: uppercase; text-align: center; white-space: nowrap;
+
+/* Compact gantt table */
+.gantt-table {
+  width: 100%; border-collapse: separate; border-spacing: 0; font-size: 12px;
 }
-tbody td { height: 44px; padding: 0; color: #111827; background: #ffffff; vertical-align: middle; }
-.product-row { cursor: pointer; }
+.gantt-table th, .gantt-table td { border: none; border-right: 1px solid #eef2f7; border-bottom: 1px solid #eef2f7; }
+.gantt-table thead th {
+  background: #1e293b; color: #f1f5f9; padding: 8px 6px; font-size: 11px; font-weight: 800;
+  text-transform: uppercase; letter-spacing: 0.4px; text-align: center; white-space: nowrap;
+  position: sticky; top: 0; z-index: 3;
+}
+.gantt-table tbody td {
+  height: 56px; padding: 0; vertical-align: middle; background: #ffffff;
+}
 .product-row:hover td { background: #f8fafc; }
-.product-row:hover .booking-cell.booked { background: #d7eefc; }
-.no-col { width: 48px; text-align: center; font-weight: 850; }
-.select-col { width: 42px; min-width: 42px; text-align: center; }
+.product-row:hover .month-cell.booked .booking-bar { filter: brightness(0.96); }
+
+/* Sticky checkbox + place columns */
+.select-col {
+  width: 38px; min-width: 38px; text-align: center;
+  position: sticky; left: 0; z-index: 2; background: #ffffff;
+}
+.gantt-table thead .select-col { background: #1e293b; }
 .select-col input {
   appearance: none; -webkit-appearance: none;
-  width: 18px; height: 18px; min-height: 0; padding: 0; cursor: pointer;
-  border: 1.5px solid #1f2937; border-radius: 2px; background: #ffffff;
+  width: 16px; height: 16px; padding: 0; cursor: pointer;
+  border: 1.5px solid #1f2937; border-radius: 3px; background: #ffffff;
   display: inline-grid; place-content: center; vertical-align: middle;
 }
 .select-col input::before {
-  content: ""; width: 10px; height: 10px; transform: scale(0);
-  background: #1d4ed8;
+  content: ""; width: 8px; height: 8px; transform: scale(0); background: #1d4ed8; border-radius: 1px;
 }
 .select-col input:checked::before { transform: scale(1); }
 .select-col input:focus { outline: 2px solid rgba(37,99,235,0.32); outline-offset: 2px; }
-.select-col input:disabled {
-  border-color: #94a3b8; background: #e2e8f0; cursor: not-allowed;
+.select-col input:disabled { border-color: #94a3b8; background: #e2e8f0; cursor: not-allowed; }
+
+.place-col {
+  width: 280px; min-width: 280px; max-width: 280px;
+  position: sticky; left: 38px; z-index: 2; background: #ffffff;
+  text-align: left; cursor: pointer;
+  border-right: 1.5px solid #cbd5e1 !important;
+  box-shadow: 6px 0 6px -6px rgba(15,23,42,0.18);
 }
-.site-col { width: 330px; min-width: 330px; }
-td select, td input {
-  width: 100%; min-height: 42px; border: none; background: transparent; color: #111827;
-  font-size: 12px; font-weight: 700; outline: none;
+.gantt-table thead .place-col { background: #1e293b; text-align: left; padding-left: 14px; }
+.place-cell { padding: 8px 12px; display: flex; flex-direction: column; gap: 5px; }
+.place-cell-main { display: flex; align-items: flex-start; gap: 8px; }
+.place-cell-no {
+  display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+  min-width: 22px; height: 18px; padding: 0 5px; border-radius: 999px;
+  background: #eef2f7; color: #475569; font-size: 10px; font-weight: 800;
 }
-td select { text-align: center; text-align-last: center; padding: 0 5px; cursor: pointer; }
-.cell-label {
-  display: flex; align-items: center; min-height: 42px; width: 100%;
-  color: #111827; font-size: 12px; font-weight: 800; line-height: 1.25;
+.place-cell-name {
+  font-size: 12.5px; font-weight: 700; color: #0f172a; line-height: 1.3;
+  overflow: hidden; text-overflow: ellipsis; display: -webkit-box;
+  -webkit-line-clamp: 2; -webkit-box-orient: vertical;
 }
-.place-label { padding: 7px 8px; justify-content: flex-start; }
-.center-label { justify-content: center; text-align: center; padding: 0 6px; }
-.booking-cell { min-width: 142px; }
-.booking-cell.booked { background: #e0f2fe; }
-.booking-name {
-  min-height: 30px; justify-content: center; text-align: center; padding: 4px 6px;
-  border-bottom: 1px solid rgba(15,23,42,0.16); color: #0f172a; font-weight: 900;
+.place-cell-meta { display: flex; flex-wrap: wrap; gap: 4px; }
+.badge {
+  display: inline-flex; align-items: center; padding: 2px 7px; border-radius: 999px;
+  font-size: 9.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.3px;
+  background: #eef2f7; color: #475569; border: 1px solid transparent;
 }
-.available-label {
-  display: flex; min-height: 42px; align-items: center; justify-content: center;
-  color: #94a3b8; font-size: 12px; font-weight: 750;
+.badge-product { background: #ede9fe; color: #5b21b6; }
+.badge-type { background: #fef3c7; color: #92400e; }
+.badge-status-existing { background: #dcfce7; color: #166534; }
+.badge-status-raw-new { background: #dbeafe; color: #1e40af; }
+
+/* Month header + cells */
+.gantt-table .month-th { min-width: 78px; width: 78px; }
+.month-cell {
+  min-width: 78px; width: 78px; text-align: center; cursor: pointer;
+  position: relative;
 }
-.rent-dates { display: grid; grid-template-columns: 1fr; gap: 0; }
-.rent-dates span {
-  display: flex; align-items: center; justify-content: center; min-height: 26px;
-  border-top: 1px solid rgba(15,23,42,0.1); font-size: 10px; font-weight: 800;
-  padding: 0 3px; background: rgba(255,255,255,0.45);
+.month-cell.booked { background: #f0f9ff; }
+.booking-bar {
+  height: 36px; margin: 8px 6px; padding: 0 6px;
+  background: linear-gradient(180deg, #38bdf8 0%, #0284c7 100%);
+  color: #ffffff; border-radius: 5px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10.5px; font-weight: 700; line-height: 1.15;
+  overflow: hidden; text-overflow: ellipsis;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  word-break: break-word;
+  box-shadow: 0 1px 2px rgba(2,132,199,0.25);
+  transition: filter 0.12s;
 }
-.booking-remove {
-  width: 100%; min-height: 26px; border: none; border-top: 1px solid rgba(153,27,27,0.18);
-  background: rgba(254,226,226,0.78); color: #991b1b; font-size: 10px; font-weight: 900;
-  text-transform: uppercase; cursor: pointer;
+.month-cell:hover { background: #f1f5f9; }
+.month-cell.booked:hover { background: #e0f2fe; }
+.month-cell:hover .booking-bar { filter: brightness(1.05); }
+.avail-tick {
+  display: inline-block; width: 6px; height: 6px; border-radius: 999px;
+  background: #cbd5e1;
 }
-.booking-remove:hover { background: #fecaca; }
+.month-cell:hover .avail-tick { background: #60a5fa; }
+
 .empty-state { text-align: center; padding: 36px; color: #64748b; font-size: 13px; font-weight: 700; background: white; }
 .modal-backdrop {
   position: fixed; inset: 0; z-index: 50; background: rgba(15,23,42,0.58);
@@ -1349,13 +1518,64 @@ td select { text-align: center; text-align-last: center; padding: 0 5px; cursor:
   font-weight: 850; text-decoration: none;
 }
 
-/* Proposal hint banner */
-.proposal-panel { justify-content: space-between; }
-.proposal-hint { flex: 1; min-width: 260px; display: flex; flex-direction: column; gap: 4px; }
-.proposal-hint-eyebrow {
-  font-size: 10px; font-weight: 850; text-transform: uppercase; letter-spacing: 0.7px; color: #0f766e;
+/* Add/Edit Booking modal */
+.entry-modal {
+  width: min(620px, 96vw); max-height: 92vh; background: #ffffff;
+  border-radius: 10px; box-shadow: 0 24px 70px rgba(15,23,42,0.36);
+  display: flex; flex-direction: column; overflow: hidden;
 }
-.proposal-hint p { margin: 0; color: #475569; font-size: 12.5px; font-weight: 600; line-height: 1.4; }
+.entry-modal-head {
+  display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;
+  padding: 18px 22px 14px; border-bottom: 1px solid #e5e7eb;
+}
+.entry-modal-head h2 { margin: 0 0 4px; font-size: 18px; font-weight: 900; }
+.entry-modal-head p { margin: 0; font-size: 12px; color: #64748b; font-weight: 600; }
+.entry-modal-body { padding: 18px 22px; overflow: auto; display: flex; flex-direction: column; gap: 12px; }
+.entry-modal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.entry-modal-foot {
+  display: flex; justify-content: flex-end; gap: 8px;
+  padding: 14px 22px; border-top: 1px solid #e5e7eb;
+}
+
+/* Cell menu modal (booking view/edit/delete) */
+.cell-menu-modal {
+  width: min(440px, 92vw); background: #ffffff;
+  border-radius: 10px; box-shadow: 0 24px 70px rgba(15,23,42,0.36);
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.cell-menu-head {
+  display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;
+  padding: 16px 20px; border-bottom: 1px solid #e5e7eb;
+}
+.cell-menu-eyebrow {
+  display: block; font-size: 10px; font-weight: 900; text-transform: uppercase;
+  letter-spacing: 0.6px; color: #0284c7; margin-bottom: 3px;
+}
+.cell-menu-head h2 {
+  margin: 0; font-size: 14px; font-weight: 800; color: #0f172a; line-height: 1.3;
+}
+.cell-menu-body { padding: 16px 20px; }
+.cell-menu-empty p { margin: 0; color: #475569; font-size: 13px; }
+.cell-menu-dl {
+  display: grid; grid-template-columns: 90px 1fr; gap: 10px 14px; margin: 0;
+}
+.cell-menu-dl dt { color: #64748b; font-size: 11px; font-weight: 800; text-transform: uppercase; align-self: center; }
+.cell-menu-dl dd { margin: 0; font-size: 13px; font-weight: 700; color: #0f172a; }
+.cell-menu-dl dd input[type="date"] {
+  width: 100%; height: 34px; border: 1.5px solid #dbe3ee; border-radius: 6px;
+  padding: 0 10px; font-size: 13px; outline: none; background: white;
+}
+.cell-menu-dl dd input[type="date"]:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,0.12); }
+.cell-menu-foot {
+  display: flex; justify-content: space-between; gap: 8px;
+  padding: 14px 20px; border-top: 1px solid #e5e7eb; background: #f8fafc;
+}
+.btn-danger {
+  height: 36px; border: none; border-radius: 7px; padding: 0 14px;
+  font-size: 12.5px; font-weight: 800; cursor: pointer;
+  background: #fee2e2; color: #991b1b;
+}
+.btn-danger:hover { background: #fecaca; }
 
 /* Photo panels inside product detail modal */
 .photo-grid {
