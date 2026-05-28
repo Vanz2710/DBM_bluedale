@@ -33,7 +33,11 @@ const MyProfile           = () => import('../pages/MyProfile.vue');
 const Reports             = () => import('../pages/Reports.vue');
 const Webhooks            = () => import('../pages/Webhooks.vue');
 const LeadForm            = () => import('../pages/LeadForm.vue');
-const Settings            = () => import('../pages/Settings.vue');
+const Settings                = () => import('../pages/Settings.vue');
+const SocialMediaReminder     = () => import('../pages/SocialMediaReminder.vue');
+const PostingCalendar         = () => import('../pages/PostingCalendar.vue');
+const MarketingEmail          = () => import('../pages/MarketingEmailDemo.vue');
+const ProductAvailability     = () => import('../pages/ProductAvailability.vue');
 
 const routes = [
     { path: '/login',        component: Login,       name: 'login',        meta: { public: true } },
@@ -71,7 +75,11 @@ const routes = [
     { path: '/profile',                    component: MyProfile,    name: 'profile' },
     { path: '/reports',                    component: Reports,      name: 'reports' },
     { path: '/admin/webhooks',             component: Webhooks,     name: 'webhooks',     meta: { adminOnly: true } },
-    { path: '/settings',                   component: Settings,     name: 'settings' },
+    { path: '/settings',                   component: Settings,          name: 'settings' },
+    { path: '/social-media',               component: SocialMediaReminder, name: 'social-media' },
+    { path: '/posting-calendar',           component: PostingCalendar,     name: 'posting-calendar' },
+    { path: '/marketing-email',            component: MarketingEmail,      name: 'marketing-email' },
+    { path: '/product-availability',       component: ProductAvailability, name: 'product-availability' },
 ];
 
 export default routes;

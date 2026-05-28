@@ -30,6 +30,10 @@ use App\Http\Controllers\Api\V1\EmailVerificationController;
 use App\Http\Controllers\Api\V1\PublicLeadController;
 use App\Http\Controllers\Api\V1\TerritoryController;
 use App\Http\Controllers\Api\V1\UserDashboardController;
+use App\Http\Controllers\Api\V1\SocialMediaReminderController;
+use App\Http\Controllers\Api\V1\ProductAvailabilityController;
+use App\Http\Controllers\Api\V1\PostingCalendarController;
+use App\Http\Controllers\Api\V1\EmailCampaignController;
 
 // Auth (public)
 Route::post('auth/login', [AuthController::class, 'login']);
@@ -187,6 +191,31 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::post('webhooks/{webhook}/test', [WebhookController::class, 'test']);
             Route::apiResource('webhooks', WebhookController::class)->only(['index', 'store', 'update', 'destroy']);
         });
+
+        // Social Media Reminders
+        Route::apiResource('social-media-reminders', SocialMediaReminderController::class)->only(['index', 'store', 'update', 'destroy']);
+
+        // Product Availability
+        Route::get('product-availability', [ProductAvailabilityController::class, 'index']);
+        Route::post('product-availability', [ProductAvailabilityController::class, 'store']);
+        Route::post('product-availability/proposal', [ProductAvailabilityController::class, 'proposal']);
+        Route::put('product-availability/products/{product}', [ProductAvailabilityController::class, 'updateProduct']);
+        Route::post('product-availability/products/{product}/photo', [ProductAvailabilityController::class, 'uploadPhoto']);
+        Route::delete('product-availability/products/{product}/photo', [ProductAvailabilityController::class, 'deletePhoto']);
+        Route::put('product-availability/bookings/{booking}', [ProductAvailabilityController::class, 'updateBooking']);
+        Route::delete('product-availability/bookings/{booking}', [ProductAvailabilityController::class, 'destroyBooking']);
+
+        // Posting Calendar
+        Route::get('posting-calendar', [PostingCalendarController::class, 'index']);
+        Route::post('posting-calendar', [PostingCalendarController::class, 'store']);
+        Route::put('posting-calendar/{postingCalendarReminder}', [PostingCalendarController::class, 'update']);
+        Route::delete('posting-calendar/{postingCalendarReminder}', [PostingCalendarController::class, 'destroy']);
+
+        // Email Campaigns
+        Route::get('email-campaigns', [EmailCampaignController::class, 'index']);
+        Route::post('email-campaigns', [EmailCampaignController::class, 'store']);
+        Route::put('email-campaigns/{emailCampaign}', [EmailCampaignController::class, 'update']);
+        Route::delete('email-campaigns/{emailCampaign}', [EmailCampaignController::class, 'destroy']);
 
         // Admin lookup CRUD
         Route::middleware('can:manage lookups')->group(function () {
