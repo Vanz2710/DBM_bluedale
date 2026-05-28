@@ -33,6 +33,7 @@ use App\Http\Controllers\Api\V1\UserDashboardController;
 use App\Http\Controllers\Api\V1\SocialMediaReminderController;
 use App\Http\Controllers\Api\V1\ProductAvailabilityController;
 use App\Http\Controllers\Api\V1\PostingCalendarController;
+use App\Http\Controllers\Api\V1\ContactAnalysisController;
 use App\Http\Controllers\Api\V1\EmailCampaignController;
 
 // Auth (public)
@@ -67,6 +68,14 @@ Route::middleware('auth:sanctum')->group(function () {
         // Reminders — personal, no special permission
         Route::get('reminders', [ReminderController::class, 'index']);
         Route::post('reminders/read', [ReminderController::class, 'markRead']);
+
+        // Contact Analysis
+        Route::middleware('can:view contacts')->group(function () {
+            Route::get('contact-analysis/overview',         [ContactAnalysisController::class, 'overview']);
+            Route::get('contact-analysis/lead-source',      [ContactAnalysisController::class, 'leadSource']);
+            Route::get('contact-analysis/followup-actions', [ContactAnalysisController::class, 'followupActions']);
+            Route::get('contact-analysis/engagement',       [ContactAnalysisController::class, 'engagement']);
+        });
 
         // Analytics & reporting
         Route::get('analytics', [AnalyticsController::class, 'summary'])->middleware('can:view analytics');

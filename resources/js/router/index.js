@@ -21,7 +21,7 @@ const ContactEdit         = () => import('../pages/ContactEdit.vue');
 const TaskAdd             = () => import('../pages/TaskAdd.vue');
 const TodoList            = () => import('../pages/TodoList.vue');
 const TodoAdd             = () => import('../pages/TodoAdd.vue');
-const TaskEdit            = () => import('../pages/TaskEdit.vue');
+const TaskEdit            = () => import('../pages/TodoEdit.vue');
 const AdminPanel          = () => import('../pages/AdminPanel.vue');
 const RbacPanel           = () => import('../pages/RbacPanel.vue');
 const CrmList             = () => import('../pages/CrmList.vue');
@@ -36,15 +36,17 @@ const LeadForm            = () => import('../pages/LeadForm.vue');
 const Settings                = () => import('../pages/Settings.vue');
 const SocialMediaReminder     = () => import('../pages/SocialMediaReminder.vue');
 const PostingCalendar         = () => import('../pages/PostingCalendar.vue');
-const MarketingEmail          = () => import('../pages/MarketingEmailDemo.vue');
+const MarketingEmail          = () => import('../pages/EmailCampaigns.vue');
 const ProductAvailability     = () => import('../pages/ProductAvailability.vue');
+const ContactAnalysis         = () => import('../pages/ContactAnalysis.vue');
 
 const routes = [
     { path: '/login',        component: Login,       name: 'login',        meta: { public: true } },
     { path: '/verify-email', component: VerifyEmail, name: 'verify-email', meta: { public: true } },
     { path: '/lead',         component: LeadForm,    name: 'lead-form',    meta: { public: true } },
     { path: '/',                           component: Dashboard,   name: 'home' },
-    { path: '/list',                       component: ContactList, name: 'list' },
+    { path: '/list',                       component: ContactList,     name: 'list' },
+    { path: '/contact-analysis',           component: ContactAnalysis, name: 'contact-analysis' },
     { path: '/contacts/add',               component: ContactAdd,  name: 'contact-add' },
     { path: '/contacts/:id',               component: ContactView, name: 'contact-view' },
     { path: '/contacts/:id/edit',          component: ContactEdit, name: 'contact-edit' },

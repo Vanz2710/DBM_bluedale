@@ -6,6 +6,18 @@ use Illuminate\Database\Eloquent\Model;
 
 class ToDo extends Model
 {
+    protected static function booted(): void
+    {
+        // Handles explicit ToDo deletes (not cascade from Contact, which is covered in Contact::deleting)
+        static::deleting(function (ToDo $todo) {
+            $followUpIds = $todo->followUps()->pluck('id');
+            if ($followUpIds->isNotEmpty()) {
+                ReminderRead::where('source_type', 'followup')->whereIn('source_id', $followUpIds)->delete();
+            }
+            ReminderRead::where('source_type', 'todo')->where('source_id', $todo->id)->delete();
+        });
+    }
+
     protected $table = 'to_dos';
 
     protected $fillable = ['contact_id', 'user_id', 'task_id', 'todo_date', 'date_created', 'todo_remark', 'completion_status', 'completed_at'];
