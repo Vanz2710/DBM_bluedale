@@ -35,6 +35,7 @@ use App\Http\Controllers\Api\V1\ProductAvailabilityController;
 use App\Http\Controllers\Api\V1\PostingCalendarController;
 use App\Http\Controllers\Api\V1\ContactAnalysisController;
 use App\Http\Controllers\Api\V1\EmailCampaignController;
+use App\Http\Controllers\Api\V1\PredictiveController;
 
 // Auth (public)
 Route::post('auth/login', [AuthController::class, 'login']);
@@ -75,6 +76,18 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::get('contact-analysis/lead-source',      [ContactAnalysisController::class, 'leadSource']);
             Route::get('contact-analysis/followup-actions', [ContactAnalysisController::class, 'followupActions']);
             Route::get('contact-analysis/engagement',       [ContactAnalysisController::class, 'engagement']);
+        });
+
+        // Predictive Insights
+        Route::middleware('can:view contacts')->group(function () {
+            Route::get('predictive/summary',      [PredictiveController::class, 'summary']);
+            Route::get('predictive/forecast',     [PredictiveController::class, 'forecast']);
+            Route::get('predictive/at-risk',      [PredictiveController::class, 'atRisk']);
+            Route::get('predictive/pace',         [PredictiveController::class, 'pace']);
+            Route::get('predictive/overdue-risk', [PredictiveController::class, 'overdueRisk']);
+            Route::get('predictive/segments',     [PredictiveController::class, 'segments']);
+            Route::get('predictive/deals',        [PredictiveController::class, 'deals']);
+            Route::get('predictive/trend',        [PredictiveController::class, 'trend']);
         });
 
         // Analytics & reporting

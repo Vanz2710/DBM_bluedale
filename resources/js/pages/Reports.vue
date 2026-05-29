@@ -1,193 +1,761 @@
 <template>
   <div class="page">
-    <div class="page-banner">
-      <div class="banner-text">
-        <h1>Reports</h1>
-        <p>Pre-built contact and pipeline breakdowns</p>
+
+    <!-- ══ Header ══════════════════════════════════════════════════════════════ -->
+    <div class="page-head">
+      <div class="page-head-left">
+        <h1 class="page-title">Reports</h1>
+        <p class="page-subtitle">CRM composition, agent rankings, and 12-month activity trends</p>
       </div>
+    </div>
+
+    <!-- ══ Tab bar ═════════════════════════════════════════════════════════════ -->
+    <div class="view-tabs">
+      <button :class="['tab-btn', { 'tab-active': tab === 'overview' }]"   @click="switchTab('overview')">Overview</button>
+      <button :class="['tab-btn', { 'tab-active': tab === 'breakdown' }]"  @click="switchTab('breakdown')">Breakdown</button>
+      <button :class="['tab-btn', { 'tab-active': tab === 'trends' }]"     @click="switchTab('trends')">Trends</button>
     </div>
 
     <LoadingSpinner v-if="loading" />
 
     <template v-else>
-      <!-- Report picker -->
-      <div class="report-nav">
-        <button
-          v-for="r in REPORTS" :key="r.key"
-          :class="['report-tab', { active: activeReport === r.key }]"
-          @click="activeReport = r.key"
-        >{{ r.label }}</button>
-      </div>
 
-      <!-- Report content -->
-      <div class="card">
-        <div class="card-header">
-          <span class="card-title">{{ currentReport.label }}</span>
-          <span class="badge total">{{ currentRows.length }} {{ currentRows.length === 1 ? 'entry' : 'entries' }}</span>
-        </div>
+      <!-- ══════════════════════════════════════════════════════════════════════
+           OVERVIEW TAB
+      ═══════════════════════════════════════════════════════════════════════════ -->
+      <template v-if="tab === 'overview'">
 
-        <div v-if="activeReport === 'by_month'" class="chart-wrap">
-          <div class="month-bars">
-            <div v-for="row in currentRows" :key="row.label" class="month-bar-col">
-              <div class="month-bar-outer">
-                <div class="month-bar-fill" :style="{ height: monthBarPct(row.count) + '%' }">
-                  <span class="month-bar-val">{{ row.count }}</span>
-                </div>
+        <!-- KPI cards -->
+        <div class="kpi-row">
+          <div class="kpi-card">
+            <div class="kpi-icon kpi-icon--purple">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+                <circle cx="9" cy="7" r="4"/>
+                <line x1="19" y1="8" x2="19" y2="14"/>
+                <line x1="22" y1="11" x2="16" y2="11"/>
+              </svg>
+            </div>
+            <div class="kpi-body">
+              <div class="kpi-value">{{ analytics.total_contacts.toLocaleString() }}</div>
+              <div class="kpi-label">Total Contacts</div>
+              <div class="kpi-sub">{{ analytics.unassigned }} unassigned</div>
+            </div>
+          </div>
+
+          <div class="kpi-card">
+            <div class="kpi-icon kpi-icon--blue">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="4" width="18" height="18" rx="2"/>
+                <path d="M16 2v4M8 2v4M3 10h18"/>
+              </svg>
+            </div>
+            <div class="kpi-body">
+              <div class="kpi-value">{{ analytics.this_month.toLocaleString() }}</div>
+              <div class="kpi-label">Added This Month</div>
+              <div class="kpi-sub" :class="monthDeltaClass">
+                <template v-if="monthDelta !== null">
+                  {{ monthDelta >= 0 ? '+' : '' }}{{ monthDelta }}% vs last month
+                </template>
+                <template v-else>{{ analytics.last_month }} last month</template>
               </div>
-              <div class="month-label">{{ row.label }}</div>
+            </div>
+          </div>
+
+          <div class="kpi-card">
+            <div class="kpi-icon kpi-icon--green">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="4" width="18" height="18" rx="2"/>
+                <path d="M16 2v4M8 2v4M3 10h18M9 16l2 2 4-4"/>
+              </svg>
+            </div>
+            <div class="kpi-body">
+              <div class="kpi-value">{{ analytics.tasks_due_today.toLocaleString() }}</div>
+              <div class="kpi-label">Tasks Due Today</div>
+              <div class="kpi-sub">Across all agents</div>
+            </div>
+          </div>
+
+          <div class="kpi-card">
+            <div class="kpi-icon kpi-icon--orange">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M13 2 4.09 12.96A1 1 0 0 0 5 14.5h5.5l-1 7.5 9.41-11.46A1 1 0 0 0 18 9H12.5L13 2z"/>
+              </svg>
+            </div>
+            <div class="kpi-body">
+              <div class="kpi-value">{{ analytics.active_count.toLocaleString() }}</div>
+              <div class="kpi-label">Active Contacts</div>
+              <div class="kpi-sub">{{ pct(analytics.active_count, analytics.total_contacts) }} of total</div>
             </div>
           </div>
         </div>
 
-        <div v-else class="dist-list">
-          <div v-for="row in currentRows" :key="row.label" class="dist-row">
-            <span class="dist-label">{{ row.label ?? 'Unknown' }}</span>
-            <div class="dist-bar-wrap">
-              <div class="dist-bar-fill" :style="{ width: barPct(row.count) + '%' }"></div>
+        <!-- Top performers -->
+        <div class="top-row">
+          <div class="top-card" v-if="analytics.top_agent">
+            <div class="top-card-icon top-card-icon--purple">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                <circle cx="12" cy="7" r="4"/>
+              </svg>
             </div>
-            <span class="dist-pct">{{ pct(row.count) }}</span>
-            <span class="dist-count">{{ row.count.toLocaleString() }}</span>
+            <div class="top-card-body">
+              <div class="top-card-label">Top Agent</div>
+              <div class="top-card-name">{{ analytics.top_agent.label }}</div>
+              <div class="top-card-count">{{ Number(analytics.top_agent.count).toLocaleString() }} contacts</div>
+            </div>
+          </div>
+          <div class="top-card" v-if="analytics.top_industry">
+            <div class="top-card-icon top-card-icon--blue">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="2" y="7" width="20" height="14" rx="2"/>
+                <path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/>
+              </svg>
+            </div>
+            <div class="top-card-body">
+              <div class="top-card-label">Top Industry</div>
+              <div class="top-card-name">{{ analytics.top_industry.label }}</div>
+              <div class="top-card-count">{{ Number(analytics.top_industry.count).toLocaleString() }} contacts</div>
+            </div>
+          </div>
+          <div class="top-card" v-if="analytics.top_product">
+            <div class="top-card-icon top-card-icon--green">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+              </svg>
+            </div>
+            <div class="top-card-body">
+              <div class="top-card-label">Top Category</div>
+              <div class="top-card-name">{{ analytics.top_product.label }}</div>
+              <div class="top-card-count">{{ Number(analytics.top_product.count).toLocaleString() }} contacts</div>
+            </div>
           </div>
         </div>
 
-        <!-- Table -->
-        <table class="report-table">
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>{{ activeReport === 'by_month' ? 'Month' : 'Name' }}</th>
-              <th>Count</th>
-              <th>Share</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="(row, i) in currentRows" :key="row.label">
-              <td class="num-cell">{{ i + 1 }}</td>
-              <td>{{ row.label ?? '—' }}</td>
-              <td class="num-cell">{{ row.count.toLocaleString() }}</td>
-              <td class="num-cell">{{ pct(row.count) }}</td>
-            </tr>
-          </tbody>
-          <tfoot>
-            <tr>
-              <td colspan="2" class="total-label">Total</td>
-              <td class="num-cell total-val">{{ totalCount.toLocaleString() }}</td>
-              <td></td>
-            </tr>
-          </tfoot>
-        </table>
-      </div>
+        <!-- Status composition -->
+        <div class="card">
+          <div class="card-head">
+            <div>
+              <div class="card-title">Contact Status Composition</div>
+              <div class="card-subtitle">All-time distribution across status categories</div>
+            </div>
+            <span class="count-badge">{{ analytics.total_contacts.toLocaleString() }} total</span>
+          </div>
+          <div class="dist-list">
+            <div v-for="row in topStatuses" :key="row.label" class="dist-row">
+              <span class="dist-label">{{ row.label }}</span>
+              <div class="dist-bar-wrap">
+                <div class="dist-bar-fill dist-bar-fill--status"
+                     :style="{ width: pctNum(row.count, analytics.total_contacts) + '%' }"></div>
+              </div>
+              <span class="dist-pct">{{ pct(row.count, analytics.total_contacts) }}</span>
+              <span class="dist-count">{{ row.count.toLocaleString() }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Agent leaderboard -->
+        <div class="card">
+          <div class="card-head">
+            <div>
+              <div class="card-title">Agent Contact Ranking</div>
+              <div class="card-subtitle">Total contacts owned per sales agent</div>
+            </div>
+            <span class="count-badge">{{ analytics.by_user.length }} agents</span>
+          </div>
+          <div class="table-scroll">
+            <table class="rep-table">
+              <thead>
+                <tr>
+                  <th class="th-rank">Rank</th>
+                  <th>Agent</th>
+                  <th>Contacts</th>
+                  <th>Share</th>
+                  <th class="th-bar">Distribution</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(row, i) in agentRows" :key="row.label">
+                  <td class="td-rank">
+                    <span :class="['rank-badge', i === 0 ? 'rank-1' : i === 1 ? 'rank-2' : i === 2 ? 'rank-3' : '']">
+                      {{ i + 1 }}
+                    </span>
+                  </td>
+                  <td class="td-agent">
+                    <span class="agent-avatar">{{ initials(row.label) }}</span>
+                    <span class="agent-name">{{ row.label }}</span>
+                  </td>
+                  <td class="td-num">{{ row.count.toLocaleString() }}</td>
+                  <td class="td-num">{{ pct(row.count, agentTotal) }}</td>
+                  <td class="td-bar">
+                    <div class="inline-bar-wrap">
+                      <div class="inline-bar-fill" :style="{ width: pctNum(row.count, agentMax) + '%' }"></div>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </template>
+
+      <!-- ══════════════════════════════════════════════════════════════════════
+           BREAKDOWN TAB
+      ═══════════════════════════════════════════════════════════════════════════ -->
+      <template v-if="tab === 'breakdown'">
+
+        <!-- Dimension sub-tabs -->
+        <div class="sub-tabs">
+          <button
+            v-for="d in DIMS" :key="d.key"
+            :class="['sub-tab', { 'sub-tab-active': activeDim === d.key }]"
+            @click="activeDim = d.key"
+          >{{ d.label }}</button>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <div>
+              <div class="card-title">{{ currentDim.label }}</div>
+              <div class="card-subtitle">Contact distribution by {{ currentDim.labelLower }}</div>
+            </div>
+            <span class="count-badge">{{ currentRows.length }} {{ currentRows.length === 1 ? 'segment' : 'segments' }}</span>
+          </div>
+
+          <!-- Bar distribution -->
+          <div class="dist-list">
+            <div v-for="row in currentRows" :key="row.label" class="dist-row">
+              <span class="dist-label">{{ row.label ?? '—' }}</span>
+              <div class="dist-bar-wrap">
+                <div class="dist-bar-fill" :style="{ width: pctNum(row.count, dimTotal) + '%' }"></div>
+              </div>
+              <span class="dist-pct">{{ pct(row.count, dimTotal) }}</span>
+              <span class="dist-count">{{ row.count.toLocaleString() }}</span>
+            </div>
+          </div>
+
+          <!-- Table -->
+          <div class="table-scroll">
+            <table class="rep-table rep-table--bordered">
+              <thead>
+                <tr>
+                  <th style="width:52px">#</th>
+                  <th>Name</th>
+                  <th style="width:100px">Count</th>
+                  <th style="width:90px">Share</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(row, i) in currentRows" :key="row.label">
+                  <td class="td-num">{{ i + 1 }}</td>
+                  <td>{{ row.label ?? '—' }}</td>
+                  <td class="td-num">{{ row.count.toLocaleString() }}</td>
+                  <td class="td-num">{{ pct(row.count, dimTotal) }}</td>
+                </tr>
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td colspan="2" class="tfoot-label">Total</td>
+                  <td class="td-num tfoot-val">{{ dimTotal.toLocaleString() }}</td>
+                  <td></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+
+      </template>
+
+      <!-- ══════════════════════════════════════════════════════════════════════
+           TRENDS TAB
+      ═══════════════════════════════════════════════════════════════════════════ -->
+      <template v-if="tab === 'trends'">
+
+        <!-- Summary row -->
+        <div class="trend-summary-row">
+          <div class="trend-stat">
+            <div class="trend-stat-val">{{ totalContactsAdded.toLocaleString() }}</div>
+            <div class="trend-stat-label">Contacts added (last 12 months)</div>
+          </div>
+          <div class="trend-stat-div"></div>
+          <div class="trend-stat">
+            <div class="trend-stat-val">{{ totalTasksScheduled.toLocaleString() }}</div>
+            <div class="trend-stat-label">Tasks scheduled (last 12 months)</div>
+          </div>
+          <div class="trend-stat-div"></div>
+          <div class="trend-stat">
+            <div class="trend-stat-val">{{ avgContactsPerMonth }}</div>
+            <div class="trend-stat-label">Avg contacts / month</div>
+          </div>
+          <div class="trend-stat-div"></div>
+          <div class="trend-stat">
+            <div class="trend-stat-val">{{ avgTasksPerMonth }}</div>
+            <div class="trend-stat-label">Avg tasks / month</div>
+          </div>
+        </div>
+
+        <!-- Charts -->
+        <div class="charts-grid">
+          <div class="card">
+            <div class="card-head">
+              <div>
+                <div class="card-title">Monthly Contacts Added</div>
+                <div class="card-subtitle">New contacts registered each month</div>
+              </div>
+              <span class="count-badge count-badge--purple">Last 12 months</span>
+            </div>
+            <div class="chart-box">
+              <canvas ref="contactsChartRef" class="chart-canvas"></canvas>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-head">
+              <div>
+                <div class="card-title">Monthly Tasks Scheduled</div>
+                <div class="card-subtitle">Tasks created or due each month</div>
+              </div>
+              <span class="count-badge count-badge--teal">Last 12 months</span>
+            </div>
+            <div class="chart-box">
+              <canvas ref="tasksChartRef" class="chart-canvas"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Monthly data table -->
+        <div class="card">
+          <div class="card-head">
+            <div>
+              <div class="card-title">Month-by-Month Breakdown</div>
+              <div class="card-subtitle">Contacts and tasks side by side</div>
+            </div>
+          </div>
+          <div class="table-scroll">
+            <table class="rep-table rep-table--bordered">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Month</th>
+                  <th>Contacts Added</th>
+                  <th>Tasks Scheduled</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(row, i) in analytics.by_month" :key="row.label">
+                  <td class="td-num">{{ i + 1 }}</td>
+                  <td>{{ row.label }}</td>
+                  <td class="td-num">{{ row.count.toLocaleString() }}</td>
+                  <td class="td-num">{{ (analytics.by_tasks[i]?.count ?? 0).toLocaleString() }}</td>
+                </tr>
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td colspan="2" class="tfoot-label">Total</td>
+                  <td class="td-num tfoot-val">{{ totalContactsAdded.toLocaleString() }}</td>
+                  <td class="td-num tfoot-val">{{ totalTasksScheduled.toLocaleString() }}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+
+      </template>
+
     </template>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue';
+import {
+  Chart,
+  BarController, BarElement,
+  CategoryScale, LinearScale,
+  Tooltip,
+} from 'chart.js';
 import api from '../api.js';
 import LoadingSpinner from '../components/LoadingSpinner.vue';
 
-const REPORTS = [
-  { key: 'by_status',   label: 'By Status' },
-  { key: 'by_industry', label: 'By Industry' },
-  { key: 'by_category', label: 'By Category' },
-  { key: 'by_type',     label: 'By Type' },
-  { key: 'by_user',     label: 'By Sales Agent' },
-  { key: 'by_month',    label: 'Monthly Growth' },
+Chart.register(BarController, BarElement, CategoryScale, LinearScale, Tooltip);
+
+// ── Constants ─────────────────────────────────────────────────────────────────
+const DIMS = [
+  { key: 'by_status',   label: 'By Status',   labelLower: 'status' },
+  { key: 'by_industry', label: 'By Industry',  labelLower: 'industry' },
+  { key: 'by_category', label: 'By Category',  labelLower: 'category' },
+  { key: 'by_type',     label: 'By Type',      labelLower: 'type' },
+  { key: 'by_user',     label: 'By Agent',     labelLower: 'sales agent' },
 ];
 
-const loading      = ref(true);
-const analytics    = ref(null);
-const activeReport = ref('by_status');
+// ── State ─────────────────────────────────────────────────────────────────────
+const loading   = ref(true);
+const analytics = ref(null);
+const tab       = ref('overview');
+const activeDim = ref('by_status');
 
-const currentReport = computed(() => REPORTS.find(r => r.key === activeReport.value) ?? REPORTS[0]);
-
-const currentRows = computed(() => {
-  const raw = analytics.value?.[activeReport.value] ?? [];
-  return raw.map(r => ({ label: r.label ?? r.name, count: Number(r.count ?? r.cnt ?? 0) }));
+// ── Computed — Overview ───────────────────────────────────────────────────────
+const monthDelta = computed(() => {
+  const a = analytics.value;
+  if (!a || a.last_month === 0) return null;
+  return Math.round((a.this_month - a.last_month) / a.last_month * 100);
+});
+const monthDeltaClass = computed(() => {
+  if (monthDelta.value === null) return 'kpi-sub';
+  return monthDelta.value >= 0 ? 'kpi-sub kpi-sub--up' : 'kpi-sub kpi-sub--down';
 });
 
-const totalCount = computed(() => currentRows.value.reduce((s, r) => s + r.count, 0));
+const topStatuses = computed(() =>
+  (analytics.value?.by_status ?? []).slice(0, 7).map(r => ({
+    label: r.label,
+    count: Number(r.count),
+  }))
+);
 
-const maxCount = computed(() => Math.max(...currentRows.value.map(r => r.count), 1));
+const agentRows = computed(() =>
+  (analytics.value?.by_user ?? []).map(r => ({
+    label: r.label,
+    count: Number(r.count),
+  }))
+);
+const agentTotal = computed(() => agentRows.value.reduce((s, r) => s + r.count, 0));
+const agentMax   = computed(() => Math.max(...agentRows.value.map(r => r.count), 1));
 
-const barPct      = (count) => Math.round(count / maxCount.value * 100);
-const monthBarPct = (count) => Math.round(count / maxCount.value * 100);
-const pct         = (count) => totalCount.value > 0 ? (count / totalCount.value * 100).toFixed(1) + '%' : '—';
+// ── Computed — Breakdown ──────────────────────────────────────────────────────
+const currentDim = computed(() => DIMS.find(d => d.key === activeDim.value) ?? DIMS[0]);
+const currentRows = computed(() => {
+  const raw = analytics.value?.[activeDim.value] ?? [];
+  return raw.map(r => ({ label: r.label ?? r.name, count: Number(r.count ?? 0) }));
+});
+const dimTotal = computed(() => currentRows.value.reduce((s, r) => s + r.count, 0));
 
+// ── Computed — Trends ─────────────────────────────────────────────────────────
+const totalContactsAdded = computed(() =>
+  (analytics.value?.by_month ?? []).reduce((s, r) => s + Number(r.count), 0)
+);
+const totalTasksScheduled = computed(() =>
+  (analytics.value?.by_tasks ?? []).reduce((s, r) => s + Number(r.count), 0)
+);
+const avgContactsPerMonth = computed(() => {
+  const months = analytics.value?.by_month?.length || 1;
+  return Math.round(totalContactsAdded.value / months);
+});
+const avgTasksPerMonth = computed(() => {
+  const months = analytics.value?.by_tasks?.length || 1;
+  return Math.round(totalTasksScheduled.value / months);
+});
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function pctNum(count, total) {
+  return total > 0 ? Math.round(count / total * 100) : 0;
+}
+function pct(count, total) {
+  return total > 0 ? (count / total * 100).toFixed(1) + '%' : '—';
+}
+function initials(name) {
+  return (name || '').split(' ').filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase();
+}
+
+// ── Charts ────────────────────────────────────────────────────────────────────
+const contactsChartRef = ref(null);
+const tasksChartRef    = ref(null);
+let   contactsChart    = null;
+let   tasksChart       = null;
+
+const TOOLTIP_DEFAULTS = {
+  backgroundColor: '#1e1b4b',
+  padding: 10,
+  titleFont: { size: 11, weight: '600' },
+  bodyFont:  { size: 12 },
+  displayColors: false,
+  cornerRadius: 8,
+};
+
+const AXIS_DEFAULTS = {
+  x: {
+    border: { display: false },
+    grid:   { display: false },
+    ticks:  { font: { size: 9 }, color: '#94a3b8', maxRotation: 45 },
+  },
+  y: {
+    beginAtZero: true,
+    border: { display: false },
+    grid: { color: 'rgba(148,163,184,0.12)', drawTicks: false },
+    ticks: { font: { size: 10 }, color: '#94a3b8', padding: 8, stepSize: 1 },
+  },
+};
+
+function buildCharts() {
+  const data = analytics.value;
+  if (!data) return;
+
+  contactsChart?.destroy();
+  if (contactsChartRef.value) {
+    contactsChart = new Chart(contactsChartRef.value.getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: data.by_month.map(r => r.label),
+        datasets: [{
+          data: data.by_month.map(r => Number(r.count)),
+          backgroundColor: 'rgba(124,58,237,0.55)',
+          borderColor: '#7c3aed',
+          borderWidth: 1,
+          borderRadius: 4,
+          borderSkipped: false,
+        }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false }, tooltip: TOOLTIP_DEFAULTS },
+        scales: AXIS_DEFAULTS,
+      },
+    });
+  }
+
+  tasksChart?.destroy();
+  if (tasksChartRef.value) {
+    tasksChart = new Chart(tasksChartRef.value.getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: data.by_tasks.map(r => r.label),
+        datasets: [{
+          data: data.by_tasks.map(r => Number(r.count)),
+          backgroundColor: 'rgba(8,145,178,0.55)',
+          borderColor: '#0891b2',
+          borderWidth: 1,
+          borderRadius: 4,
+          borderSkipped: false,
+        }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false }, tooltip: TOOLTIP_DEFAULTS },
+        scales: AXIS_DEFAULTS,
+      },
+    });
+  }
+}
+
+// ── Tab switching ─────────────────────────────────────────────────────────────
+async function switchTab(newTab) {
+  tab.value = newTab;
+  if (newTab === 'trends') {
+    await nextTick();
+    buildCharts();
+  }
+}
+
+// ── Lifecycle ─────────────────────────────────────────────────────────────────
 onMounted(async () => {
   const res = await api.get('/v1/analytics');
   analytics.value = res.data;
   loading.value   = false;
 });
+
+onUnmounted(() => {
+  contactsChart?.destroy();
+  tasksChart?.destroy();
+});
 </script>
 
 <style scoped>
-.page { padding: 24px 28px; max-width: 900px; }
+/* ── Root ────────────────────────────────────────────────────────────────── */
+.page { padding: 28px 28px 48px; max-width: 1500px; margin: 0 auto; }
 
-.page-banner {
-  background: linear-gradient(135deg, #1e3a5f, #0ea5e9);
-  border-radius: 10px; padding: 20px 28px; margin-bottom: 20px; color: white;
+/* ── Page head ───────────────────────────────────────────────────────────── */
+.page-head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 16px; margin-bottom: 18px; flex-wrap: wrap;
 }
-.page-banner h1 { font-size: 20px; font-weight: 700; margin: 0 0 4px; }
-.page-banner p  { font-size: 13px; opacity: 0.8; margin: 0; }
+.page-head-left { display: flex; flex-direction: column; gap: 4px; }
+.page-title { font-size: 28px; font-weight: 800; letter-spacing: -0.5px; color: var(--text-1); margin: 0; }
+.page-subtitle { font-size: 13.5px; color: var(--text-3); margin: 0; }
 
-.report-nav {
-  display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px;
+/* ── Tab bar ─────────────────────────────────────────────────────────────── */
+.view-tabs {
+  display: inline-flex; gap: 4px; background: var(--surface); border-radius: 999px;
+  padding: 5px; border: 1px solid var(--border-soft); margin-bottom: 20px;
+  box-shadow: var(--shadow-xs); flex-wrap: wrap;
 }
-.report-tab {
-  height: 36px; padding: 0 16px; border: 1.5px solid var(--border); border-radius: 8px;
-  background: var(--surface); color: var(--text-2); font-size: 13px; font-weight: 600; cursor: pointer;
-  transition: all 0.15s;
+.tab-btn {
+  padding: 8px 20px; border: none; background: none; cursor: pointer;
+  font-size: 13px; font-weight: 600; color: var(--text-2); border-radius: 999px;
+  transition: color 0.15s, background 0.15s; white-space: nowrap;
 }
-.report-tab.active { background: #7c3aed; color: white; border-color: #7c3aed; }
-.report-tab:hover:not(.active) { border-color: #7c3aed; color: #7c3aed; }
+.tab-btn:hover { color: var(--text-1); background: var(--surface-2); }
+.tab-active { color: var(--primary-on) !important; background: var(--primary) !important; box-shadow: 0 4px 12px -4px rgba(124,58,237,0.5); }
 
-.card { background: var(--surface); border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); padding: 20px 24px; }
-.card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+/* ── KPI cards ───────────────────────────────────────────────────────────── */
+.kpi-row {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 20px;
+}
+.kpi-card {
+  background: var(--surface); border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg); padding: 20px;
+  display: flex; align-items: flex-start; gap: 14px; box-shadow: var(--shadow-sm);
+}
+.kpi-icon {
+  width: 44px; height: 44px; border-radius: var(--radius);
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.kpi-icon svg { width: 20px; height: 20px; }
+.kpi-icon--purple { background: #ede9fe; color: #7c3aed; }
+.kpi-icon--blue   { background: #dbeafe; color: #2563eb; }
+.kpi-icon--green  { background: #dcfce7; color: #16a34a; }
+.kpi-icon--orange { background: #ffedd5; color: #ea580c; }
+.kpi-body { display: flex; flex-direction: column; gap: 3px; }
+.kpi-value { font-size: 28px; font-weight: 800; color: var(--text-1); line-height: 1; letter-spacing: -0.03em; }
+.kpi-label { font-size: 10.5px; font-weight: 700; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.08em; margin-top: 4px; }
+.kpi-sub { font-size: 11.5px; color: var(--text-3); }
+.kpi-sub--up   { color: #16a34a; font-weight: 600; }
+.kpi-sub--down { color: #dc2626; font-weight: 600; }
+
+/* ── Top performers ──────────────────────────────────────────────────────── */
+.top-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 20px; }
+.top-card {
+  background: var(--surface); border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg); padding: 20px 22px;
+  display: flex; align-items: center; gap: 16px; box-shadow: var(--shadow-sm);
+}
+.top-card-icon {
+  width: 44px; height: 44px; border-radius: var(--radius);
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.top-card-icon svg { width: 20px; height: 20px; }
+.top-card-icon--purple { background: #ede9fe; color: #7c3aed; }
+.top-card-icon--blue   { background: #dbeafe; color: #2563eb; }
+.top-card-icon--green  { background: #dcfce7; color: #16a34a; }
+.top-card-label { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-3); margin-bottom: 3px; }
+.top-card-name  { font-size: 16px; font-weight: 800; color: var(--text-1); margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.top-card-count { font-size: 12px; color: var(--text-3); font-weight: 600; }
+
+/* ── Card shell ──────────────────────────────────────────────────────────── */
+.card {
+  background: var(--surface); border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); overflow: hidden;
+  margin-bottom: 20px;
+}
+.card-head {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 16px 22px; border-bottom: 1px solid var(--border-soft); gap: 12px; flex-wrap: wrap;
+}
 .card-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.7px; color: var(--text-2); }
-.badge.total { background: var(--app-bg); color: var(--text-2); font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 20px; }
+.card-subtitle { font-size: 12px; color: var(--text-3); margin-top: 2px; }
+.count-badge {
+  background: var(--primary-soft); color: var(--primary-text);
+  font-size: 11px; font-weight: 700; padding: 4px 12px; border-radius: 999px; white-space: nowrap;
+}
+.count-badge--purple { background: #ede9fe; color: #7c3aed; }
+.count-badge--teal   { background: #cffafe; color: #0891b2; }
 
-/* Horizontal bar chart */
-.dist-list { margin-bottom: 20px; }
-.dist-row { display: grid; grid-template-columns: 180px 1fr 52px 60px; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--border); }
+/* ── Distribution bars ───────────────────────────────────────────────────── */
+.dist-list { padding: 6px 22px 2px; }
+.dist-row {
+  display: grid; grid-template-columns: 190px 1fr 60px 72px;
+  align-items: center; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--border-soft);
+}
 .dist-row:last-child { border-bottom: none; }
-.dist-label { font-size: 13px; color: #374151; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.dist-bar-wrap { height: 10px; background: var(--app-bg); border-radius: 4px; overflow: hidden; }
+.dist-label { font-size: 13px; color: var(--text-1); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dist-bar-wrap { height: 10px; background: var(--border-soft); border-radius: 4px; overflow: hidden; }
 .dist-bar-fill { height: 100%; background: #7c3aed; border-radius: 4px; min-width: 2px; transition: width 0.4s; }
-.dist-pct  { font-size: 11px; color: var(--text-3); text-align: right; }
+.dist-bar-fill--status { background: linear-gradient(90deg, #7c3aed, #a78bfa); }
+.dist-pct   { font-size: 11.5px; color: var(--text-3); text-align: right; }
 .dist-count { font-size: 13px; font-weight: 700; color: var(--text-1); text-align: right; }
 
-/* Monthly vertical bar chart */
-.chart-wrap { margin-bottom: 20px; }
-.month-bars { display: flex; gap: 6px; align-items: flex-end; height: 160px; padding: 0 4px; }
-.month-bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; height: 100%; }
-.month-bar-outer { flex: 1; width: 100%; display: flex; align-items: flex-end; }
-.month-bar-fill {
-  width: 100%; background: #7c3aed; border-radius: 4px 4px 0 0; min-height: 4px;
-  position: relative; display: flex; align-items: flex-start; justify-content: center;
-  transition: height 0.4s;
+/* ── Table shared ────────────────────────────────────────────────────────── */
+.table-scroll { overflow-x: auto; }
+.rep-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.rep-table thead th {
+  background: var(--surface-2); color: var(--text-3); font-size: 10.5px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.7px; padding: 10px 16px;
+  border-bottom: 1px solid var(--border); text-align: left; white-space: nowrap;
 }
-.month-bar-val { font-size: 9px; font-weight: 700; color: white; padding-top: 3px; }
-.month-label { font-size: 9px; color: var(--text-3); font-weight: 600; text-align: center; white-space: nowrap; }
+.rep-table tbody td { padding: 11px 16px; border-bottom: 1px solid var(--border-soft); color: var(--text-1); vertical-align: middle; }
+.rep-table tbody tr:last-child td { border-bottom: none; }
+.rep-table tbody tr:hover { background: var(--surface-2); }
+.rep-table tfoot td { padding: 10px 16px; font-weight: 700; background: var(--surface-2); border-top: 1px solid var(--border); }
+.rep-table--bordered { }
+.td-num { text-align: center; }
+.tfoot-label { text-align: right; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-3); }
+.tfoot-val { color: #7c3aed; font-size: 14px; }
 
-/* Table */
-.report-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 8px; }
-.report-table thead th {
-  background: var(--app-bg); color: var(--text-2); font-size: 10px; font-weight: 700;
-  text-transform: uppercase; letter-spacing: 0.7px; padding: 9px 12px;
-  border-bottom: 2px solid var(--border); text-align: left;
+/* ── Agent leaderboard ───────────────────────────────────────────────────── */
+.th-rank { width: 64px; text-align: center; }
+.th-bar  { width: 200px; }
+.td-rank { text-align: center; }
+.td-agent { display: flex; align-items: center; gap: 10px; }
+.td-num   { text-align: center; }
+.td-bar   { min-width: 150px; }
+
+.rank-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 26px; height: 26px; border-radius: 50%;
+  font-size: 11.5px; font-weight: 700; background: var(--border-soft); color: var(--text-2);
 }
-.report-table tbody td { padding: 9px 12px; border-bottom: 1px solid var(--border); color: #374151; }
-.report-table tbody tr:last-child td { border-bottom: none; }
-.report-table tfoot td { padding: 9px 12px; font-weight: 700; color: var(--text-1); background: var(--app-bg); border-top: 2px solid var(--border); }
-.num-cell { text-align: center; }
-.total-label { text-align: right; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-3); }
-.total-val { color: #7c3aed; font-size: 15px; }
+.rank-1 { background: #fef9c3; color: #854d0e; }
+.rank-2 { background: #f1f5f9; color: #475569; }
+.rank-3 { background: #ffedd5; color: #9a3412; }
 
+.agent-avatar {
+  width: 30px; height: 30px; border-radius: 50%;
+  background: var(--primary-soft); color: var(--primary-text);
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 10.5px; font-weight: 700; flex-shrink: 0;
+}
+.agent-name { font-weight: 600; color: var(--text-1); }
+
+.inline-bar-wrap { height: 8px; background: var(--border-soft); border-radius: 4px; overflow: hidden; }
+.inline-bar-fill { height: 100%; background: #7c3aed; border-radius: 4px; min-width: 2px; transition: width 0.4s; }
+
+/* ── Sub-tabs (Breakdown) ────────────────────────────────────────────────── */
+.sub-tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+.sub-tab {
+  height: 34px; padding: 0 16px; border: 1.5px solid var(--border); border-radius: 8px;
+  background: var(--surface); color: var(--text-2); font-size: 12.5px; font-weight: 600;
+  cursor: pointer; transition: all 0.15s;
+}
+.sub-tab:hover:not(.sub-tab-active) { border-color: #7c3aed; color: #7c3aed; }
+.sub-tab-active { background: #7c3aed; color: #fff; border-color: #7c3aed; }
+
+/* ── Trends summary row ──────────────────────────────────────────────────── */
+.trend-summary-row {
+  background: var(--surface); border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg); padding: 20px 28px;
+  display: flex; align-items: center; gap: 0;
+  box-shadow: var(--shadow-sm); margin-bottom: 20px; flex-wrap: wrap;
+}
+.trend-stat { flex: 1; min-width: 140px; padding: 8px 16px; }
+.trend-stat-val { font-size: 26px; font-weight: 800; color: var(--text-1); letter-spacing: -0.03em; }
+.trend-stat-label { font-size: 11.5px; color: var(--text-3); margin-top: 3px; font-weight: 500; }
+.trend-stat-div { width: 1px; height: 48px; background: var(--border-soft); align-self: center; flex-shrink: 0; }
+
+/* ── Charts ──────────────────────────────────────────────────────────────── */
+.charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.chart-box { position: relative; height: 240px; padding: 16px 22px 22px; }
+.chart-canvas { position: absolute; inset: 16px 22px 22px; width: calc(100% - 44px) !important; height: calc(100% - 38px) !important; }
+
+/* ── Responsive ──────────────────────────────────────────────────────────── */
+@media (max-width: 1100px) {
+  .kpi-row { grid-template-columns: repeat(2, 1fr); }
+  .charts-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 900px) {
+  .top-row { grid-template-columns: 1fr 1fr; }
+}
 @media (max-width: 768px) {
-  .page { padding: 16px 12px; }
-  .dist-row { grid-template-columns: 120px 1fr 40px 50px; }
-  .month-bars { gap: 3px; }
-  .month-label { font-size: 8px; }
+  .page { padding: 16px 12px 40px; }
+  .kpi-row { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+  .top-row { grid-template-columns: 1fr; }
+  .dist-row { grid-template-columns: 120px 1fr 48px 58px; gap: 8px; }
+  .trend-summary-row { gap: 0; }
+  .trend-stat-div { display: none; }
+  .trend-stat { min-width: calc(50% - 32px); }
+}
+@media (max-width: 480px) {
+  .kpi-row { grid-template-columns: 1fr; }
+  .trend-stat { min-width: 100%; }
 }
 </style>

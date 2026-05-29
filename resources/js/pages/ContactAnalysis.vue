@@ -18,25 +18,25 @@
           </button>
           <transition name="panel-drop">
             <div v-if="pickerOpen" class="ca-date-panel" @click.stop>
-              <div class="ca-presets">
-                <button
-                  v-for="p in PRESETS" :key="p.label"
-                  class="ca-preset"
-                  :class="{ 'ca-preset--on': filters.label === p.label }"
-                  @click="applyPreset(p)"
-                >{{ p.label }}</button>
+              <div class="ca-presets-section">
+                <div class="ca-custom-title">Presets</div>
+                <div class="ca-presets">
+                  <button
+                    v-for="p in PRESETS" :key="p.label"
+                    class="ca-preset"
+                    :class="{ 'ca-preset--on': filters.label === p.label }"
+                    @click="applyPreset(p)"
+                  >{{ p.label }}</button>
+                </div>
               </div>
               <div class="ca-custom">
                 <div class="ca-custom-title">Custom range</div>
-                <label class="ca-custom-row">
-                  <span>From</span>
+                <div class="ca-custom-inline">
                   <input type="date" v-model="customFrom" :max="customTo" />
-                </label>
-                <label class="ca-custom-row">
-                  <span>To</span>
+                  <span class="ca-custom-sep">to</span>
                   <input type="date" v-model="customTo" :min="customFrom" :max="todayStr" />
-                </label>
-                <button class="btn btn-primary ca-apply-btn" @click="applyCustom">Apply</button>
+                  <button class="btn btn-primary ca-apply-btn" @click="applyCustom">Apply</button>
+                </div>
               </div>
             </div>
           </transition>
@@ -245,6 +245,12 @@
           <option value="">All Statuses</option>
           <option v-for="s in lookups.statuses" :key="s.id" :value="s.id">{{ s.name }}</option>
         </select>
+        <div class="ca-per-page-wrap">
+          <span class="ca-per-page-label">Rows</span>
+          <select v-model.number="engFilters.per_page" @change="loadEngagement(1)" class="ca-eng-select">
+            <option v-for="n in PER_PAGE_OPTIONS" :key="n" :value="n">{{ n }}</option>
+          </select>
+        </div>
       </div>
 
       <div v-if="loading.engagement" class="ca-chart-loading" style="height:140px">Loading…</div>
@@ -284,8 +290,7 @@
                 <td>{{ c.last_todo_date ?? '—' }}</td>
                 <td>{{ c.days_inactive !== null ? c.days_inactive + 'd' : '—' }}</td>
                 <td>
-                  <span class="ca-health-inline" :class="`ca-health-inline--${c.health}`">
-                    <span class="ca-hdot"></span>
+                  <span class="ca-health-pill-badge" :class="`ca-health-pill-badge--${c.health}`">
                     {{ healthLabel(c.health) }}
                   </span>
                 </td>
@@ -522,6 +527,8 @@ const SOURCE_COLORS = {
   manual: '#7c3aed', phone_call: '#0891b2', referral: '#059669',
   walk_in: '#d97706', social_media: '#db2777', email_campaign: '#dc2626',
   web_form: '#4f46e5', other: '#64748b', unknown: '#94a3b8',
+  exhibition: '#f59e0b', linkedin: '#0e7490', tender: '#84cc16',
+  cold_call: '#e11d48', whatsapp: '#16a34a', direct: '#6366f1',
 };
 function sourceColor(s) { return SOURCE_COLORS[s] ?? '#94a3b8'; }
 
@@ -561,8 +568,10 @@ function buildActionChart() {
 }
 
 // ─── Engagement table ──────────────────────────────────────────────────────
+const PER_PAGE_OPTIONS = [10, 20, 50];
+
 const engData    = ref([]);
-const engMeta    = reactive({ current_page: 1, last_page: 1, total: 0, per_page: 50 });
+const engMeta    = reactive({ current_page: 1, last_page: 1, total: 0, per_page: 10 });
 const engSummary = ref({ total: 0, active: 0, at_risk: 0, dormant: 0, no_activity: 0 });
 
 const engFilters = reactive({
@@ -572,6 +581,7 @@ const engFilters = reactive({
   status_id: '',
   sort_by:   'days_inactive',
   sort_dir:  'desc',
+  per_page:  10,
 });
 
 const HEALTH_TABS = [
@@ -637,11 +647,11 @@ async function loadOverview() {
   try {
     const { data } = await api.get('/v1/contact-analysis/overview', { params: buildParams() });
     overviewData.value = data;
-    await nextTick();
-    buildTrendChart();
   } finally {
     loading.overview = false;
   }
+  await nextTick();
+  buildTrendChart();
 }
 
 async function loadSource() {
@@ -660,11 +670,11 @@ async function loadActions() {
   try {
     const { data } = await api.get('/v1/contact-analysis/followup-actions', { params: buildParams() });
     actionData.value = data;
-    await nextTick();
-    buildActionChart();
   } finally {
     loading.actions = false;
   }
+  await nextTick();
+  buildActionChart();
 }
 
 async function loadEngagement(page = 1) {
@@ -672,7 +682,7 @@ async function loadEngagement(page = 1) {
   try {
     const params = {
       page,
-      per_page: 50,
+      per_page: engFilters.per_page,
       health:   engFilters.health,
       q:        engFilters.q,
       sort_by:  engFilters.sort_by,
@@ -712,7 +722,14 @@ onUnmounted(() => {
 
 <style scoped>
 /* ── Layout ─────────────────────────────────────────────────────────────── */
-.ca { display: flex; flex-direction: column; gap: 20px; }
+.ca {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 28px 28px 48px;
+  max-width: 1500px;
+  margin: 0 auto;
+}
 
 /* ── Header ─────────────────────────────────────────────────────────────── */
 .ca-header {
@@ -767,20 +784,20 @@ onUnmounted(() => {
   right: 0;
   z-index: 200;
   display: flex;
+  flex-direction: column;
+  gap: 16px;
   background: var(--bg-2, #fff);
   border: 1px solid var(--border, #e2e8f0);
   border-radius: 12px;
   box-shadow: 0 8px 32px rgba(0,0,0,0.12);
-  overflow: hidden;
-  min-width: 380px;
+  padding: 16px;
+  min-width: 340px;
 }
+.ca-presets-section { display: flex; flex-direction: column; gap: 8px; }
 .ca-presets {
   display: flex;
-  flex-direction: column;
-  padding: 8px;
-  border-right: 1px solid var(--border, #e2e8f0);
-  gap: 2px;
-  flex-shrink: 0;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 .ca-preset {
   padding: 7px 14px;
@@ -798,12 +815,18 @@ onUnmounted(() => {
 .ca-preset--on       { background: var(--primary, #7c3aed); color: #fff; font-weight: 600; }
 .ca-preset--on:hover { background: var(--primary, #7c3aed); }
 
-.ca-custom       { padding: 16px; display: flex; flex-direction: column; gap: 10px; min-width: 200px; }
+.ca-custom       { display: flex; flex-direction: column; gap: 10px; }
 .ca-custom-title { font-size: 10.5px; font-weight: 700; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.08em; }
-.ca-custom-row   { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--text-2); }
-.ca-custom-row span { width: 32px; flex-shrink: 0; }
-.ca-custom-row input[type="date"] {
+.ca-custom-inline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.ca-custom-sep { font-size: 13px; color: var(--text-3); flex-shrink: 0; }
+.ca-custom-inline input[type="date"] {
   flex: 1;
+  min-width: 120px;
   padding: 5px 8px;
   border: 1px solid var(--border, #e2e8f0);
   border-radius: 6px;
@@ -811,7 +834,7 @@ onUnmounted(() => {
   color: var(--text-1);
   background: #f8f9ff;
 }
-.ca-apply-btn { margin-top: 4px; }
+.ca-apply-btn { flex-shrink: 0; }
 
 /* ── Export button ───────────────────────────────────────────────────────── */
 .ca-export-btn {
@@ -905,16 +928,16 @@ onUnmounted(() => {
 }
 .ca-kpi-icon-wrap {
   width: 40px; height: 40px;
-  border-radius: 10px;
+  border-radius: 8px;
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
 }
 .ca-kpi-icon-wrap svg { width: 20px; height: 20px; }
 
-.ca-kpi-icon--contacts  { background: #eaddff; color: #7c3aed; }
-.ca-kpi-icon--tasks     { background: #c9e6ff; color: #006591; }
-.ca-kpi-icon--followups { background: #7ffc97; color: #005c25; }
-.ca-kpi-icon--engaged   { background: #eaddff; color: #630ed4; }
+.ca-kpi-icon--contacts  { background: #ede9fe; color: #7c3aed; }
+.ca-kpi-icon--tasks     { background: #dbeafe; color: #2563eb; }
+.ca-kpi-icon--followups { background: #dcfce7; color: #16a34a; }
+.ca-kpi-icon--engaged   { background: #ede9fe; color: #7c3aed; }
 
 .ca-kpi-badge {
   display: inline-flex;
@@ -925,8 +948,8 @@ onUnmounted(() => {
   font-size: 10.5px;
   font-weight: 700;
 }
-.ca-kpi-badge--up   { background: #7ffc97; color: #002109; }
-.ca-kpi-badge--down { background: #ffdad6; color: #93000a; }
+.ca-kpi-badge--up   { background: #dcfce7; color: #166534; }
+.ca-kpi-badge--down { background: #fee2e2; color: #991b1b; }
 
 .ca-kpi-label { font-size: 10.5px; font-weight: 700; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.08em; }
 .ca-kpi-value { font-size: 26px; font-weight: 800; color: var(--text-1); line-height: 1; letter-spacing: -0.02em; }
@@ -1117,6 +1140,21 @@ onUnmounted(() => {
 }
 .ca-eng-select:focus { border-color: var(--primary, #7c3aed); }
 
+.ca-per-page-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+.ca-per-page-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+
 /* Engagement table */
 .ca-tbl--eng { min-width: 680px; }
 .ca-tbl--eng thead { background: #f8f9ff; }
@@ -1128,15 +1166,15 @@ onUnmounted(() => {
 
 .ca-contact-cell { display: flex; align-items: center; gap: 12px; }
 .ca-avatar {
-  width: 34px; height: 34px;
+  width: 26px; height: 26px;
   border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
-  font-size: 11px; font-weight: 700;
+  font-size: 9px; font-weight: 700;
   flex-shrink: 0;
 }
-.ca-avatar--active      { background: #dcfce7; color: #15803d; }
-.ca-avatar--at_risk     { background: #fef3c7; color: #b45309; }
-.ca-avatar--dormant     { background: #fee2e2; color: #b91c1c; }
+.ca-avatar--active      { background: #dcfce7; color: #166534; }
+.ca-avatar--at_risk     { background: #fef3c7; color: #92400e; }
+.ca-avatar--dormant     { background: #fee2e2; color: #991b1b; }
 .ca-avatar--no_activity { background: #e5eeff; color: #4a4455; }
 
 .ca-status-pill {
@@ -1149,17 +1187,17 @@ onUnmounted(() => {
   color: #4a4455;
 }
 
-.ca-health-inline { display: flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 700; }
-.ca-hdot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
-
-.ca-health-inline--active      { color: #16a34a; }
-.ca-health-inline--active .ca-hdot     { background: #16a34a; }
-.ca-health-inline--at_risk     { color: #d97706; }
-.ca-health-inline--at_risk .ca-hdot    { background: #d97706; }
-.ca-health-inline--dormant     { color: #dc2626; }
-.ca-health-inline--dormant .ca-hdot    { background: #dc2626; }
-.ca-health-inline--no_activity { color: #64748b; }
-.ca-health-inline--no_activity .ca-hdot { background: #64748b; }
+.ca-health-pill-badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 700;
+}
+.ca-health-pill-badge--active      { background: #dcfce7; color: #166534; }
+.ca-health-pill-badge--at_risk     { background: #fef3c7; color: #92400e; }
+.ca-health-pill-badge--dormant     { background: #fee2e2; color: #991b1b; }
+.ca-health-pill-badge--no_activity { background: #e5eeff; color: #4a4455; }
 
 .ca-chevron-cell { width: 40px; text-align: right; }
 .ca-chevron {
@@ -1231,13 +1269,14 @@ onUnmounted(() => {
   .ca-row-asym { grid-template-columns: 1fr 1fr; }
 }
 @media (max-width: 900px) {
-  .ca-kpi-row  { grid-template-columns: repeat(2, 1fr); }
-  .ca-row-asym { grid-template-columns: 1fr; }
+  .ca              { padding: 18px 14px; }
+  .ca-kpi-row      { grid-template-columns: repeat(2, 1fr); }
+  .ca-row-asym     { grid-template-columns: 1fr; }
 }
 @media (max-width: 600px) {
+  .ca              { padding: 14px 10px; }
   .ca-kpi-row       { grid-template-columns: 1fr 1fr; }
-  .ca-date-panel    { min-width: 0; flex-direction: column; }
-  .ca-presets       { border-right: none; border-bottom: 1px solid var(--border, #e2e8f0); flex-direction: row; flex-wrap: wrap; }
+  .ca-date-panel    { min-width: 0; right: -10px; }
   .ca-header-actions { width: 100%; }
   .ca-health-pill-group { border-radius: 12px; }
 }

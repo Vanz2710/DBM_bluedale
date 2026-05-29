@@ -4,11 +4,11 @@
     <router-view />
   </template>
 
-  <div v-else class="layout" :class="{ collapsed, 'mobile-open': mobileOpen }">
+  <div v-else class="layout" :class="{ collapsed, peeking, 'mobile-open': mobileOpen }">
     <!-- Mobile overlay backdrop -->
     <div class="mobile-overlay" @click="mobileOpen = false"></div>
     <!-- Sidebar -->
-    <aside class="sidebar">
+    <aside class="sidebar" @mouseenter="onSidebarEnter" @mouseleave="onSidebarLeave">
       <button class="sidebar-toggle" @click="collapsed = !collapsed" :title="collapsed ? 'Expand' : 'Collapse'" v-html="collapsed ? SVGI.chevronRight : SVGI.chevronLeft"></button>
 
       <router-link to="/" class="sidebar-brand" aria-label="Bluedale CRM">
@@ -35,7 +35,7 @@
             <span class="nav-arrow nav-text" :class="{ open: openGroups[group.key] }">›</span>
           </button>
           <Transition name="nav-menu">
-            <div v-show="openGroups[group.key] && !collapsed" class="nav-group-slide">
+            <div v-show="openGroups[group.key] && (!collapsed || peeking)" class="nav-group-slide">
               <div class="nav-group-items">
                 <router-link
                   v-for="item in group.items"
@@ -44,7 +44,6 @@
                   class="nav-link nav-sub"
                   :class="itemClass(item, group)"
                 >
-                  <span class="nav-icon" v-html="item.icon"></span>
                   <span class="nav-text">{{ item.label }}</span>
                 </router-link>
               </div>
@@ -65,7 +64,7 @@
             <span class="nav-arrow nav-text" :class="{ open: openGroups[group.key] }">›</span>
           </button>
           <Transition name="nav-menu">
-            <div v-show="openGroups[group.key] && !collapsed" class="nav-group-slide">
+            <div v-show="openGroups[group.key] && (!collapsed || peeking)" class="nav-group-slide">
               <div class="nav-group-items">
                 <router-link
                   v-for="item in group.items"
@@ -74,7 +73,6 @@
                   class="nav-link nav-sub"
                   :class="itemClass(item, group)"
                 >
-                  <span class="nav-icon" v-html="item.icon"></span>
                   <span class="nav-text">{{ item.label }}</span>
                 </router-link>
               </div>
@@ -82,17 +80,6 @@
           </Transition>
         </div>
       </nav>
-
-      <div class="sidebar-divider"></div>
-
-      <div class="sidebar-user" v-if="currentUser">
-        <div class="user-info">
-          <span class="user-name nav-text">{{ currentUser.name }}</span>
-          <span class="user-email nav-text">{{ currentUser.email }}</span>
-        </div>
-        <router-link to="/profile" class="btn-profile nav-text"><span v-html="SVGI.user"></span> My Profile</router-link>
-        <button class="btn-logout nav-text" @click="logout" title="Logout"><span v-html="SVGI.logout"></span> Logout</button>
-      </div>
 
       <div class="sidebar-footer">Bluedale CRM Platform</div>
     </aside>
@@ -102,8 +89,84 @@
       <div class="app-topbar">
         <button class="hamburger-btn" @click="mobileOpen = !mobileOpen" v-html="SVGI.menu"></button>
         <span class="mobile-title">Bluedale</span>
+
+        <!-- Global nav search -->
+        <div class="topbar-search" v-if="!isLogin" ref="searchWrap">
+          <div class="topbar-search-inner">
+            <span class="search-icon" v-html="SVGI.searchIcon"></span>
+            <input
+              ref="searchInput"
+              v-model="searchQuery"
+              type="text"
+              class="topbar-search-input"
+              placeholder="Search pages…"
+              autocomplete="off"
+              @focus="searchOpen = true"
+              @keydown.escape="closeSearch"
+              @keydown.enter="goToFirstResult"
+              @keydown.down.prevent="searchFocusNext(1)"
+              @keydown.up.prevent="searchFocusNext(-1)"
+            />
+            <kbd class="search-kbd" v-if="!searchQuery">⌘K</kbd>
+          </div>
+          <div class="search-dropdown" v-if="searchOpen && searchQuery.trim()">
+            <template v-if="searchResults.length">
+              <router-link
+                v-for="(item, idx) in searchResults"
+                :key="item.key"
+                :to="item.to"
+                class="search-result-item"
+                :class="{ focused: idx === searchFocusIdx }"
+                @click="closeSearch"
+              >
+                <span class="search-result-label">{{ item.label }}</span>
+                <span class="search-result-group">{{ item.groupLabel }}</span>
+              </router-link>
+            </template>
+            <div v-else class="search-empty">No pages found</div>
+          </div>
+        </div>
+
         <div class="topbar-right">
           <NotificationBell v-if="!isLogin" />
+
+          <!-- Settings shortcut -->
+          <router-link
+            v-if="!isLogin"
+            to="/settings"
+            class="topbar-icon-btn"
+            title="Settings"
+            v-html="SVGI.gear"
+          ></router-link>
+
+          <!-- User profile -->
+          <div class="topbar-user" v-if="!isLogin && currentUser" ref="profileWrap">
+            <button class="topbar-avatar-btn" @click="profileOpen = !profileOpen" :title="currentUser.name">
+              {{ userInitials }}
+            </button>
+            <Transition name="dd-fade">
+              <div class="profile-dropdown" v-if="profileOpen">
+                <div class="profile-dd-header">
+                  <span class="profile-dd-avatar">{{ userInitials }}</span>
+                  <div>
+                    <span class="profile-dd-name">{{ currentUser.name }}</span>
+                    <span class="profile-dd-email">{{ currentUser.email }}</span>
+                  </div>
+                </div>
+                <div class="profile-dd-divider"></div>
+                <router-link to="/profile" class="profile-dd-item" @click="profileOpen = false">
+                  <span v-html="SVGI.user"></span> My Profile
+                </router-link>
+                <router-link to="/settings" class="profile-dd-item" @click="profileOpen = false">
+                  <span v-html="SVGI.gear"></span> Settings
+                </router-link>
+                <div class="profile-dd-divider"></div>
+                <button class="profile-dd-item danger" @click="profileOpen = false; logout()">
+                  <span v-html="SVGI.logout"></span> Logout
+                </button>
+              </div>
+            </Transition>
+          </div>
         </div>
       </div>
       <router-view />
@@ -112,7 +175,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, watch, onMounted } from 'vue';
+import { ref, reactive, computed, watch, onMounted, onUnmounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import api from './api.js';
 import NotificationBell from './components/NotificationBell.vue';
@@ -121,7 +184,84 @@ import { applyTheme, useSettings } from './composables/useSettings.js';
 const route = useRoute();
 const router = useRouter();
 const collapsed = ref(localStorage.getItem('sidebarCollapsed') === '1');
+const peeking = ref(false);
 const mobileOpen = ref(false);
+
+// ─── Topbar search ────────────────────────────────────────────────────────────
+const searchQuery = ref('');
+const searchOpen = ref(false);
+const searchFocusIdx = ref(-1);
+const searchInput = ref(null);
+const searchWrap = ref(null);
+
+const allNavItems = computed(() => {
+  const items = [];
+  for (const group of ALL_GROUPS) {
+    if (group.adminOnly && !isAdminOrSuperAdmin.value) continue;
+    for (const item of group.items) {
+      items.push({ ...item, groupLabel: group.label });
+    }
+  }
+  return items;
+});
+
+const searchResults = computed(() => {
+  const q = searchQuery.value.trim().toLowerCase();
+  if (!q) return [];
+  return allNavItems.value.filter(
+    item => item.label.toLowerCase().includes(q) || item.groupLabel.toLowerCase().includes(q)
+  ).slice(0, 8);
+});
+
+function closeSearch() {
+  searchOpen.value = false;
+  searchQuery.value = '';
+  searchFocusIdx.value = -1;
+}
+
+function goToFirstResult() {
+  const idx = searchFocusIdx.value >= 0 ? searchFocusIdx.value : 0;
+  if (searchResults.value[idx]) {
+    router.push(searchResults.value[idx].to);
+    closeSearch();
+  }
+}
+
+function searchFocusNext(dir) {
+  const max = searchResults.value.length - 1;
+  searchFocusIdx.value = Math.max(0, Math.min(max, searchFocusIdx.value + dir));
+}
+
+// ─── Profile dropdown ─────────────────────────────────────────────────────────
+const profileOpen = ref(false);
+const profileWrap = ref(null);
+
+const userInitials = computed(() => {
+  const name = currentUser.value?.name ?? '';
+  return name.split(' ').filter(Boolean).map(n => n[0]).join('').toUpperCase().slice(0, 2) || '?';
+});
+
+// Global click-outside handler (search + profile)
+function handleDocClick(e) {
+  if (searchWrap.value && !searchWrap.value.contains(e.target)) {
+    searchOpen.value = false;
+  }
+  if (profileWrap.value && !profileWrap.value.contains(e.target)) {
+    profileOpen.value = false;
+  }
+}
+
+// Cmd/Ctrl+K shortcut
+function handleKeydown(e) {
+  if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+    e.preventDefault();
+    searchInput.value?.focus();
+    searchOpen.value = true;
+  }
+}
+
+function onSidebarEnter() { if (collapsed.value) peeking.value = true; }
+function onSidebarLeave() { peeking.value = false; }
 const currentUser = ref(JSON.parse(localStorage.getItem('crm_user') || 'null'));
 
 const isLogin = computed(() => ['login', 'verify-email'].includes(route.name));
@@ -138,8 +278,15 @@ onMounted(() => {
   window.addEventListener('user-profile-updated', () => {
     currentUser.value = JSON.parse(localStorage.getItem('crm_user') || 'null');
   });
+  document.addEventListener('click', handleDocClick, true);
+  document.addEventListener('keydown', handleKeydown);
   // Sync user settings from server once on app mount (no-op if not logged in)
   if (localStorage.getItem('crm_token')) loadFromServer();
+});
+
+onUnmounted(() => {
+  document.removeEventListener('click', handleDocClick, true);
+  document.removeEventListener('keydown', handleKeydown);
 });
 
 // ─── Navigation icons ─────────────────────────────────────────────────────────
@@ -169,6 +316,9 @@ const SVGI = {
   logout:       _s('<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>'),
   user:         _s('<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>'),
   sliders:      _s('<line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/>'),
+  zap:          _s('<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>'),
+  flask:        _s('<path d="M9 3h6m-5 0v6l-4 9a1 1 0 0 0 .93 1.37h10.14A1 1 0 0 0 18 18l-4-9V3"/>'),
+  searchIcon:   _s('<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>'),
 };
 
 // ─── Navigation config ────────────────────────────────────────────────────────
@@ -181,20 +331,19 @@ const ALL_GROUPS = [
     ],
   },
   {
-    key: 'crm-contacts', label: 'CRM & Contacts', icon: SVGI.folder, color: 'green', section: 'main', adminOnly: false,
+    key: 'crm-contacts', label: 'Contacts', icon: SVGI.folder, color: 'green', section: 'main', adminOnly: false,
     items: [
       { key: 'list',             to: '/list',             icon: SVGI.list,    label: 'Contacts',         activeRoutes: ['list', 'contact-view', 'contact-add', 'contact-edit', 'task-add'] },
-      { key: 'contact-analysis', to: '/contact-analysis', icon: SVGI.chart,   label: 'Contact Analysis', activeRoutes: ['contact-analysis'] },
-      { key: 'projects',  to: '/projects',  icon: SVGI.layers,    label: 'Projects',      activeRoutes: ['projects', 'project-add', 'project-edit'] },
-      { key: 'deals',     to: '/deals',     icon: SVGI.briefcase, label: 'Deals (demo)', activeRoutes: ['deals', 'deal-add', 'deal-edit'] },
+      { key: 'contact-analysis',    to: '/contact-analysis',    icon: SVGI.chart, label: 'Contact Analysis',    activeRoutes: ['contact-analysis'] },
+      { key: 'predictive-insights', to: '/predictive-insights', icon: SVGI.zap,   label: 'Predictive Insights', activeRoutes: ['predictive-insights'] },
       { key: 'forecasts', to: '/forecasts', icon: SVGI.trending,  label: 'Forecasts',     activeRoutes: ['forecasts', 'forecast-summary'] },
+      { key: 'todos',       to: '/todos',       icon: SVGI.clipboard, label: 'To Do List',  activeRoutes: ['todos', 'todo-add', 'task-edit'] },
+      { key: 'followups',   to: '/followups',   icon: SVGI.bell,      label: 'Follow-Ups',  activeRoutes: ['followups', 'followup-add', 'followup-edit'] },
     ],
   },
   {
-    key: 'tasks', label: 'Tasks & Performance', icon: SVGI.clipboard, color: 'orange', section: 'main', adminOnly: false,
+    key: 'tasks', label: 'Performance', icon: SVGI.trending, color: 'orange', section: 'main', adminOnly: false,
     items: [
-      { key: 'todos',       to: '/todos',       icon: SVGI.clipboard, label: 'To Do List',  activeRoutes: ['todos', 'todo-add', 'task-edit'] },
-      { key: 'followups',   to: '/followups',   icon: SVGI.bell,      label: 'Follow-Ups',  activeRoutes: ['followups', 'followup-add', 'followup-edit'] },
       { key: 'reminders',   to: '/reminders',   icon: SVGI.bell,      label: 'Reminders',   activeRoutes: ['reminders'] },
       { key: 'performance', to: '/performance', icon: SVGI.trending,  label: 'Performance', activeRoutes: ['performance'] },
     ],
@@ -213,8 +362,15 @@ const ALL_GROUPS = [
     items: [
       { key: 'admin-panel',  to: '/admin',                     icon: SVGI.gear,   label: 'Lookup Settings', activeRoutes: ['admin'] },
       { key: 'rbac',         to: '/admin/rbac',                icon: SVGI.shield, label: 'Access Control', activeRoutes: ['rbac'] },
-      { key: 'perf-targets', to: '/admin/performance-targets', icon: SVGI.target,    label: 'Perf. Targets',  activeRoutes: ['perf-targets'] },
-      { key: 'webhooks',    to: '/admin/webhooks',             icon: SVGI.activity, label: 'Webhooks',       activeRoutes: ['webhooks'] },
+    ],
+  },
+  {
+    key: 'demo', label: 'Demo / Workshop', icon: SVGI.flask, color: 'rose', section: 'tools', adminOnly: false,
+    items: [
+      { key: 'projects',     to: '/projects',                    icon: SVGI.layers,    label: 'Projects',        activeRoutes: ['projects', 'project-add', 'project-edit'] },
+      { key: 'deals',        to: '/deals',                       icon: SVGI.briefcase, label: 'Deals',           activeRoutes: ['deals', 'deal-add', 'deal-edit'] },
+      { key: 'webhooks',     to: '/admin/webhooks',              icon: SVGI.activity,  label: 'Webhooks',        activeRoutes: ['webhooks'] },
+      { key: 'perf-targets', to: '/admin/performance-targets',   icon: SVGI.target,    label: 'Perf. Targets',   activeRoutes: ['perf-targets'] },
     ],
   },
   {
@@ -222,12 +378,6 @@ const ALL_GROUPS = [
     items: [
       { key: 'import',      to: '/import',      icon: SVGI.download, label: 'Import Data', activeRoutes: ['import'] },
       { key: 'data-health', to: '/data-health', icon: SVGI.activity, label: 'Data Health', activeRoutes: ['data-health'] },
-    ],
-  },
-  {
-    key: 'preferences', label: 'Preferences', icon: SVGI.sliders, color: 'teal', section: 'tools', adminOnly: false,
-    items: [
-      { key: 'settings', to: '/settings', icon: SVGI.sliders, label: 'Settings', activeRoutes: ['settings'] },
     ],
   },
 ];
@@ -452,8 +602,7 @@ textarea:focus-visible,
 .layout.collapsed .sidebar { width: 76px; }
 .layout.collapsed .nav-label,
 .layout.collapsed .nav-text,
-.layout.collapsed .sidebar-footer,
-.layout.collapsed .sidebar-user { display: none; }
+.layout.collapsed .sidebar-footer { display: none; }
 .layout.collapsed .sidebar-toggle { right: 23px; top: 12px; }
 .layout.collapsed .sidebar-brand { justify-content: center; padding: 16px 0 14px; margin-right: 0; }
 .layout.collapsed .brand-mark { width: 36px; height: 36px; }
@@ -462,6 +611,18 @@ textarea:focus-visible,
 .layout.collapsed .nav-link { justify-content: center; padding: 10px 0; }
 .layout.collapsed .nav-icon { width: auto; }
 .layout.collapsed .main-content { margin-left: 76px; }
+
+/* Peek-expand: sidebar expands over content on hover when collapsed */
+.layout.collapsed.peeking .sidebar { width: 248px; box-shadow: 4px 0 24px rgba(0,0,0,0.13); }
+.layout.collapsed.peeking .nav-label,
+.layout.collapsed.peeking .sidebar-footer { display: block; }
+.layout.collapsed.peeking .nav-text { display: inline; }
+.layout.collapsed.peeking .sidebar-toggle { right: 12px; top: 16px; }
+.layout.collapsed.peeking .sidebar-brand { justify-content: flex-start; padding: 14px 18px 16px; margin-right: 36px; }
+.layout.collapsed.peeking .nav-group-header { justify-content: flex-start; padding: 10px 12px; }
+.layout.collapsed.peeking .nav-link { justify-content: flex-start; padding: 9px 12px; }
+.layout.collapsed.peeking .nav-sub { padding-left: 28px; }
+.layout.collapsed.peeking .nav-icon { width: 22px; }
 
 .sidebar { position: fixed; left: 0; top: 0; width: 248px; height: 100vh; background: var(--sb-bg);
   display: flex; flex-direction: column; overflow-y: auto; overflow-x: hidden; z-index: 1000;
@@ -548,16 +709,18 @@ textarea:focus-visible,
 .group-active-teal .nav-icon,
 .group-active-rose .nav-icon { color: var(--sb-active-icon) !important; }
 
+/* Collapsed sidebar — show background on active group so the icon is clearly highlighted */
+.layout.collapsed .group-active-blue,
+.layout.collapsed .group-active-green,
+.layout.collapsed .group-active-orange,
+.layout.collapsed .group-active-purple,
+.layout.collapsed .group-active-teal,
+.layout.collapsed .group-active-rose {
+  background: var(--sb-active-bg) !important;
+}
+
 .sidebar-divider { height:1px; background: var(--sb-divider); margin: 10px 18px; }
 
-.sidebar-user { padding: 8px 14px 12px; }
-.user-info { display: flex; flex-direction: column; gap: 2px; margin-bottom: 10px; padding: 0 4px; }
-.user-name { font-size: 13px; font-weight: 600; color: var(--sb-active-text); }
-.user-email { font-size: 11px; color: var(--sb-label); }
-.btn-profile { width: 100%; height: 34px; background: var(--sb-item-hover-bg); color: var(--sb-item); border-radius: 8px; font-size: 12.5px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; padding: 0 12px; text-decoration: none; margin-bottom: 6px; transition: background 0.15s, color 0.15s; }
-.btn-profile:hover { background: var(--sb-active-bg); color: var(--sb-active-text); }
-.btn-logout { width: 100%; height: 34px; background: transparent; color: #ef4444; border: none; border-radius: 8px; font-size: 12.5px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; padding: 0 12px; transition: background 0.15s; }
-.btn-logout:hover { background: rgba(239,68,68,0.10); }
 
 .sidebar-footer { margin-top:auto; padding: 14px 22px; border-top:1px solid var(--sb-divider);
   font-size:11px; color: var(--sb-label); letter-spacing: 0.3px; }
@@ -573,7 +736,7 @@ textarea:focus-visible,
   box-shadow: var(--shadow-xs);
   transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
 }
-.topbar-right { margin-left: auto; display: flex; align-items: center; }
+.topbar-right { margin-left: auto; display: flex; align-items: center; gap: 4px; }
 .hamburger-btn {
   background: none; border: 1px solid var(--border); border-radius: var(--radius); width: 36px; height: 36px;
   display: flex; align-items: center; justify-content: center; font-size: 18px; cursor: pointer; color: var(--text-1); flex-shrink: 0;
@@ -581,6 +744,99 @@ textarea:focus-visible,
 }
 .hamburger-btn:hover { background: var(--primary-soft); color: var(--primary-text); border-color: var(--primary-soft); }
 .mobile-title { font-size: 15px; font-weight: 700; color: var(--text-1); letter-spacing: -0.2px; }
+
+/* ── Topbar search ─────────────────────────────────────────────── */
+.topbar-search {
+  position: relative; flex: 1; max-width: 320px; margin: 0 12px;
+}
+.topbar-search-inner {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 0 10px; height: 36px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.topbar-search-inner:focus-within {
+  border-color: var(--primary);
+}
+.search-icon { color: var(--text-3); display: flex; align-items: center; flex-shrink: 0; }
+.topbar-search-input {
+  flex: 1; border: none; background: transparent; font-size: 13px;
+  color: var(--text-1); outline: none; box-shadow: none; min-width: 0;
+}
+.topbar-search-input:focus,
+.topbar-search-input:focus-visible { outline: none; box-shadow: none; }
+.topbar-search-input::placeholder { color: var(--text-3); }
+.search-kbd {
+  font-size: 10px; color: var(--text-3); background: var(--border);
+  border-radius: 4px; padding: 1px 5px; font-family: inherit; flex-shrink: 0;
+}
+.search-dropdown {
+  position: absolute; top: calc(100% + 6px); left: 0; right: 0;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); box-shadow: var(--shadow-lg);
+  z-index: 9999; overflow: hidden;
+}
+.search-result-item {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 9px 14px; text-decoration: none; color: var(--text-1);
+  font-size: 13px; gap: 10px; transition: background 0.12s;
+}
+.search-result-item:hover,
+.search-result-item.focused { background: var(--primary-soft); color: var(--primary-text); }
+.search-result-label { font-weight: 500; }
+.search-result-group { font-size: 11px; color: var(--text-3); white-space: nowrap; }
+.search-result-item.focused .search-result-group { color: var(--primary-text); opacity: 0.7; }
+.search-empty { padding: 12px 14px; font-size: 13px; color: var(--text-3); text-align: center; }
+
+/* ── Topbar icon button (settings) ────────────────────────────── */
+.topbar-icon-btn {
+  width: 36px; height: 36px; display: flex; align-items: center; justify-content: center;
+  border-radius: var(--radius); color: var(--text-2); text-decoration: none;
+  transition: background 0.15s, color 0.15s;
+}
+.topbar-icon-btn:hover { background: var(--primary-soft); color: var(--primary-text); }
+
+/* ── Topbar user avatar + profile dropdown ─────────────────────── */
+.topbar-user { position: relative; }
+.topbar-avatar-btn {
+  width: 34px; height: 34px; border-radius: 50%; border: 2px solid var(--primary-soft);
+  background: var(--primary-soft); color: var(--primary-text);
+  font-size: 12px; font-weight: 700; cursor: pointer; display: flex;
+  align-items: center; justify-content: center;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.topbar-avatar-btn:hover { border-color: var(--primary); box-shadow: 0 0 0 3px var(--focus-ring); }
+.profile-dropdown {
+  position: absolute; top: calc(100% + 8px); right: 0; width: 220px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); z-index: 9999;
+  overflow: hidden;
+}
+.profile-dd-header {
+  display: flex; align-items: center; gap: 10px; padding: 12px 14px;
+}
+.profile-dd-avatar {
+  width: 34px; height: 34px; border-radius: 50%; background: var(--primary-soft);
+  color: var(--primary-text); font-size: 12px; font-weight: 700; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+.profile-dd-name { display: block; font-size: 13px; font-weight: 600; color: var(--text-1); }
+.profile-dd-email { display: block; font-size: 11px; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 140px; }
+.profile-dd-divider { height: 1px; background: var(--border-soft); margin: 2px 0; }
+.profile-dd-item {
+  display: flex; align-items: center; gap: 8px; padding: 9px 14px; font-size: 13px;
+  font-weight: 500; color: var(--text-1); text-decoration: none; width: 100%;
+  background: none; border: none; cursor: pointer; text-align: left;
+  transition: background 0.12s, color 0.12s;
+}
+.profile-dd-item:hover { background: var(--surface-2); color: var(--primary); }
+.profile-dd-item.danger { color: var(--danger); }
+.profile-dd-item.danger:hover { background: var(--danger-soft); color: var(--danger); }
+
+/* ── Dropdown transition ────────────────────────────────────────── */
+.dd-fade-enter-active, .dd-fade-leave-active { transition: opacity 0.12s ease, transform 0.12s ease; }
+.dd-fade-enter-from, .dd-fade-leave-to { opacity: 0; transform: translateY(-6px); }
+
 /* Desktop: hide hamburger and brand title */
 @media (min-width: 641px) {
   .hamburger-btn { display: none; }
@@ -603,6 +859,7 @@ textarea:focus-visible,
 
 /* Mobile (≤640px) */
 @media (max-width: 640px) {
+  .topbar-search { display: none; }
   .sidebar,
   .layout.collapsed .sidebar { width: 240px !important; transform: translateX(-240px) !important; }
   .layout.mobile-open .sidebar,
@@ -615,8 +872,6 @@ textarea:focus-visible,
   .layout.collapsed.mobile-open .nav-label,
   .layout.mobile-open .sidebar-footer,
   .layout.collapsed.mobile-open .sidebar-footer { display: block !important; }
-  .layout.mobile-open .sidebar-user,
-  .layout.collapsed.mobile-open .sidebar-user { display: flex !important; }
   .layout.mobile-open .sidebar-brand,
   .layout.collapsed.mobile-open .sidebar-brand { justify-content: flex-start !important; padding: 14px 18px 16px !important; margin-right: 36px !important; }
   .layout.mobile-open .brand-mark,
