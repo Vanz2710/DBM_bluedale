@@ -67,7 +67,11 @@
           :min-w="2"
           :min-h="3"
         >
-          <div class="widget-shell" :class="{ 'widget-shell--edit': editMode }">
+          <div
+            class="widget-shell"
+            :class="{ 'widget-shell--edit': editMode, 'widget-shell--new': item.i === newWidgetId }"
+            :data-widget-id="item.i"
+          >
             <button
               v-if="editMode"
               class="widget-remove"
@@ -117,9 +121,9 @@
 </template>
 
 <script setup>
-import { ref, watch, onMounted, onUnmounted } from 'vue';
+import { ref, watch, onMounted, onUnmounted, nextTick } from 'vue';
 import { GridLayout, GridItem } from 'grid-layout-plus';
-import { Plus, X, LayoutGrid, Move, TrendingUp, Users, BarChart2, ClipboardList, Target, CalendarCheck } from 'lucide-vue-next';
+import { Plus, X, LayoutGrid, Move, TrendingUp, Users, BarChart2, ClipboardList, Target, CalendarCheck, Briefcase, Zap, AlertTriangle, BarChart3 } from 'lucide-vue-next';
 import api from '../api.js';
 import LoadingSpinner from './LoadingSpinner.vue';
 
@@ -129,6 +133,10 @@ import KpiStatsWidget           from './widgets/KpiStatsWidget.vue';
 import TasksWidget              from './widgets/TasksWidget.vue';
 import KpiTargetWidget          from './widgets/KpiTargetWidget.vue';
 import UpcomingFollowUpsWidget  from './widgets/UpcomingFollowUpsWidget.vue';
+import DealPipelineWidget       from './widgets/DealPipelineWidget.vue';
+import PredictiveSummaryWidget  from './widgets/PredictiveSummaryWidget.vue';
+import AtRiskContactsWidget     from './widgets/AtRiskContactsWidget.vue';
+import ForecastPipelineWidget   from './widgets/ForecastPipelineWidget.vue';
 
 // --- Registry -----------------------------------------------------------
 const widgetComponents = {
@@ -138,6 +146,10 @@ const widgetComponents = {
   TasksWidget,
   KpiTargetWidget,
   UpcomingFollowUpsWidget,
+  DealPipelineWidget,
+  PredictiveSummaryWidget,
+  AtRiskContactsWidget,
+  ForecastPipelineWidget,
 };
 
 const WIDGET_CATALOG = [
@@ -183,6 +195,34 @@ const WIDGET_CATALOG = [
     icon: CalendarCheck,
     defaultSize: { w: 4, h: 5 },
   },
+  {
+    type: 'DealPipelineWidget',
+    label: 'Deal Pipeline',
+    description: 'Open deals, pipeline value, and stage breakdown',
+    icon: Briefcase,
+    defaultSize: { w: 4, h: 6 },
+  },
+  {
+    type: 'PredictiveSummaryWidget',
+    label: 'Predictive Insights',
+    description: 'At-risk contacts, weighted pipeline, and overdue risk',
+    icon: Zap,
+    defaultSize: { w: 4, h: 5 },
+  },
+  {
+    type: 'AtRiskContactsWidget',
+    label: 'At-Risk Contacts',
+    description: 'Contacts with no activity in 30+ days',
+    icon: AlertTriangle,
+    defaultSize: { w: 4, h: 5 },
+  },
+  {
+    type: 'ForecastPipelineWidget',
+    label: 'Revenue Forecast',
+    description: 'Weighted deal pipeline forecast by close month',
+    icon: BarChart3,
+    defaultSize: { w: 8, h: 5 },
+  },
 ];
 
 const DEFAULT_LAYOUT = [
@@ -200,10 +240,12 @@ const editMode      = ref(false);
 const showPicker    = ref(false);
 const loadingLayout = ref(false);
 const saveStatus    = ref('idle'); // 'idle' | 'pending' | 'saving' | 'saved' | 'error'
+const newWidgetId   = ref(null);
 
 let initialised = false;
 let saveTimer   = null;
 let fadeTimer   = null;
+let glowTimer   = null;
 
 // --- Auto-save ----------------------------------------------------------
 function scheduleSave() {
@@ -236,22 +278,52 @@ function removeWidget(id) {
   layout.value = layout.value.filter(item => item.i !== id);
 }
 
+// Scan the grid top-to-bottom, left-to-right for the first open rectangle
+// of size (w × h). Falls back to the bottom of the layout if nothing fits.
+function findPosition(w, h) {
+  const items = layout.value;
+  if (!items.length) return { x: 0, y: 0 };
+
+  const gridH = items.reduce((max, item) => Math.max(max, item.y + item.h), 0);
+
+  function collides(cx, cy) {
+    return items.some(item =>
+      cx        < item.x + item.w &&
+      cx + w    > item.x          &&
+      cy        < item.y + item.h &&
+      cy + h    > item.y
+    );
+  }
+
+  for (let row = 0; row <= gridH; row++) {
+    for (let col = 0; col <= 12 - w; col++) {
+      if (!collides(col, row)) return { x: col, y: row };
+    }
+  }
+
+  return { x: 0, y: gridH };
+}
+
 function addWidget(catalog) {
-  const maxY = layout.value.reduce((acc, item) => Math.max(acc, item.y + item.h), 0);
-  layout.value.push({
-    i:    `w-${Date.now()}`,
-    x:    0,
-    y:    maxY,
-    w:    catalog.defaultSize.w,
-    h:    catalog.defaultSize.h,
-    type: catalog.type,
-  });
+  const { w, h } = catalog.defaultSize;
+  const { x, y } = findPosition(w, h);
+  const id = `w-${Date.now()}`;
+  layout.value.push({ i: id, x, y, w, h, type: catalog.type });
   showPicker.value = false;
+
+  newWidgetId.value = id;
+  clearTimeout(glowTimer);
+  nextTick(() => {
+    document.querySelector(`[data-widget-id="${id}"]`)
+      ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  });
+  glowTimer = setTimeout(() => { newWidgetId.value = null; }, 3000);
 }
 
 onUnmounted(() => {
   clearTimeout(saveTimer);
   clearTimeout(fadeTimer);
+  clearTimeout(glowTimer);
 });
 
 // --- Mount --------------------------------------------------------------
@@ -434,6 +506,14 @@ onMounted(async () => {
     0 0 0 3px var(--primary-soft),
     var(--shadow-md);
 }
+.widget-shell--new {
+  animation: widget-glow 3s ease-out forwards;
+}
+@keyframes widget-glow {
+  0%   { border-color: var(--primary); box-shadow: 0 0 0 4px var(--primary-soft), 0 0 24px 6px rgba(124,58,237,0.35), var(--shadow-md); }
+  40%  { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft), 0 0 18px 4px rgba(124,58,237,0.25), var(--shadow-md); }
+  100% { border-color: var(--border-soft); box-shadow: var(--shadow-sm); }
+}
 .widget-remove {
   position: absolute;
   top: 10px;
@@ -480,9 +560,12 @@ onMounted(async () => {
   border-radius: var(--radius-xl);
   width: 100%;
   max-width: 480px;
+  max-height: calc(100vh - 48px);
   box-shadow: var(--shadow-lg);
   overflow: hidden;
   border: 1px solid var(--border-soft);
+  display: flex;
+  flex-direction: column;
 }
 .modal-head {
   display: flex;
@@ -490,6 +573,7 @@ onMounted(async () => {
   justify-content: space-between;
   padding: 20px 22px 16px;
   border-bottom: 1px solid var(--border-soft);
+  flex-shrink: 0;
 }
 .modal-title {
   font-size: 16px;
@@ -502,7 +586,10 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  overflow-y: auto;
 }
+.widget-catalog::-webkit-scrollbar { width: 6px; }
+.widget-catalog::-webkit-scrollbar-thumb { background: var(--border); border-radius: 999px; }
 .catalog-card {
   display: flex;
   align-items: center;

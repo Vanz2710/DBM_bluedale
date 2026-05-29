@@ -1,98 +1,187 @@
 <template>
   <div class="page">
-    <div class="page-banner">
-      <div class="banner-text">
-        <h1>My Profile</h1>
-        <p>View and manage your account information</p>
-      </div>
-    </div>
-
     <LoadingSpinner v-if="loading" />
 
     <template v-else>
-      <!-- Profile Info -->
-      <div class="card">
-        <div class="card-title">Profile Information</div>
-        <div v-if="profileMsg" :class="['msg-box', profileMsg.type === 'error' ? 'error-box' : 'success-box']">{{ profileMsg.text }}</div>
-        <form @submit.prevent="saveProfile">
-          <div class="form-row">
-            <div class="form-group">
-              <label>Full Name <span class="req">*</span></label>
-              <input type="text" v-model="profile.name" required maxlength="255" />
-            </div>
-            <div class="form-group">
-              <label>Email Address <span class="req">*</span></label>
-              <input type="email" v-model="profile.email" required maxlength="255" />
-            </div>
-          </div>
-          <div class="form-row">
-            <div class="form-group">
-              <label>Phone Number</label>
-              <input type="text" v-model="profile.phone" maxlength="50" placeholder="e.g. +60 12-345 6789" />
-            </div>
-            <div class="form-group">
-              <label>Job Title / Designation</label>
-              <input type="text" v-model="profile.job_title" maxlength="100" placeholder="e.g. Sales Manager" />
-            </div>
-          </div>
-          <div class="btn-row">
-            <button type="submit" class="btn btn-save" :disabled="savingProfile">
-              {{ savingProfile ? 'Saving…' : 'Save Changes' }}
-            </button>
-          </div>
-        </form>
+      <!-- Page header -->
+      <div class="page-header">
+        <h2 class="page-title">Profile Settings</h2>
+        <p class="page-subtitle">Manage your account details and preferences.</p>
       </div>
 
-      <!-- Change Password -->
-      <div class="card">
-        <div class="card-title">Change Password</div>
-        <div v-if="pwMsg" :class="['msg-box', pwMsg.type === 'error' ? 'error-box' : 'success-box']">{{ pwMsg.text }}</div>
-        <form @submit.prevent="changePassword">
-          <div class="form-group">
-            <label>Current Password <span class="req">*</span></label>
-            <input type="password" v-model="pw.current" required autocomplete="current-password" />
-          </div>
-          <div class="form-row">
-            <div class="form-group">
-              <label>New Password <span class="req">*</span></label>
-              <input type="password" v-model="pw.password" required minlength="8" autocomplete="new-password" />
-            </div>
-            <div class="form-group">
-              <label>Confirm New Password <span class="req">*</span></label>
-              <input type="password" v-model="pw.password_confirmation" required autocomplete="new-password" />
-            </div>
-          </div>
-          <div class="btn-row">
-            <button type="submit" class="btn btn-save" :disabled="savingPw">
-              {{ savingPw ? 'Updating…' : 'Update Password' }}
-            </button>
-          </div>
-        </form>
-      </div>
+      <div class="layout-grid">
 
-      <!-- Account Info (read-only) -->
-      <div class="card">
-        <div class="card-title">Account Details</div>
-        <div class="info-grid">
-          <div class="info-row">
-            <span class="info-label">Account Email</span>
-            <span class="info-value">{{ profile.email }}</span>
+        <!-- ── Left col: Personal Information ────────────────── -->
+        <div class="col-main">
+          <div class="card card--accent">
+
+            <h3 class="card-heading">
+              <svg class="h-icon h-icon--primary" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M20 7H4a2 2 0 0 0-2 2v10c0 1.1.9 2 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2zM4 9h16v2H4V9zm0 10v-6h16v6H4z"/>
+                <path d="M6 17h4v-2H6zm6 0h6v-2h-6z"/>
+              </svg>
+              Personal Information
+            </h3>
+
+            <!-- Avatar row -->
+            <div class="avatar-row">
+              <div class="avatar-ring">
+                <div class="avatar-circle">{{ initials }}</div>
+              </div>
+              <div class="avatar-meta">
+                <p class="avatar-name">{{ profile.name || '—' }}</p>
+                <p class="avatar-hint">Your name initials are used as your avatar</p>
+              </div>
+            </div>
+
+            <div v-if="profileMsg" :class="['alert', profileMsg.type === 'error' ? 'alert-error' : 'alert-success']">
+              <svg viewBox="0 0 20 20" fill="currentColor"><path v-if="profileMsg.type === 'error'" fill-rule="evenodd" d="M10 18a8 8 0 1 1 0-16 8 8 0 0 1 0 16zm-.75-9.75a.75.75 0 0 1 1.5 0v3a.75.75 0 0 1-1.5 0v-3zm.75 6a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5z" clip-rule="evenodd"/><path v-else fill-rule="evenodd" d="M10 18a8 8 0 1 1 0-16 8 8 0 0 1 0 16zm3.857-9.809a.75.75 0 0 0-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 1 0-1.06 1.061l2.5 2.5a.75.75 0 0 0 1.137-.089l4-5.5z" clip-rule="evenodd"/></svg>
+              {{ profileMsg.text }}
+            </div>
+
+            <form @submit.prevent="saveProfile">
+              <div class="fields-grid">
+
+                <div class="field field--full">
+                  <label class="field-label">Full Name <span class="req">*</span></label>
+                  <input type="text" v-model="profile.name" required maxlength="255"
+                    class="pill-input" placeholder="Your full name" />
+                </div>
+
+                <div class="field field--full">
+                  <label class="field-label">Email Address <span class="req">*</span></label>
+                  <div class="input-icon-wrap">
+                    <svg class="input-icon" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4-8 5-8-5V6l8 5 8-5v2z"/>
+                    </svg>
+                    <input type="email" v-model="profile.email" required maxlength="255"
+                      class="pill-input pill-input--icon" placeholder="you@example.com" />
+                  </div>
+                </div>
+
+                <div class="field field--half">
+                  <label class="field-label">Phone Number</label>
+                  <input type="text" v-model="profile.phone" maxlength="50"
+                    class="pill-input" placeholder="e.g. +60 12-345 6789" />
+                </div>
+
+                <div class="field field--half">
+                  <label class="field-label">Designation</label>
+                  <input type="text" v-model="profile.job_title" maxlength="100"
+                    class="pill-input" placeholder="e.g. Sales Manager" />
+                </div>
+
+                <div class="field field--full">
+                  <label class="field-label">Role</label>
+                  <input type="text" :value="profile.roles?.join(', ') || '—'"
+                    class="pill-input pill-input--disabled" disabled />
+                </div>
+
+              </div>
+
+              <div class="card-footer">
+                <button type="submit" class="btn-primary" :disabled="savingProfile">
+                  <span v-if="savingProfile" class="btn-spinner"></span>
+                  {{ savingProfile ? 'Saving…' : 'Save Changes' }}
+                </button>
+              </div>
+            </form>
           </div>
-          <div class="info-row">
-            <span class="info-label">Role(s)</span>
-            <span class="info-value">
-              <span v-for="role in profile.roles" :key="role" class="role-badge">{{ role }}</span>
-              <span v-if="!profile.roles?.length" class="info-dim">—</span>
-            </span>
+        </div>
+
+        <!-- ── Right col: Security + Details ─────────────────── -->
+        <div class="col-side">
+
+          <!-- Account Security -->
+          <div class="card">
+            <h3 class="card-heading">
+              <svg class="h-icon h-icon--secondary" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 1 3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/>
+              </svg>
+              Account Security
+            </h3>
+
+            <div class="pw-row">
+              <div>
+                <p class="pw-title">Password</p>
+                <p class="pw-hint">Update your account password</p>
+              </div>
+              <button type="button" class="btn-outline btn-sm" @click="showPwForm = !showPwForm">
+                <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14">
+                  <path d="M12.65 10C11.83 7.67 9.61 6 7 6c-3.31 0-6 2.69-6 6s2.69 6 6 6c2.61 0 4.83-1.67 5.65-4H17v4h4v-4h2v-4H12.65zM7 14c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z"/>
+                </svg>
+                {{ showPwForm ? 'Cancel' : 'Change' }}
+              </button>
+            </div>
+
+            <transition name="expand">
+              <div v-if="showPwForm" class="pw-form-wrap">
+                <div class="pw-divider"></div>
+
+                <div v-if="pwMsg" :class="['alert', pwMsg.type === 'error' ? 'alert-error' : 'alert-success']">
+                  <svg viewBox="0 0 20 20" fill="currentColor"><path v-if="pwMsg.type === 'error'" fill-rule="evenodd" d="M10 18a8 8 0 1 1 0-16 8 8 0 0 1 0 16zm-.75-9.75a.75.75 0 0 1 1.5 0v3a.75.75 0 0 1-1.5 0v-3zm.75 6a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5z" clip-rule="evenodd"/><path v-else fill-rule="evenodd" d="M10 18a8 8 0 1 1 0-16 8 8 0 0 1 0 16zm3.857-9.809a.75.75 0 0 0-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 1 0-1.06 1.061l2.5 2.5a.75.75 0 0 0 1.137-.089l4-5.5z" clip-rule="evenodd"/></svg>
+                  {{ pwMsg.text }}
+                </div>
+
+                <form @submit.prevent="changePassword" class="pw-form">
+                  <div class="field">
+                    <label class="field-label">Current Password <span class="req">*</span></label>
+                    <input type="password" v-model="pw.current" required autocomplete="current-password"
+                      class="pill-input" placeholder="Current password" />
+                  </div>
+                  <div class="field">
+                    <label class="field-label">New Password <span class="req">*</span></label>
+                    <input type="password" v-model="pw.password" required minlength="8"
+                      autocomplete="new-password" class="pill-input" placeholder="Min. 8 characters" />
+                  </div>
+                  <div class="field">
+                    <label class="field-label">Confirm New Password <span class="req">*</span></label>
+                    <input type="password" v-model="pw.password_confirmation" required
+                      autocomplete="new-password" class="pill-input" placeholder="Repeat new password" />
+                  </div>
+                  <div class="pw-footer">
+                    <button type="submit" class="btn-primary btn-sm" :disabled="savingPw">
+                      <span v-if="savingPw" class="btn-spinner"></span>
+                      {{ savingPw ? 'Updating…' : 'Update Password' }}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </transition>
           </div>
-          <div class="info-row">
-            <span class="info-label">Account Created</span>
-            <span class="info-value info-dim">{{ profile.created_at ?? '—' }}</span>
+
+          <!-- Account Details -->
+          <div class="card">
+            <h3 class="card-heading">
+              <svg class="h-icon h-icon--tertiary" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
+              </svg>
+              Account Details
+            </h3>
+
+            <div class="detail-list">
+              <div class="detail-row">
+                <span class="detail-label">Email</span>
+                <span class="detail-value">{{ profile.email }}</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">Role(s)</span>
+                <span class="detail-value roles-val">
+                  <span v-for="role in profile.roles" :key="role" class="role-badge">{{ role }}</span>
+                  <span v-if="!profile.roles?.length" class="detail-dim">—</span>
+                </span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">Member Since</span>
+                <span class="detail-value detail-dim">{{ profile.created_at ?? '—' }}</span>
+              </div>
+              <div class="detail-row no-border">
+                <span class="detail-label">Last Updated</span>
+                <span class="detail-value detail-dim">{{ profile.updated_at ?? '—' }}</span>
+              </div>
+            </div>
           </div>
-          <div class="info-row">
-            <span class="info-label">Last Updated</span>
-            <span class="info-value info-dim">{{ profile.updated_at ?? '—' }}</span>
-          </div>
+
         </div>
       </div>
     </template>
@@ -100,18 +189,27 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import api from '../api.js';
 import LoadingSpinner from '../components/LoadingSpinner.vue';
 
-const loading      = ref(true);
+const loading       = ref(true);
 const savingProfile = ref(false);
-const savingPw     = ref(false);
-const profileMsg   = ref(null);
-const pwMsg        = ref(null);
+const savingPw      = ref(false);
+const profileMsg    = ref(null);
+const pwMsg         = ref(null);
+const showPwForm    = ref(false);
 
 const profile = ref({ name: '', email: '', phone: '', job_title: '', roles: [], created_at: null, updated_at: null });
-const pw = ref({ current: '', password: '', password_confirmation: '' });
+const pw      = ref({ current: '', password: '', password_confirmation: '' });
+
+const initials = computed(() => {
+  const parts = (profile.value.name || '').trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return '?';
+  return parts.length === 1
+    ? parts[0][0].toUpperCase()
+    : (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+});
 
 onMounted(async () => {
   try {
@@ -135,7 +233,6 @@ async function saveProfile() {
     profile.value = res.data.user;
     profileMsg.value = { type: 'success', text: 'Profile updated successfully.' };
 
-    // Keep localStorage in sync so sidebar name/email stays current
     const stored = JSON.parse(localStorage.getItem('crm_user') || '{}');
     stored.name  = res.data.user.name;
     stored.email = res.data.user.email;
@@ -143,11 +240,9 @@ async function saveProfile() {
     window.dispatchEvent(new CustomEvent('user-profile-updated'));
   } catch (err) {
     const errors = err.response?.data?.errors;
-    if (errors) {
-      profileMsg.value = { type: 'error', text: Object.values(errors).flat().join(' ') };
-    } else {
-      profileMsg.value = { type: 'error', text: err.response?.data?.message || 'Failed to save profile.' };
-    }
+    profileMsg.value = errors
+      ? { type: 'error', text: Object.values(errors).flat().join(' ') }
+      : { type: 'error', text: err.response?.data?.message || 'Failed to save profile.' };
   } finally {
     savingProfile.value = false;
   }
@@ -168,13 +263,12 @@ async function changePassword() {
     });
     pwMsg.value = { type: 'success', text: 'Password changed successfully.' };
     pw.value = { current: '', password: '', password_confirmation: '' };
+    showPwForm.value = false;
   } catch (err) {
     const errors = err.response?.data?.errors;
-    if (errors) {
-      pwMsg.value = { type: 'error', text: Object.values(errors).flat().join(' ') };
-    } else {
-      pwMsg.value = { type: 'error', text: err.response?.data?.message || 'Failed to change password.' };
-    }
+    pwMsg.value = errors
+      ? { type: 'error', text: Object.values(errors).flat().join(' ') }
+      : { type: 'error', text: err.response?.data?.message || 'Failed to change password.' };
   } finally {
     savingPw.value = false;
   }
@@ -182,47 +276,355 @@ async function changePassword() {
 </script>
 
 <style scoped>
-.page { padding: 24px; max-width: 860px; }
+/* ── Design tokens (from Stitch) ─────────────────────────── */
+.page {
+  --primary:            #630ed4;
+  --primary-hover:      #5a00c6;
+  --primary-fixed:      #eaddff;
+  --secondary:          #006591;
+  --tertiary:           #005c25;
+  --surface:            #f8f9ff;
+  --surface-bright:     #f8f9ff;
+  --surface-low:        #eff4ff;
+  --surface-lowest:     #ffffff;
+  --on-surface:         #0b1c30;
+  --on-surface-variant: #4a4455;
+  --outline-variant:    #ccc3d8;
+  --error:              #ba1a1a;
+  --error-container:    #ffdad6;
 
-.page-banner { margin-bottom: 24px; }
-.page-banner h1 { margin: 0 0 4px; font-size: 22px; font-weight: 700; color: #1e293b; }
-.page-banner p  { margin: 0; font-size: 13px; color: #64748b; }
+  padding: 28px;
+  max-width: 1200px;
+  background: var(--surface);
+  min-height: 100%;
+  box-sizing: border-box;
+}
 
-.card { background: white; border-radius: 12px; border: 1px solid #e2e8f0; padding: 24px; margin-bottom: 20px; }
-.card-title { font-size: 15px; font-weight: 700; color: #1e293b; margin-bottom: 18px; padding-bottom: 12px; border-bottom: 1px solid #f1f5f9; }
+/* ── Page header ─────────────────────────────────────────── */
+.page-header { margin-bottom: 28px; }
+.page-title {
+  margin: 0 0 4px;
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--on-surface);
+}
+.page-subtitle {
+  margin: 0;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--on-surface-variant);
+}
 
-.form-group { display: flex; flex-direction: column; gap: 6px; flex: 1; }
-.form-group label { font-size: 12px; font-weight: 600; color: #475569; text-transform: uppercase; letter-spacing: 0.5px; }
-.form-group input { height: 38px; border: 1.5px solid #e2e8f0; border-radius: 8px; padding: 0 12px; font-size: 14px; color: #1e293b; outline: none; transition: border-color 0.15s; }
-.form-group input:focus { border-color: #3b82f6; }
-.req { color: #ef4444; }
+/* ── Grid ────────────────────────────────────────────────── */
+.layout-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 24px;
+  align-items: start;
+}
 
-.form-row { display: flex; gap: 16px; margin-bottom: 16px; }
-.form-row .form-group { margin-bottom: 0; }
-.form-group { margin-bottom: 16px; }
+/* ── Cards ───────────────────────────────────────────────── */
+.card {
+  background: var(--surface-lowest);
+  border-radius: 12px;
+  border: 1px solid rgba(204, 195, 216, 0.2);
+  padding: 24px;
+  margin-bottom: 20px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  position: relative;
+  overflow: hidden;
+}
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+.card--accent::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: linear-gradient(to right, var(--primary), #39b8fd);
+  border-radius: 12px 12px 0 0;
+}
 
-.btn-row { display: flex; justify-content: flex-end; margin-top: 4px; }
-.btn { height: 38px; padding: 0 20px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; border: none; }
-.btn-save { background: #3b82f6; color: white; }
-.btn-save:hover:not(:disabled) { background: #2563eb; }
-.btn-save:disabled { opacity: 0.6; cursor: not-allowed; }
+/* ── Card heading ────────────────────────────────────────── */
+.card-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -0.015em;
+  color: var(--on-surface);
+  margin: 0 0 24px;
+}
+.h-icon { width: 22px; height: 22px; flex-shrink: 0; }
+.h-icon--primary  { color: var(--primary); }
+.h-icon--secondary { color: var(--secondary); }
+.h-icon--tertiary  { color: var(--tertiary); }
 
-.msg-box { padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-bottom: 16px; }
-.error-box   { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
-.success-box { background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; }
+/* ── Avatar ──────────────────────────────────────────────── */
+.avatar-row {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  margin-bottom: 28px;
+}
+.avatar-ring {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  border: 2px solid var(--outline-variant);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.avatar-circle {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, var(--primary), #39b8fd);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  font-weight: 800;
+  color: white;
+  letter-spacing: 1px;
+}
+.avatar-name {
+  margin: 0 0 4px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--on-surface);
+}
+.avatar-hint {
+  margin: 0;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--on-surface-variant);
+}
 
-.info-grid { display: flex; flex-direction: column; gap: 0; }
-.info-row { display: flex; align-items: center; padding: 11px 0; border-bottom: 1px solid #f8fafc; gap: 16px; }
-.info-row:last-child { border-bottom: none; }
-.info-label { font-size: 12px; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; width: 160px; flex-shrink: 0; }
-.info-value { font-size: 13px; color: #334155; display: flex; flex-wrap: wrap; gap: 6px; }
-.info-dim { color: #94a3b8; }
+/* ── Alerts ──────────────────────────────────────────────── */
+.alert {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  margin-bottom: 16px;
+}
+.alert svg { width: 16px; height: 16px; flex-shrink: 0; }
+.alert-error   { background: var(--error-container); color: var(--error); border: 1px solid rgba(186,26,26,0.2); }
+.alert-success { background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; }
 
-.role-badge { background: #ede9fe; color: #7c3aed; border-radius: 6px; padding: 2px 10px; font-size: 12px; font-weight: 600; }
+/* ── Fields ──────────────────────────────────────────────── */
+.fields-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px 20px;
+}
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field--full { grid-column: 1 / -1; }
+.field--half { grid-column: span 1; }
 
-@media (max-width: 640px) {
+.field-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--on-surface-variant);
+}
+.req { color: var(--error); }
+
+/* ── Pill inputs ─────────────────────────────────────────── */
+.pill-input {
+  width: 100%;
+  border-radius: 9999px;
+  border: 1.5px solid rgba(204, 195, 216, 0.5);
+  background: var(--surface-bright);
+  padding: 8px 16px;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--on-surface);
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  box-sizing: border-box;
+}
+.pill-input::placeholder { color: #b0a8bb; }
+.pill-input:hover:not(:focus):not(:disabled) {
+  border-color: rgba(99, 14, 212, 0.4);
+}
+.pill-input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 1px var(--primary);
+}
+.pill-input--disabled {
+  background: var(--surface-low);
+  border-color: rgba(204, 195, 216, 0.2);
+  color: var(--on-surface-variant);
+  cursor: not-allowed;
+}
+
+/* Input with icon */
+.input-icon-wrap { position: relative; }
+.input-icon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 18px;
+  height: 18px;
+  color: var(--on-surface-variant);
+  pointer-events: none;
+}
+.pill-input--icon { padding-left: 40px; }
+
+/* ── Card footer ─────────────────────────────────────────── */
+.card-footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 20px;
+}
+
+/* ── Buttons ─────────────────────────────────────────────── */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 24px;
+  background: var(--primary);
+  color: white;
+  border: none;
+  border-radius: 9999px;
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 4px 14px 0 rgba(124, 58, 237, 0.39);
+  transition: background 0.15s, box-shadow 0.15s, opacity 0.15s;
+}
+.btn-primary:hover:not(:disabled) {
+  background: var(--primary-hover);
+  box-shadow: 0 6px 20px rgba(124, 58, 237, 0.23);
+}
+.btn-primary:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.btn-outline {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 16px;
+  background: transparent;
+  color: var(--primary);
+  border: 1.5px solid rgba(99, 14, 212, 0.45);
+  border-radius: 9999px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.btn-outline:hover {
+  background: var(--primary-fixed);
+  border-color: var(--primary);
+}
+
+.btn-sm { padding: 7px 18px; font-size: 12.5px; }
+
+.btn-spinner {
+  width: 13px;
+  height: 13px;
+  border: 2px solid rgba(255,255,255,0.35);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+  flex-shrink: 0;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Password section ────────────────────────────────────── */
+.pw-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.pw-title {
+  margin: 0 0 2px;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--on-surface);
+}
+.pw-hint {
+  margin: 0;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--on-surface-variant);
+}
+.pw-divider {
+  height: 1px;
+  background: rgba(204, 195, 216, 0.3);
+  margin: 16px 0;
+}
+.pw-form-wrap { overflow: hidden; }
+.pw-form { display: flex; flex-direction: column; gap: 14px; }
+.pw-footer { display: flex; justify-content: flex-end; margin-top: 4px; }
+
+/* Expand transition */
+.expand-enter-active, .expand-leave-active {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+.expand-enter-from, .expand-leave-to {
+  opacity: 0;
+  transform: translateY(-6px);
+}
+
+/* ── Account detail list ─────────────────────────────────── */
+.detail-list { display: flex; flex-direction: column; }
+.detail-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 0;
+  border-bottom: 1px solid rgba(204, 195, 216, 0.2);
+}
+.detail-row.no-border { border-bottom: none; }
+.detail-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--on-surface-variant);
+  flex-shrink: 0;
+  padding-top: 2px;
+}
+.detail-value {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--on-surface);
+  text-align: right;
+}
+.detail-dim { color: var(--on-surface-variant); }
+.roles-val { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px; }
+
+.role-badge {
+  background: var(--primary-fixed);
+  color: var(--primary);
+  border-radius: 9999px;
+  padding: 2px 10px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+/* ── Responsive ──────────────────────────────────────────── */
+@media (max-width: 960px) {
+  .layout-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 600px) {
   .page { padding: 16px; }
-  .form-row { flex-direction: column; gap: 0; }
-  .info-label { width: 120px; }
+  .fields-grid { grid-template-columns: 1fr; }
+  .field--half { grid-column: 1 / -1; }
 }
 </style>

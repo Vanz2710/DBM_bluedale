@@ -39,6 +39,7 @@ const PostingCalendar         = () => import('../pages/PostingCalendar.vue');
 const MarketingEmail          = () => import('../pages/EmailCampaigns.vue');
 const ProductAvailability     = () => import('../pages/ProductAvailability.vue');
 const ContactAnalysis         = () => import('../pages/ContactAnalysis.vue');
+const PredictiveInsights      = () => import('../pages/PredictiveInsights.vue');
 
 const routes = [
     { path: '/login',        component: Login,       name: 'login',        meta: { public: true } },
@@ -46,7 +47,8 @@ const routes = [
     { path: '/lead',         component: LeadForm,    name: 'lead-form',    meta: { public: true } },
     { path: '/',                           component: Dashboard,   name: 'home' },
     { path: '/list',                       component: ContactList,     name: 'list' },
-    { path: '/contact-analysis',           component: ContactAnalysis, name: 'contact-analysis' },
+    { path: '/contact-analysis',           component: ContactAnalysis,    name: 'contact-analysis' },
+    { path: '/predictive-insights',        component: PredictiveInsights, name: 'predictive-insights' },
     { path: '/contacts/add',               component: ContactAdd,  name: 'contact-add' },
     { path: '/contacts/:id',               component: ContactView, name: 'contact-view' },
     { path: '/contacts/:id/edit',          component: ContactEdit, name: 'contact-edit' },

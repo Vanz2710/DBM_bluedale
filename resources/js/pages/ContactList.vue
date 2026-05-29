@@ -889,20 +889,15 @@
               <tr>
                 <th class="col-check"><input type="checkbox" @change="toggleAllSummary" ref="summarySelectAllRef"></th>
                 <th class="col-no">#</th>
+                <th class="col-name">Company</th>
                 <th class="col-user">User</th>
                 <th class="col-status">Status</th>
-                <th class="col-type">Type</th>
-                <th class="col-category">Category</th>
-                <th class="col-industry">Industry</th>
-                <th class="col-name">Company</th>
-                <th class="sum-lc-col">Last Contact</th>
-                <th class="sum-active-col">Active</th>
                 <th class="sum-activity-col">Activity {{ summaryYear }}</th>
               </tr>
             </thead>
             <tbody>
               <tr v-if="summaryContacts.length === 0">
-                <td colspan="11" class="empty-state">
+                <td colspan="6" class="empty-state">
                   <div class="empty-icon" v-html="CIL.chart"></div>
                   <div class="empty-title">No records found</div>
                   <div class="empty-sub">Try adjusting filters or the year</div>
@@ -911,6 +906,7 @@
               <tr v-for="(c, idx) in summaryContacts" :key="c.id" class="contact-row" @click="openDrawer(c)" style="cursor:pointer">
                 <td @click.stop><input type="checkbox" :value="c.id" v-model="summarySelectedIds"></td>
                 <td class="col-no"><span class="row-num">{{ idx + 1 }}</span></td>
+                <td class="col-name"><span class="company-link">{{ c.name }}</span></td>
                 <td class="col-user">
                   <div class="user-cell">
                     <span class="user-avatar">{{ initials(c.user) }}</span>
@@ -920,30 +916,24 @@
                 <td class="col-status">
                   <span class="badge badge-status" :class="statusClass(c.status)">{{ c.status ?? '—' }}</span>
                 </td>
-                <td class="col-type"><span class="tag">{{ c.type ?? '—' }}</span></td>
-                <td class="col-category"><span class="tag tag-category">{{ c.category ?? '—' }}</span></td>
-                <td class="col-industry">{{ c.industry ?? '—' }}</td>
-                <td class="col-name"><span class="company-link">{{ c.name }}</span></td>
-                <td class="sum-lc-cell">
-                  <template v-if="summaryLastContact(c)">
-                    <span class="lc-date">{{ summaryLastContact(c).date }}</span>
-                    <span class="lc-task">{{ summaryLastContact(c).task }}</span>
-                  </template>
-                  <span v-else class="muted-dash">—</span>
-                </td>
-                <td class="sum-active-cell">
-                  <span v-if="summaryActiveMonths(c)" class="active-badge">{{ summaryActiveMonths(c) }}/12</span>
-                  <span v-else class="muted-dash">—</span>
-                </td>
                 <td class="sum-activity-cell">
-                  <div class="sum-act-row">
-                    <div v-for="m in 12" :key="m" class="sum-act-col">
-                      <span
-                        class="m-dot"
-                        :class="c.months[m] ? (c.months[m].status === 'cancelled' ? 'dot-cancelled' : 'dot-completed') : ''"
-                        :title="c.months[m] ? `${MONTH_NAMES[m-1]}: ${c.months[m].date} — ${c.months[m].task} (${c.months[m].status})` : MONTH_NAMES[m-1]"
-                      ></span>
-                      <span class="m-lbl">{{ MONTH_NAMES[m-1] }}</span>
+                  <div class="sum-act-meta">
+                    <span v-if="summaryActiveMonths(c)" class="active-badge">{{ summaryActiveMonths(c) }}/12</span>
+                    <span v-if="summaryLastContact(c)" class="sum-lc-inline">Last: {{ summaryLastContact(c).date }} · {{ summaryLastContact(c).task }}</span>
+                    <span v-else class="sum-lc-inline muted-dash">No activity this year</span>
+                  </div>
+                  <div class="sum-act-grid">
+                    <div
+                      v-for="m in 12" :key="m"
+                      class="sum-month-cell"
+                      :class="c.months[m] ? (c.months[m].status === 'cancelled' ? 'smc-cancelled' : 'smc-active') : 'smc-empty'"
+                      :title="c.months[m] ? `${MONTH_NAMES[m-1]}: ${c.months[m].date} — ${c.months[m].task} (${c.months[m].status})` : MONTH_NAMES[m-1]"
+                    >
+                      <span class="smc-name">{{ MONTH_NAMES[m-1] }}</span>
+                      <template v-if="c.months[m]">
+                        <span class="smc-date">{{ c.months[m].date.slice(0, 5) }}</span>
+                        <span class="smc-task">{{ c.months[m].task }}</span>
+                      </template>
                     </div>
                   </div>
                 </td>
@@ -2280,15 +2270,17 @@ tbody tr:last-child td { border-bottom: none; }
 .summary-legend { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-3); }
 .legend-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
 .legend-label { margin-right: 8px; }
-.sum-lc-col { width: 110px; }
-.sum-active-col { width: 80px; text-align: center; }
-.sum-activity-col { width: 220px; white-space: nowrap; }
-.sum-act-row { display: flex; gap: 3px; }
-.sum-act-col { display: flex; flex-direction: column; align-items: center; gap: 2px; }
-.sum-lc-cell { white-space: nowrap; }
-.lc-date { display: block; font-size: 11.5px; font-weight: 700; color: var(--text-1); }
-.lc-task { display: block; font-size: 10.5px; color: var(--text-2); margin-top: 2px; }
-.sum-active-cell { text-align: center; }
+.col-check { width: 32px; text-align: center; }
+.sum-activity-col { min-width: 640px; }
+.sum-activity-cell { padding: 10px 14px; vertical-align: top; }
+
+.sum-act-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
 .active-badge {
   display: inline-block;
   padding: 3px 10px;
@@ -2298,21 +2290,59 @@ tbody tr:last-child td { border-bottom: none; }
   background: var(--success-soft);
   color: var(--success);
 }
-.sum-activity-cell { padding: 8px 14px; }
-.m-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: var(--border);
-  flex-shrink: 0;
-  cursor: default;
-  transition: transform 0.1s;
+.sum-lc-inline {
+  font-size: 11px;
+  color: var(--text-3);
 }
-.m-dot.dot-completed { background: var(--success); }
-.m-dot.dot-cancelled { background: #f59e0b; }
-.m-dot:hover { transform: scale(1.4); }
-.m-lbl { font-size: 7px; font-weight: 600; color: var(--text-3); line-height: 1; }
-.col-check { width: 32px; text-align: center; }
+
+.sum-act-grid {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 3px;
+}
+.sum-month-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 5px 3px;
+  border-radius: 6px;
+  text-align: center;
+  gap: 2px;
+  min-width: 0;
+  cursor: default;
+  transition: transform 0.1s, box-shadow 0.1s;
+}
+.sum-month-cell:hover { transform: scale(1.06); box-shadow: 0 2px 8px -2px rgba(0,0,0,0.12); }
+.smc-empty { background: var(--surface-2); }
+.smc-active { background: var(--success-soft); }
+.smc-cancelled { background: #fef3c7; }
+.smc-name {
+  font-size: 8px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.2px;
+  line-height: 1;
+}
+.smc-empty .smc-name { color: var(--text-3); }
+.smc-active .smc-name { color: var(--success); }
+.smc-cancelled .smc-name { color: #d97706; }
+.smc-date {
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+.smc-active .smc-date { color: var(--success); }
+.smc-cancelled .smc-date { color: #d97706; }
+.smc-task {
+  font-size: 8px;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+.smc-active .smc-task { color: #065f46; }
+.smc-cancelled .smc-task { color: #92400e; }
 
 /* Tasks tab */
 .task-company-btn {
