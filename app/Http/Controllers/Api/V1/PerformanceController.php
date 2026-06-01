@@ -9,7 +9,6 @@ use App\Models\FollowUp;
 use App\Models\KpiTarget;
 use App\Models\PerformanceTarget;
 use App\Models\Project;
-use App\Models\Territory;
 use App\Models\ToDo;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -243,19 +242,9 @@ class PerformanceController extends Controller
             ];
         });
 
-        // Territory breakdown: contacts per territory for the period
-        $territories = Territory::withCount(['contacts as contacts_in_period' => function ($q) use ($fromDt, $toDt) {
-            $q->whereBetween('created_at', [$fromDt, $toDt]);
-        }])->orderBy('name')->get()->map(fn($t) => [
-            'id'   => $t->id,
-            'name' => $t->name,
-            'contacts_in_period' => $t->contacts_in_period,
-        ]);
-
         return response()->json([
-            'data'        => $result,
-            'period'      => ['from' => $from, 'to' => $to, 'view' => $view],
-            'territories' => $territories,
+            'data'   => $result,
+            'period' => ['from' => $from, 'to' => $to, 'view' => $view],
         ]);
     }
 

@@ -13,7 +13,7 @@ class SummaryController extends Controller
     {
         $year = (int) $request->input('year', now()->year);
 
-        $query = Contact::with(['status', 'type', 'industry', 'category', 'area', 'user'])
+        $query = Contact::with(['status', 'type', 'industry', 'category', 'user'])
             ->select('contacts.*');
 
         if ($v = $request->input('search')) {
@@ -59,7 +59,6 @@ class SummaryController extends Controller
                 'type'     => $c->type?->name,
                 'category' => $c->category?->name,
                 'industry' => $c->industry?->name,
-                'area'     => $c->area?->name,
                 'months'   => $taskMap[$c->id] ?? [],
             ];
         });

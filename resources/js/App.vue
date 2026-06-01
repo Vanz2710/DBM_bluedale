@@ -319,6 +319,7 @@ const SVGI = {
   zap:          _s('<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>'),
   flask:        _s('<path d="M9 3h6m-5 0v6l-4 9a1 1 0 0 0 .93 1.37h10.14A1 1 0 0 0 18 18l-4-9V3"/>'),
   searchIcon:   _s('<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>'),
+  map:          _s('<polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/>'),
 };
 
 // ─── Navigation config ────────────────────────────────────────────────────────
@@ -360,17 +361,18 @@ const ALL_GROUPS = [
   {
     key: 'admin', label: 'Administration', icon: SVGI.gear, color: 'purple', section: 'tools', adminOnly: true,
     items: [
-      { key: 'admin-panel',  to: '/admin',                     icon: SVGI.gear,   label: 'Lookup Settings', activeRoutes: ['admin'] },
-      { key: 'rbac',         to: '/admin/rbac',                icon: SVGI.shield, label: 'Access Control', activeRoutes: ['rbac'] },
+      { key: 'admin-panel',     to: '/admin',                        icon: SVGI.gear,    label: 'Lookup Settings',   activeRoutes: ['admin'] },
+      { key: 'rbac',            to: '/admin/rbac',                   icon: SVGI.shield,  label: 'Access Control',    activeRoutes: ['rbac'] },
+      { key: 'perf-targets',    to: '/admin/performance-targets',    icon: SVGI.target,  label: 'Perf. Targets',     activeRoutes: ['perf-targets'] },
+      { key: 'system-settings', to: '/admin/system-settings',        icon: SVGI.mail,    label: 'System Settings',   activeRoutes: ['system-settings'] },
     ],
   },
   {
     key: 'demo', label: 'Demo / Workshop', icon: SVGI.flask, color: 'rose', section: 'tools', adminOnly: false,
     items: [
-      { key: 'projects',     to: '/projects',                    icon: SVGI.layers,    label: 'Projects',        activeRoutes: ['projects', 'project-add', 'project-edit'] },
-      { key: 'deals',        to: '/deals',                       icon: SVGI.briefcase, label: 'Deals',           activeRoutes: ['deals', 'deal-add', 'deal-edit'] },
-      { key: 'webhooks',     to: '/admin/webhooks',              icon: SVGI.activity,  label: 'Webhooks',        activeRoutes: ['webhooks'] },
-      { key: 'perf-targets', to: '/admin/performance-targets',   icon: SVGI.target,    label: 'Perf. Targets',   activeRoutes: ['perf-targets'] },
+      { key: 'projects',  to: '/projects',       icon: SVGI.layers,    label: 'Projects', activeRoutes: ['projects', 'project-add', 'project-edit'] },
+      { key: 'deals',     to: '/deals',           icon: SVGI.briefcase, label: 'Deals',    activeRoutes: ['deals', 'deal-add', 'deal-edit'] },
+      { key: 'webhooks',  to: '/admin/webhooks',  icon: SVGI.activity,  label: 'Webhooks', activeRoutes: ['webhooks'] },
     ],
   },
   {

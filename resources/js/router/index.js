@@ -40,6 +40,7 @@ const MarketingEmail          = () => import('../pages/EmailCampaigns.vue');
 const ProductAvailability     = () => import('../pages/ProductAvailability.vue');
 const ContactAnalysis         = () => import('../pages/ContactAnalysis.vue');
 const PredictiveInsights      = () => import('../pages/PredictiveInsights.vue');
+const SystemSettings          = () => import('../pages/SystemSettings.vue');
 
 const routes = [
     { path: '/login',        component: Login,       name: 'login',        meta: { public: true } },
@@ -69,8 +70,8 @@ const routes = [
     { path: '/forecasts/summary',          component: ForecastSummary,     name: 'forecast-summary' },
     { path: '/performance',                component: Performance,        name: 'performance' },
     { path: '/admin/performance-targets',  component: PerformanceTargets, name: 'perf-targets', meta: { adminOnly: true } },
-    { path: '/admin',                      component: AdminPanel,  name: 'admin',       meta: { adminOnly: true } },
-    { path: '/admin/rbac',                 component: RbacPanel,   name: 'rbac',        meta: { adminOnly: true } },
+    { path: '/admin',                      component: AdminPanel,       name: 'admin',        meta: { adminOnly: true } },
+    { path: '/admin/rbac',                 component: RbacPanel,        name: 'rbac',         meta: { adminOnly: true } },
     { path: '/crm',                        component: CrmList,     name: 'crm' },
     { path: '/crm/:id',                    component: CrmView,     name: 'crm-view' },
 { path: '/data-health',                component: DataHealth,   name: 'data-health' },
@@ -78,7 +79,8 @@ const routes = [
     { path: '/reminders',                  component: Reminders,    name: 'reminders' },
     { path: '/profile',                    component: MyProfile,    name: 'profile' },
     { path: '/reports',                    component: Reports,      name: 'reports' },
-    { path: '/admin/webhooks',             component: Webhooks,     name: 'webhooks',     meta: { adminOnly: true } },
+    { path: '/admin/webhooks',             component: Webhooks,        name: 'webhooks',        meta: { adminOnly: true } },
+    { path: '/admin/system-settings',     component: SystemSettings,  name: 'system-settings', meta: { adminOnly: true } },
     { path: '/settings',                   component: Settings,          name: 'settings' },
     { path: '/social-media',               component: SocialMediaReminder, name: 'social-media' },
     { path: '/posting-calendar',           component: PostingCalendar,     name: 'posting-calendar' },
@@ -97,16 +99,6 @@ export function setupGuard(router) {
         // No token: allow public pages, redirect others to login
         if (!token) {
             return isPublic ? next() : next({ name: 'login' });
-        }
-
-        // Has token + verified: redirect away from verify-email to dashboard
-        if (to.name === 'verify-email' && user?.email_verified) {
-            return next({ name: 'home' });
-        }
-
-        // Has token + unverified: only allow public routes and verify-email
-        if (!isPublic && !user?.email_verified && to.name !== 'verify-email') {
-            return next({ name: 'verify-email' });
         }
 
         if (to.meta?.adminOnly) {

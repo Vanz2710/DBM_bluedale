@@ -36,8 +36,6 @@ class Contact extends Model
         'type_id',
         'category_id',
         'industry_id',
-        'area_id',
-        'territory_id',
     ];
 
     public function user()
@@ -63,16 +61,6 @@ class Contact extends Model
     public function industry()
     {
         return $this->belongsTo(ContactIndustry::class);
-    }
-
-    public function area()
-    {
-        return $this->belongsTo(ContactArea::class);
-    }
-
-    public function territory()
-    {
-        return $this->belongsTo(Territory::class);
     }
 
     public function incharges()

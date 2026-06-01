@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Models\FollowUp;
 use App\Models\ReminderRead;
+use App\Models\SystemAlert;
 use App\Models\ToDo;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -93,11 +94,33 @@ class ReminderController extends Controller
         $dueToday = $items->filter(fn($i) => $i['due_date'] === $today)->sortBy('source_type')->values();
         $upcoming = $items->filter(fn($i) => $i['due_date'] > $today)->sortBy('due_date')->values();
 
+        $alerts = [];
+        if ($isAdmin) {
+            $alerts = SystemAlert::where('for_user_id', $user->id)
+                ->whereNull('read_at')
+                ->orderByDesc('created_at')
+                ->limit(20)
+                ->get()
+                ->map(fn($a) => [
+                    'id'          => $a->id,
+                    'source_type' => 'alert',
+                    'type'        => $a->type,
+                    'title'       => $a->title,
+                    'body'        => $a->body,
+                    'link'        => $a->link,
+                    'is_read'     => false,
+                    'created_at'  => $a->created_at->format('d M Y H:i'),
+                ])
+                ->values()
+                ->all();
+        }
+
         return response()->json([
             'overdue'      => $overdue,
             'today'        => $dueToday,
             'upcoming'     => $upcoming,
-            'unread_count' => $items->where('is_read', false)->count(),
+            'alerts'       => $alerts,
+            'unread_count' => $items->where('is_read', false)->count() + count($alerts),
         ]);
     }
 
@@ -109,9 +132,18 @@ class ReminderController extends Controller
         foreach ($items as $item) {
             $type = $item['type'] ?? '';
             $id   = (int) ($item['id'] ?? 0);
-            if (!in_array($type, ['todo', 'followup']) || $id <= 0) {
+            if ($id <= 0) continue;
+
+            if ($type === 'alert') {
+                SystemAlert::where('id', $id)
+                    ->where('for_user_id', $userId)
+                    ->whereNull('read_at')
+                    ->update(['read_at' => now()]);
                 continue;
             }
+
+            if (!in_array($type, ['todo', 'followup'])) continue;
+
             ReminderRead::firstOrCreate(
                 ['user_id' => $userId, 'source_type' => $type, 'source_id' => $id],
                 ['read_at' => now()]
