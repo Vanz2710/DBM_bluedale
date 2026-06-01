@@ -433,6 +433,12 @@ const adminLinks = [
     desc:  'Configure outbound webhook integrations for CRM events',
   },
   {
+    to:    '/admin/system-settings',
+    icon:  _s('<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13.6a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 3h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 10.59a16 16 0 0 0 6 6l.95-.95a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 21.73 18z"/>'),
+    title: 'System Settings',
+    desc:  'Configure notification email and other global system settings',
+  },
+  {
     to:    '/data-health',
     icon:  _s('<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>'),
     title: 'Data Health',

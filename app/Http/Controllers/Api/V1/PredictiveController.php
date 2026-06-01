@@ -267,7 +267,6 @@ class PredictiveController extends Controller
 
         $dimensions = [
             ['label' => 'Industry', 'col' => 'industry_id', 'table' => 'contact_industries'],
-            ['label' => 'Area',     'col' => 'area_id',     'table' => 'contact_areas'],
             ['label' => 'Type',     'col' => 'type_id',     'table' => 'contact_types'],
         ];
 

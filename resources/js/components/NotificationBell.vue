@@ -16,6 +16,31 @@
 
       <div v-if="loading" class="panel-placeholder">Loading…</div>
       <div v-else class="panel-body">
+        <div v-if="alerts.length > 0">
+          <div class="sec-head alert-head">System Alerts <span class="sec-cnt">{{ alerts.length }}</span></div>
+          <div
+            v-for="item in alerts"
+            :key="'alert' + item.id"
+            class="r-item"
+          >
+            <router-link v-if="item.link" :to="item.link" class="r-body" @click="handleNav(item)">
+              <span class="r-tag tag-alert">ALERT</span>
+              <div class="r-text">
+                <div class="r-title">{{ clip(item.title) }}</div>
+                <div class="r-sub">{{ item.body }} · {{ item.created_at }}</div>
+              </div>
+            </router-link>
+            <div v-else class="r-body">
+              <span class="r-tag tag-alert">ALERT</span>
+              <div class="r-text">
+                <div class="r-title">{{ clip(item.title) }}</div>
+                <div class="r-sub">{{ item.body }} · {{ item.created_at }}</div>
+              </div>
+            </div>
+            <button class="btn-dismiss" @click.stop="dismissOne(item)" title="Dismiss">×</button>
+          </div>
+        </div>
+
         <div v-if="overdue.length > 0">
           <div class="sec-head overdue-head">Overdue <span class="sec-cnt">{{ overdue.length }}</span></div>
           <div
@@ -101,12 +126,13 @@ const loading     = ref(false);
 const overdue     = ref([]);
 const today       = ref([]);
 const upcoming    = ref([]);
+const alerts      = ref([]);
 const unreadCount = ref(0);
 
 let pollTimer = null;
 
 const allUnread = computed(() =>
-  [...overdue.value, ...today.value, ...upcoming.value].filter(i => !i.is_read)
+  [...alerts.value, ...overdue.value, ...today.value, ...upcoming.value].filter(i => !i.is_read)
 );
 
 async function load() {
@@ -116,6 +142,7 @@ async function load() {
     overdue.value     = res.data.overdue;
     today.value       = res.data.today;
     upcoming.value    = res.data.upcoming;
+    alerts.value      = res.data.alerts ?? [];
     unreadCount.value = res.data.unread_count;
   } catch (_) { /* ignore */ }
   finally { loading.value = false; }
@@ -133,14 +160,19 @@ function handleNav(item) {
 
 function dismissOne(item) {
   sendRead([item]);
-  item.is_read = true;
+  if (item.source_type === 'alert') {
+    alerts.value = alerts.value.filter(a => a.id !== item.id);
+  } else {
+    item.is_read = true;
+  }
   unreadCount.value = Math.max(0, unreadCount.value - 1);
 }
 
 async function markAllRead() {
   const unread = allUnread.value.slice();
   await sendRead(unread);
-  [...overdue.value, ...today.value, ...upcoming.value].forEach(i => { i.is_read = true; });
+  [...alerts.value, ...overdue.value, ...today.value, ...upcoming.value].forEach(i => { i.is_read = true; });
+  alerts.value = [];
   unreadCount.value = 0;
 }
 
@@ -231,6 +263,7 @@ onUnmounted(() => {
   padding: 6px 14px 5px;
   font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px;
 }
+.alert-head    { color: #92400e; background: #fffbeb; }
 .overdue-head  { color: #dc2626; background: #fff1f2; }
 .today-head    { color: #d97706; background: #fffbeb; }
 .upcoming-head { color: #0284c7; background: #f0f9ff; }
@@ -256,8 +289,9 @@ onUnmounted(() => {
   font-size: 9px; font-weight: 700; padding: 2px 5px;
   border-radius: 4px; flex-shrink: 0; white-space: nowrap;
 }
-.tag-todo { background: #fce7f3; color: #9d174d; }
-.tag-fu   { background: #e0f2fe; color: #0369a1; }
+.tag-todo  { background: #fce7f3; color: #9d174d; }
+.tag-fu    { background: #e0f2fe; color: #0369a1; }
+.tag-alert { background: #fef3c7; color: #92400e; }
 
 .r-text { flex: 1; min-width: 0; }
 .r-title { font-size: 12px; font-weight: 600; color: #1e293b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

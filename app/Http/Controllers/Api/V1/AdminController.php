@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
-use App\Models\ContactArea;
+use App\Models\AdminAuditLog;
 use App\Models\ContactCategory;
 use App\Models\ContactIndustry;
 use App\Models\ContactStatus;
@@ -19,25 +19,22 @@ use Illuminate\Validation\ValidationException;
 class AdminController extends Controller
 {
     private static array $map = [
-        'statuses'   => [ContactStatus::class,  'name'],
-        'types'      => [ContactType::class,     'name'],
-        'industries' => [ContactIndustry::class, 'name'],
-        'categories' => [ContactCategory::class, 'name'],
-        'areas'      => [ContactArea::class,     'name'],
-        'tasks'      => [Task::class,            'name'],
+        'statuses'          => [ContactStatus::class,  'name'],
+        'types'             => [ContactType::class,     'name'],
+        'industries'        => [ContactIndustry::class, 'name'],
+        'categories'        => [ContactCategory::class, 'name'],
+        'tasks'             => [Task::class,            'name'],
         'forecast-products' => [ForecastProduct::class, 'name'],
         'forecast-types'    => [ForecastType::class,    'name'],
         'forecast-results'  => [ForecastResult::class,  'name'],
     ];
 
-    // Each entity maps to one or more [table, foreign_key] pairs for counting usage.
     private static array $usageMap = [
-        'statuses'   => [['contacts', 'status_id']],
-        'types'      => [['contacts', 'type_id']],
-        'industries' => [['contacts', 'industry_id']],
-        'categories' => [['contacts', 'category_id']],
-        'areas'      => [['contacts', 'area_id']],
-        'tasks'      => [['to_dos', 'task_id'], ['performance_targets', 'task_id']],
+        'statuses'          => [['contacts', 'status_id']],
+        'types'             => [['contacts', 'type_id']],
+        'industries'        => [['contacts', 'industry_id']],
+        'categories'        => [['contacts', 'category_id']],
+        'tasks'             => [['to_dos', 'task_id'], ['performance_targets', 'task_id']],
         'forecast-products' => [['forecasts', 'product_id']],
         'forecast-types'    => [['forecasts', 'forecast_type_id']],
         'forecast-results'  => [['forecasts', 'result_id']],
@@ -49,7 +46,7 @@ class AdminController extends Controller
         $modelTable = (new $model)->getTable();
         $sources    = self::$usageMap[$entity];
 
-        $subParts = array_map(
+        $subParts  = array_map(
             fn($src) => "(SELECT COUNT(*) FROM {$src[0]} WHERE {$src[1]} = {$modelTable}.id)",
             $sources
         );
@@ -73,6 +70,9 @@ class AdminController extends Controller
         }
 
         $item = $model::create($validated);
+
+        $this->audit('created', $entity, $item->id, $item->name, null, ['name' => $item->name], $request);
+
         return response()->json(['status' => 'success', 'data' => $item], 201);
     }
 
@@ -87,11 +87,15 @@ class AdminController extends Controller
             throw ValidationException::withMessages(['name' => ['This name already exists.']]);
         }
 
+        $old = ['name' => $item->name];
         $item->update($validated);
+
+        $this->audit('updated', $entity, $item->id, $item->name, $old, ['name' => $item->name], $request);
+
         return response()->json(['status' => 'success', 'data' => $item]);
     }
 
-    public function destroy(string $entity, string $id)
+    public function destroy(Request $request, string $entity, string $id)
     {
         [$model] = $this->resolve($entity);
         $item = $model::findOrFail($id);
@@ -107,6 +111,8 @@ class AdminController extends Controller
             ], 409);
         }
 
+        $this->audit('deleted', $entity, $item->id, $item->name, ['name' => $item->name], null, $request);
+
         $item->delete();
         return response()->json(['status' => 'success']);
     }
@@ -117,5 +123,21 @@ class AdminController extends Controller
             abort(404, "Unknown admin entity: {$entity}");
         }
         return self::$map[$entity];
+    }
+
+    private function audit(
+        string $action, string $entityType, $entityId, ?string $entityName,
+        ?array $old, ?array $new, Request $request
+    ): void {
+        AdminAuditLog::create([
+            'user_id'     => $request->user()?->id,
+            'action'      => $action,
+            'entity_type' => 'lookup:' . $entityType,
+            'entity_id'   => (string) $entityId,
+            'entity_name' => $entityName,
+            'old_values'  => $old,
+            'new_values'  => $new,
+            'ip_address'  => $request->ip(),
+        ]);
     }
 }

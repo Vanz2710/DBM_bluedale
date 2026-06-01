@@ -26,9 +26,9 @@ use App\Http\Controllers\Api\V1\WebhookController;
 use App\Http\Controllers\Api\V1\ProfileController;
 use App\Http\Controllers\Api\V1\UserSettingsController;
 use App\Http\Controllers\Api\V1\UserManagementController;
+use App\Http\Controllers\Api\V1\AdminAuditLogController;
 use App\Http\Controllers\Api\V1\EmailVerificationController;
 use App\Http\Controllers\Api\V1\PublicLeadController;
-use App\Http\Controllers\Api\V1\TerritoryController;
 use App\Http\Controllers\Api\V1\UserDashboardController;
 use App\Http\Controllers\Api\V1\SocialMediaReminderController;
 use App\Http\Controllers\Api\V1\ProductAvailabilityController;
@@ -36,6 +36,7 @@ use App\Http\Controllers\Api\V1\PostingCalendarController;
 use App\Http\Controllers\Api\V1\ContactAnalysisController;
 use App\Http\Controllers\Api\V1\EmailCampaignController;
 use App\Http\Controllers\Api\V1\PredictiveController;
+use App\Http\Controllers\Api\V1\SystemSettingsController;
 
 // Auth (public)
 Route::post('auth/login', [AuthController::class, 'login']);
@@ -49,7 +50,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('auth/email/resend', [EmailVerificationController::class, 'resend'])
         ->middleware('throttle:6,1');
 
-    Route::prefix('v1')->middleware('verified')->group(function () {
+    Route::prefix('v1')->group(function () {
         // Profile — no special permission (own data only)
         Route::get('profile', [ProfileController::class, 'show']);
         Route::put('profile', [ProfileController::class, 'update']);
@@ -198,15 +199,6 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::post('import/process', [ImportController::class, 'process']);
         });
 
-        // Territories (read: all authenticated; write: manage territories)
-        Route::get('territories', [TerritoryController::class, 'index']);
-        Route::get('territories/stats', [TerritoryController::class, 'stats']);
-        Route::middleware('can:manage territories')->group(function () {
-            Route::post('territories', [TerritoryController::class, 'store']);
-            Route::put('territories/{territory}', [TerritoryController::class, 'update']);
-            Route::delete('territories/{territory}', [TerritoryController::class, 'destroy']);
-        });
-
         // Webhooks
         Route::middleware('can:manage webhooks')->group(function () {
             Route::get('webhooks/events', [WebhookController::class, 'events']);
@@ -264,11 +256,22 @@ Route::middleware('auth:sanctum')->group(function () {
         });
 
         Route::middleware('can:manage users')->group(function () {
+            Route::get('system-settings', [SystemSettingsController::class, 'index']);
+            Route::put('system-settings', [SystemSettingsController::class, 'update']);
+
             Route::get('rbac/users', [UserManagementController::class, 'index']);
+            Route::get('rbac/users/pending', [UserManagementController::class, 'pendingApprovals']);
             Route::post('rbac/users', [UserManagementController::class, 'store']);
             Route::put('rbac/users/{user}', [UserManagementController::class, 'update']);
             Route::delete('rbac/users/{user}', [UserManagementController::class, 'destroy']);
+            Route::post('rbac/users/{id}/restore', [UserManagementController::class, 'restore']);
             Route::put('rbac/users/{user}/roles', [UserManagementController::class, 'syncRoles']);
+            Route::put('rbac/users/{user}/approve', [UserManagementController::class, 'approve']);
+            Route::put('rbac/users/{user}/restore-access', [UserManagementController::class, 'restoreAccess']);
         });
+
+        // Admin audit log
+        Route::get('admin/audit-log', [AdminAuditLogController::class, 'index'])
+            ->middleware('can:manage users');
     });
 });

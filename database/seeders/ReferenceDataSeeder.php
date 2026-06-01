@@ -2,7 +2,6 @@
 
 namespace Database\Seeders;
 
-use App\Models\ContactArea;
 use App\Models\ContactCategory;
 use App\Models\ContactIndustry;
 use App\Models\ContactStatus;
@@ -93,29 +92,6 @@ class ReferenceDataSeeder extends Seeder
             'Other',
         ];
 
-        $areas = [
-            'Luzon',
-            'Visayas',
-            'Mindanao',
-            'Metro Manila',
-            'Central Luzon',
-            'CALABARZON',
-            'Ilocos Region',
-            'Cagayan Valley',
-            'Cordillera (CAR)',
-            'MIMAROPA',
-            'Bicol Region',
-            'Western Visayas',
-            'Central Visayas',
-            'Eastern Visayas',
-            'Zamboanga Peninsula',
-            'Northern Mindanao',
-            'Davao Region',
-            'SOCCSKSARGEN',
-            'Caraga',
-            'BARMM',
-        ];
-
         $tasks = [
             'Call',
             'Email',
@@ -169,10 +145,6 @@ class ReferenceDataSeeder extends Seeder
 
         foreach ($industries as $name) {
             ContactIndustry::firstOrCreate(['name' => $name]);
-        }
-
-        foreach ($areas as $name) {
-            ContactArea::firstOrCreate(['name' => $name]);
         }
 
         foreach ($tasks as $name) {

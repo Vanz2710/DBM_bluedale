@@ -1,69 +1,111 @@
 <template>
   <div class="page">
-    <div class="page-banner">
-      <h1>Lookup Settings</h1>
-      <p>Manage dropdown values used in contacts, tasks, filters, reports, and performance tracking.</p>
-    </div>
 
-    <div class="tabs-wrapper">
-      <div class="tab-group" v-for="group in TAB_GROUPS" :key="group.label">
-        <span class="tab-group-label">{{ group.label }}</span>
-        <button
-          v-for="tab in group.tabs" :key="tab.key"
-          class="tab-btn"
-          :class="{ active: activeTab === tab.key }"
-          @click="switchTab(tab.key)"
-        >{{ tab.label }}</button>
+    <div class="page-head">
+      <div class="page-head-left">
+        <h1 class="page-title">Lookup Settings</h1>
+        <p class="page-subtitle">Manage dropdown values used in contacts, tasks, filters, reports, and performance tracking.</p>
       </div>
     </div>
 
-    <div class="card">
-      <LoadingSpinner v-if="loading" />
-      <div v-else-if="loadError" class="hint error-hint">{{ loadError }}</div>
-      <template v-else>
-        <div class="add-form">
-          <input v-model="newName" :placeholder="`Add new ${currentTab.label.toLowerCase()}...`" @keyup.enter="addItem">
-          <button class="btn btn-add" @click="addItem" :disabled="!newName.trim()">+ Add</button>
+    <div class="tabs-bar">
+      <div v-for="group in TAB_GROUPS" :key="group.label" class="tab-group-block">
+        <span class="tab-group-label">{{ group.label }}</span>
+        <div class="tab-group-pills">
+          <button
+            v-for="tab in group.tabs" :key="tab.key"
+            :class="['tab-btn', { 'tab-active': activeTab === tab.key }]"
+            @click="switchTab(tab.key)"
+          >{{ tab.label }}</button>
         </div>
-        <div v-if="addError" class="hint error-hint">{{ addError }}</div>
+      </div>
+    </div>
 
-        <table>
-          <thead>
-            <tr><th>#</th><th>Name</th><th>In Use</th><th>Action</th></tr>
-          </thead>
-          <tbody>
-            <tr v-if="items.length === 0">
-              <td colspan="4" class="empty-state">No items yet.</td>
-            </tr>
-            <tr v-for="(item, idx) in items" :key="item.id">
-              <td class="num">{{ idx + 1 }}</td>
-              <td>
-                <input v-if="editId === item.id" v-model="editName" class="edit-input" @keyup.enter="saveEdit(item)" @keyup.escape="cancelEdit">
-                <span v-else>{{ item.name }}</span>
-              </td>
-              <td class="usage-cell">
-                <span :class="item.usage_count > 0 ? 'badge-used' : 'badge-unused'">{{ item.usage_count }}</span>
-              </td>
-              <td class="actions">
-                <template v-if="editId === item.id">
-                  <button class="btn-sm btn-save" @click="saveEdit(item)">Save</button>
-                  <button class="btn-sm btn-cancel" @click="cancelEdit">Cancel</button>
-                </template>
-                <template v-else>
-                  <button class="btn-sm btn-edit" @click="startEdit(item)">Edit</button>
-                  <button
-                    class="btn-sm btn-delete"
-                    @click="deleteItem(item)"
-                    :disabled="item.usage_count > 0"
-                    :title="item.usage_count > 0 ? 'In use by ' + item.usage_count + ' record(s) — remove references first' : 'Delete ' + item.name"
-                  >Delete</button>
-                </template>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+    <div class="table-wrap" v-if="activeTab !== 'audit-log'">
+      <LoadingSpinner v-if="loading" />
+      <div v-else-if="loadError" class="error-banner">{{ loadError }}</div>
+      <template v-else>
+        <div class="table-header-bar">
+          <div class="add-form">
+            <input v-model="newName" :placeholder="`Add new ${currentTab.label.toLowerCase()}...`" @keyup.enter="addItem">
+            <button class="btn-add" @click="addItem" :disabled="!newName.trim()">+ Add</button>
+          </div>
+          <div v-if="addError" class="inline-error">{{ addError }}</div>
+        </div>
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr><th>#</th><th>Name</th><th>In Use</th><th>Action</th></tr>
+            </thead>
+            <tbody>
+              <tr v-if="items.length === 0">
+                <td colspan="4" class="empty-state">No items yet.</td>
+              </tr>
+              <tr v-for="(item, idx) in items" :key="item.id">
+                <td class="num">{{ idx + 1 }}</td>
+                <td>
+                  <input v-if="editId === item.id" v-model="editName" class="edit-input" @keyup.enter="saveEdit(item)" @keyup.escape="cancelEdit">
+                  <span v-else class="item-name">{{ item.name }}</span>
+                </td>
+                <td class="usage-cell">
+                  <span :class="item.usage_count > 0 ? 'badge-used' : 'badge-unused'">{{ item.usage_count }}</span>
+                </td>
+                <td class="actions-cell">
+                  <template v-if="editId === item.id">
+                    <button class="act-btn act-save" @click="saveEdit(item)">Save</button>
+                    <button class="act-btn act-cancel" @click="cancelEdit">Cancel</button>
+                  </template>
+                  <template v-else>
+                    <button class="act-btn act-edit" @click="startEdit(item)">Edit</button>
+                    <button
+                      class="act-btn act-delete"
+                      @click="deleteItem(item)"
+                      :disabled="item.usage_count > 0"
+                      :title="item.usage_count > 0 ? 'In use by ' + item.usage_count + ' record(s) — remove references first' : 'Delete ' + item.name"
+                    >Delete</button>
+                  </template>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </template>
     </div>
+
+    <!-- AUDIT LOG -->
+    <div class="table-wrap" v-if="activeTab === 'audit-log'">
+      <LoadingSpinner v-if="auditLoading" />
+      <div v-else-if="auditError" class="error-banner">{{ auditError }}</div>
+      <template v-else>
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr><th>#</th><th>When</th><th>By</th><th>Action</th><th>Entity</th><th>Details</th></tr>
+            </thead>
+            <tbody>
+              <tr v-if="auditLogs.length === 0"><td colspan="6" class="empty-state">No audit entries yet.</td></tr>
+              <tr v-for="(log, idx) in auditLogs" :key="log.id">
+                <td class="num">{{ idx + 1 }}</td>
+                <td class="muted date-cell">{{ formatDatetime(log.created_at) }}</td>
+                <td class="actor-cell">
+                  <span v-if="log.actor">{{ log.actor.name }}</span>
+                  <span v-else class="muted">—</span>
+                </td>
+                <td><span :class="['audit-badge', 'audit-' + log.action]">{{ log.action }}</span></td>
+                <td>
+                  <span class="entity-name">{{ log.entity_name || log.entity_id }}</span>
+                  <span class="entity-type">{{ log.entity_type }}</span>
+                </td>
+                <td class="detail-cell">
+                  <span v-if="log.new_values" class="detail-snippet">{{ summarise(log.new_values) }}</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </template>
+    </div>
+
   </div>
 </template>
 
@@ -80,7 +122,6 @@ const TAB_GROUPS = [
       { key: 'types',      label: 'Types' },
       { key: 'industries', label: 'Industries' },
       { key: 'categories', label: 'Categories' },
-      { key: 'areas',      label: 'Areas' },
     ],
   },
   {
@@ -97,6 +138,12 @@ const TAB_GROUPS = [
       { key: 'forecast-results',  label: 'Results' },
     ],
   },
+  {
+    label: 'System',
+    tabs: [
+      { key: 'audit-log', label: 'Audit Log' },
+    ],
+  },
 ];
 
 const tabs = TAB_GROUPS.flatMap(g => g.tabs);
@@ -110,13 +157,40 @@ const addError  = ref('');
 const editId    = ref(null);
 const editName  = ref('');
 
+const auditLogs    = ref([]);
+const auditLoading = ref(false);
+const auditError   = ref('');
+
 const currentTab = computed(() => tabs.find(t => t.key === activeTab.value));
 
+function formatDatetime(iso) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+function summarise(obj) {
+  if (!obj) return '';
+  return Object.entries(obj).filter(([k]) => k !== 'password').map(([k, v]) => `${k}: ${v}`).join(', ').slice(0, 80);
+}
+
+async function loadAuditLog() {
+  auditLoading.value = true;
+  auditError.value   = '';
+  try {
+    const res = await api.get('/v1/admin/audit-log');
+    auditLogs.value = res.data.data ?? [];
+  } catch (e) {
+    auditError.value = e.response?.data?.message ?? 'Failed to load audit log.';
+  } finally {
+    auditLoading.value = false;
+  }
+}
+
 async function loadItems() {
-  loading.value  = true;
+  loading.value   = true;
   loadError.value = '';
-  addError.value = '';
-  editId.value   = null;
+  addError.value  = '';
+  editId.value    = null;
   try {
     const res = await api.get(`/v1/admin/${activeTab.value}`);
     items.value = res.data.data ?? res.data;
@@ -131,7 +205,11 @@ async function loadItems() {
 function switchTab(key) {
   activeTab.value = key;
   newName.value   = '';
-  loadItems();
+  if (key === 'audit-log') {
+    loadAuditLog();
+  } else {
+    loadItems();
+  }
 }
 
 async function addItem() {
@@ -193,85 +271,91 @@ onMounted(loadItems);
 </script>
 
 <style scoped>
-.page { padding: 24px 28px; max-width: 900px; }
-.page-banner {
-  background: linear-gradient(135deg, #1a2f4a, #6366f1);
-  border-radius: 10px; padding: 20px 28px; margin-bottom: 20px; color: white;
-}
-.page-banner h1 { font-size: 20px; font-weight: 700; margin: 0 0 4px; }
-.page-banner p { font-size: 13px; opacity: 0.8; margin: 0; }
+.page { padding: 28px 32px; max-width: 1100px; }
 
-.tabs-wrapper { display: flex; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; align-items: center; }
-.tab-group { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-.tab-group-label {
-  font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px;
-  color: var(--text-3); white-space: nowrap; padding-right: 2px;
-}
-.tab-btn {
-  padding: 8px 16px; border-radius: 8px; border: 1.5px solid var(--border);
-  background: var(--surface); font-size: 13px; font-weight: 600; color: var(--text-2); cursor: pointer;
-  transition: all 0.15s;
-}
-.tab-btn:hover { border-color: #6366f1; color: #6366f1; }
-.tab-btn.active { background: #6366f1; border-color: #6366f1; color: white; }
+/* ── Page header ── */
+.page-head { margin-bottom: 24px; }
+.page-title { font-size: 28px; font-weight: 800; letter-spacing: -0.5px; color: var(--text-1); margin: 0 0 4px; }
+.page-subtitle { font-size: 13.5px; color: var(--text-3); margin: 0; }
 
-.card { background: var(--surface); border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); padding: 24px 28px; }
+/* ── Tab bar ── */
+.tabs-bar { display: flex; gap: 20px; margin-bottom: 20px; flex-wrap: wrap; align-items: flex-end; }
+.tab-group-block { display: flex; flex-direction: column; gap: 6px; }
+.tab-group-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-3); padding-left: 4px; }
+.tab-group-pills { display: inline-flex; gap: 4px; background: var(--surface); border-radius: 999px; padding: 5px; border: 1px solid var(--border-soft); box-shadow: var(--shadow-xs); }
+.tab-btn { padding: 7px 16px; border: none; background: none; cursor: pointer; font-size: 13px; font-weight: 600; color: var(--text-2); border-radius: 999px; transition: color 0.15s, background 0.15s; white-space: nowrap; }
+.tab-btn:hover { color: var(--text-1); background: var(--surface-2); }
+.tab-active { color: var(--primary-on) !important; background: var(--primary) !important; box-shadow: 0 4px 12px -4px rgba(124,58,237,0.45); }
 
-.add-form { display: flex; gap: 10px; margin-bottom: 8px; }
+/* ── Table wrap ── */
+.table-wrap { background: var(--surface); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); border: 1px solid var(--border-soft); overflow: hidden; }
+.table-header-bar { padding: 16px 22px; border-bottom: 1px solid var(--border-soft); display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.table-scroll { overflow-x: auto; }
+
+/* ── Add form ── */
+.add-form { display: flex; gap: 10px; flex: 1; }
 .add-form input {
-  flex: 1; height: 40px; padding: 0 14px; border: 1.5px solid var(--border);
-  border-radius: 8px; font-size: 13px; outline: none;
+  flex: 1; height: 38px; padding: 0 16px;
+  border: 1px solid var(--border); border-radius: 999px;
+  font-size: 13px; outline: none; background: var(--surface); color: var(--text-1);
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
-.add-form input:focus { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.1); }
+.add-form input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--focus-ring); }
 .btn-add {
-  height: 40px; padding: 0 18px; background: #6366f1; color: white;
-  border: none; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer;
+  height: 38px; padding: 0 20px; background: var(--primary); color: var(--primary-on);
+  border: none; border-radius: 999px; font-size: 13px; font-weight: 700; cursor: pointer;
+  white-space: nowrap; box-shadow: 0 6px 18px -6px rgba(124,58,237,0.5);
+  transition: background 0.15s;
 }
-.btn-add:disabled { background: #94a3b8; cursor: not-allowed; }
-.hint.error-hint { color: #ef4444; font-size: 12px; font-weight: 600; margin-bottom: 10px; }
+.btn-add:hover:not(:disabled) { background: var(--primary-hover); }
+.btn-add:disabled { background: var(--text-3); cursor: not-allowed; box-shadow: none; }
 
-table { width: 100%; border-collapse: collapse; margin-top: 16px; }
-thead th { background: var(--app-bg); color: var(--text-2); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.7px; padding: 10px 12px; border-bottom: 2px solid var(--border); text-align: left; }
-tbody td { padding: 10px 12px; border-bottom: 1px solid var(--border); font-size: 13px; color: #374151; vertical-align: middle; }
+.error-banner { padding: 14px 22px; color: var(--danger); font-size: 13px; font-weight: 600; background: var(--danger-soft); }
+.inline-error { font-size: 12px; font-weight: 600; color: var(--danger); }
+
+/* ── Table ── */
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+thead th { background: transparent; color: var(--text-3); font-size: 11.5px; font-weight: 600; padding: 14px 16px; border-bottom: 1px solid var(--border-soft); text-align: left; white-space: nowrap; }
+tbody td { padding: 14px 16px; border-bottom: 1px solid var(--border-soft); color: var(--text-1); vertical-align: middle; }
 tbody tr:last-child td { border-bottom: none; }
-tbody tr:hover { background: var(--app-bg); }
-.num { color: var(--text-3); font-size: 12px; width: 40px; }
+tbody tr:hover { background: var(--surface-2); }
+.num { color: var(--text-3); font-size: 12px; width: 44px; }
+.item-name { font-weight: 500; }
 .usage-cell { width: 80px; }
-.actions { width: 150px; }
+.actions-cell { width: 160px; white-space: nowrap; }
 
-.badge-used {
-  display: inline-block; padding: 2px 8px; border-radius: 12px;
-  font-size: 11px; font-weight: 700; background: #fee2e2; color: #991b1b;
-}
-.badge-unused {
-  display: inline-block; padding: 2px 8px; border-radius: 12px;
-  font-size: 11px; font-weight: 700; background: #f1f5f9; color: #94a3b8;
-}
+.badge-used   { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 700; background: var(--danger-soft); color: var(--danger); }
+.badge-unused { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 700; background: var(--surface-2); color: var(--text-3); }
 
-.edit-input {
-  width: 100%; height: 32px; padding: 0 10px; border: 1.5px solid #6366f1;
-  border-radius: 6px; font-size: 13px; outline: none;
-}
-.btn-sm { height: 28px; padding: 0 12px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; border: none; margin-left: 4px; }
-.btn-sm:first-child { margin-left: 0; }
-.btn-edit   { background: #fefce8; color: #92400e; }
-.btn-edit:hover { background: #fde68a; }
-.btn-delete { background: #fee2e2; color: #991b1b; }
-.btn-delete:hover:not(:disabled) { background: #fca5a5; }
-.btn-delete:disabled { opacity: 0.4; cursor: not-allowed; }
-.btn-save   { background: #dcfce7; color: #166534; }
-.btn-save:hover { background: #86efac; }
-.btn-cancel { background: var(--app-bg); color: var(--text-2); }
-.empty-state { text-align: center; padding: 32px; color: var(--text-3); font-size: 13px; }
+.edit-input { width: 100%; height: 34px; padding: 0 12px; border: 1.5px solid var(--primary); border-radius: 8px; font-size: 13px; outline: none; background: var(--surface); }
+.act-btn { height: 28px; padding: 0 12px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; border: none; margin-left: 4px; transition: background 0.12s; }
+.act-btn:first-child { margin-left: 0; }
+.act-edit:not(:disabled)   { background: #fefce8; color: #92400e; }
+.act-edit:hover:not(:disabled)   { background: #fde68a; }
+.act-delete { background: var(--danger-soft); color: var(--danger); }
+.act-delete:hover:not(:disabled) { background: #fca5a5; }
+.act-delete:disabled { opacity: 0.35; cursor: not-allowed; }
+.act-save   { background: #dcfce7; color: #166534; }
+.act-save:hover { background: #bbf7d0; }
+.act-cancel { background: var(--surface-2); color: var(--text-2); }
+.act-cancel:hover { background: var(--border); }
+.empty-state { text-align: center; padding: 48px; color: var(--text-3); font-size: 13px; }
 
-@media (max-width: 768px) {
-  .page { padding: 16px 12px; }
-  .card { padding: 16px 14px; }
-  table { overflow-x: auto; display: block; }
-}
-@media (max-width: 640px) {
-  .page { padding: 12px 8px; }
-  .add-form { flex-wrap: wrap; }
-  .add-form input { flex: 1 1 100%; }
-}
+/* ── Audit log ── */
+.muted { color: var(--text-3); }
+.date-cell { font-size: 12px; white-space: nowrap; }
+.actor-cell { font-weight: 500; font-size: 13px; }
+.entity-name { display: block; font-size: 13px; font-weight: 500; color: var(--text-1); }
+.entity-type { display: block; font-size: 10px; color: var(--text-3); font-family: monospace; }
+.detail-cell { font-size: 11px; color: var(--text-3); max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.detail-snippet { font-family: monospace; }
+.audit-badge { display: inline-block; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; padding: 3px 9px; border-radius: 999px; }
+.audit-created  { background: #dcfce7; color: #15803d; }
+.audit-updated  { background: #dbeafe; color: #1d4ed8; }
+.audit-deleted  { background: var(--danger-soft); color: var(--danger); }
+.audit-restored { background: #fef9c3; color: #854d0e; }
+.audit-approved { background: #d1fae5; color: #065f46; }
+
+@media (max-width: 768px) { .page { padding: 20px 16px; } .tabs-bar { gap: 12px; } }
+@media (max-width: 640px) { .page { padding: 16px 12px; } .add-form { flex-wrap: wrap; } }
 </style>

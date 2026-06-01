@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Models\SystemAlert;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
@@ -45,7 +46,14 @@ class ProfileController extends Controller
             ]);
         }
 
-        $user->update(['password' => $request->password]);
+        $user->update(['password' => Hash::make($request->password)]);
+
+        SystemAlert::notifyAdmins(
+            type:  'password_change',
+            title: 'Password changed — ' . $user->name,
+            body:  $user->name . ' (' . $user->username . ') changed their password.',
+            link:  '/admin/rbac',
+        );
 
         return response()->json(['message' => 'Password changed successfully.']);
     }

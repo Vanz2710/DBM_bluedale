@@ -319,20 +319,7 @@
           </div>
         </div>
 
-        <!-- Territory Breakdown -->
-        <div v-if="territoryStats.length > 0" class="section-card">
-          <div class="section-title">Territory Breakdown — {{ periodLabel }}</div>
-          <div class="territory-grid">
-            <div v-for="t in territoryStats" :key="t.id" class="territory-stat">
-              <div class="territory-name">{{ t.name }}</div>
-              <div class="territory-count">{{ t.contacts_in_period }}</div>
-              <div class="territory-label">new contacts</div>
-            </div>
-          </div>
-        </div>
-        <div v-else class="territory-empty">
-          No territories configured. Add territories in Admin → Territories to track geographic performance.
-        </div>
+
       </template>
     </div>
 
@@ -527,9 +514,8 @@ const report          = ref({});
 const loadingActivity = ref(false);
 
 // Team
-const teamData       = ref([]);
-const territoryStats = ref([]);
-const loadingTeam    = ref(false);
+const teamData    = ref([]);
+const loadingTeam = ref(false);
 
 // Deal forecast
 const dealSummary = ref(null);
@@ -755,8 +741,7 @@ async function loadTeam() {
   loadingTeam.value = true;
   try {
     const res = await api.get('/v1/performance/team', { params: periodParams() });
-    teamData.value       = res.data.data ?? [];
-    territoryStats.value = res.data.territories ?? [];
+    teamData.value = res.data.data ?? [];
   } finally {
     loadingTeam.value = false;
   }
@@ -1073,19 +1058,6 @@ tbody td { padding: 10px 14px; border-bottom: 1px solid var(--border); color: #3
 .quota-pct { font-size: 12px; font-weight: 700; color: #7c3aed; }
 .pct-done  { color: #10b981; }
 .quota-hint { font-size: 12px; color: var(--text-3); padding: 16px 0; grid-column: 1 / -1; }
-
-/* Territory Breakdown */
-.territory-grid {
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px;
-}
-.territory-stat {
-  background: var(--app-bg); border-radius: 8px; padding: 14px 12px; text-align: center;
-  border-top: 3px solid #7c3aed;
-}
-.territory-name  { font-size: 12px; font-weight: 700; color: #374151; margin-bottom: 6px; }
-.territory-count { font-size: 24px; font-weight: 800; color: var(--text-1); line-height: 1; }
-.territory-label { font-size: 10px; color: var(--text-3); margin-top: 4px; }
-.territory-empty { font-size: 12px; color: var(--text-3); padding: 16px 0; margin-bottom: 16px; }
 
 /* Responsive */
 @media (max-width: 768px) {

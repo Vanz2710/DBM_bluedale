@@ -13,8 +13,8 @@
         <div v-if="error" class="error-box">{{ error }}</div>
 
         <div class="field">
-          <label>Email</label>
-          <input v-model="form.email" type="email" placeholder="Enter your email" required autofocus>
+          <label>Username</label>
+          <input v-model="form.username" type="text" placeholder="Enter your username" required autofocus autocomplete="username">
         </div>
 
         <div class="field">
@@ -37,7 +37,7 @@ import api from '../api.js';
 
 const router = useRouter();
 
-const form = ref({ email: '', password: '' });
+const form = ref({ username: '', password: '' });
 const error = ref('');
 const loading = ref(false);
 
@@ -51,7 +51,7 @@ async function handleLogin() {
     router.push('/');
   } catch (e) {
     const msg = e.response?.data?.message
-      ?? e.response?.data?.errors?.email?.[0]
+      ?? e.response?.data?.errors?.username?.[0]
       ?? 'Login failed. Please check your credentials.';
     error.value = msg;
   } finally {
