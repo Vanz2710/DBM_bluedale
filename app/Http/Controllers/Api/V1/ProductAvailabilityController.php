@@ -8,6 +8,7 @@ use App\Models\AdvertisingProductBooking;
 use App\Support\SimplePdf;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Validation\Rule;
 
 class ProductAvailabilityController extends Controller
@@ -90,6 +91,85 @@ class ProductAvailabilityController extends Controller
             'status' => 'success',
             'data' => $product->fresh(['bookings' => fn ($q) => $q->where('year', $responseYear)->orderBy('month')]),
         ], 201);
+    }
+
+    public function createProduct(Request $request)
+    {
+        $validated = $request->validate([
+            'site_name'                    => ['required', 'string', 'max:500'],
+            'product_type'                 => ['required', Rule::in(self::PRODUCTS)],
+            'status'                       => ['required', Rule::in(self::STATUSES)],
+            'type'                         => ['required', Rule::in(self::TYPES)],
+            'site_code'                    => ['nullable', 'string', 'max:255'],
+            'size'                         => ['nullable', 'string', 'max:255'],
+            'state_city'                   => ['nullable', 'string', 'max:255'],
+            'coordinate'                   => ['nullable', 'string', 'max:255'],
+            'nearest_landmarks'            => ['nullable', 'array'],
+            'nearest_landmarks.*.category' => ['required_with:nearest_landmarks', 'string', 'max:100'],
+            'nearest_landmarks.*.place'    => ['nullable', 'string', 'max:500'],
+        ]);
+
+        $product = AdvertisingProduct::create($validated);
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $product->load('bookings'),
+        ], 201);
+    }
+
+    public function resolveMapsUrl(Request $request)
+    {
+        $validated = $request->validate(['url' => ['required', 'string', 'max:2000']]);
+
+        $url = $validated['url'];
+
+        // Try to extract coords directly first (handles full Google Maps URLs)
+        $coords = $this->extractCoordsFromUrl($url);
+        if ($coords) {
+            return response()->json($coords);
+        }
+
+        // Follow redirects for shortened URLs (maps.app.goo.gl, etc.)
+        try {
+            $response = Http::withOptions([
+                'allow_redirects' => ['max' => 10, 'track_redirects' => true],
+            ])->timeout(8)->withHeaders([
+                'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0',
+            ])->get($url);
+
+            $finalUrl = (string) $response->effectiveUri();
+            $coords   = $this->extractCoordsFromUrl($finalUrl);
+
+            if ($coords) {
+                return response()->json($coords);
+            }
+
+            return response()->json(['error' => 'Could not extract coordinates from this link. Please paste the full Google Maps URL.'], 422);
+        } catch (\Exception) {
+            return response()->json(['error' => 'Failed to resolve the link. Please paste the full Google Maps URL.'], 422);
+        }
+    }
+
+    private function extractCoordsFromUrl(string $url): ?array
+    {
+        // @lat,lng,zoom — standard Google Maps share URL
+        if (preg_match('/@(-?\d{1,3}\.\d+),(-?\d{1,3}\.\d+)/', $url, $m)) {
+            return ['lat' => (float) $m[1], 'lng' => (float) $m[2]];
+        }
+        // ?q=lat,lng
+        if (preg_match('/[?&]q=(-?\d{1,3}\.\d+),(-?\d{1,3}\.\d+)/', $url, $m)) {
+            return ['lat' => (float) $m[1], 'lng' => (float) $m[2]];
+        }
+        // ?ll=lat,lng
+        if (preg_match('/[?&]ll=(-?\d{1,3}\.\d+),(-?\d{1,3}\.\d+)/', $url, $m)) {
+            return ['lat' => (float) $m[1], 'lng' => (float) $m[2]];
+        }
+        // /lat,lng path segment (4+ decimal places to avoid false matches)
+        if (preg_match('/\/(-?\d{1,3}\.\d{4,}),(-?\d{1,3}\.\d{4,})/', $url, $m)) {
+            return ['lat' => (float) $m[1], 'lng' => (float) $m[2]];
+        }
+
+        return null;
     }
 
     public function updateProduct(Request $request, AdvertisingProduct $product)

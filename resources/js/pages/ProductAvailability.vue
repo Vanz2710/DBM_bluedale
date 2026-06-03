@@ -89,6 +89,10 @@
       </div>
       <button class="btn-dark" @click="load">Search</button>
       <button class="btn-clear" @click="clearFilters">Clear</button>
+      <button type="button" class="btn-register-product" @click="openRegisterModal">+ Register Product</button>
+      <button type="button" class="btn-map-view" :class="{ 'btn-map-active': showMapView }" @click="toggleMapView">
+        {{ showMapView ? 'Table View' : 'Map View' }}
+      </button>
     </div>
 
     <div class="proposal-panel">
@@ -107,6 +111,15 @@
       <button class="btn-proposal" :disabled="generatingProposal || selectedProductIds.length === 0" @click="generateProposal">
         {{ generatingProposal ? 'Generating...' : `Generate Proposal PDF (${selectedProductIds.length})` }}
       </button>
+    </div>
+
+    <div v-if="showMapView" class="map-section">
+      <div ref="mapEl" class="leaflet-map"></div>
+      <div class="map-legend">
+        <span class="legend-item"><span class="legend-dot" style="background:#2563eb"></span>Billboard</span>
+        <span class="legend-item"><span class="legend-dot" style="background:#dc2626"></span>Temp Board</span>
+        <span class="legend-item"><span class="legend-dot" style="background:#16a34a"></span>Lamp Post Bunting</span>
+      </div>
     </div>
 
     <div class="table-wrap">
@@ -243,7 +256,148 @@
             </div>
           </div>
 
-          <a class="map-link" :href="productMapUrl" target="_blank" rel="noopener">Open Location in Google Maps</a>
+          <div class="detail-map-links">
+            <a class="map-link" :href="productMapUrl" target="_blank" rel="noopener">Open in Google Maps</a>
+            <a v-if="productStreetViewUrl" class="street-view-link" :href="productStreetViewUrl" target="_blank" rel="noopener">Street View</a>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <div v-if="showRegisterModal" class="modal-backdrop" @click.self="closeRegisterModal">
+      <section class="register-modal" role="dialog" aria-modal="true">
+        <div class="register-modal-header">
+          <h2>Register New Product</h2>
+          <button type="button" class="detail-close" @click="closeRegisterModal">&times;</button>
+        </div>
+        <div class="register-modal-body">
+          <div v-if="registerError" class="error-msg">{{ registerError }}</div>
+          <div class="register-form-grid">
+
+            <!-- Row 1: Site Name + Open Google Maps -->
+            <div class="field register-full">
+              <label>Site Name *</label>
+              <div class="register-site-row">
+                <input v-model="registerForm.site_name" placeholder="e.g. KL - Bangsar: Jalan Maarof">
+                <a :href="registerCoordMapUrl" target="_blank" rel="noopener" class="btn-open-gmaps">Open Google Maps</a>
+              </div>
+            </div>
+
+            <!-- Row 2: Link Place (paste Google Maps link) -->
+            <div class="field register-full">
+              <label>Link Place <span class="field-hint">Paste a Google Maps or shortened link to auto-fill</span></label>
+              <div class="maps-link-row">
+                <input
+                  v-model="mapsLink"
+                  placeholder="Paste Google Maps link here..."
+                  autocomplete="off"
+                  :class="{ 'input-error-border': mapsLinkError }"
+                  @input="onMapsLinkInput"
+                >
+                <span v-if="mapsLinkResolving" class="maps-link-resolving">
+                  <span class="lm-spinner"></span> Resolving...
+                </span>
+              </div>
+              <div v-if="mapsLinkError" class="maps-link-error">{{ mapsLinkError }}</div>
+              <div v-else-if="registerForm.coordinate" class="coord-preview">
+                Coordinate: {{ registerForm.coordinate }}
+              </div>
+            </div>
+
+            <!-- Row 3: Product Type + Type -->
+            <div class="field">
+              <label>Product Type *</label>
+              <select v-model="registerForm.product_type">
+                <option v-for="p in productOptions" :key="p" :value="p">{{ p }}</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Type *</label>
+              <select v-model="registerForm.type">
+                <option v-for="t in typeOptions" :key="t" :value="t">{{ t }}</option>
+              </select>
+            </div>
+
+            <!-- Row 4: Status + State & City -->
+            <div class="field">
+              <label>Status *</label>
+              <select v-model="registerForm.status">
+                <option v-for="s in statusOptions" :key="s" :value="s">{{ s }}</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>State & City</label>
+              <input v-model="registerForm.state_city" placeholder="Optional">
+            </div>
+
+            <!-- Row 5: Search Place -->
+            <div class="field register-full">
+              <label>Search Place</label>
+              <div class="place-search-wrap">
+                <input
+                  v-model="placeSearch"
+                  placeholder="Type a place name to auto-fill coordinate and landmarks..."
+                  autocomplete="off"
+                  @input="onPlaceSearchInput"
+                >
+                <div v-if="placeResults.length > 0 || placeSearching" class="place-results">
+                  <div v-if="placeSearching" class="place-result-item place-loading">Searching...</div>
+                  <button
+                    v-for="result in placeResults"
+                    :key="result.place_id"
+                    type="button"
+                    class="place-result-item"
+                    @click="selectPlaceResult(result)"
+                  >
+                    {{ result.display_name }}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Row 6: Nearest Landmarks -->
+            <div class="field register-full">
+              <div class="landmark-label-row">
+                <label style="margin:0">
+                  Nearest Landmarks
+                  <span v-if="landmarkFetching" class="landmark-fetch-status">
+                    <span class="lm-spinner"></span> Searching...
+                  </span>
+                  <span v-else-if="landmarkFetched" class="landmark-fetch-status landmark-fetch-ok">Auto-filled</span>
+                </label>
+                <button
+                  v-if="registerForm.coordinate && !landmarkFetching"
+                  type="button"
+                  class="btn-refresh-landmarks"
+                  @click="refreshLandmarks"
+                >&#8635; Refresh</button>
+              </div>
+              <table class="register-landmark-table">
+                <thead>
+                  <tr>
+                    <th>Category</th>
+                    <th>Nearest Place</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="(lm, i) in registerForm.nearest_landmarks" :key="i">
+                    <td class="lm-cat-cell">{{ lm.category }}</td>
+                    <td class="lm-place-cell" :class="{ 'lm-not-found': lm.place === 'Not Found' }">
+                      <span v-if="landmarkFetching" class="lm-skeleton"></span>
+                      <template v-else>{{ lm.place }}</template>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+          </div>
+          <div class="register-modal-footer">
+            <button type="button" class="btn-cancel-register" @click="closeRegisterModal">Cancel</button>
+            <button type="button" class="btn-save-register" :disabled="registerSaving || !registerForm.site_name.trim()" @click="submitRegisterProduct">
+              {{ registerSaving ? 'Registering...' : 'Register Product' }}
+            </button>
+          </div>
         </div>
       </section>
     </div>
@@ -251,8 +405,10 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import api from '../api.js';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 
 const months = [
   { value: 1, short: 'Jan' },
@@ -290,6 +446,33 @@ const proposalForm = ref({
   attention: '',
   duration: 1,
 });
+const showRegisterModal = ref(false);
+const registerSaving = ref(false);
+const registerError = ref('');
+const registerForm = ref({
+  site_name: '',
+  product_type: 'Temp Board',
+  status: 'Existing',
+  type: 'A1',
+  state_city: '',
+  coordinate: '',
+  nearest_landmarks: defaultLandmarks(),
+});
+const mapsLink = ref('');
+const mapsLinkError = ref('');
+const mapsLinkResolving = ref(false);
+let mapsLinkTimer = null;
+const landmarkFetching = ref(false);
+const landmarkFetched = ref(false);
+const showMapView = ref(false);
+const mapEl = ref(null);
+let leafletMap = null;
+let mapMarkers = [];
+const placeSearch = ref('');
+const placeResults = ref([]);
+const placeSearching = ref(false);
+let placeSearchTimer = null;
+
 const editingDetails = ref(false);
 const savingDetails = ref(false);
 const detailForm = ref({
@@ -330,6 +513,21 @@ const productMapUrl = computed(() => {
   const query = selectedProduct.value.coordinate || selectedProduct.value.site_name;
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
 });
+const registerCoordMapUrl = computed(() => {
+  const coord = registerForm.value?.coordinate;
+  if (!coord) return 'https://maps.google.com';
+  const parsed = parseCoordinate(coord);
+  if (!parsed) return 'https://maps.google.com';
+  return `https://www.google.com/maps?q=${parsed.lat},${parsed.lng}`;
+});
+
+const productStreetViewUrl = computed(() => {
+  const coord = selectedProduct.value?.coordinate;
+  if (!coord) return null;
+  const parsed = parseCoordinate(coord);
+  if (!parsed) return null;
+  return `https://maps.google.com/maps?q=&layer=c&cbll=${parsed.lat},${parsed.lng}`;
+});
 const detailRows = computed(() => {
   if (!selectedProduct.value) return [];
 
@@ -354,12 +552,321 @@ const landmarkRows = computed(() => {
 });
 const activeLandmarkRows = computed(() => (editingLandmarks.value ? landmarkForm.value : landmarkRows.value));
 
+function onPlaceSearchInput() {
+  clearTimeout(placeSearchTimer);
+  placeResults.value = [];
+  if (!placeSearch.value.trim()) return;
+  placeSearchTimer = setTimeout(searchPlaces, 400);
+}
+
+async function searchPlaces() {
+  placeSearching.value = true;
+  try {
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(placeSearch.value)}&limit=6&countrycodes=my`,
+      { headers: { 'Accept-Language': 'en' } },
+    );
+    placeResults.value = await res.json();
+  } catch {
+    placeResults.value = [];
+  } finally {
+    placeSearching.value = false;
+  }
+}
+
+function selectPlaceResult(result) {
+  const lat = parseFloat(result.lat).toFixed(6);
+  const lng = parseFloat(result.lon).toFixed(6);
+  registerForm.value.coordinate = `${lat}, ${lng}`;
+  placeSearch.value = result.display_name;
+  placeResults.value = [];
+  fetchNearestLandmarks(parseFloat(lat), parseFloat(lng));
+}
+
+function onCoordinateChange() {
+  const parsed = parseCoordinate(registerForm.value.coordinate);
+  if (parsed) fetchNearestLandmarks(parsed.lat, parsed.lng);
+}
+
+function parseMapsLink(url) {
+  // @lat,lng,zoom (standard Google Maps URL)
+  let m = url.match(/@(-?\d{1,3}\.\d+),(-?\d{1,3}\.\d+)/);
+  if (m) return { lat: parseFloat(m[1]), lng: parseFloat(m[2]) };
+  // q=lat,lng
+  m = url.match(/[?&]q=(-?\d{1,3}\.\d+),(-?\d{1,3}\.\d+)/);
+  if (m) return { lat: parseFloat(m[1]), lng: parseFloat(m[2]) };
+  // ll=lat,lng
+  m = url.match(/[?&]ll=(-?\d{1,3}\.\d+),(-?\d{1,3}\.\d+)/);
+  if (m) return { lat: parseFloat(m[1]), lng: parseFloat(m[2]) };
+  // /place/.../lat,lng (some share links)
+  m = url.match(/\/(-?\d{1,3}\.\d{4,}),(-?\d{1,3}\.\d{4,})/);
+  if (m) return { lat: parseFloat(m[1]), lng: parseFloat(m[2]) };
+  return null;
+}
+
+function onMapsLinkInput() {
+  clearTimeout(mapsLinkTimer);
+  const url = mapsLink.value.trim();
+  mapsLinkError.value = '';
+  registerForm.value.coordinate = '';
+
+  if (!url) return;
+
+  // Parse full Google Maps URLs directly (no round-trip needed)
+  const direct = parseMapsLink(url);
+  if (direct) {
+    registerForm.value.coordinate = `${direct.lat.toFixed(6)}, ${direct.lng.toFixed(6)}`;
+    fetchNearestLandmarks(direct.lat, direct.lng);
+    return;
+  }
+
+  // Looks like a URL — resolve shortened links via backend after a short debounce
+  if (url.startsWith('http') && url.length > 15) {
+    mapsLinkTimer = setTimeout(() => resolveShortenedUrl(url), 400);
+    return;
+  }
+
+  mapsLinkError.value = 'Invalid Google Maps URL. Please paste a full or shortened Google Maps link.';
+}
+
+async function resolveShortenedUrl(url) {
+  mapsLinkResolving.value = true;
+  mapsLinkError.value = '';
+  try {
+    const res = await api.post('/v1/product-availability/resolve-maps-url', { url });
+    const lat = parseFloat(res.data.lat);
+    const lng = parseFloat(res.data.lng);
+    registerForm.value.coordinate = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+    fetchNearestLandmarks(lat, lng);
+  } catch (e) {
+    mapsLinkError.value = e.response?.data?.error ?? 'Could not extract coordinates from this link.';
+  } finally {
+    mapsLinkResolving.value = false;
+  }
+}
+
+function refreshLandmarks() {
+  const parsed = parseCoordinate(registerForm.value.coordinate);
+  if (parsed) fetchNearestLandmarks(parsed.lat, parsed.lng);
+}
+
+async function fetchNearestLandmarks(lat, lng) {
+  landmarkFetching.value = true;
+  landmarkFetched.value = false;
+
+  const r = 3000; // 3 km radius
+
+  function overpassQ(tagLines) {
+    const body = tagLines
+      .map(t => `node${t}(around:${r},${lat},${lng});way${t}(around:${r},${lat},${lng});`)
+      .join('');
+    return `[out:json][timeout:15];(${body});out center 10;`;
+  }
+
+  const queries = [
+    {
+      category: 'Shopping Mall',
+      q: overpassQ([
+        `["shop"="mall"]["name"]`,
+        `["shop"="shopping_centre"]["name"]`,
+        `["building"="mall"]["name"]`,
+        `["landuse"="retail"]["name"]`,
+      ]),
+    },
+    {
+      category: 'School',
+      q: overpassQ([
+        `["amenity"="school"]["name"]`,
+      ]),
+    },
+    {
+      category: 'Residential Area',
+      q: overpassQ([
+        `["place"~"neighbourhood|suburb|quarter"]["name"]`,
+        `["place"="village"]["name"]`,
+        `["landuse"="residential"]["name"]`,
+      ]),
+    },
+    {
+      category: 'Hospital / Clinic',
+      q: overpassQ([
+        `["amenity"="hospital"]["name"]`,
+        `["amenity"="clinic"]["name"]`,
+        `["healthcare"]["name"]`,
+      ]),
+    },
+    {
+      category: 'MRT / LRT Station',
+      q: overpassQ([
+        `["railway"="station"]["name"]`,
+        `["railway"="halt"]["name"]`,
+        `["station"~"subway|light_rail|monorail"]["name"]`,
+      ]),
+    },
+    {
+      category: 'Petrol Station',
+      q: overpassQ([
+        `["amenity"="fuel"]["name"]`,
+      ]),
+    },
+    {
+      category: 'University / College',
+      q: overpassQ([
+        `["amenity"="university"]["name"]`,
+        `["amenity"="college"]["name"]`,
+      ]),
+    },
+    {
+      category: 'Police Station',
+      q: overpassQ([
+        `["amenity"="police"]["name"]`,
+      ]),
+    },
+    {
+      category: 'Government Office',
+      q: overpassQ([
+        `["amenity"="townhall"]["name"]`,
+        `["office"="government"]["name"]`,
+        `["office"="government_office"]["name"]`,
+      ]),
+    },
+  ];
+
+  function haversineKm(a, b, c, d) {
+    const R = 6371;
+    const dLat = (c - a) * Math.PI / 180;
+    const dLng = (d - b) * Math.PI / 180;
+    const x = Math.sin(dLat / 2) ** 2 + Math.cos(a * Math.PI / 180) * Math.cos(c * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
+    return R * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
+  }
+
+  function pickNearest(elements) {
+    return elements
+      .filter(e => e.tags?.name)
+      .map(e => {
+        const elat = e.lat ?? e.center?.lat;
+        const elng = e.lon ?? e.center?.lon;
+        if (!elat || !elng) return null;
+        return { name: e.tags.name, km: haversineKm(lat, lng, elat, elng) };
+      })
+      .filter(Boolean)
+      .sort((a, b) => a.km - b.km)[0];
+  }
+
+  const settled = await Promise.allSettled(
+    queries.map(({ q }) =>
+      fetch('https://overpass-api.de/api/interpreter', { method: 'POST', body: q })
+        .then(res => res.json())
+    )
+  );
+
+  registerForm.value.nearest_landmarks = queries.map(({ category }, i) => {
+    const elements = settled[i].status === 'fulfilled' ? (settled[i].value?.elements ?? []) : [];
+    const best = pickNearest(elements);
+    return {
+      category,
+      place: best ? `${best.km.toFixed(1)}km — ${best.name}` : 'Not Found',
+    };
+  });
+  landmarkFetched.value = true;
+  landmarkFetching.value = false;
+}
+
+function parseCoordinate(coord) {
+  if (!coord) return null;
+  const parts = coord.split(',').map((s) => parseFloat(s.trim()));
+  if (parts.length !== 2 || parts.some(isNaN)) return null;
+  return { lat: parts[0], lng: parts[1] };
+}
+
+function markerColor(productType) {
+  if (productType === 'Billboard') return '#2563eb';
+  if (productType === 'Lamp Post Bunting') return '#16a34a';
+  return '#dc2626';
+}
+
+function markerLabel(productType) {
+  if (productType === 'Billboard') return 'BB';
+  if (productType === 'Lamp Post Bunting') return 'LB';
+  return 'TB';
+}
+
+function toggleMapView() {
+  showMapView.value = !showMapView.value;
+  if (showMapView.value) {
+    nextTick(initMap);
+  } else if (leafletMap) {
+    leafletMap.remove();
+    leafletMap = null;
+  }
+}
+
+function initMap() {
+  if (leafletMap) {
+    leafletMap.remove();
+    leafletMap = null;
+  }
+  leafletMap = L.map(mapEl.value).setView([3.139, 101.6869], 11);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+  }).addTo(leafletMap);
+  refreshMapMarkers();
+}
+
+function refreshMapMarkers() {
+  if (!leafletMap) return;
+  mapMarkers.forEach((m) => m.remove());
+  mapMarkers = [];
+  const bounds = [];
+
+  rows.value.forEach((row) => {
+    const coord = parseCoordinate(row.coordinate);
+    if (!coord) return;
+
+    const color = markerColor(row.product_type);
+    const label = markerLabel(row.product_type);
+    const icon = L.divIcon({
+      html: `<div style="background:${color};width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;font-size:9px;font-weight:900;border:2px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.35)">${label}</div>`,
+      className: '',
+      iconSize: [30, 30],
+      iconAnchor: [15, 15],
+      popupAnchor: [0, -18],
+    });
+
+    const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(row.coordinate)}`;
+    const svUrl = `https://maps.google.com/maps?q=&layer=c&cbll=${coord.lat},${coord.lng}`;
+
+    const popupHtml = `
+      <div style="font-size:12px;min-width:170px">
+        <div style="font-weight:900;margin-bottom:3px">${row.product_type}</div>
+        <div style="color:#374151;margin-bottom:5px;line-height:1.35">${row.site_name}</div>
+        <div style="color:#6b7280;font-size:11px;margin-bottom:8px">${row.status} · ${row.type}</div>
+        <a href="${mapsUrl}" target="_blank" style="display:block;background:#172033;color:white;text-align:center;padding:5px 8px;border-radius:5px;font-weight:800;font-size:11px;text-decoration:none;margin-bottom:4px">Open in Google Maps</a>
+        <a href="${svUrl}" target="_blank" style="display:block;background:#2563eb;color:white;text-align:center;padding:5px 8px;border-radius:5px;font-weight:800;font-size:11px;text-decoration:none">Street View</a>
+      </div>`;
+
+    const marker = L.marker([coord.lat, coord.lng], { icon }).addTo(leafletMap);
+    marker.bindPopup(popupHtml);
+    mapMarkers.push(marker);
+    bounds.push([coord.lat, coord.lng]);
+  });
+
+  if (bounds.length > 0) {
+    leafletMap.fitBounds(bounds, { padding: [50, 50], maxZoom: 14 });
+  }
+}
+
 function defaultLandmarks() {
   return [
-    { category: 'Exhibition Center', place: 'Not set' },
-    { category: 'Shopping Mall', place: 'Not set' },
-    { category: 'International School', place: 'Not set' },
-    { category: 'Hosp/ Medical Centre', place: 'Not set' },
+    { category: 'Shopping Mall',      place: 'Not Found' },
+    { category: 'School',             place: 'Not Found' },
+    { category: 'Residential Area',   place: 'Not Found' },
+    { category: 'Hospital / Clinic',  place: 'Not Found' },
+    { category: 'MRT / LRT Station',  place: 'Not Found' },
+    { category: 'Petrol Station',     place: 'Not Found' },
+    { category: 'University / College', place: 'Not Found' },
+    { category: 'Police Station',     place: 'Not Found' },
+    { category: 'Government Office',  place: 'Not Found' },
   ];
 }
 
@@ -832,6 +1339,63 @@ function clearFilters() {
   load();
 }
 
+function openRegisterModal() {
+  registerForm.value = {
+    site_name: '',
+    product_type: 'Temp Board',
+    status: 'Existing',
+    type: 'A1',
+    state_city: '',
+    coordinate: '',
+    nearest_landmarks: defaultLandmarks(),
+  };
+  mapsLink.value = '';
+  mapsLinkError.value = '';
+  mapsLinkResolving.value = false;
+  registerError.value = '';
+  placeSearch.value = '';
+  placeResults.value = [];
+  landmarkFetching.value = false;
+  landmarkFetched.value = false;
+  showRegisterModal.value = true;
+}
+
+function closeRegisterModal() {
+  showRegisterModal.value = false;
+  registerError.value = '';
+}
+
+async function submitRegisterProduct() {
+  if (!registerForm.value.site_name.trim()) return;
+  registerSaving.value = true;
+  registerError.value = '';
+  try {
+    const res = await api.post('/v1/product-availability/products', {
+      site_name: registerForm.value.site_name.trim(),
+      product_type: registerForm.value.product_type,
+      status: registerForm.value.status,
+      type: registerForm.value.type,
+      state_city: registerForm.value.state_city.trim() || null,
+      coordinate: registerForm.value.coordinate.trim() || null,
+      nearest_landmarks: registerForm.value.nearest_landmarks.filter(lm => lm.category || lm.place),
+    });
+    upsertRow(res.data.data);
+    closeRegisterModal();
+  } catch (e) {
+    const errors = e.response?.data?.errors;
+    registerError.value = errors ? Object.values(errors).flat().join(' ') : 'Failed to register product.';
+  } finally {
+    registerSaving.value = false;
+  }
+}
+
+onUnmounted(() => {
+  if (leafletMap) {
+    leafletMap.remove();
+    leafletMap = null;
+  }
+});
+
 onMounted(load);
 </script>
 
@@ -1018,15 +1582,134 @@ td select { text-align: center; text-align-last: center; padding: 0 5px; cursor:
   padding: 0 14px; border-radius: 7px; background: #172033; color: #ffffff; font-size: 12px;
   font-weight: 850; text-decoration: none;
 }
+.btn-register-product {
+  height: 36px; border: none; border-radius: 7px; padding: 0 14px;
+  font-size: 13px; font-weight: 850; cursor: pointer; background: #172033; color: white;
+  white-space: nowrap;
+}
+.btn-register-product:hover { background: #0f172a; }
+.register-modal {
+  width: min(720px, 96vw); background: #ffffff; color: #111827;
+  border-radius: 10px; overflow: hidden;
+  box-shadow: 0 24px 70px rgba(15,23,42,0.36);
+}
+.register-modal-header {
+  background: #172033; color: #ffffff; padding: 16px 20px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.register-modal-header h2 { margin: 0; font-size: 15px; font-weight: 900; }
+.register-modal-body { padding: 20px; }
+.register-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 20px; }
+.register-full { grid-column: 1 / -1; }
+.register-site-row { display: flex; gap: 8px; align-items: center; }
+.register-site-row input { flex: 1; min-width: 0; }
+.btn-open-gmaps {
+  flex-shrink: 0; height: 36px; padding: 0 12px; border-radius: 7px;
+  background: #172033; color: #fff; font-size: 11px; font-weight: 800;
+  text-decoration: none; display: flex; align-items: center; white-space: nowrap;
+}
+.btn-open-gmaps:hover { background: #2563eb; }
+.field-hint { margin-left: 6px; font-size: 10px; font-weight: 600; color: #94a3b8; text-transform: none; letter-spacing: 0; }
+.coord-preview { margin-top: 5px; font-size: 11px; font-weight: 700; color: #2563eb; }
+.register-modal-footer { display: flex; justify-content: flex-end; gap: 10px; }
+.btn-save-register {
+  height: 36px; border: none; border-radius: 7px; padding: 0 18px;
+  font-size: 13px; font-weight: 850; cursor: pointer; background: #2563eb; color: white;
+}
+.btn-save-register:disabled { background: #94a3b8; cursor: not-allowed; }
+.btn-cancel-register {
+  height: 36px; border: none; border-radius: 7px; padding: 0 14px;
+  font-size: 13px; font-weight: 850; cursor: pointer; background: #eef2f7; color: #475569;
+}
+.btn-map-view {
+  height: 36px; border: 1.5px solid #172033; border-radius: 7px; padding: 0 14px;
+  font-size: 13px; font-weight: 850; cursor: pointer; background: white; color: #172033;
+  white-space: nowrap;
+}
+.btn-map-view:hover { background: #f8fafc; }
+.btn-map-active { background: #172033; color: white; }
+.btn-map-active:hover { background: #0f172a; }
+.map-section {
+  background: white; border: 1px solid #dbe3ee; border-radius: 8px;
+  overflow: hidden; margin-bottom: 14px;
+}
+.leaflet-map { height: 480px; width: 100%; }
+.map-legend {
+  display: flex; gap: 18px; padding: 10px 16px; background: #f8fafc;
+  border-top: 1px solid #dbe3ee; flex-wrap: wrap;
+}
+.legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 750; color: #374151; }
+.legend-dot { width: 14px; height: 14px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+.detail-map-links { display: flex; gap: 8px; margin-top: 18px; flex-wrap: wrap; }
+.map-link, .street-view-link {
+  display: inline-flex; align-items: center; justify-content: center; min-height: 36px;
+  padding: 0 14px; border-radius: 7px; font-size: 12px; font-weight: 850; text-decoration: none;
+}
+.map-link { background: #172033; color: #ffffff; }
+.street-view-link { background: #2563eb; color: #ffffff; }
+.coord-helper {
+  margin-left: 6px; color: #2563eb; font-size: 10px; font-weight: 750;
+  text-decoration: underline; text-transform: none; letter-spacing: 0;
+}
+.place-search-wrap { position: relative; }
+.place-search-wrap input { width: 100%; box-sizing: border-box; }
+.place-results {
+  position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: 200;
+  background: white; border: 1.5px solid #dbe3ee; border-radius: 8px;
+  box-shadow: 0 12px 28px rgba(15,23,42,0.18); overflow: hidden; max-height: 220px; overflow-y: auto;
+}
+.place-result-item {
+  width: 100%; min-height: 38px; border: none; border-bottom: 1px solid #eef2f7;
+  background: white; color: #172033; text-align: left; padding: 8px 12px;
+  font-size: 12px; font-weight: 600; cursor: pointer; display: block; line-height: 1.4;
+}
+.place-result-item:last-child { border-bottom: none; }
+.place-result-item:hover { background: #eff6ff; color: #1d4ed8; }
+.place-loading { color: #64748b; font-weight: 700; cursor: default; pointer-events: none; }
+.landmark-fetch-status { margin-left: 8px; font-size: 10px; font-weight: 700; text-transform: none; letter-spacing: 0; color: #94a3b8; }
+.landmark-fetch-ok { color: #16a34a; }
+.landmark-label-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.btn-refresh-landmarks {
+  flex-shrink: 0; height: 28px; padding: 0 10px; border: 1.5px solid #dbe3ee; border-radius: 6px;
+  background: #f8fafc; color: #475569; font-size: 11px; font-weight: 700; cursor: pointer;
+}
+.btn-refresh-landmarks:hover { background: #eff6ff; border-color: #2563eb; color: #2563eb; }
+.maps-link-row { position: relative; display: flex; align-items: center; gap: 8px; }
+.maps-link-row input { flex: 1; min-width: 0; }
+.maps-link-resolving { font-size: 11px; font-weight: 700; color: #2563eb; white-space: nowrap; display: flex; align-items: center; gap: 5px; }
+.maps-link-error { margin-top: 5px; font-size: 11px; font-weight: 700; color: #dc2626; }
+.input-error-border { border-color: #dc2626 !important; }
+@keyframes lm-spin { to { transform: rotate(360deg); } }
+.lm-spinner {
+  display: inline-block; width: 11px; height: 11px; border: 2px solid #dbe3ee;
+  border-top-color: #2563eb; border-radius: 50%; animation: lm-spin 0.7s linear infinite;
+  vertical-align: middle;
+}
+.register-landmark-table { width: 100%; border-collapse: collapse; margin-top: 0; table-layout: fixed; }
+.register-landmark-table th { font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.04em; color: #fff; background: #172033; padding: 6px 10px; text-align: left; }
+.register-landmark-table th:first-child { width: 36%; }
+.register-landmark-table th:last-child { width: 64%; }
+.register-landmark-table tbody tr { border-bottom: 1px solid #eef2f7; }
+.register-landmark-table tbody tr:last-child { border-bottom: none; }
+.lm-cat-cell { padding: 7px 10px; font-size: 12px; font-weight: 700; color: #374151; white-space: nowrap; }
+.lm-place-cell { padding: 7px 10px; font-size: 12px; font-weight: 600; color: #111827; }
+.lm-not-found { color: #94a3b8; font-style: italic; }
+@keyframes lm-skeleton-shine { 0%,100% { opacity: 0.4; } 50% { opacity: 1; } }
+.lm-skeleton {
+  display: inline-block; width: 70%; height: 12px; border-radius: 4px;
+  background: #dbe3ee; animation: lm-skeleton-shine 1.2s ease-in-out infinite;
+}
 @media (max-width: 760px) {
   .page { padding: 18px 14px; }
   .page-header { align-items: stretch; flex-direction: column; }
   .field, .field.company-field, .field.place-field, .field.small { width: 100%; min-width: 0; }
-  .btn-add, .btn-dark, .btn-clear, .btn-proposal { width: 100%; }
+  .btn-add, .btn-dark, .btn-clear, .btn-proposal, .btn-register-product { width: 100%; }
   .product-detail-modal { grid-template-columns: 1fr; }
   .detail-side { display: none; }
   .detail-content { padding: 22px 16px 24px; }
   .detail-header { width: calc(100% - 42px); border-radius: 14px; }
   .detail-grid { grid-template-columns: 1fr; }
+  .register-form-grid { grid-template-columns: 1fr; }
+  .leaflet-map { height: 320px; }
 }
 </style>
