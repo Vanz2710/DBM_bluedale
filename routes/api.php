@@ -37,6 +37,7 @@ use App\Http\Controllers\Api\V1\ContactAnalysisController;
 use App\Http\Controllers\Api\V1\EmailCampaignController;
 use App\Http\Controllers\Api\V1\PredictiveController;
 use App\Http\Controllers\Api\V1\SystemSettingsController;
+use App\Http\Controllers\Api\V1\UserActivityController;
 
 // Auth (public)
 Route::post('auth/login', [AuthController::class, 'login']);
@@ -213,6 +214,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('product-availability', [ProductAvailabilityController::class, 'index']);
         Route::post('product-availability', [ProductAvailabilityController::class, 'store']);
         Route::post('product-availability/proposal', [ProductAvailabilityController::class, 'proposal']);
+        Route::post('product-availability/products', [ProductAvailabilityController::class, 'createProduct']);
+        Route::post('product-availability/resolve-maps-url', [ProductAvailabilityController::class, 'resolveMapsUrl']);
         Route::put('product-availability/products/{product}', [ProductAvailabilityController::class, 'updateProduct']);
         Route::post('product-availability/products/{product}/photo', [ProductAvailabilityController::class, 'uploadPhoto']);
         Route::delete('product-availability/products/{product}/photo', [ProductAvailabilityController::class, 'deletePhoto']);
@@ -226,10 +229,19 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('posting-calendar/{postingCalendarReminder}', [PostingCalendarController::class, 'destroy']);
 
         // Email Campaigns
+        Route::get('email-campaigns/settings', [EmailCampaignController::class, 'settings']);
         Route::get('email-campaigns', [EmailCampaignController::class, 'index']);
         Route::post('email-campaigns', [EmailCampaignController::class, 'store']);
-        Route::put('email-campaigns/{emailCampaign}', [EmailCampaignController::class, 'update']);
-        Route::delete('email-campaigns/{emailCampaign}', [EmailCampaignController::class, 'destroy']);
+        Route::put('email-campaigns/{campaign}', [EmailCampaignController::class, 'update']);
+        Route::delete('email-campaigns/{campaign}', [EmailCampaignController::class, 'destroy']);
+        Route::post('email-campaigns/{campaign}/schedule', [EmailCampaignController::class, 'schedule']);
+        Route::post('email-campaigns/{campaign}/send-test', [EmailCampaignController::class, 'sendTest']);
+        Route::get('email-campaigns/{campaign}/sync-stats', [EmailCampaignController::class, 'syncStats']);
+        // Email Templates
+        Route::get('email-templates', [EmailCampaignController::class, 'templateIndex']);
+        Route::post('email-templates', [EmailCampaignController::class, 'templateStore']);
+        Route::put('email-templates/{template}', [EmailCampaignController::class, 'templateUpdate']);
+        Route::delete('email-templates/{template}', [EmailCampaignController::class, 'templateDestroy']);
 
         // Admin lookup CRUD
         Route::middleware('can:manage lookups')->group(function () {
@@ -258,6 +270,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::middleware('can:manage users')->group(function () {
             Route::get('system-settings', [SystemSettingsController::class, 'index']);
             Route::put('system-settings', [SystemSettingsController::class, 'update']);
+
+            Route::get('user-activity/overview', [UserActivityController::class, 'overview']);
+            Route::get('user-activity/security-events', [UserActivityController::class, 'securityEvents']);
 
             Route::get('rbac/users', [UserManagementController::class, 'index']);
             Route::get('rbac/users/pending', [UserManagementController::class, 'pendingApprovals']);

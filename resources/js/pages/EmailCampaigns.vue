@@ -616,16 +616,17 @@ onMounted(async () => {
 async function loadCampaigns() {
   try {
     const res = await api.get('/v1/email-campaigns');
-    campaigns.value = res.data.map((c) => ({
+    const raw = res.data?.data ?? res.data ?? [];
+    campaigns.value = raw.map((c) => ({
       id: c.id,
       name: c.name,
-      channel: c.provider === 'gmail' ? 'Gmail' : 'Outlook',
-      status: c.status,
-      audience: Array.isArray(c.audience) ? c.audience.length : 0,
+      channel: c.sender_email ? c.sender_email.split('@')[1] ?? 'Email' : 'Email',
+      status: c.status ? c.status.charAt(0).toUpperCase() + c.status.slice(1) : 'Draft',
+      audience: c.audience_count ?? 0,
       sent: c.sent_count ?? 0,
-      openRate: '—',
-      clickRate: '—',
-      date: c.schedule_at ? new Date(c.schedule_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—',
+      openRate: c.open_rate != null ? `${c.open_rate}%` : '—',
+      clickRate: c.click_rate != null ? `${c.click_rate}%` : '—',
+      date: c.scheduled_at ? new Date(c.scheduled_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—',
       _raw: c,
     }));
   } catch (_) {
@@ -685,14 +686,11 @@ async function saveDraft() {
   try {
     await api.post('/v1/email-campaigns', {
       name:         campaign.value.name || 'Untitled Draft',
-      provider:     campaign.value.provider,
       sender_email: campaign.value.sender,
-      status:       'Draft',
-      schedule_at:  campaign.value.schedule || null,
       subject:      campaign.value.subject,
       body:         campaign.value.body,
-      audience:     selectedEmails.value.map((p) => ({ id: p.id, name: p.name, email: p.email })),
-      template_id:  selectedTemplateId.value,
+      scheduled_at: campaign.value.schedule || null,
+      pic_ids:      selectedEmails.value.map((p) => p.id),
     });
     await loadCampaigns();
     campaignStatus.value = 'Draft saved';
@@ -701,23 +699,39 @@ async function saveDraft() {
   }
 }
 
-function sendTest() {
-  campaignStatus.value = 'Test email queued';
+async function sendTest() {
+  campaignStatus.value = 'Sending test…';
+  try {
+    const saved = await api.post('/v1/email-campaigns', {
+      name:         campaign.value.name || 'Test Campaign',
+      sender_email: campaign.value.sender,
+      subject:      campaign.value.subject,
+      body:         campaign.value.body,
+      pic_ids:      selectedEmails.value.map((p) => p.id),
+    });
+    await api.post(`/v1/email-campaigns/${saved.data.data?.id ?? saved.data.id}/send-test`, {
+      email: campaign.value.sender,
+    });
+    campaignStatus.value = 'Test sent';
+  } catch (_) {
+    campaignStatus.value = 'Test failed';
+  }
 }
 
 async function scheduleCampaign() {
   campaignStatus.value = 'Scheduling…';
   try {
-    await api.post('/v1/email-campaigns', {
+    const saved = await api.post('/v1/email-campaigns', {
       name:         campaign.value.name || 'Untitled Campaign',
-      provider:     campaign.value.provider,
       sender_email: campaign.value.sender,
-      status:       'Scheduled',
-      schedule_at:  campaign.value.schedule || null,
       subject:      campaign.value.subject,
       body:         campaign.value.body,
-      audience:     selectedEmails.value.map((p) => ({ id: p.id, name: p.name, email: p.email })),
-      template_id:  selectedTemplateId.value,
+      scheduled_at: campaign.value.schedule || null,
+      pic_ids:      selectedEmails.value.map((p) => p.id),
+    });
+    const id = saved.data.data?.id ?? saved.data.id;
+    await api.post(`/v1/email-campaigns/${id}/schedule`, {
+      scheduled_at: campaign.value.schedule || null,
     });
     await loadCampaigns();
     campaignStatus.value = 'Campaign scheduled';
