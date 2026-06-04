@@ -9,6 +9,7 @@ use App\Models\ContactIncharge;
 use App\Models\ContactIndustry;
 use App\Models\ContactStatus;
 use App\Models\ContactType;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -18,14 +19,25 @@ class ImportController extends Controller
 {
     private array $canonicalAliases = [
         'status' => [
+            // Raw
             'raw' => 'Raw', 'new' => 'Raw', 'untouched' => 'Raw', 'uncontacted' => 'Raw',
+            'raw new' => 'Raw',
+            // Active
             'active' => 'Active', 'contacted' => 'Active',
+            // Existing Client
             'existing' => 'Existing Client', 'existing client' => 'Existing Client',
             'existing clients' => 'Existing Client', 'exist' => 'Existing Client', 'client' => 'Existing Client',
-            'potential' => 'Potential', 'potentials' => 'Potential', 'prospect' => 'Potential', 'prospects' => 'Potential',
+            // Potential — including territory-prefixed variants from old CRM
+            'potential' => 'Potential', 'potentials' => 'Potential',
+            'prospect' => 'Potential', 'prospects' => 'Potential',
+            'kltg potential' => 'Potential', 'jhtg potential' => 'Potential',
+            'kltg - sabah' => 'Potential', 'sabah potential' => 'Potential',
+            // Rejected
             'rejected' => 'Rejected', 'reject' => 'Rejected', 'no' => 'Rejected',
+            // On Going
             'on going' => 'On Going', 'ongoing' => 'On Going', 'on-going' => 'On Going',
             'in progress' => 'On Going', 'in-progress' => 'On Going',
+            // Others
             'supplier' => 'Supplier', 'agency' => 'Agency',
         ],
         'client_type' => [
@@ -37,11 +49,13 @@ class ImportController extends Controller
             'f&b' => 'Food & Beverage', 'fnb' => 'Food & Beverage', 'food' => 'Food & Beverage',
             'restaurant' => 'Food & Beverage', 'cafe' => 'Food & Beverage',
             'hotel' => 'Hospitality', 'hotels' => 'Hospitality', 'resort' => 'Hospitality',
-            'hospitality' => 'Hospitality', 'accommodation' => 'Hospitality',
+            'hospitality' => 'Hospitality',
+            'accommodation' => 'Hospitality', 'accomodation' => 'Hospitality', // old CRM typo
+            'retail' => 'Retail', 'retails' => 'Retail', 'shopping' => 'Retail',
             'edu' => 'Education', 'education' => 'Education', 'school' => 'Education',
             'university' => 'Education', 'college' => 'Education',
-            'retail' => 'Retail', 'shopping' => 'Retail',
             'manufacturing' => 'Manufacturing', 'factory' => 'Manufacturing',
+            'industrial & manufacturing' => 'Manufacturing',
             'healthcare' => 'Healthcare', 'medical' => 'Healthcare', 'hospital' => 'Healthcare',
             'it' => 'Technology', 'tech' => 'Technology', 'technology' => 'Technology', 'software' => 'Technology',
             'real estate' => 'Real Estate', 'property' => 'Real Estate', 'properties' => 'Real Estate',
@@ -50,6 +64,8 @@ class ImportController extends Controller
             'travel' => 'Travel & Tourism', 'tourism' => 'Travel & Tourism', 'tour' => 'Travel & Tourism',
             'construction' => 'Construction', 'building' => 'Construction', 'contractor' => 'Construction',
             'automotive' => 'Automotive', 'car' => 'Automotive', 'vehicle' => 'Automotive',
+            'transportation & automotive' => 'Transportation & Automotive',
+            'transportation & automative' => 'Transportation & Automotive', // old CRM typo
             'agriculture' => 'Agriculture', 'farming' => 'Agriculture', 'farm' => 'Agriculture',
             'logistics' => 'Logistics', 'transport' => 'Logistics', 'shipping' => 'Logistics',
             'government' => 'Government', 'govt' => 'Government',
@@ -65,12 +81,20 @@ class ImportController extends Controller
         return $this->canonicalAliases[$field][$lower] ?? trim($raw);
     }
 
-    private function getOrCreate(string $model, string $value): ?int
+    // Strip the "(N) " prefix produced by old CRM multi-PIC exports, e.g. "(1) John" → "John"
+    private function stripPicPrefix(string $value): string
     {
-        $value = trim($value);
-        if ($value === '') return null;
-        $record = $model::firstOrCreate(['name' => $value]);
-        return $record->id;
+        return trim(preg_replace('/^\(\d+\)\s*/', '', $value));
+    }
+
+    // True for placeholder strings the old CRM inserts when no real data exists
+    private function isPlaceholder(string $value): bool
+    {
+        return in_array(strtolower(trim($value)), [
+            '', 'null', 'n/a', 'na', '-', 'none',
+            'no address saved', 'no remark', 'no email',
+            'noemail@gmail.com',
+        ]);
     }
 
     public function preview(Request $request)
@@ -80,6 +104,8 @@ class ImportController extends Controller
         }
 
         $request->validate(['file' => 'required|file|max:20480']);
+
+        ini_set('memory_limit', '512M');
 
         try {
             $path = $request->file('file')->store('imports', 'local');
@@ -93,7 +119,7 @@ class ImportController extends Controller
             $sheet = $spreadsheet->getActiveSheet();
             $highestCol = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString($sheet->getHighestDataColumn());
 
-            // Auto-detect header row (row with most filled cells in first 20)
+            // Auto-detect header row — the row with the most filled cells in the first 20 rows
             $headerRow = 1;
             $maxFilled = 0;
             for ($r = 1; $r <= min(20, $sheet->getHighestDataRow()); $r++) {
@@ -130,7 +156,7 @@ class ImportController extends Controller
         }
 
         $allowedFields = [
-            'name', 'address', 'remark',
+            'name', 'address', 'remark', 'date_created',
             'status', 'client_type', 'industry', 'category',
             'assigned_user', 'pic_name', 'email', 'phone_mobile',
         ];
@@ -142,19 +168,21 @@ class ImportController extends Controller
             'mapping.*'  => ['nullable', 'string', Rule::in($allowedFields)],
         ]);
 
+        ini_set('memory_limit', '512M');
+
         $fullPath = Storage::disk('local')->path($request->input('temp_path'));
         if (!file_exists($fullPath)) {
             return response()->json(['error' => 'Uploaded file not found.'], 422);
         }
 
-        $mapping   = $request->input('mapping');   // col_letter => field_name
+        $mapping   = $request->input('mapping');
         $dataStart = (int)$request->input('data_start');
 
         $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($fullPath);
-        $sheet = $spreadsheet->getActiveSheet();
-        $highestRow = $sheet->getHighestDataRow();
+        $sheet       = $spreadsheet->getActiveSheet();
+        $highestRow  = $sheet->getHighestDataRow();
 
-        // Find name column
+        // Resolve name column
         $nameCol = null;
         foreach ($mapping as $col => $field) {
             if ($field === 'name') { $nameCol = $col; break; }
@@ -163,97 +191,145 @@ class ImportController extends Controller
             return response()->json(['error' => 'No column mapped to Company Name.'], 422);
         }
 
-        // Pre-fetch existing names
+        // Pre-fetch existing contact names for duplicate detection
         $existing = Contact::pluck('name')->map(fn($n) => strtolower(trim($n)))->flip()->all();
 
-        // In-memory FK maps
-        $statusMap   = ContactStatus::pluck('id', 'name')->all();
-        $typeMap     = ContactType::pluck('id', 'name')->all();
-        $industryMap = ContactIndustry::pluck('id', 'name')->all();
-        $categoryMap = ContactCategory::pluck('id', 'name')->all();
-        $userMap     = User::pluck('id', 'name')->all();
+        // In-memory FK maps with lowercase keys for case-insensitive lookup
+        // (DB unique indexes are case-insensitive; PHP array lookups are case-sensitive)
+        $toLower = fn($id, $n) => [strtolower(trim($n)) => $id];
+        $statusMap   = ContactStatus::pluck('id', 'name')->mapWithKeys($toLower)->all();
+        $typeMap     = ContactType::pluck('id', 'name')->mapWithKeys($toLower)->all();
+        $industryMap = ContactIndustry::pluck('id', 'name')->mapWithKeys($toLower)->all();
+        $categoryMap = ContactCategory::pluck('id', 'name')->mapWithKeys($toLower)->all();
+        // Build case-insensitive user map: lowercase(name) → id
+        $userMap = User::pluck('id', 'name')->mapWithKeys(
+            fn($id, $name) => [strtolower(trim($name)) => $id]
+        )->all();
+
+        // Pre-compute PIC column letters once — not per row
+        $picNameCol  = array_search('pic_name',     $mapping) ?: null;
+        $picEmailCol = array_search('email',        $mapping) ?: null;
+        $picPhoneCol = array_search('phone_mobile', $mapping) ?: null;
+        $picFields   = ['pic_name', 'email', 'phone_mobile'];
 
         $imported = 0;
         $skipped  = 0;
+        $failed   = 0;
+        $errors   = [];
 
         DB::beginTransaction();
         try {
             for ($row = $dataStart; $row <= $highestRow; $row++) {
-                $name = mb_substr(trim((string)$sheet->getCell($nameCol . $row)->getValue()), 0, 255);
-                if ($name === '') continue;
+                try {
+                    $name = mb_substr(trim((string)$sheet->getCell($nameCol . $row)->getValue()), 0, 255);
+                    if ($name === '' || $this->isPlaceholder($name)) continue;
 
-                if (isset($existing[strtolower($name)])) { $skipped++; continue; }
+                    if (isset($existing[strtolower($name)])) { $skipped++; continue; }
 
-                $data = ['name' => $name];
+                    $data        = ['name' => $name];
+                    $dateCreated = null;
 
-                foreach ($mapping as $col => $field) {
-                    if ($field === 'name' || $field === '') continue;
-                    $val = trim((string)$sheet->getCell($col . $row)->getValue());
-                    if ($val === '') continue;
+                    foreach ($mapping as $col => $field) {
+                        if ($field === 'name' || $field === '' || in_array($field, $picFields)) continue;
 
-                    switch ($field) {
-                        case 'address': $data['address'] = mb_substr($val, 0, 500); break;
-                        case 'remark':  $data['remark'] = mb_substr($val, 0, 2000); break;
-                        case 'status':
-                            $val = $this->normalize($val, 'status');
-                            if (!isset($statusMap[$val])) {
-                                ContactStatus::create(['name' => $val]);
-                                $statusMap = ContactStatus::pluck('id', 'name')->all();
-                            }
-                            $data['status_id'] = $statusMap[$val] ?? null;
-                            break;
-                        case 'client_type':
-                            $val = $this->normalize($val, 'client_type');
-                            if (!isset($typeMap[$val])) {
-                                ContactType::create(['name' => $val]);
-                                $typeMap = ContactType::pluck('id', 'name')->all();
-                            }
-                            $data['type_id'] = $typeMap[$val] ?? null;
-                            break;
-                        case 'industry':
-                            $val = $this->normalize($val, 'industry');
-                            if (!isset($industryMap[$val])) {
-                                ContactIndustry::create(['name' => $val]);
-                                $industryMap = ContactIndustry::pluck('id', 'name')->all();
-                            }
-                            $data['industry_id'] = $industryMap[$val] ?? null;
-                            break;
-                        case 'category':
-                            if (!isset($categoryMap[$val])) {
-                                ContactCategory::create(['name' => $val]);
-                                $categoryMap = ContactCategory::pluck('id', 'name')->all();
-                            }
-                            $data['category_id'] = $categoryMap[$val] ?? null;
-                            break;
-                        case 'assigned_user':
-                            $data['user_id'] = $userMap[$val] ?? null;
-                            break;
+                        $cellObj = $sheet->getCell($col . $row);
+                        $cellVal = $cellObj->getValue();
+
+                        // Handle Excel date serial numbers for date fields
+                        if ($field === 'date_created' && is_numeric($cellVal) && $cellVal > 1) {
+                            try {
+                                $dt = \PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject((float)$cellVal);
+                                $dateCreated = \Carbon\Carbon::instance($dt)->format('Y-m-d H:i:s');
+                            } catch (\Exception $e) {}
+                            continue;
+                        }
+
+                        $raw = trim((string)$cellVal);
+                        if ($this->isPlaceholder($raw)) continue;
+
+                        switch ($field) {
+                            case 'date_created':
+                                try {
+                                    $dateCreated = \Carbon\Carbon::parse($raw)->format('Y-m-d H:i:s');
+                                } catch (\Exception $e) {}
+                                break;
+                            case 'address':
+                                $data['address'] = mb_substr($raw, 0, 255);
+                                break;
+                            case 'remark':
+                                $data['remark'] = mb_substr($raw, 0, 800);
+                                break;
+                            case 'status':
+                                $val  = $this->normalize($raw, 'status');
+                                $lval = strtolower($val);
+                                if (!isset($statusMap[$lval])) {
+                                    $statusMap[$lval] = ContactStatus::create(['name' => $val])->id;
+                                }
+                                $data['status_id'] = $statusMap[$lval];
+                                break;
+                            case 'client_type':
+                                $val  = $this->normalize($raw, 'client_type');
+                                $lval = strtolower($val);
+                                if (!isset($typeMap[$lval])) {
+                                    $typeMap[$lval] = ContactType::create(['name' => $val])->id;
+                                }
+                                $data['type_id'] = $typeMap[$lval];
+                                break;
+                            case 'industry':
+                                $val  = $this->normalize($raw, 'industry');
+                                $lval = strtolower($val);
+                                if (!isset($industryMap[$lval])) {
+                                    $industryMap[$lval] = ContactIndustry::create(['name' => $val])->id;
+                                }
+                                $data['industry_id'] = $industryMap[$lval];
+                                break;
+                            case 'category':
+                                $lval = strtolower($raw);
+                                if (!isset($categoryMap[$lval])) {
+                                    $categoryMap[$lval] = ContactCategory::create(['name' => $raw])->id;
+                                }
+                                $data['category_id'] = $categoryMap[$lval];
+                                break;
+                            case 'assigned_user':
+                                $data['user_id'] = $userMap[strtolower(trim($raw))] ?? null;
+                                break;
+                        }
+                    }
+
+                    $contact = Contact::create($data);
+
+                    if ($dateCreated) {
+                        $contact->timestamps = false;
+                        $contact->created_at = $dateCreated;
+                        $contact->updated_at = $dateCreated;
+                        $contact->save();
+                    }
+
+                    // PIC — strip "(N) " prefix left by old CRM multi-PIC export format
+                    $picName  = $picNameCol  ? $this->stripPicPrefix((string)$sheet->getCell($picNameCol  . $row)->getValue()) : '';
+                    $picEmail = $picEmailCol ? $this->stripPicPrefix((string)$sheet->getCell($picEmailCol . $row)->getValue()) : '';
+                    $picPhone = $picPhoneCol ? $this->stripPicPrefix((string)$sheet->getCell($picPhoneCol . $row)->getValue()) : '';
+
+                    if ($this->isPlaceholder($picPhone)) $picPhone = '';
+                    if ($this->isPlaceholder($picEmail) || !filter_var($picEmail, FILTER_VALIDATE_EMAIL)) $picEmail = '';
+
+                    if ($picName || $picEmail || $picPhone) {
+                        ContactIncharge::create([
+                            'contact_id'   => $contact->id,
+                            'name'         => $picName  ? mb_substr($picName,  0, 255) : null,
+                            'email'        => $picEmail ?: null,
+                            'phone_mobile' => $picPhone ? mb_substr($picPhone, 0,  50) : null,
+                        ]);
+                    }
+
+                    $existing[strtolower($name)] = true;
+                    $imported++;
+                } catch (\Exception $e) {
+                    $failed++;
+                    if (count($errors) < 20) {
+                        $errors[] = ['row' => $row, 'name' => $name ?? '?', 'reason' => $e->getMessage()];
                     }
                 }
-
-                $contact = Contact::create($data);
-
-                // PICs
-                $picNameCol  = array_search('pic_name', $mapping);
-                $picEmailCol = array_search('email', $mapping);
-                $picPhoneCol = array_search('phone_mobile', $mapping);
-
-                $picName  = $picNameCol  ? trim((string)$sheet->getCell($picNameCol  . $row)->getValue()) : '';
-                $picEmail = $picEmailCol ? trim((string)$sheet->getCell($picEmailCol . $row)->getValue()) : '';
-                $picPhone = $picPhoneCol ? trim((string)$sheet->getCell($picPhoneCol . $row)->getValue()) : '';
-
-                $picEmail = filter_var($picEmail, FILTER_VALIDATE_EMAIL) ? $picEmail : '';
-                if ($picName || $picEmail || $picPhone) {
-                    ContactIncharge::create([
-                        'contact_id'   => $contact->id,
-                        'name'         => $picName ? mb_substr($picName, 0, 255) : null,
-                        'email'        => $picEmail ?: null,
-                        'phone_mobile' => $picPhone ? mb_substr($picPhone, 0, 50) : null,
-                    ]);
-                }
-
-                $existing[strtolower($name)] = true;
-                $imported++;
             }
 
             DB::commit();
@@ -265,6 +341,6 @@ class ImportController extends Controller
 
         Storage::disk('local')->delete($request->input('temp_path'));
 
-        return response()->json(['imported' => $imported, 'skipped' => $skipped]);
+        return response()->json(['imported' => $imported, 'skipped' => $skipped, 'failed' => $failed, 'errors' => $errors]);
     }
 }

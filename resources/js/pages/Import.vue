@@ -1,16 +1,24 @@
 <template>
   <div class="page">
-    <div class="page-banner">
-      <div>
-        <h1>Import Data</h1>
-        <p>Upload an Excel or CSV file to add records into the system.</p>
+    <div class="page-header">
+      <h1 class="page-title">Import Data</h1>
+      <p class="page-subtitle">Upload an Excel or CSV file to add records into the system.</p>
+    </div>
+
+    <div class="stepper">
+      <div class="step" :class="{ active: step >= 1, done: step > 1 }">
+        <div class="step-dot">{{ step > 1 ? '✓' : '1' }}</div>
+        <span class="step-lbl">Upload File</span>
       </div>
-      <div class="step-indicator">
-        <div class="step-pill" :class="{ active: step >= 1 }">1 &nbsp;Upload File</div>
-        <div class="step-arrow">›</div>
-        <div class="step-pill" :class="{ active: step >= 2 }">2 &nbsp;Map Columns</div>
-        <div class="step-arrow">›</div>
-        <div class="step-pill" :class="{ active: step >= 3 }">3 &nbsp;Results</div>
+      <div class="step-line" :class="{ filled: step >= 2 }"></div>
+      <div class="step" :class="{ active: step >= 2, done: step > 2 }">
+        <div class="step-dot">{{ step > 2 ? '✓' : '2' }}</div>
+        <span class="step-lbl">Map Columns</span>
+      </div>
+      <div class="step-line" :class="{ filled: step >= 3 }"></div>
+      <div class="step" :class="{ active: step >= 3 }">
+        <div class="step-dot">3</div>
+        <span class="step-lbl">Results</span>
       </div>
     </div>
 
@@ -19,7 +27,7 @@
       <div class="card-title">Select file to import</div>
       <div class="card-sub">Supported: .xlsx, .xls, .csv &nbsp;·&nbsp; The system auto-detects column headers.</div>
 
-      <div v-if="error" class="alert error">⚠ {{ error }}</div>
+      <div v-if="error" class="msg-box error-box">⚠ {{ error }}</div>
 
       <div class="drop-zone" :class="{ 'has-file': selectedFile, dragover: isDragging }"
            @dragover.prevent="isDragging = true"
@@ -28,10 +36,10 @@
         <input type="file" accept=".xls,.xlsx,.csv" @change="onFileChange" ref="fileInput" class="file-input">
         <div class="drop-icon">{{ selectedFile ? '✓' : '📁' }}</div>
         <div class="drop-main">{{ selectedFile ? selectedFile.name : 'Drag & drop your file here' }}</div>
-        <div class="drop-sub">{{ selectedFile ? '' : 'or click to browse' }}</div>
+        <div class="drop-sub" v-show="!selectedFile">or click to browse</div>
       </div>
 
-      <button class="submit-btn" :disabled="!selectedFile || uploading" @click="uploadFile">
+      <button class="btn-primary btn-full" :disabled="!selectedFile || uploading" @click="uploadFile">
         {{ uploading ? 'Scanning file…' : 'Next: Map Columns →' }}
       </button>
     </div>
@@ -45,15 +53,16 @@
 
       <div class="map-list">
         <div v-for="(headerName, colLetter) in headers" :key="colLetter"
-             class="map-row" :class="{ 'auto-row': autoMatch(headerName) }">
+             class="map-row" :class="{ 'auto-row': autoMatchMap[colLetter] }">
           <div class="map-col-info">
             <span class="col-letter">Col {{ colLetter }}</span>
             <span class="col-name">{{ headerName }}</span>
-            <span v-if="autoMatch(headerName)" class="auto-badge">✓ Auto-matched</span>
+            <span v-if="autoMatchMap[colLetter]" class="auto-badge">✓ Auto-matched</span>
           </div>
-          <select class="map-select" :class="{ 'auto-matched': autoMatch(headerName) }" v-model="mapping[colLetter]">
+          <select class="map-select" :class="{ 'auto-matched': autoMatchMap[colLetter] }" v-model="mapping[colLetter]">
             <option value="">Ignore / Do Not Import</option>
             <option value="name">Company Name (Required)</option>
+            <option value="date_created">Date Created</option>
             <option value="address">Full Address</option>
             <option value="pic_name">Contact Person Name</option>
             <option value="phone_mobile">Contact Phone / Mobile</option>
@@ -62,30 +71,31 @@
             <option value="status">Status</option>
             <option value="client_type">Client Type (A1, A2…)</option>
             <option value="category">Product Category</option>
-            <option value="assigned_user">Assigned Sales Person</option>
+            <option value="assigned_user">Assigned User</option>
+            <option value="remark">Remark / Notes</option>
           </select>
         </div>
       </div>
 
-      <div style="display:flex;gap:12px">
-        <button class="import-btn" :disabled="importing" @click="processImport">
+      <div class="action-row">
+        <button class="btn-ghost" @click="step = 1">← Back</button>
+        <button class="btn-primary" :disabled="importing" @click="processImport">
           {{ importing ? 'Importing…' : 'Start Import →' }}
         </button>
-        <button class="back-btn" @click="step = 1">← Back</button>
       </div>
     </div>
 
     <!-- Step 3: Results -->
     <div v-if="step === 3" class="card">
-      <div class="result-banner" :class="importError ? 'error' : 'success'">
+      <div class="result-banner" :class="importError ? 'result-error' : 'result-success'">
         <div>
-          <h2>{{ importError ? 'Import Failed' : 'Import Complete' }}</h2>
-          <p>{{ importError || `${results.imported.toLocaleString()} records imported, ${results.skipped.toLocaleString()} duplicates skipped.` }}</p>
+          <h2 class="result-title">{{ importError ? 'Import Failed' : 'Import Complete' }}</h2>
+          <p class="result-desc">{{ importError || `${results.imported.toLocaleString()} records imported, ${results.skipped.toLocaleString()} duplicates skipped${results.failed ? `, ${results.failed} rows failed` : ''}.` }}</p>
         </div>
         <div v-if="!importError" class="big-num">{{ results.imported.toLocaleString() }}</div>
       </div>
 
-      <div v-if="!importError" class="summary-row">
+      <div v-if="!importError" class="summary-row" :class="{ 'three-col': results.failed > 0 }">
         <div class="summary-card imported">
           <div class="summary-label">New records added</div>
           <div class="summary-value">{{ results.imported.toLocaleString() }}</div>
@@ -94,18 +104,31 @@
           <div class="summary-label">Duplicates skipped</div>
           <div class="summary-value">{{ results.skipped.toLocaleString() }}</div>
         </div>
+        <div v-if="results.failed > 0" class="summary-card failed">
+          <div class="summary-label">Rows failed</div>
+          <div class="summary-value">{{ results.failed.toLocaleString() }}</div>
+        </div>
       </div>
 
-      <div style="display:flex;gap:12px;margin-top:20px">
-        <router-link to="/crm" class="import-btn" style="text-decoration:none;text-align:center">View in CRM Dashboard →</router-link>
-        <button class="back-btn" @click="reset">Import more data</button>
+      <div v-if="results.errors && results.errors.length" class="error-detail">
+        <div class="error-detail-title">Failed row details (first {{ results.errors.length }})</div>
+        <div v-for="e in results.errors" :key="e.row" class="error-row">
+          <span class="err-row-num">Row {{ e.row }}</span>
+          <span class="err-name">{{ e.name }}</span>
+          <span class="err-reason">{{ e.reason }}</span>
+        </div>
+      </div>
+
+      <div class="action-row result-actions">
+        <button class="btn-ghost" @click="reset">Import more data</button>
+        <router-link to="/list" class="btn-primary btn-link">View Contacts →</router-link>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue';
+import { ref, reactive, computed } from 'vue';
 import axios from '../api.js';
 
 const step         = ref(1);
@@ -121,10 +144,11 @@ const tempPath  = ref('');
 const dataStart = ref(2);
 const headers   = ref({});
 const mapping   = reactive({});
-const results   = ref({ imported: 0, skipped: 0 });
+const results   = ref({ imported: 0, skipped: 0, failed: 0, errors: [] });
 
 const dbFieldMap = {
   'name': 'name', 'company': 'name', 'hotel': 'name', 'location': 'name', 'organis': 'name',
+  'date created': 'date_created', 'date_created': 'date_created', 'created': 'date_created',
   'pic': 'pic_name', 'person in charge': 'pic_name', 'contact name': 'pic_name',
   'phone': 'phone_mobile', 'tel': 'phone_mobile', 'mobile': 'phone_mobile', 'hp': 'phone_mobile',
   'email': 'email', 'e-mail': 'email',
@@ -133,7 +157,8 @@ const dbFieldMap = {
   'status': 'status',
   'client type': 'client_type', 'type': 'client_type',
   'product': 'category', 'interest': 'category', 'category': 'category',
-  'assign': 'assigned_user', 'agent': 'assigned_user', 'salesperson': 'assigned_user',
+  'assign': 'assigned_user', 'agent': 'assigned_user', 'salesperson': 'assigned_user', 'user': 'assigned_user',
+  'remark': 'remark', 'note': 'remark', 'notes': 'remark', 'comment': 'remark',
 };
 
 function autoMatch(headerName) {
@@ -143,6 +168,16 @@ function autoMatch(headerName) {
   }
   return null;
 }
+
+// Pre-computed map of colLetter → matched field so the template doesn't
+// recalculate autoMatch three times per column on every render cycle.
+const autoMatchMap = computed(() => {
+  const map = {};
+  for (const [col, name] of Object.entries(headers.value)) {
+    map[col] = autoMatch(name);
+  }
+  return map;
+});
 
 function onFileChange(e) {
   const f = e.target.files[0];
@@ -169,7 +204,6 @@ async function uploadFile() {
     dataStart.value = data.data_start;
     headers.value   = data.headers;
 
-    // Apply auto-mapping
     Object.keys(mapping).forEach(k => delete mapping[k]);
     for (const [col, headerName] of Object.entries(data.headers)) {
       mapping[col] = autoMatch(headerName) ?? '';
@@ -209,78 +243,139 @@ function reset() {
   selectedFile.value = null;
   error.value        = '';
   importError.value  = '';
-  results.value      = { imported: 0, skipped: 0 };
+  results.value      = { imported: 0, skipped: 0, failed: 0, errors: [] };
   if (fileInput.value) fileInput.value.value = '';
 }
 </script>
 
 <style scoped>
-.page { max-width: 820px; margin: 0 auto; padding: 28px 24px; }
+/* ── Page shell ─────────────────────────────────── */
+.page          { padding: 28px 32px; max-width: 820px; }
+.page-header   { margin-bottom: 24px; }
+.page-title    { font-size: 28px; font-weight: 800; color: var(--text-1); letter-spacing: -0.5px; margin: 0 0 4px; }
+.page-subtitle { font-size: 13.5px; color: var(--text-3); margin: 0; }
 
-.page-banner { background:linear-gradient(135deg,#7c2d12,#f97316); border-radius:10px; padding:26px 32px; margin-bottom:24px; color:white; display:flex; justify-content:space-between; align-items:center; gap:20px; }
-.page-banner h1 { font-size:21px; font-weight:700; margin:0 0 4px; }
-.page-banner p  { font-size:13px; opacity:0.8; margin:0; }
-.step-indicator { display:flex; align-items:center; gap:8px; flex-shrink:0; }
-.step-pill { display:flex; align-items:center; padding:6px 14px; border-radius:20px; font-size:12px; font-weight:700; background:rgba(255,255,255,0.15); color:rgba(255,255,255,0.6); white-space:nowrap; }
-.step-pill.active { background:rgba(255,255,255,0.95); color:#c2410c; }
-.step-arrow { color:rgba(255,255,255,0.4); font-size:14px; }
+/* ── Step indicator ─────────────────────────────── */
+.stepper   { display: flex; align-items: center; margin-bottom: 24px; }
+.step      { display: flex; align-items: center; gap: 8px; }
+.step-dot  {
+  width: 28px; height: 28px; border-radius: 50%;
+  border: 2px solid var(--border); background: var(--surface);
+  color: var(--text-3); font-size: 12px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; transition: background 0.2s, border-color 0.2s;
+}
+.step.active .step-dot { border-color: var(--primary); background: var(--primary); color: #fff; }
+.step.done   .step-dot { border-color: #22c55e; background: #22c55e; color: #fff; }
+.step-lbl          { font-size: 13px; font-weight: 600; color: var(--text-3); white-space: nowrap; }
+.step.active .step-lbl { color: var(--primary); }
+.step.done   .step-lbl { color: #15803d; }
+.step-line         { flex: 1; height: 2px; background: var(--border); min-width: 32px; margin: 0 8px; transition: background 0.2s; }
+.step-line.filled  { background: var(--primary); }
 
-.card { background:white; border-radius:10px; box-shadow:0 1px 4px rgba(0,0,0,0.07); padding:28px 32px; }
-.card-title { font-size:15px; font-weight:700; color:#1e293b; margin:0 0 4px; }
-.card-sub   { font-size:13px; color:#64748b; margin-bottom:24px; }
+/* ── Card ───────────────────────────────────────── */
+.card       { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-sm); padding: 28px 32px; }
+.card-title { font-size: 15px; font-weight: 700; color: var(--text-1); margin: 0 0 4px; }
+.card-sub   { font-size: 13px; color: var(--text-3); margin-bottom: 24px; }
 
-.alert { display:flex; align-items:flex-start; gap:10px; padding:14px 16px; border-radius:8px; margin-bottom:20px; font-size:14px; font-weight:500; }
-.alert.error { background:#fef2f2; color:#991b1b; border:1px solid #fecaca; }
+/* ── Alert ──────────────────────────────────────── */
+.msg-box   { padding: 12px 16px; border-radius: var(--radius-sm); font-size: 14px; margin-bottom: 20px; font-weight: 500; }
+.error-box { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
 
-.drop-zone { border:2px dashed #e2e8f0; border-radius:10px; padding:40px 20px; background:#fafafa; cursor:pointer; text-align:center; margin-bottom:20px; position:relative; transition:all 0.2s; }
-.drop-zone:hover, .drop-zone.dragover { background:#fff7ed; border-color:#f97316; }
-.drop-zone.has-file { background:#f0fdf4; border-color:#22c55e; border-style:solid; }
-.file-input { position:absolute; inset:0; opacity:0; cursor:pointer; width:100%; height:100%; }
-.drop-icon { font-size:36px; margin-bottom:10px; }
-.drop-main { font-size:15px; font-weight:600; color:#374151; }
-.drop-sub  { font-size:13px; color:#94a3b8; margin-top:5px; }
+/* ── Drop zone ──────────────────────────────────── */
+.drop-zone       { border: 2px dashed var(--border); border-radius: var(--radius); padding: 40px 20px; background: var(--surface-2); cursor: pointer; text-align: center; margin-bottom: 20px; position: relative; transition: all 0.2s; }
+.drop-zone:hover,
+.drop-zone.dragover { background: var(--primary-soft); border-color: var(--primary); }
+.drop-zone.has-file { background: #f0fdf4; border-color: #22c55e; border-style: solid; }
+.file-input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+.drop-icon  { font-size: 36px; margin-bottom: 10px; }
+.drop-main  { font-size: 15px; font-weight: 600; color: var(--text-1); }
+.drop-sub   { font-size: 13px; color: var(--text-3); margin-top: 5px; }
 
-.submit-btn { width:100%; height:46px; background:#f97316; color:white; border:none; border-radius:8px; font-size:15px; font-weight:700; cursor:pointer; }
-.submit-btn:disabled { background:#cbd5e1; color:#94a3b8; cursor:not-allowed; }
+/* ── Buttons ────────────────────────────────────── */
+.btn-primary {
+  padding: 0 20px; height: 40px; background: var(--primary); color: #fff;
+  border: none; border-radius: var(--radius-sm); font-size: 13px; font-weight: 600;
+  cursor: pointer; box-shadow: 0 6px 18px -6px rgba(124,58,237,0.45);
+  transition: background 0.15s, box-shadow 0.15s;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.btn-primary:hover               { background: var(--primary-hover); }
+.btn-primary:disabled            { background: var(--border); color: var(--text-3); cursor: not-allowed; box-shadow: none; }
+.btn-primary.btn-full            { width: 100%; height: 46px; font-size: 15px; }
+.btn-primary.btn-link            { text-decoration: none; }
 
-.smart-notice { display:flex; align-items:center; gap:10px; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px; padding:12px 16px; margin-bottom:20px; font-size:13px; color:#15803d; font-weight:600; }
-.map-list { display:flex; flex-direction:column; gap:8px; max-height:420px; overflow-y:auto; padding-right:4px; margin-bottom:24px; }
-.map-row { display:grid; grid-template-columns:1fr 1fr; gap:14px; align-items:center; background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:12px 16px; }
-.map-row.auto-row { border-color:#bbf7d0; background:#f0fdf4; }
-.map-col-info { display:flex; flex-direction:column; gap:3px; min-width:0; }
-.col-letter { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.8px; color:#94a3b8; }
-.col-name   { font-size:14px; font-weight:600; color:#1e293b; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.auto-badge { display:inline-flex; align-items:center; gap:3px; font-size:10px; font-weight:700; color:#15803d; background:#dcfce7; padding:2px 7px; border-radius:10px; width:fit-content; }
-.map-select { height:38px; padding:0 10px; border:1.5px solid #e2e8f0; border-radius:7px; font-size:13px; color:#374151; background:white; outline:none; width:100%; }
-.map-select.auto-matched { border-color:#86efac; }
+.btn-ghost {
+  padding: 0 18px; height: 40px; background: var(--surface-2); color: var(--text-2);
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  font-size: 13px; font-weight: 500; cursor: pointer;
+  transition: background 0.15s;
+  display: inline-flex; align-items: center;
+}
+.btn-ghost:hover { background: var(--border); color: var(--text-1); }
 
-.import-btn { flex:1; height:46px; background:#3b82f6; color:white; border:none; border-radius:8px; font-size:15px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; }
-.import-btn:disabled { background:#cbd5e1; cursor:not-allowed; }
-.back-btn { height:46px; padding:0 22px; background:#f1f5f9; color:#475569; border:1.5px solid #e2e8f0; border-radius:8px; font-size:15px; font-weight:600; cursor:pointer; }
+/* ── Action row ─────────────────────────────────── */
+.action-row         { display: flex; gap: 8px; justify-content: flex-end; }
+.result-actions     { margin-top: 20px; }
 
-.result-banner { border-radius:10px; padding:26px 32px; margin-bottom:20px; color:white; display:flex; justify-content:space-between; align-items:center; gap:20px; }
-.result-banner.success { background:linear-gradient(135deg,#14532d,#16a34a); }
-.result-banner.error   { background:linear-gradient(135deg,#7f1d1d,#dc2626); }
-.result-banner h2 { font-size:20px; font-weight:700; margin:0 0 4px; }
-.result-banner p  { font-size:14px; opacity:0.85; margin:0; }
-.big-num { font-size:44px; font-weight:800; }
+/* ── Smart notice ───────────────────────────────── */
+.smart-notice { display: flex; align-items: center; gap: 10px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: var(--radius-sm); padding: 12px 16px; margin-bottom: 20px; font-size: 13px; color: #15803d; font-weight: 600; }
 
-.summary-row { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
-.summary-card { background:white; border-radius:10px; padding:20px 24px; box-shadow:0 1px 4px rgba(0,0,0,0.07); border-top:3px solid #e2e8f0; }
-.summary-card.imported { border-top-color:#22c55e; }
-.summary-card.skipped  { border-top-color:#94a3b8; }
-.summary-label { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.8px; color:#94a3b8; margin-bottom:6px; }
-.summary-value { font-size:36px; font-weight:800; color:#1e293b; }
+/* ── Column mapping ─────────────────────────────── */
+.map-list     { display: flex; flex-direction: column; gap: 8px; max-height: 420px; overflow-y: auto; padding-right: 4px; margin-bottom: 24px; }
+.map-row      { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-items: center; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px 16px; }
+.map-row.auto-row { border-color: #bbf7d0; background: #f0fdf4; }
+.map-col-info { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.col-letter   { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-3); }
+.col-name     { font-size: 14px; font-weight: 600; color: var(--text-1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.auto-badge   { display: inline-flex; align-items: center; gap: 3px; font-size: 10px; font-weight: 700; color: #15803d; background: #dcfce7; padding: 2px 7px; border-radius: 999px; width: fit-content; }
+.map-select   { height: 38px; padding: 0 10px; border: 1.5px solid var(--border); border-radius: var(--radius-sm); font-size: 13px; color: var(--text-1); background: var(--surface); outline: none; width: 100%; cursor: pointer; transition: border-color 0.15s, box-shadow 0.15s; }
+.map-select:focus          { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); }
+.map-select.auto-matched   { border-color: #86efac; }
 
-/* Responsive */
+/* ── Result banner ──────────────────────────────── */
+.result-banner  { border-radius: var(--radius); padding: 24px 28px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; gap: 20px; }
+.result-success { background: #f0fdf4; border: 1px solid #bbf7d0; }
+.result-error   { background: #fef2f2; border: 1px solid #fecaca; }
+.result-title   { font-size: 18px; font-weight: 700; margin: 0 0 4px; }
+.result-success .result-title { color: #15803d; }
+.result-error   .result-title { color: #991b1b; }
+.result-desc    { font-size: 13.5px; margin: 0; }
+.result-success .result-desc  { color: #15803d; }
+.result-error   .result-desc  { color: #991b1b; }
+.big-num        { font-size: 44px; font-weight: 800; color: #15803d; }
+
+/* ── Summary cards ──────────────────────────────── */
+.summary-row           { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.summary-row.three-col { grid-template-columns: 1fr 1fr 1fr; }
+.summary-card          { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px 24px; box-shadow: var(--shadow-xs); border-top: 3px solid var(--border); }
+.summary-card.imported { border-top-color: #22c55e; }
+.summary-card.skipped  { border-top-color: var(--text-3); }
+.summary-card.failed   { border-top-color: #f97316; }
+.summary-label         { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; color: var(--text-2); margin-bottom: 6px; }
+.summary-value         { font-size: 36px; font-weight: 800; color: var(--text-1); }
+.summary-card.failed .summary-value { color: #c2410c; }
+
+/* ── Failed row details ─────────────────────────── */
+.error-detail       { background: #fff7ed; border: 1px solid #fed7aa; border-radius: var(--radius); padding: 16px 20px; margin-bottom: 20px; }
+.error-detail-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; color: #9a3412; margin-bottom: 10px; }
+.error-row          { display: grid; grid-template-columns: 60px 1fr 2fr; gap: 10px; padding: 6px 0; border-top: 1px solid #fed7aa; font-size: 12.5px; }
+.err-row-num        { font-weight: 700; color: #9a3412; white-space: nowrap; }
+.err-name           { color: var(--text-1); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.err-reason         { color: #c2410c; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ── Responsive ─────────────────────────────────── */
 @media (max-width: 768px) {
-  .page { padding: 16px 12px; }
-  .page-banner { flex-direction: column; align-items: flex-start; gap: 12px; padding: 20px; }
-  .step-indicator { flex-wrap: wrap; }
-  .card { padding: 20px 16px; }
-  .map-row { grid-template-columns: 1fr; }
+  .page         { padding: 16px 12px; }
+  .step-lbl     { display: none; }
+  .card         { padding: 20px 16px; }
+  .map-row      { grid-template-columns: 1fr; }
   .result-banner { flex-direction: column; align-items: flex-start; }
-  .summary-row { grid-template-columns: 1fr; }
+  .summary-row,
+  .summary-row.three-col { grid-template-columns: 1fr; }
+  .action-row   { flex-direction: column-reverse; }
+  .btn-primary,
+  .btn-ghost    { width: 100%; justify-content: center; }
 }
 @media (max-width: 640px) {
   .page { padding: 12px 8px; }

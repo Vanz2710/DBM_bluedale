@@ -2,6 +2,18 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## UI Design Standards
+
+**Every new Vue page or component MUST follow `UI_DESIGN_STANDARDS.md` exactly.**
+Read that file before writing any frontend code. Key rules:
+- Use CSS variables (`var(--text-1)`, `var(--surface)`, `var(--primary)`, etc.) — never hardcode hex equivalents
+- Page title: `28px / 800 weight`, subtitle: `13.5px / var(--text-3)`
+- Page padding: `28px 32px`
+- Border-radius from tokens: `--radius-sm` (6px), `--radius` (10px), `--radius-lg` (14px)
+- Badges always `999px` border-radius (pill)
+- Tables always inside `.table-wrap` with `border-radius: var(--radius)`
+- No Tailwind, no hardcoded colours, scoped CSS only
+
 ## Development Commands
 
 **Start all services (Laravel + Vite HMR + queue + log tail):**
@@ -45,7 +57,7 @@ composer run setup
 - **Build:** Vite 8 with manual chunk splitting for chart.js, vue-router, axios, lottie
 
 ### Request Flow
-All API requests go through `routes/api.php`. All feature routes live under the `/api/v1/` prefix, which requires both `auth:sanctum` and `verified` (email verification) middleware. The only unauthenticated API routes are `POST /auth/login`, `POST /auth/email/resend`, and `POST /public/lead` (throttled at 10/min).
+All API requests go through `routes/api.php`. All feature routes live under the `/api/v1/` prefix, which requires `auth:sanctum` middleware only — **email verification middleware has been removed**. The only unauthenticated API routes are `POST /auth/login`, `POST /auth/email/resend`, and `POST /public/lead` (throttled at 10/min).
 
 The SPA catch-all in `routes/web.php` serves `resources/views/app.blade.php`, which bootstraps Vue. The Vue app lives in `resources/js/app.js` and mounts `App.vue`.
 
@@ -54,8 +66,31 @@ A WhatsApp webhook lives at `GET|POST /webhooks/whatsapp` (CSRF-exempt, no auth)
 ### Auth Pattern
 - Token stored in `localStorage` as `crm_token`; user object stored as `crm_user` (JSON with `roles[]` array)
 - `resources/js/api.js` — Axios instance that auto-attaches Bearer token, strips Content-Type for FormData uploads, and redirects to `/login` on 401 (deduplicated across concurrent requests via `_redirecting` flag). Router must be registered via `setRouter()` before the first 401.
-- Router guard in `resources/js/router/index.js` (`setupGuard`) enforces auth and `adminOnly` meta
+- Router guard in `resources/js/router/index.js` (`setupGuard`) enforces auth and `adminOnly` meta — **no email verification check** (removed)
 - Admin check in controllers: `$authUser->hasAnyRole(['admin', 'super-admin'])`
+
+### User Access & Security Flows
+
+**Email verification is disabled.** Users do not receive verification emails. All newly created users are auto-approved (`is_approved = true`) and auto-verified (`email_verified_at = now()`) at creation time in `UserManagementController::store()`.
+
+**Login flow in `AuthController::login()`:**
+1. Wrong credentials → 422
+2. `is_approved = false` → 403 `pending_approval` (manual block; also sends `UserPendingApproval` to admin on first attempt)
+3. `inactivity_flagged_at` is set → 403 `inactivity_flagged` (no re-send)
+4. `last_login_at` is 14+ days ago → set `inactivity_flagged_at`, send `InactivityLoginAlert` email to admin, 403
+5. `login_count === 0` (first ever login) → send `FirstLoginAlert` email to admin, then proceed normally
+6. Success → increment `login_count`, update `last_login_at`, return token
+
+**Admin notification routing (`AuthController::notifyAdmins()`):**
+Reads `SystemSetting::get('admin_notification_email')` first. If set, sends via `Notification::route('mail', $email)`. Falls back to all admin/super-admin users only if the setting is empty.
+
+**Inactivity restore:** `PUT /api/v1/rbac/users/{user}/restore-access` clears `inactivity_flagged_at`.
+
+**Password changes:** `ProfileController::changePassword()` creates a `SystemAlert` for every admin/super-admin (in-app only, no email). Appears in the notification bell under "System Alerts".
+
+**System Settings:** `SystemSetting` model (`system_settings` table) stores global key-value config. Currently holds `admin_notification_email`. Use `SystemSetting::get($key)` / `SystemSetting::set($key, $value)` static helpers. Managed via `GET|PUT /api/v1/system-settings` (admin only), UI at `/admin/system-settings`.
+
+**In-app admin alerts:** `SystemAlert` model (`system_alerts` table) — per-admin rows with `for_user_id`, `type`, `title`, `body`, `link`, `read_at`. Create alerts with `SystemAlert::notifyAdmins($type, $title, $body, $link)`. The `ReminderController` includes unread alerts for admins in the `/api/v1/reminders` response as an `alerts` array. `NotificationBell.vue` displays them above Overdue/Today/Upcoming.
 
 ### Data Model
 Core entity is **Contact** (company/client), owned by a User, classified by status, type, category, industry, area.
@@ -78,15 +113,35 @@ Model domains (all flat in `app/Models/`):
 - **Forecast:** ForecastProduct, ForecastResult, ForecastType
 - **Marketing:** SocialMediaReminder, PostingCalendarReminder, AdvertisingProduct, AdvertisingProductBooking, EmailCampaign
 - **Tracking/settings:** KpiTarget, PerformanceTarget, ReminderRead, RoundRobinState, Webhook, WhatsAppMessage
+- **System:** SystemSetting (global key-value config), SystemAlert (in-app admin notifications)
 
 ### Frontend Structure
 - `App.vue` — shell with collapsible sidebar + `<router-view>`; sidebar groups are defined in the `ALL_GROUPS` array with `adminOnly`, `section`, `color`, and `items[].activeRoutes` for smart active-state highlighting; group auto-opens based on current route name; mobile collapse state persisted in `localStorage.sidebarCollapsed`
 - All pages are lazy-loaded in `resources/js/router/index.js`
 - `GET /api/v1/lookups` returns all dropdown reference data (statuses, types, categories, industries, areas, users, tasks) — every add/edit form calls this on mount
-- Components: `LoadingSpinner.vue`, `NotificationBell.vue` (reads `GET /api/v1/reminders`)
+- Components: `LoadingSpinner.vue`, `NotificationBell.vue` (reads `GET /api/v1/reminders` — returns `overdue`, `today`, `upcoming` CRM reminders + `alerts` array of unread `SystemAlert` rows for admins)
 - User settings and dashboard layout are fetched from server on app mount via `useSettings.js` and cached in localStorage
 
 **Adding a new page requires three steps:** (1) create the Vue component in `resources/js/pages/`, (2) add a lazy-loaded route in `resources/js/router/index.js`, (3) add the route to the appropriate group in `ALL_GROUPS` in `App.vue`.
+
+**Adding a new admin page requires one extra step:** also add a link to `adminLinks` array in `Settings.vue` so it appears in the Settings → Admin tab quick-access list.
+
+### Feature Tour
+
+The app has a step-by-step spotlight tour for new users. It auto-starts on first login and can be re-triggered anytime via the `?` icon in the topbar.
+
+- **Tour steps:** `resources/js/composables/useTour.js` — `TOUR_STEPS` array
+- **Tour overlay component:** `resources/js/components/TourOverlay.vue`
+- **`data-tour` attributes** on key elements in `App.vue` link steps to DOM targets:
+  - `data-tour="brand"` — sidebar logo
+  - `data-tour="nav-{group.key}"` — auto-applied to every sidebar group header button
+  - `data-tour="notification-bell"` — bell wrapper in topbar
+  - `data-tour="settings-btn"` — settings icon in topbar
+  - `data-tour="user-profile"` — user avatar in topbar
+- **Seen state** stored in `localStorage` key `crm_tour_seen`
+- Sidebar auto-expands when tour is active (watch in `App.vue`)
+
+**When adding any new significant feature or page, update `TOUR_STEPS` in `useTour.js`** to include a step that explains it. Add a `data-tour="..."` attribute to the relevant element if it isn't already targeted. Each step has: `target` (CSS selector), `title`, `body`, `position` (`'right'` for sidebar items, `'bottom-left'` for topbar items).
 
 ### RBAC & Permission Patterns
 Spatie roles: `super-admin`, `admin`, regular user. Admin-only routes are grouped under `Route::middleware('role:admin|super-admin')`. The `RolesAndPermissionsSeeder` seeds all permissions and default roles.

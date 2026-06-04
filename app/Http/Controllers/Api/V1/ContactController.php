@@ -53,7 +53,7 @@ class ContactController extends Controller
         $dateTo   = $request->input('date_to');
         $perPage  = (int) $request->input('per_page', 100);
 
-        $query = Contact::with(['status', 'type', 'industry', 'category', 'area', 'user']);
+        $query = Contact::with(['status', 'type', 'industry', 'category', 'user']);
 
         if ($date) {
             $query->whereDate('created_at', $date);

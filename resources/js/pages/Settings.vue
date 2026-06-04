@@ -439,6 +439,12 @@ const adminLinks = [
     desc:  'Configure notification email and other global system settings',
   },
   {
+    to:    '/admin/user-activity',
+    icon:  _s('<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>'),
+    title: 'User Activity',
+    desc:  'Monitor login history, CRM activity counts, and security events per user',
+  },
+  {
     to:    '/data-health',
     icon:  _s('<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>'),
     title: 'Data Health',

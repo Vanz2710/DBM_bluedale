@@ -11,7 +11,7 @@
     <aside class="sidebar" @mouseenter="onSidebarEnter" @mouseleave="onSidebarLeave">
       <button class="sidebar-toggle" @click="collapsed = !collapsed" :title="collapsed ? 'Expand' : 'Collapse'" v-html="collapsed ? SVGI.chevronRight : SVGI.chevronLeft"></button>
 
-      <router-link to="/" class="sidebar-brand" aria-label="Bluedale CRM">
+      <router-link to="/" class="sidebar-brand" aria-label="Bluedale CRM" data-tour="brand">
         <span class="brand-mark" aria-hidden="true">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
             <rect x="2" y="2" width="9" height="9" rx="2" fill="currentColor" opacity="0.9"/>
@@ -29,7 +29,7 @@
       <nav class="nav-section">
         <div class="nav-label">General</div>
         <div v-for="group in mainGroups" :key="group.key" class="nav-group">
-          <button class="nav-group-header" :class="groupHeaderClass(group)" @click="toggleGroup(group.key)">
+          <button class="nav-group-header" :class="groupHeaderClass(group)" @click="toggleGroup(group.key)" :data-tour="'nav-' + group.key">
             <span class="nav-icon" v-html="group.icon"></span>
             <span class="nav-text">{{ group.label }}</span>
             <span class="nav-arrow nav-text" :class="{ open: openGroups[group.key] }">›</span>
@@ -58,7 +58,7 @@
       <nav class="nav-section">
         <div class="nav-label">Tools</div>
         <div v-for="group in toolGroups" :key="group.key" class="nav-group">
-          <button class="nav-group-header" :class="groupHeaderClass(group)" @click="toggleGroup(group.key)">
+          <button class="nav-group-header" :class="groupHeaderClass(group)" @click="toggleGroup(group.key)" :data-tour="'nav-' + group.key">
             <span class="nav-icon" v-html="group.icon"></span>
             <span class="nav-text">{{ group.label }}</span>
             <span class="nav-arrow nav-text" :class="{ open: openGroups[group.key] }">›</span>
@@ -128,7 +128,23 @@
         </div>
 
         <div class="topbar-right">
-          <NotificationBell v-if="!isLogin" />
+          <!-- Tour trigger -->
+          <button
+            v-if="!isLogin"
+            class="topbar-icon-btn tour-trigger-btn"
+            title="Feature tour"
+            @click="tour.start()"
+          >
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"/>
+              <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+              <line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+          </button>
+
+          <span data-tour="notification-bell">
+            <NotificationBell v-if="!isLogin" />
+          </span>
 
           <!-- Settings shortcut -->
           <router-link
@@ -136,11 +152,12 @@
             to="/settings"
             class="topbar-icon-btn"
             title="Settings"
+            data-tour="settings-btn"
             v-html="SVGI.gear"
           ></router-link>
 
           <!-- User profile -->
-          <div class="topbar-user" v-if="!isLogin && currentUser" ref="profileWrap">
+          <div class="topbar-user" v-if="!isLogin && currentUser" ref="profileWrap" data-tour="user-profile">
             <button class="topbar-avatar-btn" @click="profileOpen = !profileOpen" :title="currentUser.name">
               {{ userInitials }}
             </button>
@@ -172,6 +189,8 @@
       <router-view />
     </main>
   </div>
+
+  <TourOverlay />
 </template>
 
 <script setup>
@@ -179,13 +198,20 @@ import { ref, reactive, computed, watch, onMounted, onUnmounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import api from './api.js';
 import NotificationBell from './components/NotificationBell.vue';
+import TourOverlay from './components/TourOverlay.vue';
 import { applyTheme, useSettings } from './composables/useSettings.js';
+import { useTour } from './composables/useTour.js';
 
 const route = useRoute();
 const router = useRouter();
 const collapsed = ref(localStorage.getItem('sidebarCollapsed') === '1');
 const peeking = ref(false);
 const mobileOpen = ref(false);
+
+// ─── Tour ──────────────────────────────────────────────────────────────────────
+const tour = useTour();
+// Auto-expand sidebar during tour so all targets are visible
+watch(tour.active, val => { if (val) collapsed.value = false; });
 
 // ─── Topbar search ────────────────────────────────────────────────────────────
 const searchQuery = ref('');
@@ -281,7 +307,13 @@ onMounted(() => {
   document.addEventListener('click', handleDocClick, true);
   document.addEventListener('keydown', handleKeydown);
   // Sync user settings from server once on app mount (no-op if not logged in)
-  if (localStorage.getItem('crm_token')) loadFromServer();
+  if (localStorage.getItem('crm_token')) {
+    loadFromServer();
+    // Auto-start tour for users who haven't seen it yet
+    if (!tour.hasSeen()) {
+      setTimeout(() => tour.start(), 1200);
+    }
+  }
 });
 
 onUnmounted(() => {
@@ -303,6 +335,7 @@ const SVGI = {
   trending:     _s('<polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/>'),
   gear:         _s('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>'),
   megaphone:    _s('<path d="M3 11l19-9-9 19-2-8-8-2z"/>'),
+  sparkle:      _s('<path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z"/>'),
   calendar:     _s('<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>'),
   mail:         _s('<path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/>'),
   grid:         _s('<rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>'),
@@ -355,6 +388,7 @@ const ALL_GROUPS = [
       { key: 'social-media',         to: '/social-media',         icon: SVGI.megaphone, label: 'Social Media',         activeRoutes: ['social-media'] },
       { key: 'posting-calendar',     to: '/posting-calendar',     icon: SVGI.calendar,  label: 'Posting Calendar',     activeRoutes: ['posting-calendar'] },
       { key: 'marketing-email',      to: '/marketing-email',      icon: SVGI.mail,      label: 'Email Marketing',      activeRoutes: ['marketing-email'] },
+      { key: 'marketing-ai',         to: '/marketing-ai',         icon: SVGI.sparkle,   label: 'Marketing AI',         activeRoutes: ['marketing-ai'] },
       { key: 'product-availability', to: '/product-availability', icon: SVGI.grid,      label: 'Product Availability', activeRoutes: ['product-availability'] },
     ],
   },
@@ -365,6 +399,7 @@ const ALL_GROUPS = [
       { key: 'rbac',            to: '/admin/rbac',                   icon: SVGI.shield,  label: 'Access Control',    activeRoutes: ['rbac'] },
       { key: 'perf-targets',    to: '/admin/performance-targets',    icon: SVGI.target,  label: 'Perf. Targets',     activeRoutes: ['perf-targets'] },
       { key: 'system-settings', to: '/admin/system-settings',        icon: SVGI.mail,    label: 'System Settings',   activeRoutes: ['system-settings'] },
+      { key: 'user-activity',  to: '/admin/user-activity',          icon: SVGI.activity, label: 'User Activity',     activeRoutes: ['user-activity'] },
     ],
   },
   {
@@ -797,6 +832,7 @@ textarea:focus-visible,
   transition: background 0.15s, color 0.15s;
 }
 .topbar-icon-btn:hover { background: var(--primary-soft); color: var(--primary-text); }
+.tour-trigger-btn { border: none; cursor: pointer; background: transparent; }
 
 /* ── Topbar user avatar + profile dropdown ─────────────────────── */
 .topbar-user { position: relative; }

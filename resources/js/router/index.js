@@ -24,8 +24,6 @@ const TodoAdd             = () => import('../pages/TodoAdd.vue');
 const TaskEdit            = () => import('../pages/TodoEdit.vue');
 const AdminPanel          = () => import('../pages/AdminPanel.vue');
 const RbacPanel           = () => import('../pages/RbacPanel.vue');
-const CrmList             = () => import('../pages/CrmList.vue');
-const CrmView             = () => import('../pages/CrmView.vue');
 const DataHealth          = () => import('../pages/DataHealth.vue');
 const Import              = () => import('../pages/Import.vue');
 const Reminders           = () => import('../pages/Reminders.vue');
@@ -37,10 +35,12 @@ const Settings                = () => import('../pages/Settings.vue');
 const SocialMediaReminder     = () => import('../pages/SocialMediaReminder.vue');
 const PostingCalendar         = () => import('../pages/PostingCalendar.vue');
 const MarketingEmail          = () => import('../pages/EmailCampaigns.vue');
+const MarketingAI             = () => import('../pages/MarketingAI.vue');
 const ProductAvailability     = () => import('../pages/ProductAvailability.vue');
 const ContactAnalysis         = () => import('../pages/ContactAnalysis.vue');
 const PredictiveInsights      = () => import('../pages/PredictiveInsights.vue');
 const SystemSettings          = () => import('../pages/SystemSettings.vue');
+const UserActivity            = () => import('../pages/UserActivity.vue');
 
 const routes = [
     { path: '/login',        component: Login,       name: 'login',        meta: { public: true } },
@@ -72,8 +72,6 @@ const routes = [
     { path: '/admin/performance-targets',  component: PerformanceTargets, name: 'perf-targets', meta: { adminOnly: true } },
     { path: '/admin',                      component: AdminPanel,       name: 'admin',        meta: { adminOnly: true } },
     { path: '/admin/rbac',                 component: RbacPanel,        name: 'rbac',         meta: { adminOnly: true } },
-    { path: '/crm',                        component: CrmList,     name: 'crm' },
-    { path: '/crm/:id',                    component: CrmView,     name: 'crm-view' },
 { path: '/data-health',                component: DataHealth,   name: 'data-health' },
     { path: '/import',                     component: Import,       name: 'import' },
     { path: '/reminders',                  component: Reminders,    name: 'reminders' },
@@ -81,10 +79,12 @@ const routes = [
     { path: '/reports',                    component: Reports,      name: 'reports' },
     { path: '/admin/webhooks',             component: Webhooks,        name: 'webhooks',        meta: { adminOnly: true } },
     { path: '/admin/system-settings',     component: SystemSettings,  name: 'system-settings', meta: { adminOnly: true } },
+    { path: '/admin/user-activity',       component: UserActivity,    name: 'user-activity',   meta: { adminOnly: true } },
     { path: '/settings',                   component: Settings,          name: 'settings' },
     { path: '/social-media',               component: SocialMediaReminder, name: 'social-media' },
     { path: '/posting-calendar',           component: PostingCalendar,     name: 'posting-calendar' },
     { path: '/marketing-email',            component: MarketingEmail,      name: 'marketing-email' },
+    { path: '/marketing-ai',               component: MarketingAI,         name: 'marketing-ai' },
     { path: '/product-availability',       component: ProductAvailability, name: 'product-availability' },
 ];
 

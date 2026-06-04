@@ -86,6 +86,9 @@
       </div>
       <button class="btn btn-primary" @click="load">Search</button>
       <button class="btn btn-clear" @click="clearFilters" v-if="hasFilters">Clear</button>
+      <button class="btn btn-export" @click="exportContacts" :disabled="exportingContacts">
+        {{ exportingContacts ? 'Exporting…' : 'Export' }}
+      </button>
     </div>
 
     <!-- Summary toolbar -->
@@ -1425,6 +1428,53 @@ function clearFilters() {
   userId.value = ''; sort.value = 'desc';
   suggestions.value = []; showSuggestions.value = false;
   load();
+}
+
+const exportingContacts = ref(false);
+
+async function exportContacts() {
+  exportingContacts.value = true;
+  try {
+    const params = { sort: sort.value, per_page: 9999 };
+    if (dateFrom.value) params.date_from = dateFrom.value;
+    if (dateTo.value)   params.date_to   = dateTo.value;
+    if (search.value)   params.search    = search.value;
+    if (userId.value)   params.user_id   = userId.value;
+    const res = await api.get('/v1/contacts/daily', { params });
+    const rows = res.data.data ?? [];
+
+    const headers = ['No', 'Date Added', 'User', 'Status', 'Type', 'Industry', 'Address', 'Company Name', 'Category', 'Remarks'];
+    const lines = [headers];
+    rows.forEach((c, i) => {
+      lines.push([
+        i + 1,
+        fmtDate(c.created_at),
+        c.user?.name ?? '—',
+        c.status?.name ?? '—',
+        c.type?.name ?? '—',
+        c.industry?.name ?? '—',
+        c.address ?? '—',
+        c.name,
+        c.category?.name ?? '—',
+        c.remark ?? '—',
+      ]);
+    });
+
+    const csv = '﻿' + lines.map(row => row.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    const today = new Date().toISOString().slice(0, 10);
+    a.download = `Contacts_${today}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast(`Exported ${rows.length} contact(s)`);
+  } catch {
+    showToast('Export failed', 'error');
+  } finally {
+    exportingContacts.value = false;
+  }
 }
 
 function showRemark(contact) {
