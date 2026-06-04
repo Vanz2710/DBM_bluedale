@@ -1,20 +1,25 @@
 <template>
   <div class="page">
-    <div class="page-banner">
-      <div>
-        <h1>Data Health Report</h1>
-        <p>Checks CRM records for missing fields, duplicates, and coverage issues.</p>
+
+    <!-- Page Header -->
+    <div class="page-header">
+      <div class="header-left">
+        <h1 class="page-title">Data Health Report</h1>
+        <p class="page-subtitle">Checks CRM records for missing fields, duplicates, and coverage issues.</p>
       </div>
-      <div class="health-score-circle">
+      <div v-if="!loading" class="health-score">
         <span class="score-num">{{ data.health_score ?? '—' }}%</span>
-        <span class="score-label">health</span>
+        <span class="score-lbl">Health Score</span>
       </div>
     </div>
 
-    <LoadingSpinner v-if="loading" />
+    <div v-if="loading" class="loading-wrap">
+      <LoadingSpinner />
+    </div>
 
     <template v-else>
-      <!-- Stats row -->
+
+      <!-- Stats Row -->
       <div class="stats-row">
         <div class="stat-card">
           <div class="stat-label">Total Contacts</div>
@@ -36,12 +41,12 @@
         </div>
       </div>
 
-      <!-- Missing fields -->
+      <!-- Missing Fields -->
       <div class="card">
         <div class="card-header">
           <span class="card-title">Contacts — missing required links</span>
-          <span class="badge" :class="totalMissing > 0 ? 'issues' : 'clean'">
-            {{ totalMissing > 0 ? `${totalMissing} field gaps` : '✓ All complete' }}
+          <span class="badge" :class="totalMissing > 0 ? 'badge-red' : 'badge-green'">
+            {{ totalMissing > 0 ? `${totalMissing} field gaps` : 'All complete' }}
           </span>
         </div>
         <div class="missing-grid">
@@ -53,82 +58,90 @@
         </div>
       </div>
 
-      <!-- PIC health + Referential integrity -->
+      <!-- PIC Health + Activity Overdue -->
       <div class="two-col">
-        <div class="card" style="margin-bottom:0">
+        <div class="card">
           <div class="card-header">
             <span class="card-title">PIC Health</span>
-            <span class="badge" :class="picIssues > 0 ? 'issues' : 'clean'">
-              {{ picIssues > 0 ? `${picIssues} issues` : '✓ Clean' }}
+            <span class="badge" :class="picIssues > 0 ? 'badge-red' : 'badge-green'">
+              {{ picIssues > 0 ? `${picIssues} issues` : 'Clean' }}
             </span>
           </div>
           <div class="dist-row">
             <span class="dist-label">Contacts with no PIC</span>
-            <div class="dist-bar-wrap"><div class="dist-bar" :style="{ width: barPct(data.no_pic, data.total) + '%', background: '#f87171' }"></div></div>
+            <div class="dist-bar-wrap"><div class="dist-bar bar-red" :style="{ width: barPct(data.no_pic, data.total) + '%' }"></div></div>
             <span class="dist-count">{{ data.no_pic }}</span>
           </div>
           <div class="dist-row">
             <span class="dist-label">PICs missing email</span>
-            <div class="dist-bar-wrap"><div class="dist-bar" :style="{ width: barPct(data.pic_no_email, data.total_pics) + '%', background: '#fbbf24' }"></div></div>
+            <div class="dist-bar-wrap"><div class="dist-bar bar-amber" :style="{ width: barPct(data.pic_no_email, data.total_pics) + '%' }"></div></div>
             <span class="dist-count">{{ data.pic_no_email }}</span>
           </div>
           <div class="dist-row">
             <span class="dist-label">PICs missing mobile</span>
-            <div class="dist-bar-wrap"><div class="dist-bar" :style="{ width: barPct(data.pic_no_phone, data.total_pics) + '%', background: '#fbbf24' }"></div></div>
+            <div class="dist-bar-wrap"><div class="dist-bar bar-amber" :style="{ width: barPct(data.pic_no_phone, data.total_pics) + '%' }"></div></div>
             <span class="dist-count">{{ data.pic_no_phone }}</span>
           </div>
         </div>
 
-        <div class="card" style="margin-bottom:0">
+        <div class="card">
           <div class="card-header">
             <span class="card-title">Activity Overdue</span>
           </div>
           <div class="dist-row">
             <span class="dist-label">Overdue to-dos</span>
-            <div class="dist-bar-wrap"><div class="dist-bar" :style="{ width: barPct(data.overdue_todos, data.total_todos) + '%', background: '#fbbf24' }"></div></div>
+            <div class="dist-bar-wrap"><div class="dist-bar bar-amber" :style="{ width: barPct(data.overdue_todos, data.total_todos) + '%' }"></div></div>
             <span class="dist-count">{{ data.overdue_todos }}</span>
           </div>
           <div class="dist-row">
             <span class="dist-label">Overdue follow-ups</span>
-            <div class="dist-bar-wrap"><div class="dist-bar" :style="{ width: barPct(data.overdue_followups, data.total_followups) + '%', background: '#fbbf24' }"></div></div>
+            <div class="dist-bar-wrap"><div class="dist-bar bar-amber" :style="{ width: barPct(data.overdue_followups, data.total_followups) + '%' }"></div></div>
             <span class="dist-count">{{ data.overdue_followups }}</span>
           </div>
         </div>
       </div>
 
-      <!-- Duplicate names -->
-      <div class="card" style="margin-top:16px">
+      <!-- Duplicate Names -->
+      <div class="card">
         <div class="card-header">
           <span class="card-title">Duplicate Contact Names</span>
-          <span class="badge" :class="data.duplicates?.length > 0 ? 'warn' : 'clean'">
-            {{ data.duplicates?.length > 0 ? `${data.duplicates.length} group${data.duplicates.length !== 1 ? 's' : ''}` : '✓ No duplicates' }}
+          <span class="badge" :class="data.duplicates?.length > 0 ? 'badge-amber' : 'badge-green'">
+            {{ data.duplicates?.length > 0 ? `${data.duplicates.length} group${data.duplicates.length !== 1 ? 's' : ''}` : 'No duplicates' }}
           </span>
         </div>
-        <div v-if="!data.duplicates?.length" class="all-good">✓ No duplicate contact names found.</div>
-        <table v-else>
-          <thead><tr><th>Contact Name</th><th>Occurrences</th><th>Action</th></tr></thead>
-          <tbody>
-            <tr v-for="d in data.duplicates" :key="d.name">
-              <td><strong>{{ d.name ?? '(empty)' }}</strong></td>
-              <td><span class="dup-pill">{{ d.cnt }}×</span></td>
-              <td>
-                <button class="btn-review" @click="openMerge(d.name)">Review &amp; Merge</button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+        <div v-if="!data.duplicates?.length" class="empty-state">No duplicate contact names found.</div>
+        <div v-else class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Contact Name</th>
+                <th>Occurrences</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="d in data.duplicates" :key="d.name">
+                <td><strong>{{ d.name ?? '(empty)' }}</strong></td>
+                <td><span class="badge badge-red">{{ d.cnt }}×</span></td>
+                <td>
+                  <button class="btn-ghost btn-sm" @click="openMerge(d.name)">Review &amp; Merge</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <!-- Merge Modal -->
-      <div v-if="mergeModal.open" class="modal-overlay" @click.self="closeMerge">
-        <div class="modal">
+      <div v-if="mergeModal.open" class="modal-backdrop" @click.self="closeMerge">
+        <div class="modal-box">
           <div class="modal-header">
-            <span class="modal-title">Merge Duplicates — {{ mergeModal.name }}</span>
-            <button class="modal-close" @click="closeMerge">✕</button>
+            <h2 class="modal-title">Merge Duplicates — {{ mergeModal.name }}</h2>
+            <button class="modal-close" @click="closeMerge">&#x2715;</button>
           </div>
           <div class="modal-body">
             <p class="modal-hint">Select the contact record to <strong>keep</strong>. All todos, deals, projects, and PICs from the others will be moved to the kept record, and duplicates will be deleted.</p>
-            <div v-if="mergeModal.loading" class="modal-loading">Loading contacts…</div>
+            <div v-if="mergeModal.loading" class="loading-wrap">Loading contacts…</div>
             <div v-else class="merge-list">
               <label v-for="c in mergeModal.contacts" :key="c.id" class="merge-row" :class="{ selected: mergeModal.keepId === c.id }">
                 <input type="radio" :value="c.id" v-model="mergeModal.keepId" class="merge-radio">
@@ -142,13 +155,13 @@
                     <span> · added {{ c.created_at }}</span>
                   </div>
                 </div>
-                <span v-if="mergeModal.keepId === c.id" class="keep-badge">KEEP</span>
+                <span v-if="mergeModal.keepId === c.id" class="badge badge-purple keep-badge">KEEP</span>
               </label>
             </div>
           </div>
           <div class="modal-footer">
-            <button class="btn-cancel" @click="closeMerge">Cancel</button>
-            <button class="btn-merge" :disabled="!mergeModal.keepId || mergeModal.merging || mergeModal.contacts.length < 2" @click="doMerge">
+            <button class="btn-ghost" @click="closeMerge">Cancel</button>
+            <button class="btn-primary" :disabled="!mergeModal.keepId || mergeModal.merging || mergeModal.contacts.length < 2" @click="doMerge">
               {{ mergeModal.merging ? 'Merging…' : `Merge ${mergeModal.contacts.length - 1} duplicate${mergeModal.contacts.length - 1 !== 1 ? 's' : ''}` }}
             </button>
           </div>
@@ -156,24 +169,25 @@
       </div>
 
       <!-- Distributions -->
-      <div class="two-col" style="margin-top:16px">
-        <div class="card" style="margin-bottom:0">
+      <div class="two-col">
+        <div class="card">
           <div class="card-header"><span class="card-title">Contacts by Status</span></div>
           <div v-for="row in data.by_status" :key="row.name" class="dist-row">
             <span class="dist-label">{{ row.name ?? 'No Status' }}</span>
-            <div class="dist-bar-wrap"><div class="dist-bar" :style="{ width: barPct(row.cnt, maxStatus) + '%' }"></div></div>
+            <div class="dist-bar-wrap"><div class="dist-bar bar-purple" :style="{ width: barPct(row.cnt, maxStatus) + '%' }"></div></div>
             <span class="dist-count">{{ row.cnt }}</span>
           </div>
         </div>
-        <div class="card" style="margin-bottom:0">
+        <div class="card">
           <div class="card-header"><span class="card-title">Contacts by Assigned User</span></div>
           <div v-for="row in data.by_user" :key="row.name" class="dist-row">
             <span class="dist-label">{{ row.name ?? 'Unassigned' }}</span>
-            <div class="dist-bar-wrap"><div class="dist-bar" :style="{ width: barPct(row.cnt, maxUser) + '%', background: '#0ea5e9' }"></div></div>
+            <div class="dist-bar-wrap"><div class="dist-bar bar-blue" :style="{ width: barPct(row.cnt, maxUser) + '%' }"></div></div>
             <span class="dist-count">{{ row.cnt }}</span>
           </div>
         </div>
       </div>
+
     </template>
   </div>
 </template>
@@ -192,11 +206,11 @@ const mergeModal = reactive({
 });
 
 async function openMerge(name) {
-  mergeModal.open    = true;
-  mergeModal.name    = name;
-  mergeModal.loading = true;
+  mergeModal.open     = true;
+  mergeModal.name     = name;
+  mergeModal.loading  = true;
   mergeModal.contacts = [];
-  mergeModal.keepId  = null;
+  mergeModal.keepId   = null;
   const res = await axios.get('/v1/contacts', { params: { search: name, per_page: 50 } });
   mergeModal.contacts = (res.data.data ?? []).filter(c => c.name === name);
   if (mergeModal.contacts.length > 0) mergeModal.keepId = mergeModal.contacts[0].id;
@@ -218,8 +232,8 @@ async function doMerge() {
   data.value = res;
 }
 
-const fmt = (n) => (n ?? 0).toLocaleString();
-const pct = (n) => data.value.total > 0 ? Math.round((n ?? 0) / data.value.total * 100 * 10) / 10 + '%' : '—';
+const fmt    = (n) => (n ?? 0).toLocaleString();
+const pct    = (n) => data.value.total > 0 ? Math.round((n ?? 0) / data.value.total * 100 * 10) / 10 + '%' : '—';
 const barPct = (n, max) => max > 0 ? Math.round((n ?? 0) / max * 100) : 0;
 
 const totalMissing = computed(() => Object.values(data.value.missing ?? {}).reduce((s, v) => s + (v ?? 0), 0));
@@ -240,116 +254,121 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.page { max-width: 1060px; margin: 0 auto; padding: 28px 24px; }
-.loading-msg { padding: 60px; text-align: center; color: var(--text-3); }
+/* ── Page shell ── */
+.page        { padding: 28px 32px; }
+.page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; gap: 16px; }
+.header-left { flex: 1; }
+.page-title  { font-size: 28px; font-weight: 800; color: var(--text-1); letter-spacing: -0.5px; margin: 0 0 4px; }
+.page-subtitle { font-size: 13.5px; color: var(--text-3); margin: 0; }
 
-.page-banner { background:linear-gradient(135deg,#1e3a5f,#0ea5e9); border-radius:10px; padding:26px 32px; margin-bottom:20px; color:white; display:flex; justify-content:space-between; align-items:center; gap:20px; }
-.page-banner h1 { font-size:21px; font-weight:700; margin:0 0 4px; }
-.page-banner p  { font-size:13px; opacity:0.8; margin:0; }
-.health-score-circle { width:72px; height:72px; border-radius:50%; background:rgba(255,255,255,0.15); display:flex; flex-direction:column; align-items:center; justify-content:center; flex-shrink:0; }
-.score-num   { font-size:22px; font-weight:800; line-height:1; }
-.score-label { font-size:9px; opacity:0.75; text-transform:uppercase; letter-spacing:0.8px; }
-
-.stats-row { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:20px; }
-.stat-card { background:var(--surface); border-radius:10px; padding:16px 18px; box-shadow:0 1px 4px rgba(0,0,0,0.07); text-align:center; }
-.stat-label { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.7px; color:var(--text-3); margin-bottom:6px; }
-.stat-value { font-size:28px; font-weight:800; color:var(--text-1); }
-.stat-sub   { font-size:11px; color:var(--text-3); margin-top:2px; }
-
-.card { background:var(--surface); border-radius:10px; box-shadow:0 1px 4px rgba(0,0,0,0.07); padding:20px 24px; margin-bottom:16px; }
-.card-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; padding-bottom:10px; border-bottom:1px solid var(--border); }
-.card-title { font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:0.7px; color:var(--text-2); }
-.badge { font-size:11px; font-weight:700; padding:3px 10px; border-radius:20px; }
-.badge.issues { background:#fee2e2; color:#dc2626; }
-.badge.clean  { background:#dcfce7; color:#16a34a; }
-.badge.warn   { background:#fef9c3; color:#a16207; }
-
-.missing-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
-.missing-card { background:var(--surface); border-radius:10px; padding:16px 18px; box-shadow:0 1px 4px rgba(0,0,0,0.07); border-top:3px solid var(--border); }
-.missing-card.warn { border-top-color:#fbbf24; }
-.missing-card.ok   { border-top-color:#4ade80; }
-.missing-label { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.7px; color:var(--text-3); margin-bottom:6px; }
-.missing-value { font-size:28px; font-weight:800; color:var(--text-1); }
-.missing-pct   { font-size:11px; color:var(--text-3); margin-top:2px; }
-
-.two-col { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px; }
-
-.dist-row { display:flex; align-items:center; gap:10px; padding:7px 0; border-bottom:1px solid var(--border); font-size:13px; color:#374151; }
-.dist-row:last-child { border-bottom:none; }
-.dist-label { width:200px; flex-shrink:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.dist-bar-wrap { flex:1; background:var(--app-bg); border-radius:4px; height:8px; }
-.dist-bar { height:8px; border-radius:4px; background:#6d28d9; }
-.dist-count { width:48px; text-align:right; font-size:12px; font-weight:700; color:var(--text-2); flex-shrink:0; }
-
-table { width:100%; border-collapse:collapse; font-size:13px; }
-thead th { background:var(--app-bg); color:var(--text-2); font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.7px; padding:9px 14px; border-bottom:2px solid var(--border); text-align:left; }
-tbody td { padding:9px 14px; border-bottom:1px solid var(--border); }
-tbody tr:last-child td { border-bottom:none; }
-.dup-pill { display:inline-block; background:#fee2e2; color:#dc2626; border-radius:20px; padding:1px 8px; font-size:11px; font-weight:700; }
-.all-good { text-align:center; padding:20px; color:var(--text-3); font-size:14px; }
-
-.btn-review {
-  background: #ede9fe; color: #6d28d9; border: none; border-radius: 6px;
-  padding: 4px 12px; font-size: 11px; font-weight: 700; cursor: pointer; white-space: nowrap;
+/* Health score widget */
+.health-score {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  background: var(--primary-soft); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 12px 20px; min-width: 96px; text-align: center; flex-shrink: 0;
 }
-.btn-review:hover { background: #7c3aed; color: white; }
+.score-num { font-size: 28px; font-weight: 800; color: var(--primary); line-height: 1; }
+.score-lbl { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.7px; color: var(--text-3); margin-top: 2px; }
 
-.modal-overlay {
-  position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 1000;
-  display: flex; align-items: center; justify-content: center; padding: 20px;
-}
-.modal {
-  background: var(--surface); border-radius: 12px; width: 100%; max-width: 580px;
-  box-shadow: 0 20px 60px rgba(0,0,0,0.2); display: flex; flex-direction: column; max-height: 90vh;
-}
-.modal-header {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 18px 20px; border-bottom: 1px solid var(--border);
-}
-.modal-title { font-size: 15px; font-weight: 700; color: var(--text-1); }
-.modal-close  { background: none; border: none; font-size: 18px; color: var(--text-3); cursor: pointer; padding: 2px 6px; }
+/* ── Stat row ── */
+.stats-row  { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
+.stat-card  { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 18px; box-shadow: var(--shadow-sm); text-align: center; }
+.stat-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.7px; color: var(--text-3); margin-bottom: 6px; }
+.stat-value { font-size: 28px; font-weight: 800; color: var(--text-1); }
+.stat-sub   { font-size: 11px; color: var(--text-3); margin-top: 2px; }
+
+/* ── Cards ── */
+.card        { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-sm); padding: 20px 24px; margin-bottom: 16px; }
+.card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+.card-title  { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.7px; color: var(--text-2); }
+
+/* ── Badges ── */
+.badge        { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+.badge-green  { background: #dcfce7; color: #15803d; }
+.badge-red    { background: #fee2e2; color: #991b1b; }
+.badge-amber  { background: #fef3c7; color: #92400e; }
+.badge-purple { background: var(--primary-soft); color: var(--primary-text); }
+
+/* ── Missing fields grid ── */
+.missing-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.missing-card { background: var(--surface-2); border-radius: var(--radius); padding: 16px 18px; border-top: 3px solid var(--border); }
+.missing-card.warn { border-top-color: #f59e0b; }
+.missing-card.ok   { border-top-color: #22c55e; }
+.missing-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.7px; color: var(--text-3); margin-bottom: 6px; }
+.missing-value { font-size: 28px; font-weight: 800; color: var(--text-1); }
+.missing-pct   { font-size: 11px; color: var(--text-3); margin-top: 2px; }
+
+/* ── Two-column grid ── */
+.two-col      { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+.two-col .card { margin-bottom: 0; }
+
+/* ── Distribution bars ── */
+.dist-row      { display: flex; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--border-soft); font-size: 13px; }
+.dist-row:last-child { border-bottom: none; }
+.dist-label    { width: 200px; flex-shrink: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-2); font-size: 13px; }
+.dist-bar-wrap { flex: 1; background: var(--app-bg); border-radius: var(--radius-sm); height: 8px; }
+.dist-bar      { height: 8px; border-radius: var(--radius-sm); background: var(--primary); transition: width 0.3s ease; }
+.dist-bar.bar-red    { background: #ef4444; }
+.dist-bar.bar-amber  { background: #f59e0b; }
+.dist-bar.bar-blue   { background: #3b82f6; }
+.dist-bar.bar-purple { background: var(--primary); }
+.dist-count    { width: 48px; text-align: right; font-size: 12px; font-weight: 700; color: var(--text-2); flex-shrink: 0; }
+
+/* ── Table ── */
+.table-wrap    { overflow-x: auto; border-radius: var(--radius); border: 1px solid var(--border); }
+.data-table    { width: 100%; border-collapse: collapse; font-size: 13px; }
+thead tr       { background: var(--surface-2); }
+th             { padding: 10px 14px; text-align: left; font-size: 11px; font-weight: 700; color: var(--text-2); text-transform: uppercase; letter-spacing: 0.6px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+td             { padding: 12px 14px; color: var(--text-1); border-bottom: 1px solid var(--border-soft); }
+tr:last-child td { border-bottom: none; }
+tr:hover td    { background: var(--surface-2); }
+
+/* ── Buttons ── */
+.btn-primary   { padding: 8px 18px; background: var(--primary); color: var(--primary-on); border: none; border-radius: var(--radius-sm); font-size: 13px; font-weight: 600; cursor: pointer; box-shadow: 0 6px 18px -6px rgba(124,58,237,0.45); transition: background 0.15s; }
+.btn-primary:hover:not(:disabled) { background: var(--primary-hover); }
+.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-ghost     { padding: 8px 14px; background: var(--surface-2); color: var(--text-2); border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 13px; font-weight: 500; cursor: pointer; transition: background 0.15s; }
+.btn-ghost:hover { background: var(--border); color: var(--text-1); }
+.btn-sm        { padding: 4px 12px; font-size: 11px; font-weight: 700; }
+
+/* ── Loading / empty ── */
+.loading-wrap { display: flex; justify-content: center; align-items: center; padding: 60px 0; }
+.empty-state  { text-align: center; padding: 48px 24px; color: var(--text-3); font-size: 14px; }
+
+/* ── Modal ── */
+.modal-backdrop { position: fixed; inset: 0; background: rgba(15,23,42,0.45); display: flex; align-items: center; justify-content: center; z-index: 2000; padding: 20px; }
+.modal-box      { background: var(--surface); border-radius: var(--radius-lg); width: 100%; max-width: 580px; box-shadow: var(--shadow-lg); display: flex; flex-direction: column; max-height: 90vh; }
+.modal-header   { display: flex; align-items: center; justify-content: space-between; padding: 18px 20px; border-bottom: 1px solid var(--border); }
+.modal-title    { font-size: 15px; font-weight: 700; color: var(--text-1); margin: 0; }
+.modal-close    { background: none; border: none; font-size: 18px; color: var(--text-3); cursor: pointer; padding: 2px 6px; line-height: 1; }
 .modal-close:hover { color: #ef4444; }
-.modal-body   { padding: 20px; overflow-y: auto; flex: 1; }
-.modal-hint   { font-size: 12px; color: var(--text-2); margin: 0 0 14px; line-height: 1.6; }
-.modal-loading { text-align: center; padding: 24px; color: var(--text-3); font-size: 13px; }
-.modal-footer {
-  display: flex; align-items: center; justify-content: flex-end; gap: 10px;
-  padding: 14px 20px; border-top: 1px solid var(--border);
-}
-.btn-cancel { background: var(--app-bg); color: var(--text-2); border: none; border-radius: 8px; padding: 8px 20px; font-size: 13px; font-weight: 600; cursor: pointer; }
-.btn-cancel:hover { background: var(--border); }
-.btn-merge  { background: #7c3aed; color: white; border: none; border-radius: 8px; padding: 8px 20px; font-size: 13px; font-weight: 700; cursor: pointer; }
-.btn-merge:hover:not(:disabled) { background: #6d28d9; }
-.btn-merge:disabled { opacity: 0.5; cursor: not-allowed; }
+.modal-body     { padding: 20px; overflow-y: auto; flex: 1; }
+.modal-hint     { font-size: 12px; color: var(--text-2); margin: 0 0 14px; line-height: 1.6; }
+.modal-footer   { display: flex; align-items: center; justify-content: flex-end; gap: 10px; padding: 14px 20px; border-top: 1px solid var(--border); }
 
+/* ── Merge list ── */
 .merge-list { display: flex; flex-direction: column; gap: 8px; }
-.merge-row {
-  display: flex; align-items: center; gap: 12px;
-  border: 2px solid var(--border); border-radius: 8px; padding: 12px 14px; cursor: pointer;
-  transition: border-color 0.15s;
-}
-.merge-row.selected { border-color: #7c3aed; background: #faf5ff; }
-.merge-radio { width: 16px; height: 16px; accent-color: #7c3aed; flex-shrink: 0; }
+.merge-row  { display: flex; align-items: center; gap: 12px; border: 2px solid var(--border); border-radius: var(--radius); padding: 12px 14px; cursor: pointer; transition: border-color 0.15s, background 0.15s; }
+.merge-row.selected { border-color: var(--primary); background: var(--primary-soft); }
+.merge-radio { width: 16px; height: 16px; accent-color: var(--primary); flex-shrink: 0; }
 .merge-info  { flex: 1; min-width: 0; }
 .merge-name  { font-size: 14px; font-weight: 700; color: var(--text-1); }
 .merge-meta  { font-size: 11px; color: var(--text-3); margin-top: 2px; }
-.keep-badge  { background: #7c3aed; color: white; border-radius: 4px; padding: 2px 8px; font-size: 10px; font-weight: 700; white-space: nowrap; }
+.keep-badge  { white-space: nowrap; flex-shrink: 0; }
 
-/* Responsive */
+/* ── Responsive ── */
 @media (max-width: 1024px) {
-  .stats-row { grid-template-columns: repeat(2, 1fr); }
+  .stats-row    { grid-template-columns: repeat(2, 1fr); }
   .missing-grid { grid-template-columns: repeat(2, 1fr); }
 }
 @media (max-width: 768px) {
-  .page { padding: 16px 12px; }
-  .page-banner { flex-direction: column; align-items: flex-start; gap: 12px; padding: 20px; }
-  .two-col { grid-template-columns: 1fr; }
-  .card { overflow-x: auto; }
-  table { min-width: 480px; }
+  .page         { padding: 16px 16px; }
+  .page-header  { flex-direction: column; }
+  .two-col      { grid-template-columns: 1fr; }
 }
 @media (max-width: 640px) {
-  .page { padding: 12px 8px; }
-  .stats-row { grid-template-columns: 1fr 1fr; }
+  .page         { padding: 12px 8px; }
+  .stats-row    { grid-template-columns: 1fr 1fr; }
   .missing-grid { grid-template-columns: 1fr; }
 }
 </style>

@@ -37,15 +37,24 @@
           <Transition name="nav-menu">
             <div v-show="openGroups[group.key] && (!collapsed || peeking)" class="nav-group-slide">
               <div class="nav-group-items">
-                <router-link
-                  v-for="item in group.items"
-                  :key="item.key"
-                  :to="item.to"
-                  class="nav-link nav-sub"
-                  :class="itemClass(item, group)"
-                >
-                  <span class="nav-text">{{ item.label }}</span>
-                </router-link>
+                <template v-for="item in group.items" :key="item.key">
+                  <router-link
+                    v-if="!item.locked"
+                    :to="item.to"
+                    class="nav-link nav-sub"
+                    :class="itemClass(item, group)"
+                  >
+                    <span class="nav-text">{{ item.label }}</span>
+                  </router-link>
+                  <div
+                    v-else
+                    class="nav-link nav-sub nav-locked"
+                    :title="`${item.label} — contact your admin to get access`"
+                  >
+                    <span class="nav-text">{{ item.label }}</span>
+                    <span class="nav-lock-icon nav-text" v-html="SVGI.lockIcon"></span>
+                  </div>
+                </template>
               </div>
             </div>
           </Transition>
@@ -66,15 +75,24 @@
           <Transition name="nav-menu">
             <div v-show="openGroups[group.key] && (!collapsed || peeking)" class="nav-group-slide">
               <div class="nav-group-items">
-                <router-link
-                  v-for="item in group.items"
-                  :key="item.key"
-                  :to="item.to"
-                  class="nav-link nav-sub"
-                  :class="itemClass(item, group)"
-                >
-                  <span class="nav-text">{{ item.label }}</span>
-                </router-link>
+                <template v-for="item in group.items" :key="item.key">
+                  <router-link
+                    v-if="!item.locked"
+                    :to="item.to"
+                    class="nav-link nav-sub"
+                    :class="itemClass(item, group)"
+                  >
+                    <span class="nav-text">{{ item.label }}</span>
+                  </router-link>
+                  <div
+                    v-else
+                    class="nav-link nav-sub nav-locked"
+                    :title="`${item.label} — contact your admin to get access`"
+                  >
+                    <span class="nav-text">{{ item.label }}</span>
+                    <span class="nav-lock-icon nav-text" v-html="SVGI.lockIcon"></span>
+                  </div>
+                </template>
               </div>
             </div>
           </Transition>
@@ -191,6 +209,7 @@
   </div>
 
   <TourOverlay />
+  <ToastContainer />
 </template>
 
 <script setup>
@@ -199,6 +218,7 @@ import { useRoute, useRouter } from 'vue-router';
 import api from './api.js';
 import NotificationBell from './components/NotificationBell.vue';
 import TourOverlay from './components/TourOverlay.vue';
+import ToastContainer from './components/ToastContainer.vue';
 import { applyTheme, useSettings } from './composables/useSettings.js';
 import { useTour } from './composables/useTour.js';
 
@@ -225,6 +245,7 @@ const allNavItems = computed(() => {
   for (const group of ALL_GROUPS) {
     if (group.adminOnly && !isAdminOrSuperAdmin.value) continue;
     for (const item of group.items) {
+      if (!hasItemPermission(item)) continue;
       items.push({ ...item, groupLabel: group.label });
     }
   }
@@ -309,6 +330,15 @@ onMounted(() => {
   // Sync user settings from server once on app mount (no-op if not logged in)
   if (localStorage.getItem('crm_token')) {
     loadFromServer();
+    // Refresh roles/permissions so sidebar reflects any changes made by an admin
+    // since the last login (crm_user is otherwise only written at login time).
+    api.get('/auth/me').then(res => {
+      const fresh  = res.data.user;
+      const stored = JSON.parse(localStorage.getItem('crm_user') || '{}');
+      const merged = { ...stored, ...fresh };
+      localStorage.setItem('crm_user', JSON.stringify(merged));
+      currentUser.value = merged;
+    }).catch(() => { /* 401 is handled by the axios interceptor */ });
     // Auto-start tour for users who haven't seen it yet
     if (!tour.hasSeen()) {
       setTimeout(() => tour.start(), 1200);
@@ -353,6 +383,7 @@ const SVGI = {
   flask:        _s('<path d="M9 3h6m-5 0v6l-4 9a1 1 0 0 0 .93 1.37h10.14A1 1 0 0 0 18 18l-4-9V3"/>'),
   searchIcon:   _s('<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>'),
   map:          _s('<polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/>'),
+  lockIcon:     _s('<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>'),
 };
 
 // ─── Navigation config ────────────────────────────────────────────────────────
@@ -385,11 +416,11 @@ const ALL_GROUPS = [
   {
     key: 'marketing', label: 'Marketing & Media', icon: SVGI.megaphone, color: 'teal', section: 'main', adminOnly: false,
     items: [
-      { key: 'social-media',         to: '/social-media',         icon: SVGI.megaphone, label: 'Social Media',         activeRoutes: ['social-media'] },
-      { key: 'posting-calendar',     to: '/posting-calendar',     icon: SVGI.calendar,  label: 'Posting Calendar',     activeRoutes: ['posting-calendar'] },
-      { key: 'marketing-email',      to: '/marketing-email',      icon: SVGI.mail,      label: 'Email Marketing',      activeRoutes: ['marketing-email'] },
+      { key: 'social-media',         to: '/social-media',         icon: SVGI.megaphone, label: 'Social Media',         activeRoutes: ['social-media'],         permission: 'manage social-media' },
+      { key: 'posting-calendar',     to: '/posting-calendar',     icon: SVGI.calendar,  label: 'Posting Calendar',     activeRoutes: ['posting-calendar'],     permission: 'manage posting-calendar' },
+      { key: 'marketing-email',      to: '/marketing-email',      icon: SVGI.mail,      label: 'Email Marketing',      activeRoutes: ['marketing-email'],      permission: 'manage email-campaigns' },
       { key: 'marketing-ai',         to: '/marketing-ai',         icon: SVGI.sparkle,   label: 'Marketing AI',         activeRoutes: ['marketing-ai'] },
-      { key: 'product-availability', to: '/product-availability', icon: SVGI.grid,      label: 'Product Availability', activeRoutes: ['product-availability'] },
+      { key: 'product-availability', to: '/product-availability', icon: SVGI.grid,      label: 'Site Availability',    activeRoutes: ['product-availability'], permission: 'manage product-availability' },
     ],
   },
   {
@@ -403,7 +434,7 @@ const ALL_GROUPS = [
     ],
   },
   {
-    key: 'demo', label: 'Demo / Workshop', icon: SVGI.flask, color: 'rose', section: 'tools', adminOnly: false,
+    key: 'demo', label: 'Demo / Workshop', icon: SVGI.flask, color: 'rose', section: 'tools', adminOnly: true,
     items: [
       { key: 'projects',  to: '/projects',       icon: SVGI.layers,    label: 'Projects', activeRoutes: ['projects', 'project-add', 'project-edit'] },
       { key: 'deals',     to: '/deals',           icon: SVGI.briefcase, label: 'Deals',    activeRoutes: ['deals', 'deal-add', 'deal-edit'] },
@@ -411,19 +442,50 @@ const ALL_GROUPS = [
     ],
   },
   {
-    key: 'data', label: 'Data Management', icon: SVGI.download, color: 'orange', section: 'tools', adminOnly: false,
+    key: 'data', label: 'Data Management', icon: SVGI.download, color: 'orange', section: 'tools', adminOnly: false, hideLocked: true,
     items: [
-      { key: 'import',      to: '/import',      icon: SVGI.download, label: 'Import Data', activeRoutes: ['import'] },
-      { key: 'data-health', to: '/data-health', icon: SVGI.activity, label: 'Data Health', activeRoutes: ['data-health'] },
+      { key: 'import',      to: '/import',      icon: SVGI.download, label: 'Import Data', activeRoutes: ['import'],      permission: 'import contacts' },
+      { key: 'data-health', to: '/data-health', icon: SVGI.activity, label: 'Data Health', activeRoutes: ['data-health'], permission: 'view data-health' },
+    ],
+  },
+  // section: 'account' — not rendered in sidebar (only 'main'/'tools' are); included in search only
+  {
+    key: 'account', label: 'Account', icon: SVGI.user, color: 'gray', section: 'account', adminOnly: false,
+    items: [
+      { key: 'profile',  to: '/profile',  icon: SVGI.user, label: 'My Profile', activeRoutes: ['profile'] },
+      { key: 'settings', to: '/settings', icon: SVGI.gear, label: 'Settings',   activeRoutes: ['settings'] },
     ],
   },
 ];
 
+function hasItemPermission(item) {
+  if (!item.permission) return true;
+  const u = currentUser.value;
+  if (!u) return false;
+  if (u.permissions === null) return true; // super-admin: full access, no DB permissions stored
+  if ((u.roles ?? []).includes('super-admin')) return true; // fallback for stale localStorage
+  return (u.permissions ?? []).includes(item.permission);
+}
+
+function resolveGroupItems(g) {
+  // hideLocked: fully remove items the user can't access (group disappears when all items are hidden)
+  // default: keep locked items visible but dimmed so users know the feature exists
+  return g.hideLocked
+    ? g.items.filter(item => hasItemPermission(item))
+    : g.items.map(item => ({ ...item, locked: !hasItemPermission(item) }));
+}
+
 const mainGroups = computed(() =>
-  ALL_GROUPS.filter(g => g.section === 'main' && (!g.adminOnly || isAdminOrSuperAdmin.value))
+  ALL_GROUPS
+    .filter(g => g.section === 'main' && (!g.adminOnly || isAdminOrSuperAdmin.value))
+    .map(g => ({ ...g, items: resolveGroupItems(g) }))
+    .filter(g => g.items.length > 0)
 );
 const toolGroups = computed(() =>
-  ALL_GROUPS.filter(g => g.section === 'tools' && (!g.adminOnly || isAdminOrSuperAdmin.value))
+  ALL_GROUPS
+    .filter(g => g.section === 'tools' && (!g.adminOnly || isAdminOrSuperAdmin.value))
+    .map(g => ({ ...g, items: resolveGroupItems(g) }))
+    .filter(g => g.items.length > 0)
 );
 
 // ─── Group open/close state ───────────────────────────────────────────────────
@@ -715,6 +777,8 @@ textarea:focus-visible,
 .nav-link:hover .nav-icon { color: var(--sb-item-hover); }
 .nav-sub { padding-left: 28px; font-size: 13px; }
 .nav-icon { width: 22px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.nav-locked { opacity: 0.4; cursor: not-allowed; }
+.nav-lock-icon { margin-left: auto; display: flex; align-items: center; flex-shrink: 0; }
 
 /* Unified active state — purple accent (matches swiftCRM image) */
 .active-blue, .active-green, .active-orange, .active-purple, .active-teal, .active-rose {

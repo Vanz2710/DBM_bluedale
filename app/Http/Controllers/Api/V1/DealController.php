@@ -14,7 +14,7 @@ class DealController extends Controller
 
     public function index(Request $request)
     {
-        $perPage   = (int) $request->input('per_page', 100);
+        $perPage   = min((int) $request->input('per_page', 100), 500);
         $search    = $request->input('q', '');
         $sortField = $request->input('sort_field', 'created_at');
         $sortDir   = in_array($request->input('sort_direction'), ['asc', 'desc'])

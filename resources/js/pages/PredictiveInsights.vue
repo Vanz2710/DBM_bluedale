@@ -57,6 +57,8 @@
 
     <!-- ══ KPI Summary Row ══════════════════════════════════════════════════════════ -->
     <div class="pi-kpi-row">
+
+      <!-- Neglected Contacts -->
       <div class="pi-kpi-card">
         <div class="pi-kpi-icon pi-kpi-icon--danger">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -66,12 +68,13 @@
           </svg>
         </div>
         <div class="pi-kpi-body">
-          <div class="pi-kpi-value">{{ summary.at_risk ?? '—' }}</div>
-          <div class="pi-kpi-label">At-Risk Contacts</div>
-          <div class="pi-kpi-sub">No activity in 30+ days</div>
+          <div class="pi-kpi-value">{{ summary.neglected ?? '—' }}</div>
+          <div class="pi-kpi-label">Neglected Contacts</div>
+          <div class="pi-kpi-sub">Potential/Existing, 60+ days untouched</div>
         </div>
       </div>
 
+      <!-- Expected Pipeline -->
       <div class="pi-kpi-card">
         <div class="pi-kpi-icon pi-kpi-icon--success">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -86,6 +89,7 @@
         </div>
       </div>
 
+      <!-- Coverage Imbalance -->
       <div class="pi-kpi-card">
         <div class="pi-kpi-icon pi-kpi-icon--warning">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -95,29 +99,29 @@
           </svg>
         </div>
         <div class="pi-kpi-body">
-          <div class="pi-kpi-value">{{ summary.agents_off_pace ?? '—' }}</div>
-          <div class="pi-kpi-label">Agents Off-Pace</div>
-          <div class="pi-kpi-sub">Below KPI target trajectory</div>
+          <div class="pi-kpi-value">{{ summary.overloaded_agents ?? '—' }}</div>
+          <div class="pi-kpi-label">Overloaded Agents</div>
+          <div class="pi-kpi-sub">Carrying 1.5× average portfolio</div>
         </div>
       </div>
 
+      <!-- Unworked Opportunities -->
       <div class="pi-kpi-card">
         <div class="pi-kpi-icon pi-kpi-icon--info">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <rect x="3" y="4" width="18" height="18" rx="2"/>
-            <path d="M16 2v4M8 2v4M3 10h18"/>
-            <path d="M8 14h2M8 18h2M12 14h4M12 18h2"/>
+            <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
           </svg>
         </div>
         <div class="pi-kpi-body">
-          <div class="pi-kpi-value">{{ summary.overdue_risk ?? '—' }}</div>
-          <div class="pi-kpi-label">Tasks at Overdue Risk</div>
-          <div class="pi-kpi-sub">Due in 7 days, still pending</div>
+          <div class="pi-kpi-value">{{ summary.unworked_opps ?? '—' }}</div>
+          <div class="pi-kpi-label">Unworked Opportunities</div>
+          <div class="pi-kpi-sub">Active contacts, 30+ days untouched</div>
         </div>
       </div>
+
     </div>
 
-    <!-- ══ Revenue Forecast + At-Risk Contacts ══════════════════════════════════════ -->
+    <!-- ══ Revenue Forecast + Neglected Contacts ══════════════════════════════════ -->
     <div class="pi-row-asym">
 
       <!-- Revenue Pipeline Forecast -->
@@ -147,7 +151,7 @@
         </div>
       </div>
 
-      <!-- Contact At-Risk -->
+      <!-- Neglected Contacts -->
       <div class="pi-card">
         <div class="pi-card-head">
           <div class="pi-card-title-wrap">
@@ -156,25 +160,28 @@
               <line x1="12" y1="9" x2="12" y2="13"/>
               <line x1="12" y1="17" x2="12.01" y2="17"/>
             </svg>
-            <span class="pi-card-title">At-Risk Contacts</span>
+            <span class="pi-card-title">Neglected Contacts</span>
           </div>
-          <span class="pi-card-meta">No activity in 30+ days</span>
+          <span class="pi-card-meta">Potential/Existing, 60+ days untouched</span>
         </div>
         <div class="pi-card-body">
-          <div v-if="loading.atRisk" class="pi-skeleton-list">
+          <div v-if="loading.neglected" class="pi-skeleton-list">
             <div v-for="i in 5" :key="i" class="pi-skeleton-row"></div>
           </div>
-          <div v-else-if="!atRisk.length" class="pi-empty">
+          <div v-else-if="!neglected.length" class="pi-empty">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
               <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
               <polyline points="22 4 12 14.01 9 11.01"/>
             </svg>
-            <p>All contacts are actively engaged</p>
+            <p>All active contacts have been recently touched</p>
           </div>
           <ul v-else class="pi-risk-list">
-            <li v-for="c in atRisk" :key="c.id" class="pi-risk-item">
-              <div class="pi-risk-name">{{ c.name }}</div>
-              <span class="pi-risk-badge" :class="riskBadgeClass(c.days_since_activity)">{{ c.days_since_activity }}d</span>
+            <li v-for="c in neglected" :key="c.id" class="pi-risk-item">
+              <div class="pi-risk-left">
+                <div class="pi-risk-name">{{ c.name }}</div>
+                <div class="pi-risk-owner">{{ c.owner_name }} · <span class="pi-status-chip">{{ c.status_name }}</span></div>
+              </div>
+              <span class="pi-risk-badge" :class="neglectedBadgeClass(c.days_since_update)">{{ c.days_since_update }}d</span>
             </li>
           </ul>
         </div>
@@ -182,10 +189,10 @@
 
     </div>
 
-    <!-- ══ Agent Pace + Overdue Prediction ══════════════════════════════════════════ -->
+    <!-- ══ Agent Coverage Load + Unworked Segments ══════════════════════════════════ -->
     <div class="pi-row-2col">
 
-      <!-- Agent Pace-to-Target -->
+      <!-- Agent Coverage Load -->
       <div class="pi-card">
         <div class="pi-card-head">
           <div class="pi-card-title-wrap">
@@ -194,33 +201,36 @@
               <circle cx="12" cy="12" r="6"/>
               <circle cx="12" cy="12" r="2"/>
             </svg>
-            <span class="pi-card-title">Agent Pace-to-Target</span>
+            <span class="pi-card-title">Agent Coverage Load</span>
           </div>
-          <span class="pi-card-meta">Projected end-of-period KPI score</span>
+          <span class="pi-card-meta">Total contacts per agent — bar shows actionable share</span>
         </div>
         <div class="pi-card-body">
-          <div v-if="loading.pace" class="pi-skeleton-list">
+          <div v-if="loading.agentLoad" class="pi-skeleton-list">
             <div v-for="i in 4" :key="i" class="pi-skeleton-row"></div>
           </div>
-          <div v-else-if="!pace.length" class="pi-empty">
+          <div v-else-if="!agentLoad.length" class="pi-empty">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
               <circle cx="12" cy="12" r="10"/>
               <circle cx="12" cy="12" r="6"/>
               <circle cx="12" cy="12" r="2"/>
             </svg>
-            <p>No KPI targets configured</p>
+            <p>No agent data available</p>
           </div>
-          <ul v-else class="pi-pace-list">
-            <li v-for="agent in pace" :key="agent.user_id" class="pi-pace-item">
-              <div class="pi-pace-header">
-                <span class="pi-pace-name">{{ agent.name }}</span>
-                <span class="pi-pace-pct">{{ agent.pace_pct }}%</span>
+          <ul v-else class="pi-load-list">
+            <li v-for="agent in agentLoad" :key="agent.user_id" class="pi-load-item">
+              <div class="pi-load-header">
+                <span class="pi-load-name">{{ agent.name }}</span>
+                <span class="pi-load-stat">
+                  {{ agent.total.toLocaleString() }}
+                  <span class="pi-load-engaged-text">· {{ agent.engaged_count }} active</span>
+                </span>
               </div>
-              <div class="pi-pace-bar">
+              <div class="pi-load-track">
                 <div
-                  class="pi-pace-fill"
-                  :class="paceFillClass(agent.pace_pct)"
-                  :style="{ width: Math.min(agent.pace_pct, 100) + '%' }"
+                  class="pi-load-bar"
+                  :class="loadBarClass(agent.engaged_pct)"
+                  :style="{ width: agent.load_pct + '%' }"
                 ></div>
               </div>
             </li>
@@ -228,35 +238,40 @@
         </div>
       </div>
 
-      <!-- Overdue Task Prediction -->
+      <!-- Unworked Segment Opportunities -->
       <div class="pi-card">
         <div class="pi-card-head">
           <div class="pi-card-title-wrap">
             <svg class="pi-card-icon pi-card-icon--info" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <rect x="3" y="4" width="18" height="18" rx="2"/>
-              <path d="M16 2v4M8 2v4M3 10h18"/>
+              <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
             </svg>
-            <span class="pi-card-title">Overdue Risk — Next 7 Days</span>
+            <span class="pi-card-title">Unworked Opportunities</span>
           </div>
-          <span class="pi-card-meta">Pending tasks due soon</span>
+          <span class="pi-card-meta">Active contacts per industry, untouched 30+ days</span>
         </div>
         <div class="pi-card-body">
-          <div v-if="loading.overdue" class="pi-skeleton-list">
+          <div v-if="loading.unworked" class="pi-skeleton-list">
             <div v-for="i in 4" :key="i" class="pi-skeleton-row"></div>
           </div>
-          <div v-else-if="!overdue.length" class="pi-empty">
+          <div v-else-if="!unworked.length" class="pi-empty">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
               <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
               <polyline points="22 4 12 14.01 9 11.01"/>
             </svg>
-            <p>No tasks at overdue risk this week</p>
+            <p>All active contacts have been recently engaged</p>
           </div>
-          <ul v-else class="pi-overdue-list">
-            <li v-for="t in overdue" :key="t.id" class="pi-overdue-item">
-              <div class="pi-overdue-title">{{ t.title }}</div>
-              <div class="pi-overdue-meta">
-                <span class="pi-overdue-contact">{{ t.contact_name }}</span>
-                <span class="pi-overdue-due">Due {{ t.todo_date }}</span>
+          <ul v-else class="pi-unworked-list">
+            <li v-for="s in unworked" :key="s.industry_id" class="pi-unworked-item">
+              <div class="pi-unworked-header">
+                <span class="pi-unworked-name">{{ s.industry_name }}</span>
+                <span class="pi-unworked-badge">{{ s.unworked }} unworked</span>
+              </div>
+              <div class="pi-unworked-bar-row">
+                <div class="pi-mini-bar pi-mini-bar--wide">
+                  <div class="pi-mini-fill pi-prob--warning" :style="{ width: s.unworked_pct + '%' }"></div>
+                </div>
+                <span class="pi-unworked-pct">{{ s.unworked_pct }}%</span>
+                <span class="pi-unworked-of">of {{ s.total }}</span>
               </div>
             </li>
           </ul>
@@ -274,7 +289,7 @@
           </svg>
           <span class="pi-card-title">Lead Conversion by Segment</span>
         </div>
-        <span class="pi-card-meta">Historical win rates by industry, area, and type</span>
+        <span class="pi-card-meta">Historical win rates by industry and type</span>
       </div>
       <div class="pi-card-body">
         <div v-if="loading.segments" class="pi-skeleton-block"></div>
@@ -371,16 +386,16 @@
       </div>
     </div>
 
-    <!-- ══ Activity Trend Forecasting ══════════════════════════════════════════════ -->
+    <!-- ══ Portfolio Growth Trend ══════════════════════════════════════════════════ -->
     <div class="pi-card">
       <div class="pi-card-head">
         <div class="pi-card-title-wrap">
           <svg class="pi-card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
           </svg>
-          <span class="pi-card-title">Activity Trend Forecast</span>
+          <span class="pi-card-title">Portfolio Growth Trend</span>
         </div>
-        <span class="pi-card-meta">4-week rolling trend with 2-week projection</span>
+        <span class="pi-card-meta">Weekly new contacts added — last 8 weeks + 2-week projection</span>
       </div>
       <div class="pi-card-body">
         <div v-if="loading.trend" class="pi-skeleton-block pi-skeleton-block--tall"></div>
@@ -388,7 +403,7 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
             <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
           </svg>
-          <p>Not enough activity data to project a trend</p>
+          <p>Not enough data to build a growth trend</p>
         </div>
         <div v-else class="pi-chart-wrap pi-chart-wrap--tall">
           <canvas ref="trendCanvasRef"></canvas>
@@ -484,23 +499,23 @@ async function loadLookups() {
 }
 
 // ── Data refs ─────────────────────────────────────────────────────────────────
-const summary  = ref({ at_risk: null, pipeline_value: null, agents_off_pace: null, overdue_risk: null });
-const forecast = ref([]);
-const atRisk   = ref([]);
-const pace     = ref([]);
-const overdue  = ref([]);
-const segments = ref([]);
-const deals    = ref([]);
-const trend    = ref([]);
+const summary   = ref({ neglected: null, pipeline_value: null, overloaded_agents: null, unworked_opps: null });
+const forecast  = ref([]);
+const neglected = ref([]);
+const agentLoad = ref([]);
+const unworked  = ref([]);
+const segments  = ref([]);
+const deals     = ref([]);
+const trend     = ref([]);
 
 const loading = ref({
-  forecast: false,
-  atRisk:   false,
-  pace:     false,
-  overdue:  false,
-  segments: false,
-  deals:    false,
-  trend:    false,
+  forecast:   false,
+  neglected:  false,
+  agentLoad:  false,
+  unworked:   false,
+  segments:   false,
+  deals:      false,
+  trend:      false,
 });
 
 // ── Chart canvas refs + instances ─────────────────────────────────────────────
@@ -535,31 +550,31 @@ async function loadForecast() {
   buildForecastChart();
 }
 
-async function loadAtRisk() {
-  loading.value.atRisk = true;
+async function loadNeglected() {
+  loading.value.neglected = true;
   try {
     const { data } = await api.get('/v1/predictive/at-risk', { params: buildParams() });
-    atRisk.value = data;
-  } catch (_) { atRisk.value = []; }
-  finally { loading.value.atRisk = false; }
+    neglected.value = data;
+  } catch (_) { neglected.value = []; }
+  finally { loading.value.neglected = false; }
 }
 
-async function loadPace() {
-  loading.value.pace = true;
+async function loadAgentLoad() {
+  loading.value.agentLoad = true;
   try {
     const { data } = await api.get('/v1/predictive/pace', { params: buildParams() });
-    pace.value = data;
-  } catch (_) { pace.value = []; }
-  finally { loading.value.pace = false; }
+    agentLoad.value = data;
+  } catch (_) { agentLoad.value = []; }
+  finally { loading.value.agentLoad = false; }
 }
 
-async function loadOverdue() {
-  loading.value.overdue = true;
+async function loadUnworked() {
+  loading.value.unworked = true;
   try {
     const { data } = await api.get('/v1/predictive/overdue-risk', { params: buildParams() });
-    overdue.value = data;
-  } catch (_) { overdue.value = []; }
-  finally { loading.value.overdue = false; }
+    unworked.value = data;
+  } catch (_) { unworked.value = []; }
+  finally { loading.value.unworked = false; }
 }
 
 async function loadSegments() {
@@ -595,9 +610,9 @@ async function loadTrend() {
 function loadAll() {
   loadSummary();
   loadForecast();
-  loadAtRisk();
-  loadPace();
-  loadOverdue();
+  loadNeglected();
+  loadAgentLoad();
+  loadUnworked();
   loadSegments();
   loadDeals();
   loadTrend();
@@ -609,16 +624,16 @@ function formatCurrency(val) {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(val);
 }
 
-function riskBadgeClass(days) {
-  if (days >= 90) return 'pi-risk-badge--danger';
-  if (days >= 60) return 'pi-risk-badge--warning';
+function neglectedBadgeClass(days) {
+  if (days >= 180) return 'pi-risk-badge--danger';
+  if (days >= 90)  return 'pi-risk-badge--warning';
   return 'pi-risk-badge--info';
 }
 
-function paceFillClass(pct) {
-  if (pct >= 90) return 'pi-pace-fill--success';
-  if (pct >= 60) return 'pi-pace-fill--warning';
-  return 'pi-pace-fill--danger';
+function loadBarClass(engagedPct) {
+  if (engagedPct >= 20) return 'pi-load-bar--primary';
+  if (engagedPct >= 10) return 'pi-load-bar--warning';
+  return 'pi-load-bar--muted';
 }
 
 function signalClass(rate) {
@@ -737,46 +752,30 @@ function buildTrendChart() {
   trendChartInst?.destroy(); trendChartInst = null;
   if (!trendCanvasRef.value || !trend.value.length) return;
   const rows = trend.value;
-  const SERIES = [
-    { key: 'todos_completed',     label: 'Tasks Done',      color: '#7c3aed', rgb: '124,58,237' },
-    { key: 'followups_completed', label: 'Follow-Ups Done', color: '#0891b2', rgb: '8,145,178'  },
-    { key: 'contacts_added',      label: 'Contacts Added',  color: '#059669', rgb: '5,150,105'  },
-  ];
+
   trendChartInst = new Chart(trendCanvasRef.value.getContext('2d'), {
-    type: 'line',
+    type: 'bar',
     data: {
       labels: rows.map(r => r.week),
-      datasets: SERIES.map(s => ({
-        label: s.label,
-        data:  rows.map(r => r[s.key]),
-        borderColor: s.color,
-        backgroundColor: `rgba(${s.rgb},0.08)`,
-        borderWidth: 2,
-        pointRadius: 4,
-        pointHoverRadius: 6,
-        tension: 0.3,
-        fill: false,
-        segment: {
-          borderDash: ctx => rows[ctx.p1DataIndex]?.projected ? [5, 5] : undefined,
-        },
-      })),
+      datasets: [{
+        label: 'Contacts Added',
+        data:  rows.map(r => r.contacts_added),
+        backgroundColor: rows.map(r => r.projected ? 'rgba(124,58,237,0.22)' : 'rgba(124,58,237,0.6)'),
+        borderColor:     rows.map(r => r.projected ? 'rgba(124,58,237,0.45)' : '#7c3aed'),
+        borderWidth: 1,
+        borderRadius: 4,
+        borderSkipped: false,
+      }],
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      interaction: { mode: 'index', intersect: false },
       plugins: {
-        legend: {
-          position: 'top',
-          labels: { font: { size: 11 }, color: '#64748b', boxWidth: 12, padding: 12 },
-        },
+        legend: { display: false },
         tooltip: {
           ...tooltipDefaults(),
           callbacks: {
-            afterLabel: ctx => {
-              const idx = ctx.dataIndex;
-              return rows[idx]?.projected ? '(projected)' : '';
-            },
+            afterLabel: ctx => rows[ctx.dataIndex]?.projected ? '(projected)' : '',
           },
         },
       },
@@ -817,7 +816,7 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   gap: 20px;
-  padding: 28px 28px 48px;
+  padding: 28px 32px 48px;
   max-width: 1500px;
   margin: 0 auto;
 }
@@ -831,14 +830,15 @@ onBeforeUnmount(() => {
   flex-wrap: wrap;
 }
 .pi-header h1 {
-  font-size: 22px;
-  font-weight: 700;
+  font-size: 28px;
+  font-weight: 800;
   color: var(--text-1);
+  letter-spacing: -0.5px;
   margin: 0 0 4px;
 }
 .pi-subtitle {
   font-size: 13.5px;
-  color: var(--text-2);
+  color: var(--text-3);
   margin: 0;
 }
 .pi-header-actions {
@@ -895,7 +895,7 @@ onBeforeUnmount(() => {
 /* ── Filter bar ───────────────────────────────────────────────────────────── */
 .pi-filter-bar {
   display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
-  background: var(--surface); border: 1px solid var(--border-soft);
+  background: var(--surface); border: 1px solid var(--border);
   border-radius: var(--radius); padding: 10px 16px;
   box-shadow: var(--shadow-xs);
 }
@@ -905,9 +905,11 @@ onBeforeUnmount(() => {
   letter-spacing: 1px; color: var(--text-3); white-space: nowrap;
 }
 .pi-filter-select {
-  padding: 5px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+  height: 34px; padding: 0 10px; border: 1.5px solid var(--border); border-radius: var(--radius-sm);
   font-size: 13px; color: var(--text-1); background: var(--surface); cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s; outline: none;
 }
+.pi-filter-select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); }
 
 /* ── KPI row ──────────────────────────────────────────────────────────────── */
 .pi-kpi-row {
@@ -917,7 +919,7 @@ onBeforeUnmount(() => {
 }
 .pi-kpi-card {
   background: var(--surface);
-  border: 1px solid var(--border-soft);
+  border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   padding: 20px;
   display: flex;
@@ -945,7 +947,7 @@ onBeforeUnmount(() => {
 /* ── Card shell ───────────────────────────────────────────────────────────── */
 .pi-card {
   background: var(--surface);
-  border: 1px solid var(--border-soft);
+  border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
   display: flex;
@@ -987,7 +989,7 @@ onBeforeUnmount(() => {
 }
 @keyframes pi-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
 
-/* ── At-Risk list ─────────────────────────────────────────────────────────── */
+/* ── Neglected contacts list ──────────────────────────────────────────────── */
 .pi-risk-list {
   list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column;
   max-height: 320px; overflow-y: auto;
@@ -997,65 +999,76 @@ onBeforeUnmount(() => {
   padding: 9px 0; border-bottom: 1px solid var(--border-soft);
 }
 .pi-risk-item:last-child { border-bottom: none; }
-.pi-risk-name  { font-size: 13.5px; font-weight: 500; color: var(--text-1); }
-.pi-risk-badge { font-size: 11.5px; font-weight: 700; padding: 3px 9px; border-radius: 20px; white-space: nowrap; }
+.pi-risk-left   { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.pi-risk-name   { font-size: 13.5px; font-weight: 500; color: var(--text-1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pi-risk-owner  { font-size: 11.5px; color: var(--text-3); display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.pi-status-chip {
+  font-size: 10.5px; font-weight: 600; padding: 1px 7px;
+  border-radius: 999px; background: var(--primary-soft); color: var(--primary-text);
+}
+.pi-risk-badge  { font-size: 11.5px; font-weight: 700; padding: 3px 9px; border-radius: 999px; white-space: nowrap; flex-shrink: 0; }
 .pi-risk-badge--danger  { background: var(--danger-soft);  color: var(--danger); }
 .pi-risk-badge--warning { background: var(--warning-soft); color: var(--warning); }
 .pi-risk-badge--info    { background: var(--info-soft);    color: var(--info); }
 
-/* ── Pace list ────────────────────────────────────────────────────────────── */
-.pi-pace-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 16px; }
-.pi-pace-item { display: flex; flex-direction: column; gap: 6px; }
-.pi-pace-header { display: flex; align-items: center; justify-content: space-between; }
-.pi-pace-name  { font-size: 13px; font-weight: 600; color: var(--text-1); }
-.pi-pace-pct   { font-size: 12px; font-weight: 700; color: var(--text-2); }
-.pi-pace-bar   { height: 8px; background: var(--border-soft); border-radius: 99px; overflow: hidden; }
-.pi-pace-fill  { height: 100%; border-radius: 99px; transition: width 0.4s ease; }
-.pi-pace-fill--success { background: var(--success); }
-.pi-pace-fill--warning { background: var(--warning); }
-.pi-pace-fill--danger  { background: var(--danger); }
+/* ── Agent coverage load ──────────────────────────────────────────────────── */
+.pi-load-list  { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 16px; }
+.pi-load-item  { display: flex; flex-direction: column; gap: 6px; }
+.pi-load-header { display: flex; align-items: center; justify-content: space-between; }
+.pi-load-name  { font-size: 13px; font-weight: 600; color: var(--text-1); }
+.pi-load-stat  { font-size: 12px; color: var(--text-2); }
+.pi-load-engaged-text { color: var(--success); font-weight: 600; }
+.pi-load-track { height: 8px; background: var(--border-soft); border-radius: 99px; overflow: hidden; }
+.pi-load-bar   { height: 100%; border-radius: 99px; transition: width 0.4s ease; }
+.pi-load-bar--primary { background: var(--primary); }
+.pi-load-bar--warning { background: var(--warning); }
+.pi-load-bar--muted   { background: var(--text-3); }
 
-/* ── Overdue list ─────────────────────────────────────────────────────────── */
-.pi-overdue-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
-.pi-overdue-item { padding: 9px 0; border-bottom: 1px solid var(--border-soft); }
-.pi-overdue-item:last-child { border-bottom: none; }
-.pi-overdue-title   { font-size: 13.5px; font-weight: 500; color: var(--text-1); margin-bottom: 4px; }
-.pi-overdue-meta    { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.pi-overdue-contact { font-size: 12px; color: var(--text-2); }
-.pi-overdue-due     { font-size: 12px; font-weight: 600; color: var(--warning); }
+/* ── Unworked segments ────────────────────────────────────────────────────── */
+.pi-unworked-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 14px; }
+.pi-unworked-item { display: flex; flex-direction: column; gap: 6px; }
+.pi-unworked-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.pi-unworked-name  { font-size: 13px; font-weight: 600; color: var(--text-1); }
+.pi-unworked-badge { font-size: 11.5px; font-weight: 700; padding: 2px 9px; border-radius: 999px; background: var(--warning-soft); color: var(--warning); white-space: nowrap; }
+.pi-unworked-bar-row { display: flex; align-items: center; gap: 8px; }
+.pi-unworked-pct { font-size: 12px; font-weight: 700; color: var(--text-2); min-width: 36px; }
+.pi-unworked-of  { font-size: 11.5px; color: var(--text-3); }
 
 /* ── Tables ───────────────────────────────────────────────────────────────── */
-.pi-table-wrap { overflow-x: auto; }
-.pi-table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.pi-table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius); }
+.pi-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.pi-table thead tr { background: var(--surface-2); }
 .pi-table th {
-  text-align: left; padding: 8px 12px; font-size: 11px; font-weight: 700;
-  text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-3);
+  text-align: left; padding: 10px 14px; font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.6px; color: var(--text-2);
   border-bottom: 1px solid var(--border); white-space: nowrap;
 }
-.pi-table td { padding: 10px 12px; border-bottom: 1px solid var(--border-soft); color: var(--text-1); vertical-align: middle; }
+.pi-table td { padding: 12px 14px; border-bottom: 1px solid var(--border-soft); color: var(--text-1); vertical-align: middle; }
 .pi-table tr:last-child td { border-bottom: none; }
+.pi-table tbody tr:hover td { background: var(--surface-2); }
 .pi-td-bold { font-weight: 600; }
 .pi-dim-badge {
   font-size: 11px; font-weight: 600; padding: 2px 8px;
-  border-radius: 20px; background: var(--primary-soft); color: var(--primary-text);
+  border-radius: 999px; background: var(--primary-soft); color: var(--primary-text);
 }
 
-/* Mini bar (used in table cells) */
+/* Mini bar (used in table cells and unworked list) */
 .pi-bar-cell  { display: flex; align-items: center; gap: 8px; }
 .pi-mini-bar  { width: 80px; height: 6px; background: var(--border-soft); border-radius: 99px; overflow: hidden; }
+.pi-mini-bar--wide { width: 100%; flex: 1; }
 .pi-mini-fill { height: 100%; border-radius: 99px; background: var(--primary); }
 .pi-prob--success { background: var(--success); }
 .pi-prob--warning { background: var(--warning); }
 .pi-prob--danger  { background: var(--danger); }
 
 /* Signal badges */
-.pi-signal-badge { font-size: 11.5px; font-weight: 700; padding: 3px 9px; border-radius: 20px; }
+.pi-signal-badge { font-size: 11.5px; font-weight: 700; padding: 3px 9px; border-radius: 999px; }
 .pi-signal--high { background: var(--success-soft); color: var(--success); }
 .pi-signal--med  { background: var(--warning-soft); color: var(--warning); }
 .pi-signal--low  { background: var(--border-soft);  color: var(--text-3); }
 
 /* Deal pills */
-.pi-deal-pill { font-size: 11.5px; font-weight: 700; padding: 3px 9px; border-radius: 20px; }
+.pi-deal-pill { font-size: 11.5px; font-weight: 700; padding: 3px 9px; border-radius: 999px; }
 .pi-deal-pill--on-track  { background: var(--success-soft); color: var(--success); }
 .pi-deal-pill--at-risk   { background: var(--warning-soft); color: var(--warning); }
 .pi-deal-pill--high-risk { background: var(--danger-soft);  color: var(--danger); }

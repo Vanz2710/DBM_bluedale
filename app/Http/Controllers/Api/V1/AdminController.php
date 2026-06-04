@@ -13,6 +13,7 @@ use App\Models\ForecastResult;
 use App\Models\ForecastType;
 use App\Models\Task;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -71,6 +72,7 @@ class AdminController extends Controller
 
         $item = $model::create($validated);
 
+        Cache::forget('lookups');
         $this->audit('created', $entity, $item->id, $item->name, null, ['name' => $item->name], $request);
 
         return response()->json(['status' => 'success', 'data' => $item], 201);
@@ -90,6 +92,7 @@ class AdminController extends Controller
         $old = ['name' => $item->name];
         $item->update($validated);
 
+        Cache::forget('lookups');
         $this->audit('updated', $entity, $item->id, $item->name, $old, ['name' => $item->name], $request);
 
         return response()->json(['status' => 'success', 'data' => $item]);
@@ -111,6 +114,7 @@ class AdminController extends Controller
             ], 409);
         }
 
+        Cache::forget('lookups');
         $this->audit('deleted', $entity, $item->id, $item->name, ['name' => $item->name], null, $request);
 
         $item->delete();

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\AdminAuditLog;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules\Password;
 
@@ -63,6 +64,7 @@ class UserManagementController extends Controller
             $user->assignRole($request->role);
         }
 
+        Cache::forget('lookups');
         $this->audit('created', 'user', $user->id, $user->name, null, [
             'name' => $user->name, 'username' => $user->username,
             'email' => $user->email, 'role' => $request->role,
@@ -99,6 +101,7 @@ class UserManagementController extends Controller
 
         $user->update($data);
 
+        Cache::forget('lookups');
         $this->audit('updated', 'user', $user->id, $user->name, $old, $request->only('name', 'username', 'email'), $request);
 
         return response()->json([
@@ -109,6 +112,11 @@ class UserManagementController extends Controller
 
     public function destroy(Request $request, User $user)
     {
+        if ($user->id === $request->user()->id) {
+            return response()->json(['message' => 'You cannot delete your own account.'], 422);
+        }
+
+        Cache::forget('lookups');
         $this->audit('deleted', 'user', $user->id, $user->name,
             ['name' => $user->name, 'username' => $user->username], null, $request);
 
@@ -158,6 +166,15 @@ class UserManagementController extends Controller
             'roles'   => 'required|array',
             'roles.*' => 'string|exists:roles,name',
         ]);
+
+        // Prevent stripping super-admin from the last super-admin in the system
+        $isLastSuperAdmin = $user->hasRole('super-admin')
+            && !in_array('super-admin', $request->roles)
+            && User::role('super-admin')->where('id', '!=', $user->id)->count() === 0;
+
+        if ($isLastSuperAdmin) {
+            return response()->json(['message' => 'Cannot remove super-admin from the last super-admin account.'], 422);
+        }
 
         $old = $user->getRoleNames()->toArray();
         $user->syncRoles($request->roles);

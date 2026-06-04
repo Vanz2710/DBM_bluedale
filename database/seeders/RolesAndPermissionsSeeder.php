@@ -57,6 +57,11 @@ class RolesAndPermissionsSeeder extends Seeder
             ['name' => 'manage lookups',     'description' => 'Add, edit, and delete lookup values (statuses, types, categories, industries, areas).'],
             ['name' => 'manage webhooks',    'description' => 'Configure outbound webhook endpoints for external integrations.'],
             ['name' => 'manage territories', 'description' => 'Manage territory definitions. (Currently unused — reserved for future use.)'],
+            // Marketing & media features
+            ['name' => 'manage social-media',       'description' => 'View and manage social media reminder entries.'],
+            ['name' => 'manage posting-calendar',   'description' => 'View and manage the social media posting calendar.'],
+            ['name' => 'manage email-campaigns',    'description' => 'Create, schedule, and send email marketing campaigns.'],
+            ['name' => 'manage product-availability', 'description' => 'View and manage product availability listings and bookings.'],
             // RBAC (super-admin only)
             ['name' => 'manage roles',       'description' => 'Create, edit, and delete roles; assign permissions to roles.'],
             ['name' => 'manage permissions', 'description' => 'View system permissions. Permissions are defined in code by a developer — this is a read-only reference.'],
@@ -76,12 +81,11 @@ class RolesAndPermissionsSeeder extends Seeder
         Role::firstOrCreate(['name' => 'super-admin', 'guard_name' => 'web']);
 
         // admin: full CRM access + admin tools, no RBAC management
+        $adminExcluded = ['manage roles', 'manage permissions', 'manage users'];
         $admin = Role::firstOrCreate(['name' => 'admin', 'guard_name' => 'web']);
-        $admin->syncPermissions(array_filter($names, fn($p) => !in_array($p, [
-            'manage roles', 'manage permissions', 'manage users',
-        ])));
+        $admin->syncPermissions(\array_filter($names, fn($p) => !\in_array($p, $adminExcluded)));
 
-        // user: full day-to-day CRM work, no admin tools
+        // user: full day-to-day CRM work + common marketing tools, no admin tools
         $user = Role::firstOrCreate(['name' => 'user', 'guard_name' => 'web']);
         $user->syncPermissions([
             'view contacts', 'create contacts', 'edit contacts', 'delete contacts',
@@ -90,8 +94,10 @@ class RolesAndPermissionsSeeder extends Seeder
             'view forecasts', 'create forecasts', 'edit forecasts', 'delete forecasts', 'view forecast summary',
             'view projects', 'create projects', 'edit projects', 'delete projects',
             'view followups', 'create followups', 'edit followups', 'delete followups',
-            'import contacts',
+            // 'import contacts' and 'view data-health' are admin-grantable only — not in user defaults
             'view analytics', 'view summary', 'view performance',
+            'manage social-media', 'manage posting-calendar', 'manage product-availability',
+            // Note: 'manage email-campaigns' is intentionally admin-only by default
         ]);
 
         // viewer: read-only across all CRM resources

@@ -2,7 +2,7 @@
   <div class="page">
     <div class="page-header">
       <div>
-        <h1>Product Availability</h1>
+        <h1>Site Availability</h1>
         <p>Billboard, Temp Board and Lamp Post Bunting rental schedule for {{ year }}.</p>
       </div>
       <div class="year-control">
@@ -54,8 +54,23 @@
 
     <div class="table-wrap">
       <div class="table-title">
-        <span>CRM TB Availability</span>
-        <span>{{ rows.length }} product(s)</span>
+        <span class="table-title-name">Site Availability</span>
+        <span class="table-title-count">{{ rows.length }} Product(s)</span>
+        <div class="table-title-controls">
+          <div class="view-toggle">
+            <button :class="{ active: tableViewMode === 'month' }" @click="tableViewMode = 'month'">Month</button>
+            <button :class="{ active: tableViewMode === 'week' }" @click="tableViewMode = 'week'">Week</button>
+          </div>
+          <button class="btn-today" @click="goToCurrentYear">Today</button>
+          <div class="table-nav">
+            <button @click="changeYear(-1)" aria-label="Previous year">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+            </button>
+            <button @click="changeYear(1)" aria-label="Next year">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+            </button>
+          </div>
+        </div>
       </div>
 
       <div v-if="loading" class="loading-msg">Loading...</div>
@@ -84,26 +99,32 @@
             <td class="place-col" @click.stop="openProductDetail(row)">
               <div class="place-cell">
                 <div class="place-cell-main">
-                  <span class="place-cell-no">{{ index + 1 }}</span>
+                  <div class="place-avatar" :style="avatarStyle(index)">{{ avatarLabel(row) }}</div>
                   <span class="place-cell-name" :title="row.site_name">{{ row.site_name }}</span>
                 </div>
                 <div class="place-cell-meta">
                   <span class="badge badge-product">{{ row.product_type }}</span>
-                  <span class="badge" :class="`badge-status-${row.status.toLowerCase().replace(' ', '-')}`">{{ row.status }}</span>
+                  <span class="badge" :class="`badge-status-${row.status.toLowerCase().replace(/ /g, '-')}`">{{ row.status }}</span>
                   <span class="badge badge-type">{{ row.type }}</span>
                 </div>
               </div>
             </td>
             <td
-              v-for="month in months"
-              :key="month.value"
+              v-for="slot in monthSlots(row)"
+              :key="slot.month"
+              :colspan="slot.span"
               class="month-cell"
-              :class="{ booked: bookingFor(row, month.value) }"
-              @click.stop="openCellMenu(row, month.value)"
+              :class="{ booked: slot.booked }"
+              @click.stop="openCellMenu(row, slot.month)"
             >
-              <template v-if="bookingFor(row, month.value)">
-                <div class="booking-bar" :title="`${bookingFor(row, month.value).company_name} · ${formatDate(bookingFor(row, month.value).start_date) || '—'} → ${formatDate(bookingFor(row, month.value).end_date) || '—'}`">
-                  {{ bookingFor(row, month.value).company_name }}
+              <template v-if="slot.booked">
+                <div
+                  class="booking-bar"
+                  :class="index % 2 === 0 ? 'booking-bar-blue' : 'booking-bar-orange'"
+                  :title="`${slot.booking.company_name} · ${formatDate(slot.booking.start_date) || '—'} → ${formatDate(slot.booking.end_date) || '—'}`"
+                >
+                  <span class="booking-bar-company">{{ slot.booking.company_name }}</span>
+                  <span v-if="bookingDuration(slot.booking)" class="booking-bar-duration">{{ bookingDuration(slot.booking) }}</span>
                 </div>
               </template>
               <span v-else class="avail-tick" aria-hidden="true"></span>
@@ -369,25 +390,34 @@
             </div>
 
             <div class="field register-full">
-              <label>Link Place <span class="field-hint">Paste a Google Maps or shortened link to auto-fill</span></label>
-              <div class="maps-link-row">
+              <label>Find Location <span class="field-hint">Paste a Google Maps link or type a place name</span></label>
+              <div class="location-input-wrap">
                 <input
-                  v-model="mapsLink"
-                  placeholder="Paste Google Maps link here..."
+                  v-model="locationInput"
+                  placeholder="Paste a Maps link or type a place name..."
                   autocomplete="off"
-                  :class="{ 'input-error-border': mapsLinkError }"
-                  @input="onMapsLinkInput"
+                  :class="{ 'input-error-border': locationError }"
+                  @input="onLocationInput"
                 >
-                <span v-if="mapsLinkResolving" class="maps-link-resolving">
-                  <span class="lm-spinner"></span> Resolving...
+                <span v-if="locationResolving || locationSearching" class="location-status">
+                  <span class="lm-spinner"></span> {{ locationResolving ? 'Resolving...' : 'Searching...' }}
                 </span>
+                <div v-if="locationResults.length > 0" class="place-results">
+                  <button
+                    v-for="result in locationResults"
+                    :key="result.place_id"
+                    type="button"
+                    class="place-result-item"
+                    @click="selectLocationResult(result)"
+                  >{{ result.display_name }}</button>
+                </div>
               </div>
-              <div v-if="mapsLinkError" class="maps-link-error">{{ mapsLinkError }}</div>
+              <div v-if="locationError" class="maps-link-error">{{ locationError }}</div>
               <div v-else-if="registerForm.coordinate" class="coord-preview">Coordinate: {{ registerForm.coordinate }}</div>
             </div>
 
             <div class="field">
-              <label>Product Type *</label>
+              <label>Ad Format *</label>
               <select v-model="registerForm.product_type">
                 <option v-for="p in productOptions" :key="p" :value="p">{{ p }}</option>
               </select>
@@ -407,28 +437,6 @@
             <div class="field">
               <label>State & City</label>
               <input v-model="registerForm.state_city" placeholder="Optional">
-            </div>
-
-            <div class="field register-full">
-              <label>Search Place</label>
-              <div class="place-search-wrap">
-                <input
-                  v-model="placeSearch"
-                  placeholder="Type a place name to auto-fill coordinate and landmarks..."
-                  autocomplete="off"
-                  @input="onPlaceSearchInput"
-                >
-                <div v-if="placeResults.length > 0 || placeSearching" class="place-results">
-                  <div v-if="placeSearching" class="place-result-item place-loading">Searching...</div>
-                  <button
-                    v-for="result in placeResults"
-                    :key="result.place_id"
-                    type="button"
-                    class="place-result-item"
-                    @click="selectPlaceResult(result)"
-                  >{{ result.display_name }}</button>
-                </div>
-              </div>
             </div>
 
             <div class="field register-full">
@@ -462,12 +470,12 @@
             </div>
 
           </div>
-          <div class="register-modal-footer">
-            <button type="button" class="btn-clear" @click="closeRegisterModal">Cancel</button>
-            <button type="button" class="btn-add" :disabled="registerSaving || !registerForm.site_name.trim()" @click="submitRegisterProduct">
-              {{ registerSaving ? 'Registering...' : 'Register Product' }}
-            </button>
-          </div>
+        </div>
+        <div class="register-modal-footer">
+          <button type="button" class="btn-clear" @click="closeRegisterModal">Cancel</button>
+          <button type="button" class="btn-add" :disabled="registerSaving || !registerForm.site_name.trim()" @click="submitRegisterProduct">
+            {{ registerSaving ? 'Registering...' : 'Register New Product' }}
+          </button>
         </div>
       </section>
     </div>
@@ -675,7 +683,7 @@ const year = ref(new Date().getFullYear());
 const productFilter = ref('');
 const productOptions = ref(['Billboard', 'Temp Board', 'Lamp Post Bunting']);
 const statusOptions = ref(['Existing', 'Raw New']);
-const typeOptions = ref(['A1', 'A2', 'ongoing', 'reject']);
+const typeOptions = ref(['A1', 'A2', 'Ongoing', 'Reject']);
 const companyResults = ref([]);
 const companyLoading = ref(false);
 const selectedContactId = ref(null);
@@ -741,16 +749,14 @@ const registerForm = ref({
   coordinate: '',
   nearest_landmarks: defaultRegisterLandmarks(),
 });
-const mapsLink = ref('');
-const mapsLinkError = ref('');
-const mapsLinkResolving = ref(false);
-let mapsLinkTimer = null;
+const locationInput = ref('');
+const locationError = ref('');
+const locationResolving = ref(false);
+const locationSearching = ref(false);
+const locationResults = ref([]);
+let locationTimer = null;
 const landmarkFetching = ref(false);
 const landmarkFetched = ref(false);
-const placeSearch = ref('');
-const placeResults = ref([]);
-const placeSearching = ref(false);
-let placeSearchTimer = null;
 
 const form = ref({
   company_name: '',
@@ -1573,12 +1579,12 @@ function openRegisterModal() {
     coordinate: '',
     nearest_landmarks: defaultRegisterLandmarks(),
   };
-  mapsLink.value = '';
-  mapsLinkError.value = '';
-  mapsLinkResolving.value = false;
+  locationInput.value = '';
+  locationError.value = '';
+  locationResolving.value = false;
+  locationSearching.value = false;
+  locationResults.value = [];
   registerError.value = '';
-  placeSearch.value = '';
-  placeResults.value = [];
   landmarkFetching.value = false;
   landmarkFetched.value = false;
   showRegisterModal.value = true;
@@ -1627,32 +1633,37 @@ function parseMapsLink(url) {
   return null;
 }
 
-function onMapsLinkInput() {
-  clearTimeout(mapsLinkTimer);
-  const url = mapsLink.value.trim();
-  mapsLinkError.value = '';
+// --- Unified location input (Maps link OR place name search) ---
+function onLocationInput() {
+  clearTimeout(locationTimer);
+  locationError.value = '';
+  locationResults.value = [];
   registerForm.value.coordinate = '';
 
-  if (!url) return;
+  const val = locationInput.value.trim();
+  if (!val) return;
 
-  const direct = parseMapsLink(url);
-  if (direct) {
-    registerForm.value.coordinate = `${direct.lat.toFixed(6)}, ${direct.lng.toFixed(6)}`;
-    fetchNearestLandmarks(direct.lat, direct.lng);
+  if (val.startsWith('http://') || val.startsWith('https://')) {
+    const direct = parseMapsLink(val);
+    if (direct) {
+      registerForm.value.coordinate = `${direct.lat.toFixed(6)}, ${direct.lng.toFixed(6)}`;
+      fetchNearestLandmarks(direct.lat, direct.lng);
+      return;
+    }
+    if (val.length > 15) {
+      locationTimer = setTimeout(() => resolveMapsUrl(val), 400);
+      return;
+    }
+    locationError.value = 'Invalid Google Maps URL.';
     return;
   }
 
-  if (url.startsWith('http') && url.length > 15) {
-    mapsLinkTimer = setTimeout(() => resolveShortenedUrl(url), 400);
-    return;
-  }
-
-  mapsLinkError.value = 'Invalid Google Maps URL. Please paste a full or shortened Google Maps link.';
+  locationTimer = setTimeout(searchLocations, 400);
 }
 
-async function resolveShortenedUrl(url) {
-  mapsLinkResolving.value = true;
-  mapsLinkError.value = '';
+async function resolveMapsUrl(url) {
+  locationResolving.value = true;
+  locationError.value = '';
   try {
     const res = await api.post('/v1/product-availability/resolve-maps-url', { url });
     const lat = parseFloat(res.data.lat);
@@ -1660,47 +1671,39 @@ async function resolveShortenedUrl(url) {
     registerForm.value.coordinate = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
     fetchNearestLandmarks(lat, lng);
   } catch (e) {
-    mapsLinkError.value = e.response?.data?.error ?? 'Could not extract coordinates from this link.';
+    locationError.value = e.response?.data?.error ?? 'Could not extract coordinates from this link.';
   } finally {
-    mapsLinkResolving.value = false;
+    locationResolving.value = false;
   }
+}
+
+async function searchLocations() {
+  locationSearching.value = true;
+  try {
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(locationInput.value)}&limit=6&countrycodes=my`,
+      { headers: { 'Accept-Language': 'en' } },
+    );
+    locationResults.value = await res.json();
+  } catch {
+    locationResults.value = [];
+  } finally {
+    locationSearching.value = false;
+  }
+}
+
+function selectLocationResult(result) {
+  const lat = parseFloat(result.lat).toFixed(6);
+  const lng = parseFloat(result.lon).toFixed(6);
+  registerForm.value.coordinate = `${lat}, ${lng}`;
+  locationInput.value = result.display_name;
+  locationResults.value = [];
+  fetchNearestLandmarks(parseFloat(lat), parseFloat(lng));
 }
 
 function refreshLandmarks() {
   const parsed = parseCoordinate(registerForm.value.coordinate);
   if (parsed) fetchNearestLandmarks(parsed.lat, parsed.lng);
-}
-
-// --- Place search (Nominatim) ---
-function onPlaceSearchInput() {
-  clearTimeout(placeSearchTimer);
-  placeResults.value = [];
-  if (!placeSearch.value.trim()) return;
-  placeSearchTimer = setTimeout(searchPlaces, 400);
-}
-
-async function searchPlaces() {
-  placeSearching.value = true;
-  try {
-    const res = await fetch(
-      `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(placeSearch.value)}&limit=6&countrycodes=my`,
-      { headers: { 'Accept-Language': 'en' } },
-    );
-    placeResults.value = await res.json();
-  } catch {
-    placeResults.value = [];
-  } finally {
-    placeSearching.value = false;
-  }
-}
-
-function selectPlaceResult(result) {
-  const lat = parseFloat(result.lat).toFixed(6);
-  const lng = parseFloat(result.lon).toFixed(6);
-  registerForm.value.coordinate = `${lat}, ${lng}`;
-  placeSearch.value = result.display_name;
-  placeResults.value = [];
-  fetchNearestLandmarks(parseFloat(lat), parseFloat(lng));
 }
 
 // --- Overpass API landmark fetching ---
@@ -1709,17 +1712,24 @@ async function fetchNearestLandmarks(lat, lng) {
   landmarkFetched.value = false;
 
   const r = 3000;
+  // Include relation type so OSM multi-polygon features (malls, campuses, stations) are found.
+  // out center 100 ensures enough candidates are returned — Overpass does NOT sort by distance,
+  // so a small limit like 10 would return arbitrary elements and miss the nearest one.
   function overpassQ(tagLines) {
-    const body = tagLines.map((t) => `node${t}(around:${r},${lat},${lng});way${t}(around:${r},${lat},${lng});`).join('');
-    return `[out:json][timeout:15];(${body});out center 10;`;
+    const body = tagLines.map((t) =>
+      `node${t}(around:${r},${lat},${lng});way${t}(around:${r},${lat},${lng});relation${t}(around:${r},${lat},${lng});`
+    ).join('');
+    return `[out:json][timeout:25];(${body});out center 100;`;
   }
 
   const queries = [
     { category: 'Shopping Mall',         q: overpassQ([`["shop"="mall"]["name"]`, `["shop"="shopping_centre"]["name"]`, `["building"="mall"]["name"]`]) },
     { category: 'School',                q: overpassQ([`["amenity"="school"]["name"]`]) },
-    { category: 'Residential Area',      q: overpassQ([`["place"~"neighbourhood|suburb"]["name"]`, `["landuse"="residential"]["name"]`]) },
+    // "landuse=residential" is almost never named in OSM; "place=village/neighbourhood/suburb" is.
+    { category: 'Residential Area',      q: overpassQ([`["place"~"neighbourhood|suburb|village"]["name"]`]) },
     { category: 'Hospital / Clinic',     q: overpassQ([`["amenity"="hospital"]["name"]`, `["amenity"="clinic"]["name"]`]) },
-    { category: 'MRT / LRT Station',     q: overpassQ([`["railway"="station"]["name"]`, `["railway"="halt"]["name"]`]) },
+    // Malaysian transit stops use both railway=station and public_transport=station tags.
+    { category: 'MRT / LRT Station',     q: overpassQ([`["railway"="station"]["name"]`, `["railway"="halt"]["name"]`, `["public_transport"="station"]["name"]`]) },
     { category: 'Petrol Station',        q: overpassQ([`["amenity"="fuel"]["name"]`]) },
     { category: 'University / College',  q: overpassQ([`["amenity"="university"]["name"]`, `["amenity"="college"]["name"]`]) },
     { category: 'Police Station',        q: overpassQ([`["amenity"="police"]["name"]`]) },
@@ -1764,6 +1774,63 @@ onUnmounted(() => {
   if (leafletMap) { leafletMap.remove(); leafletMap = null; }
 });
 
+// --- Table view ---
+const tableViewMode = ref('month');
+
+function goToCurrentYear() {
+  year.value = new Date().getFullYear();
+  load();
+}
+
+function monthSlots(row) {
+  const slots = [];
+  let i = 0;
+  while (i < months.length) {
+    const month = months[i].value;
+    const booking = bookingFor(row, month);
+    if (booking) {
+      let span = 1;
+      while (i + span < months.length) {
+        const next = bookingFor(row, months[i + span].value);
+        if (next && next.company_name === booking.company_name) span++;
+        else break;
+      }
+      slots.push({ booked: true, booking, month, span });
+      i += span;
+    } else {
+      slots.push({ booked: false, booking: null, month, span: 1 });
+      i++;
+    }
+  }
+  return slots;
+}
+
+function bookingDuration(booking) {
+  if (!booking.start_date || !booking.end_date) return null;
+  const days = Math.round((new Date(booking.end_date) - new Date(booking.start_date)) / 86400000) + 1;
+  return days > 0 ? `${days} days` : null;
+}
+
+function avatarLabel(row) {
+  if (row.product_type === 'Billboard') return 'BB';
+  if (row.product_type === 'Lamp Post Bunting') return 'LB';
+  return 'TB';
+}
+
+const AVATAR_PALETTE = [
+  { bg: '#f3e8ff', color: '#7e22ce' },
+  { bg: '#dbeafe', color: '#1d4ed8' },
+  { bg: '#e0f2fe', color: '#0369a1' },
+  { bg: '#f1f5f9', color: '#475569' },
+  { bg: '#fce7f3', color: '#be185d' },
+  { bg: '#d1fae5', color: '#065f46' },
+];
+
+function avatarStyle(index) {
+  const c = AVATAR_PALETTE[index % AVATAR_PALETTE.length];
+  return { background: c.bg, color: c.color };
+}
+
 onMounted(load);
 </script>
 
@@ -1777,16 +1844,17 @@ onMounted(load);
 .page-header p { margin: 0; color: var(--text-3); font-size: 13.5px; }
 .year-control { display: flex; align-items: center; gap: 6px; }
 .year-control button {
-  width: 34px; height: 34px; border: 1px solid #cbd5e1; border-radius: 7px; background: #f8fafc;
-  color: #0f172a; font-size: 18px; cursor: pointer;
+  width: 34px; height: 34px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--surface-2); color: var(--text-1); font-size: 18px; cursor: pointer;
 }
 .year-control input {
-  width: 88px; height: 34px; border: 1px solid #cbd5e1; border-radius: 7px; text-align: center;
-  font-size: 14px; font-weight: 800;
+  width: 88px; height: 34px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+  text-align: center; font-size: 14px; font-weight: 800; background: var(--surface); color: var(--text-1);
+  outline: none;
 }
 /* Compact action bar replaces old entry-panel + toolbar + proposal-panel */
 .action-bar {
-  background: #ffffff; border: 1px solid #dbe3ee; border-radius: 8px; padding: 12px 14px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px;
   margin-bottom: 14px; display: flex; justify-content: space-between; align-items: flex-end;
   gap: 16px; flex-wrap: wrap;
 }
@@ -1803,57 +1871,90 @@ onMounted(load);
 .field.date-field { min-width: 138px; }
 .field.full { width: 100%; }
 .field label {
-  font-size: 10px; font-weight: 850; text-transform: uppercase; letter-spacing: 0.7px; color: #64748b;
+  font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.7px; color: var(--text-2);
 }
 .field input, .field select {
-  height: 36px; border: 1.5px solid #dbe3ee; border-radius: 7px; padding: 0 10px;
-  font-size: 13px; outline: none; background: white; color: #172033;
+  height: 38px; border: 1.5px solid var(--border); border-radius: var(--radius-sm); padding: 0 12px;
+  font-size: 13px; outline: none; background: var(--surface); color: var(--text-1);
 }
-.field input:focus, .field select:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,0.12); }
+.field input:focus, .field select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); }
 .company-search { position: relative; }
 .company-search input { width: 100%; }
 .company-results {
-  position: absolute; left: 0; right: 0; top: calc(100% + 6px); z-index: 20; background: white;
-  border: 1.5px solid #dbe3ee; border-radius: 8px; box-shadow: 0 12px 28px rgba(15,23,42,0.16); overflow: hidden;
+  position: absolute; left: 0; right: 0; top: calc(100% + 6px); z-index: 20; background: var(--surface);
+  border: 1.5px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-md); overflow: hidden;
 }
 .company-results button {
-  width: 100%; min-height: 36px; border: none; border-bottom: 1px solid #eef2f7; background: white;
-  color: #172033; text-align: left; padding: 8px 10px; font-size: 13px; font-weight: 700; cursor: pointer;
+  width: 100%; min-height: 36px; border: none; border-bottom: 1px solid var(--border-soft);
+  background: var(--surface); color: var(--text-1); text-align: left; padding: 8px 12px;
+  font-size: 13px; font-weight: 600; cursor: pointer;
 }
-.company-results button:hover { background: #eff6ff; color: #1d4ed8; }
-.company-empty { padding: 10px; color: #64748b; font-size: 12px; font-weight: 700; }
+.company-results button:hover { background: var(--primary-soft); color: var(--primary-text); }
+.company-empty { padding: 10px; color: var(--text-3); font-size: 12px; font-weight: 600; }
 .btn-add, .btn-dark, .btn-clear, .btn-proposal {
-  height: 36px; border: none; border-radius: 7px; padding: 0 15px; font-size: 13px; font-weight: 850; cursor: pointer;
+  height: 36px; border: none; border-radius: var(--radius-sm); padding: 0 16px;
+  font-size: 13px; font-weight: 600; cursor: pointer;
 }
-.btn-add { background: #2563eb; color: white; }
-.btn-add:disabled, .btn-proposal:disabled { background: #94a3b8; cursor: not-allowed; }
-.btn-dark { background: #172033; color: white; }
-.btn-clear { background: #eef2f7; color: #475569; }
+.btn-add { background: var(--primary); color: var(--primary-on); box-shadow: 0 6px 18px -6px rgba(124,58,237,0.4); }
+.btn-add:hover { background: var(--primary-hover); }
+.btn-add:disabled, .btn-proposal:disabled { background: #94a3b8; cursor: not-allowed; box-shadow: none; }
+.btn-dark { background: var(--text-1); color: #ffffff; }
+.btn-dark:hover { opacity: 0.88; }
+.btn-clear { background: var(--surface-2); color: var(--text-2); border: 1px solid var(--border); }
+.btn-clear:hover { background: var(--border); color: var(--text-1); }
 .btn-proposal { background: #0f766e; color: white; }
 .error-msg {
-  background: #fee2e2; color: #991b1b; border-radius: 8px; padding: 10px 14px; margin-bottom: 14px;
-  font-size: 13px; font-weight: 750;
+  background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; border-radius: var(--radius-sm);
+  padding: 10px 14px; margin-bottom: 14px; font-size: 13px; font-weight: 600;
 }
 .table-wrap {
-  background: white; border-radius: 8px; border: 1px solid #e5e7eb; overflow: auto;
-  position: relative;
+  background: var(--surface); border-radius: var(--radius); border: 1px solid var(--border);
+  overflow: auto; position: relative;
 }
 .table-title {
-  background: #f8fafc; color: #0f172a; border-bottom: 1px solid #e5e7eb; padding: 10px 14px;
-  display: flex; justify-content: space-between; align-items: center;
+  background: var(--surface); color: var(--text-1); border-bottom: 1px solid var(--border); padding: 10px 14px;
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
   font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px;
+  border-radius: var(--radius) var(--radius) 0 0;
 }
+.table-title-name { color: var(--text-1); }
+.table-title-count { color: var(--text-2); font-weight: 700; }
+.table-title-controls { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+.view-toggle {
+  display: flex; border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden;
+}
+.view-toggle button {
+  padding: 5px 11px; font-size: 11px; font-weight: 700; text-transform: none; letter-spacing: 0;
+  border: none; border-right: 1px solid var(--border); background: #fff; color: var(--text-2); cursor: pointer;
+}
+.view-toggle button:last-child { border-right: none; }
+.view-toggle button.active { background: var(--primary); color: #fff; }
+.view-toggle button:not(.active):hover { background: var(--surface); }
+.btn-today {
+  height: 28px; padding: 0 10px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: #fff; color: var(--text-2); font-size: 11px; font-weight: 700; text-transform: none;
+  letter-spacing: 0; cursor: pointer;
+}
+.btn-today:hover { background: var(--surface); color: var(--text-1); }
+.table-nav { display: flex; gap: 2px; }
+.table-nav button {
+  width: 28px; height: 28px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: #fff; color: var(--text-2); cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+}
+.table-nav button:hover { background: var(--surface); color: var(--text-1); }
 .loading-msg { text-align: center; padding: 44px; color: #64748b; }
 
 /* Compact gantt table */
 .gantt-table {
-  width: 100%; border-collapse: separate; border-spacing: 0; font-size: 12px;
+  width: 100%; table-layout: fixed; min-width: 820px;
+  border-collapse: separate; border-spacing: 0; font-size: 12px;
 }
 .gantt-table th, .gantt-table td { border: none; border-right: 1px solid #eef2f7; border-bottom: 1px solid #eef2f7; }
 .gantt-table thead th {
-  background: #1e293b; color: #f1f5f9; padding: 8px 6px; font-size: 11px; font-weight: 800;
-  text-transform: uppercase; letter-spacing: 0.4px; text-align: center; white-space: nowrap;
-  position: sticky; top: 0; z-index: 3;
+  background: var(--surface); color: var(--text-2); padding: 8px 6px; font-size: 10px; font-weight: 800;
+  text-transform: uppercase; letter-spacing: 0.5px; text-align: center; white-space: nowrap;
+  position: sticky; top: 0; z-index: 3; border-bottom: 2px solid var(--border);
 }
 .gantt-table tbody td {
   height: 56px; padding: 0; vertical-align: middle; background: #ffffff;
@@ -1866,7 +1967,7 @@ onMounted(load);
   width: 38px; min-width: 38px; text-align: center;
   position: sticky; left: 0; z-index: 2; background: #ffffff;
 }
-.gantt-table thead .select-col { background: #1e293b; }
+.gantt-table thead .select-col { background: var(--surface); }
 .select-col input {
   appearance: none; -webkit-appearance: none;
   width: 16px; height: 16px; padding: 0; cursor: pointer;
@@ -1881,19 +1982,19 @@ onMounted(load);
 .select-col input:disabled { border-color: #94a3b8; background: #e2e8f0; cursor: not-allowed; }
 
 .place-col {
-  width: 280px; min-width: 280px; max-width: 280px;
+  width: 220px; min-width: 220px; max-width: 220px;
   position: sticky; left: 38px; z-index: 2; background: #ffffff;
   text-align: left; cursor: pointer;
   border-right: 1.5px solid #cbd5e1 !important;
   box-shadow: 6px 0 6px -6px rgba(15,23,42,0.18);
 }
-.gantt-table thead .place-col { background: #1e293b; text-align: left; padding-left: 14px; }
+.gantt-table thead .place-col { background: var(--surface); text-align: left; padding-left: 14px; }
 .place-cell { padding: 8px 12px; display: flex; flex-direction: column; gap: 5px; }
 .place-cell-main { display: flex; align-items: flex-start; gap: 8px; }
-.place-cell-no {
-  display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
-  min-width: 22px; height: 18px; padding: 0 5px; border-radius: 999px;
-  background: #eef2f7; color: #475569; font-size: 10px; font-weight: 800;
+.place-avatar {
+  width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 900; letter-spacing: -0.3px;
 }
 .place-cell-name {
   font-size: 12.5px; font-weight: 700; color: #0f172a; line-height: 1.3;
@@ -1911,28 +2012,33 @@ onMounted(load);
 .badge-status-existing { background: #dcfce7; color: #166534; }
 .badge-status-raw-new { background: #dbeafe; color: #1e40af; }
 
-/* Month header + cells */
-.gantt-table .month-th { min-width: 78px; width: 78px; }
+/* Month header + cells — widths distributed by table-layout: fixed */
+.gantt-table .month-th { /* width auto-distributed */ }
 .month-cell {
-  min-width: 78px; width: 78px; text-align: center; cursor: pointer;
-  position: relative;
+  text-align: center; cursor: pointer; position: relative;
 }
-.month-cell.booked { background: #f0f9ff; }
+.month-cell.booked { background: transparent; }
 .booking-bar {
-  height: 36px; margin: 8px 6px; padding: 0 6px;
-  background: linear-gradient(180deg, #38bdf8 0%, #0284c7 100%);
-  color: #ffffff; border-radius: 5px;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 10.5px; font-weight: 700; line-height: 1.15;
-  overflow: hidden; text-overflow: ellipsis;
-  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
-  word-break: break-word;
-  box-shadow: 0 1px 2px rgba(2,132,199,0.25);
-  transition: filter 0.12s;
+  min-height: 44px; margin: 6px; padding: 6px 10px;
+  display: flex; flex-direction: column; justify-content: center;
+  border-radius: var(--radius-sm); border-left: 4px solid;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  overflow: hidden; transition: filter 0.12s;
 }
-.month-cell:hover { background: #f1f5f9; }
-.month-cell.booked:hover { background: #e0f2fe; }
-.month-cell:hover .booking-bar { filter: brightness(1.05); }
+.booking-bar-blue { background: #eff6ff; border-left-color: #0284c7; }
+.booking-bar-orange { background: #fff7ed; border-left-color: #f97316; }
+.booking-bar-company {
+  font-size: 10.5px; font-weight: 800;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.booking-bar-blue .booking-bar-company { color: #0c4a6e; }
+.booking-bar-orange .booking-bar-company { color: #9a3412; }
+.booking-bar-duration { font-size: 9.5px; font-weight: 600; margin-top: 2px; }
+.booking-bar-blue .booking-bar-duration { color: #0284c7; }
+.booking-bar-orange .booking-bar-duration { color: #f97316; }
+.month-cell:hover { background: var(--surface); }
+.month-cell.booked:hover { background: transparent; }
+.month-cell:hover .booking-bar { filter: brightness(0.97); }
 .avail-tick {
   display: inline-block; width: 6px; height: 6px; border-radius: 999px;
   background: #cbd5e1;
@@ -1941,22 +2047,22 @@ onMounted(load);
 
 .empty-state { text-align: center; padding: 36px; color: #64748b; font-size: 13px; font-weight: 700; background: white; }
 .modal-backdrop {
-  position: fixed; inset: 0; z-index: 50; background: rgba(15,23,42,0.58);
-  display: flex; align-items: center; justify-content: center; padding: 22px;
+  position: fixed; inset: 0; z-index: 2000; background: rgba(15,23,42,0.45);
+  display: flex; align-items: center; justify-content: center; padding: 24px;
 }
 .product-detail-modal {
-  width: min(880px, 96vw); max-height: 92vh; background: #ffffff; color: #111827;
-  display: grid; grid-template-columns: 136px 1fr; overflow: auto; border-radius: 6px;
-  box-shadow: 0 24px 70px rgba(15,23,42,0.36);
+  width: min(880px, 96vw); max-height: 85vh; background: var(--surface); color: var(--text-1);
+  display: grid; grid-template-columns: 136px 1fr; overflow: auto; border-radius: var(--radius-lg);
+  box-shadow: 0 20px 60px rgba(0,0,0,0.2);
 }
 .detail-side { background: #0f56ad; min-height: 520px; }
 .detail-content { position: relative; padding: 28px 40px 34px; }
 .detail-close {
   position: absolute; top: 12px; right: 14px; width: 32px; height: 32px; border: none;
-  border-radius: 6px; background: #eef2f7; color: #172033; font-size: 22px; line-height: 1;
-  cursor: pointer;
+  border-radius: var(--radius-sm); background: var(--surface-2); color: var(--text-1);
+  font-size: 22px; line-height: 1; cursor: pointer;
 }
-.detail-close:hover { background: #dbe3ee; }
+.detail-close:hover { background: var(--border); }
 .detail-header {
   width: min(440px, 100%); min-height: 62px; background: #0f56ad; color: #ffffff;
   border-radius: 22px; display: flex; flex-direction: column; justify-content: center;
@@ -2000,59 +2106,59 @@ onMounted(load);
 
 /* Add/Edit Booking modal */
 .entry-modal {
-  width: min(620px, 96vw); max-height: 92vh; background: #ffffff;
-  border-radius: 10px; box-shadow: 0 24px 70px rgba(15,23,42,0.36);
+  width: min(620px, 95vw); max-height: 85vh; background: var(--surface);
+  border-radius: var(--radius-lg); box-shadow: 0 20px 60px rgba(0,0,0,0.2);
   display: flex; flex-direction: column; overflow: hidden;
 }
 .entry-modal-head {
-  display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;
-  padding: 18px 22px 14px; border-bottom: 1px solid #e5e7eb;
+  position: relative; display: flex; justify-content: space-between; align-items: flex-start;
+  gap: 12px; padding: 18px 20px 14px; border-bottom: 1px solid var(--border);
 }
-.entry-modal-head h2 { margin: 0 0 4px; font-size: 18px; font-weight: 900; }
-.entry-modal-head p { margin: 0; font-size: 12px; color: #64748b; font-weight: 600; }
-.entry-modal-body { padding: 18px 22px; overflow: auto; display: flex; flex-direction: column; gap: 12px; }
+.entry-modal-head h2 { margin: 0 0 4px; font-size: 15px; font-weight: 700; color: var(--text-1); }
+.entry-modal-head p { margin: 0; font-size: 12px; color: var(--text-2); font-weight: 500; }
+.entry-modal-body { padding: 20px; overflow: auto; display: flex; flex-direction: column; gap: 12px; }
 .entry-modal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .entry-modal-foot {
   display: flex; justify-content: flex-end; gap: 8px;
-  padding: 14px 22px; border-top: 1px solid #e5e7eb;
+  padding: 14px 20px; border-top: 1px solid var(--border);
 }
 
 /* Cell menu modal (booking view/edit/delete) */
 .cell-menu-modal {
-  width: min(440px, 92vw); background: #ffffff;
-  border-radius: 10px; box-shadow: 0 24px 70px rgba(15,23,42,0.36);
+  width: min(440px, 95vw); background: var(--surface);
+  border-radius: var(--radius-lg); box-shadow: 0 20px 60px rgba(0,0,0,0.2);
   display: flex; flex-direction: column; overflow: hidden;
 }
 .cell-menu-head {
-  display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;
-  padding: 16px 20px; border-bottom: 1px solid #e5e7eb;
+  position: relative; display: flex; justify-content: space-between; align-items: flex-start;
+  gap: 12px; padding: 18px 20px 14px; border-bottom: 1px solid var(--border);
 }
 .cell-menu-eyebrow {
-  display: block; font-size: 10px; font-weight: 900; text-transform: uppercase;
-  letter-spacing: 0.6px; color: #0284c7; margin-bottom: 3px;
+  display: block; font-size: 10px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.6px; color: var(--primary); margin-bottom: 3px;
 }
 .cell-menu-head h2 {
-  margin: 0; font-size: 14px; font-weight: 800; color: #0f172a; line-height: 1.3;
+  margin: 0; font-size: 14px; font-weight: 700; color: var(--text-1); line-height: 1.3;
 }
-.cell-menu-body { padding: 16px 20px; }
-.cell-menu-empty p { margin: 0; color: #475569; font-size: 13px; }
+.cell-menu-body { padding: 20px; }
+.cell-menu-empty p { margin: 0; color: var(--text-2); font-size: 13px; }
 .cell-menu-dl {
   display: grid; grid-template-columns: 90px 1fr; gap: 10px 14px; margin: 0;
 }
-.cell-menu-dl dt { color: #64748b; font-size: 11px; font-weight: 800; text-transform: uppercase; align-self: center; }
-.cell-menu-dl dd { margin: 0; font-size: 13px; font-weight: 700; color: #0f172a; }
+.cell-menu-dl dt { color: var(--text-2); font-size: 11px; font-weight: 700; text-transform: uppercase; align-self: center; }
+.cell-menu-dl dd { margin: 0; font-size: 13px; font-weight: 700; color: var(--text-1); }
 .cell-menu-dl dd input[type="date"] {
-  width: 100%; height: 34px; border: 1.5px solid #dbe3ee; border-radius: 6px;
-  padding: 0 10px; font-size: 13px; outline: none; background: white;
+  width: 100%; height: 38px; border: 1.5px solid var(--border); border-radius: var(--radius-sm);
+  padding: 0 12px; font-size: 13px; outline: none; background: var(--surface); color: var(--text-1);
 }
-.cell-menu-dl dd input[type="date"]:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,0.12); }
+.cell-menu-dl dd input[type="date"]:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); }
 .cell-menu-foot {
   display: flex; justify-content: space-between; gap: 8px;
-  padding: 14px 20px; border-top: 1px solid #e5e7eb; background: #f8fafc;
+  padding: 14px 20px; border-top: 1px solid var(--border); background: var(--surface-2);
 }
 .btn-danger {
-  height: 36px; border: none; border-radius: 7px; padding: 0 14px;
-  font-size: 12.5px; font-weight: 800; cursor: pointer;
+  height: 36px; border: none; border-radius: var(--radius-sm); padding: 0 14px;
+  font-size: 13px; font-weight: 600; cursor: pointer;
   background: #fee2e2; color: #991b1b;
 }
 .btn-danger:hover { background: #fecaca; }
@@ -2092,32 +2198,32 @@ onMounted(load);
 
 /* Wizard modal */
 .wizard-modal {
-  width: min(900px, 96vw); max-height: 92vh; background: #ffffff; color: #111827;
-  display: flex; flex-direction: column; border-radius: 10px;
-  box-shadow: 0 24px 70px rgba(15,23,42,0.36); overflow: hidden;
+  width: min(900px, 96vw); max-height: 85vh; background: var(--surface); color: var(--text-1);
+  display: flex; flex-direction: column; border-radius: var(--radius-lg);
+  box-shadow: 0 20px 60px rgba(0,0,0,0.2); overflow: hidden;
 }
 .wizard-header {
-  display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;
-  padding: 18px 22px 12px; border-bottom: 1px solid #e5e7eb;
+  position: relative; display: flex; justify-content: space-between; align-items: flex-start;
+  gap: 12px; padding: 18px 20px 14px; border-bottom: 1px solid var(--border);
 }
-.wizard-header h2 { margin: 0 0 2px; font-size: 18px; font-weight: 900; }
-.wizard-header p { margin: 0; font-size: 12px; color: #64748b; font-weight: 700; }
+.wizard-header h2 { margin: 0 0 2px; font-size: 15px; font-weight: 700; color: var(--text-1); }
+.wizard-header p { margin: 0; font-size: 12px; color: var(--text-2); font-weight: 500; }
 .wizard-tabs {
-  display: flex; gap: 8px; padding: 10px 22px; border-bottom: 1px solid #e5e7eb;
-  background: #f8fafc;
+  display: flex; gap: 8px; padding: 12px 20px; border-bottom: 1px solid var(--border);
+  background: var(--surface-2);
 }
 .wizard-tabs button {
   flex: 1; display: flex; align-items: center; gap: 8px; padding: 8px 12px;
-  border: 1.5px solid #dbe3ee; background: #fff; border-radius: 7px; cursor: pointer;
-  font-size: 12px; font-weight: 800; color: #475569;
+  border: 1.5px solid var(--border); background: var(--surface); border-radius: var(--radius-sm);
+  cursor: pointer; font-size: 12px; font-weight: 700; color: var(--text-2);
 }
-.wizard-tabs button.active { border-color: #0f766e; color: #0f766e; box-shadow: 0 0 0 3px rgba(15,118,110,0.12); }
+.wizard-tabs button.active { border-color: var(--primary); color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); }
 .wizard-tabs button.done { color: #16a34a; border-color: #bbf7d0; background: #f0fdf4; }
 .wizard-tab-num {
-  width: 20px; height: 20px; border-radius: 999px; background: #e8eef5; color: #334155;
-  display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 900;
+  width: 20px; height: 20px; border-radius: 999px; background: var(--surface-2); color: var(--text-2);
+  display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700;
 }
-.wizard-tabs button.active .wizard-tab-num { background: #0f766e; color: #fff; }
+.wizard-tabs button.active .wizard-tab-num { background: var(--primary); color: var(--primary-on); }
 .wizard-tabs button.done .wizard-tab-num { background: #16a34a; color: #fff; }
 .wizard-body { flex: 1; overflow: auto; padding: 18px 22px; }
 .wizard-grid {
@@ -2175,7 +2281,7 @@ onMounted(load);
 .photo-status.missing { background: #fee2e2; color: #991b1b; }
 .wizard-footer {
   display: flex; justify-content: space-between; align-items: center; gap: 8px;
-  padding: 14px 22px; border-top: 1px solid #e5e7eb; background: #fff;
+  padding: 14px 20px; border-top: 1px solid var(--border); background: var(--surface);
 }
 .wizard-footer-right { display: flex; gap: 8px; }
 .btn-register {
@@ -2192,10 +2298,11 @@ onMounted(load);
 .btn-map-toggle:hover { background: var(--surface-2); color: var(--text-1); }
 .btn-map-toggle.active { background: var(--text-1); color: var(--primary-on); border-color: var(--text-1); }
 
-/* Map section */
+/* Map section — isolation:isolate scopes Leaflet's internal z-indexes (zoom controls at z:1000)
+   so modal backdrops at z:50 in the root context correctly appear above the entire map */
 .map-section {
   background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
-  overflow: hidden; margin-bottom: 14px;
+  overflow: hidden; margin-bottom: 14px; isolation: isolate;
 }
 .leaflet-map { height: 480px; width: 100%; }
 .map-legend {
@@ -2216,38 +2323,36 @@ onMounted(load);
 
 /* Register Product modal */
 .register-modal {
-  width: min(720px, 96vw); background: var(--surface); color: var(--text-1);
+  width: min(720px, 95vw); max-height: 85vh; background: var(--surface); color: var(--text-1);
   border-radius: var(--radius-lg); overflow: hidden;
-  box-shadow: var(--shadow-lg);
+  box-shadow: 0 20px 60px rgba(0,0,0,0.2); display: flex; flex-direction: column;
 }
 .register-modal-header {
-  background: var(--text-1); color: var(--primary-on); padding: 16px 20px;
-  display: flex; align-items: center; justify-content: space-between;
+  position: relative; background: var(--text-1); color: var(--primary-on); padding: 18px 20px 14px;
+  display: flex; align-items: flex-start; justify-content: space-between; flex-shrink: 0;
 }
 .register-modal-header h2 { margin: 0; font-size: 15px; font-weight: 700; }
-.register-modal-body { padding: 20px; max-height: 80vh; overflow-y: auto; }
-.register-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 20px; }
+.register-modal-body { padding: 20px; overflow-y: auto; flex: 1; }
+.register-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 .register-full { grid-column: 1 / -1; }
 .register-site-row { display: flex; gap: 8px; align-items: center; }
 .register-site-row input { flex: 1; min-width: 0; }
 .btn-open-gmaps {
-  flex-shrink: 0; height: 36px; padding: 0 12px; border-radius: var(--radius-sm);
-  background: var(--text-1); color: var(--primary-on); font-size: 11px; font-weight: 700;
+  flex-shrink: 0; height: 36px; padding: 0 14px; border-radius: var(--radius-sm);
+  background: var(--text-1); color: var(--primary-on); font-size: 13px; font-weight: 600;
   text-decoration: none; display: flex; align-items: center; white-space: nowrap;
 }
 .btn-open-gmaps:hover { opacity: 0.88; }
 .field-hint { margin-left: 6px; font-size: 10px; font-weight: 600; color: var(--text-3); text-transform: none; letter-spacing: 0; }
 .coord-preview { margin-top: 5px; font-size: 11px; font-weight: 700; color: var(--primary); }
-.register-modal-footer { display: flex; justify-content: flex-end; gap: 10px; padding-top: 4px; }
-.maps-link-row { position: relative; display: flex; align-items: center; gap: 8px; }
-.maps-link-row input { flex: 1; min-width: 0; }
-.maps-link-resolving { font-size: 11px; font-weight: 700; color: var(--primary); white-space: nowrap; display: flex; align-items: center; gap: 5px; }
+.register-modal-header .detail-close { background: rgba(255,255,255,0.12); color: var(--primary-on); }
+.register-modal-header .detail-close:hover { background: rgba(255,255,255,0.22); }
+.register-modal-footer { display: flex; justify-content: flex-end; gap: 8px; padding: 14px 20px; border-top: 1px solid var(--border); flex-shrink: 0; }
+.location-input-wrap { position: relative; display: flex; align-items: center; gap: 8px; }
+.location-input-wrap input { flex: 1; min-width: 0; width: 100%; box-sizing: border-box; }
+.location-status { font-size: 11px; font-weight: 700; color: var(--primary); white-space: nowrap; display: flex; align-items: center; gap: 5px; flex-shrink: 0; }
 .maps-link-error { margin-top: 5px; font-size: 11px; font-weight: 700; color: #dc2626; }
 .input-error-border { border-color: #dc2626 !important; }
-
-/* Place search */
-.place-search-wrap { position: relative; }
-.place-search-wrap input { width: 100%; box-sizing: border-box; }
 .place-results {
   position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: 200;
   background: var(--surface); border: 1.5px solid var(--border); border-radius: var(--radius);

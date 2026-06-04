@@ -41,6 +41,7 @@ const ContactAnalysis         = () => import('../pages/ContactAnalysis.vue');
 const PredictiveInsights      = () => import('../pages/PredictiveInsights.vue');
 const SystemSettings          = () => import('../pages/SystemSettings.vue');
 const UserActivity            = () => import('../pages/UserActivity.vue');
+const Forbidden               = () => import('../pages/Forbidden.vue');
 
 const routes = [
     { path: '/login',        component: Login,       name: 'login',        meta: { public: true } },
@@ -81,11 +82,12 @@ const routes = [
     { path: '/admin/system-settings',     component: SystemSettings,  name: 'system-settings', meta: { adminOnly: true } },
     { path: '/admin/user-activity',       component: UserActivity,    name: 'user-activity',   meta: { adminOnly: true } },
     { path: '/settings',                   component: Settings,          name: 'settings' },
-    { path: '/social-media',               component: SocialMediaReminder, name: 'social-media' },
-    { path: '/posting-calendar',           component: PostingCalendar,     name: 'posting-calendar' },
-    { path: '/marketing-email',            component: MarketingEmail,      name: 'marketing-email' },
+    { path: '/social-media',               component: SocialMediaReminder, name: 'social-media',          meta: { permission: 'manage social-media' } },
+    { path: '/posting-calendar',           component: PostingCalendar,     name: 'posting-calendar',      meta: { permission: 'manage posting-calendar' } },
+    { path: '/marketing-email',            component: MarketingEmail,      name: 'marketing-email',       meta: { permission: 'manage email-campaigns' } },
     { path: '/marketing-ai',               component: MarketingAI,         name: 'marketing-ai' },
-    { path: '/product-availability',       component: ProductAvailability, name: 'product-availability' },
+    { path: '/product-availability',       component: ProductAvailability, name: 'product-availability',  meta: { permission: 'manage product-availability' } },
+    { path: '/forbidden',                  component: Forbidden,           name: 'forbidden' },
 ];
 
 export default routes;
@@ -105,6 +107,14 @@ export function setupGuard(router) {
             const roles = user?.roles ?? [];
             if (!roles.includes('admin') && !roles.includes('super-admin')) {
                 return next({ name: 'home' });
+            }
+        }
+
+        if (to.meta?.permission) {
+            const roles = user?.roles ?? [];
+            const permissions = user?.permissions ?? [];
+            if (!roles.includes('super-admin') && !permissions.includes(to.meta.permission)) {
+                return next({ name: 'forbidden', query: { permission: to.meta.permission } });
             }
         }
 

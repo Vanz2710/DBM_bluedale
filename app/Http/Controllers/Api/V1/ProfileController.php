@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\SystemAlert;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rules\Password;
 use Illuminate\Validation\ValidationException;
 
 class ProfileController extends Controller
@@ -34,7 +35,7 @@ class ProfileController extends Controller
     {
         $request->validate([
             'current_password'      => 'required',
-            'password'              => 'required|min:8|confirmed',
+            'password'              => ['required', Password::min(8)->mixedCase()->numbers()->symbols(), 'confirmed'],
             'password_confirmation' => 'required',
         ]);
 
@@ -61,14 +62,18 @@ class ProfileController extends Controller
     private function payload($user): array
     {
         return [
-            'id'         => $user->id,
-            'name'       => $user->name,
-            'email'      => $user->email,
-            'phone'      => $user->phone,
-            'job_title'  => $user->job_title,
-            'roles'      => $user->getRoleNames(),
-            'created_at' => $user->created_at?->toDateTimeString(),
-            'updated_at' => $user->updated_at?->toDateTimeString(),
+            'id'          => $user->id,
+            'name'        => $user->name,
+            'email'       => $user->email,
+            'phone'       => $user->phone,
+            'job_title'   => $user->job_title,
+            'roles'       => $user->getRoleNames(),
+            // null for super-admin (full access via Gate::before bypass, no DB permissions stored)
+            'permissions' => $user->hasRole('super-admin')
+                ? null
+                : $user->getAllPermissions()->pluck('name')->sort()->values(),
+            'created_at'  => $user->created_at?->toDateTimeString(),
+            'updated_at'  => $user->updated_at?->toDateTimeString(),
         ];
     }
 }

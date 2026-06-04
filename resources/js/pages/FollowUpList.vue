@@ -6,7 +6,7 @@
         <p class="page-subtitle">Track follow-up actions by date range or month range</p>
       </div>
       <div class="page-head-actions">
-        <button class="btn-primary-pill" @click="openAddModal">
+        <button v-if="can('create followups')" class="btn-primary-pill" @click="openAddModal">
           <span class="plus-icon" aria-hidden="true">+</span> Add Follow-Up
         </button>
       </div>
@@ -129,8 +129,8 @@
               </td>
               <td class="note-cell">{{ f.note ?? '—' }}</td>
               <td class="actions-cell">
-                <router-link :to="`/followups/${f.id}/edit`" class="icon-btn btn-edit" title="Edit" v-html="CI.edit"></router-link>
-                <button class="icon-btn btn-del" title="Delete" @click="confirmDelete(f)" v-html="CI.trash"></button>
+                <router-link v-if="can('edit followups')" :to="`/followups/${f.id}/edit`" class="icon-btn btn-edit" title="Edit" v-html="CI.edit"></router-link>
+                <button v-if="can('delete followups')" class="icon-btn btn-del" title="Delete" @click="confirmDelete(f)" v-html="CI.trash"></button>
               </td>
             </tr>
           </tbody>
@@ -234,6 +234,9 @@ import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import api from '../api.js';
 import LoadingSpinner from '../components/LoadingSpinner.vue';
+import { usePermissions } from '../composables/usePermissions.js';
+
+const { can } = usePermissions();
 
 const _si = (p, sz = 14) => `<svg width="${sz}" height="${sz}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
 const CI = {
