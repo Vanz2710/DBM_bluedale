@@ -3,7 +3,8 @@
     "allow": [
       "PowerShell(& \"C:\\\\xampp\\\\apache\\\\bin\\\\httpd.exe\" -t 2>&1)",
       "PowerShell(& \"C:\\\\xampp\\\\apache\\\\bin\\\\httpd.exe\" -k restart 2>&1)",
-      "Bash(npm run *)"
+      "Bash(npm run *)",
+      "Bash(php artisan *)"
     ]
   }
 }

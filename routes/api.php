@@ -18,6 +18,8 @@ use App\Http\Controllers\Api\V1\SocialMediaReminderController;
 use App\Http\Controllers\Api\V1\ToDoController;
 use App\Http\Controllers\Api\V1\EmailCampaignController;
 use App\Http\Controllers\Api\V1\TravelController;
+use App\Http\Controllers\Api\V1\DeptTaskController;
+use App\Http\Controllers\Api\V1\ProductionSupportController;
 
 // Auth (public)
 Route::post('auth/login', [AuthController::class, 'login']);
@@ -87,5 +89,46 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('admin/{entity}', [AdminController::class, 'store']);
         Route::put('admin/{entity}/{id}', [AdminController::class, 'update']);
         Route::delete('admin/{entity}/{id}', [AdminController::class, 'destroy']);
+
+        // Department Task Manager
+        Route::prefix('dept')->group(function () {
+            Route::get('dashboard',      [DeptTaskController::class, 'dashboard']);
+            Route::get('departments',    [DeptTaskController::class, 'departments']);
+            Route::get('users',          [DeptTaskController::class, 'users']);
+            Route::get('weekly',         [DeptTaskController::class, 'weekly']);
+            Route::get('report',         [DeptTaskController::class, 'report']);
+            Route::get('notifications',  [DeptTaskController::class, 'notifications']);
+            Route::post('notifications/read', [DeptTaskController::class, 'markNotificationsRead']);
+
+            Route::get('tasks',          [DeptTaskController::class, 'index']);
+            Route::post('tasks',         [DeptTaskController::class, 'store']);
+            Route::get('tasks/{id}',     [DeptTaskController::class, 'show']);
+            Route::put('tasks/{id}',     [DeptTaskController::class, 'update']);
+            Route::delete('tasks/{id}',  [DeptTaskController::class, 'destroy']);
+            Route::put('tasks/{id}/status', [DeptTaskController::class, 'updateStatus']);
+
+            Route::post('tasks/{taskId}/comments',              [DeptTaskController::class, 'addComment']);
+            Route::delete('tasks/{taskId}/comments/{commentId}',[DeptTaskController::class, 'deleteComment']);
+        });
+
+        // Production Support Tracker
+        Route::prefix('prod')->group(function () {
+            Route::get('dashboard',                                    [ProductionSupportController::class, 'dashboard']);
+            Route::get('users',                                        [ProductionSupportController::class, 'users']);
+            Route::get('jobs',                                         [ProductionSupportController::class, 'index']);
+            Route::post('jobs',                                        [ProductionSupportController::class, 'store']);
+            Route::get('jobs/{id}',                                    [ProductionSupportController::class, 'show']);
+            Route::put('jobs/{id}',                                    [ProductionSupportController::class, 'update']);
+            Route::delete('jobs/{id}',                                 [ProductionSupportController::class, 'destroy']);
+            Route::put('jobs/{id}/stage',                              [ProductionSupportController::class, 'updateStage']);
+            Route::put('jobs/{id}/application',                        [ProductionSupportController::class, 'updateApplication']);
+            Route::put('jobs/{id}/artwork-payment',                    [ProductionSupportController::class, 'updateArtworkPayment']);
+            Route::put('jobs/{id}/installation',                       [ProductionSupportController::class, 'updateInstallation']);
+            Route::put('jobs/{id}/dismantle',                          [ProductionSupportController::class, 'updateDismantle']);
+            Route::post('jobs/{id}/complaints',                        [ProductionSupportController::class, 'addComplaint']);
+            Route::put('complaints/{complaintId}',                     [ProductionSupportController::class, 'updateComplaint']);
+            Route::post('jobs/{id}/comments',                          [ProductionSupportController::class, 'addComment']);
+            Route::delete('comments/{commentId}',                      [ProductionSupportController::class, 'deleteComment']);
+        });
     });
 });

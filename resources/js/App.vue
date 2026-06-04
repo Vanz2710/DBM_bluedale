@@ -33,6 +33,12 @@
         <router-link to="/todos" class="nav-link" :class="navClass('todos')">
           <span class="nav-icon">📋</span><span class="nav-text">To Do List</span>
         </router-link>
+        <router-link to="/dept-tasks" class="nav-link" :class="navClass('dept-tasks')">
+          <span class="nav-icon">🗂️</span><span class="nav-text">Task Manager</span>
+        </router-link>
+        <router-link to="/production-support" class="nav-link" :class="navClass('production-support')">
+          <span class="nav-icon">🏗️</span><span class="nav-text">Production</span>
+        </router-link>
         <router-link to="/crm" class="nav-link" :class="navClass('crm')">
           <span class="nav-icon">📁</span><span class="nav-text">CRM Dashboard</span>
         </router-link>
@@ -123,6 +129,8 @@ function navClass(name) {
   if (name === 'summary')     return matched === 'summary'           ? 'active-green'  : '';
   if (name === 'list')        return ['list', 'contact-view', 'contact-add', 'contact-edit', 'task-add'].includes(matched) ? 'active-green' : '';
   if (name === 'todos')       return ['todos', 'todo-add', 'task-edit'].includes(matched) ? 'active-orange' : '';
+  if (name === 'dept-tasks')  return matched === 'dept-tasks' ? 'active-blue' : '';
+  if (name === 'production-support') return matched === 'production-support' ? 'active-orange' : '';
   if (name === 'crm')         return ['crm', 'crm-view'].includes(matched) ? 'active-blue' : '';
   if (name === 'exhibitions') return matched === 'exhibitions'       ? 'active-purple' : '';
   if (name === 'travel')      return tealRoutes.includes(matched)   ? 'active-teal'   : '';
