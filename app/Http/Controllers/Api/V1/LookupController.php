@@ -12,21 +12,26 @@ use App\Models\ForecastResult;
 use App\Models\ForecastType;
 use App\Models\Task;
 use App\Models\User;
+use Illuminate\Support\Facades\Cache;
 
 class LookupController extends Controller
 {
     public function all()
     {
-        return response()->json([
-            'statuses'    => ContactStatus::orderBy('name')->get(),
-            'industries'  => ContactIndustry::orderBy('name')->get(),
-            'categories'  => ContactCategory::orderBy('name')->get(),
-            'types'       => ContactType::orderBy('name')->get(),
-            'users'       => User::orderBy('name')->get(['id', 'name']),
-            'tasks'       => Task::orderBy('name')->get(),
-            'forecast_products' => ForecastProduct::orderBy('name')->get(),
-            'forecast_types'    => ForecastType::orderBy('name')->get(),
-            'forecast_results'  => ForecastResult::orderBy('name')->get(),
-        ]);
+        $data = Cache::remember('lookups', 3600, function () {
+            return [
+                'statuses'    => ContactStatus::orderBy('name')->get(),
+                'industries'  => ContactIndustry::orderBy('name')->get(),
+                'categories'  => ContactCategory::orderBy('name')->get(),
+                'types'       => ContactType::orderBy('name')->get(),
+                'users'       => User::orderBy('name')->get(['id', 'name']),
+                'tasks'       => Task::orderBy('name')->get(),
+                'forecast_products' => ForecastProduct::orderBy('name')->get(),
+                'forecast_types'    => ForecastType::orderBy('name')->get(),
+                'forecast_results'  => ForecastResult::orderBy('name')->get(),
+            ];
+        });
+
+        return response()->json($data);
     }
 }

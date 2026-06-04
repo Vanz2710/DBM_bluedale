@@ -15,7 +15,7 @@ class GlobalTodoController extends Controller
         $date     = $request->input('date', now()->toDateString());
         $fromDate = $request->input('from_date');
         $toDate   = $request->input('to_date');
-        $perPage  = (int) $request->input('per_page', 100);
+        $perPage  = min((int) $request->input('per_page', 100), 500);
 
         $query = ToDo::with(['contact.status', 'contact.type', 'task', 'user'])
             ->withCount('followUps')

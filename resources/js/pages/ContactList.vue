@@ -6,10 +6,10 @@
         <p class="page-subtitle">{{ bannerSub }}</p>
       </div>
       <div class="page-head-actions">
-        <button v-if="tab === 'contacts'" class="btn-primary-pill" @click="openAddModal">
+        <button v-if="tab === 'contacts' && can('create contacts')" class="btn-primary-pill" @click="openAddModal">
           <span class="plus-icon" aria-hidden="true">+</span> Add New Contact
         </button>
-        <button v-else-if="tab === 'forecast'" class="btn-primary-pill" @click="openForecastAdd()">
+        <button v-else-if="tab === 'forecast' && can('create forecasts')" class="btn-primary-pill" @click="openForecastAdd()">
           <span class="plus-icon" aria-hidden="true">+</span> Add Forecast
         </button>
       </div>
@@ -38,12 +38,12 @@
         <div class="date-range-inputs">
           <div class="date-input-wrap">
             <span class="date-input-prefix">From</span>
-            <input type="date" v-model="dateFrom" @change="load" class="date-range-input">
+            <input type="date" v-model="dateFrom" @change="load(1)" class="date-range-input">
           </div>
           <span class="date-range-sep">→</span>
           <div class="date-input-wrap">
             <span class="date-input-prefix">To</span>
-            <input type="date" v-model="dateTo" @change="load" class="date-range-input">
+            <input type="date" v-model="dateTo" @change="load(1)" class="date-range-input">
           </div>
         </div>
       </div>
@@ -53,7 +53,7 @@
           <input
             v-model="search"
             @input="onSearchInput"
-            @keyup.enter="load(); showSuggestions = false"
+            @keyup.enter="load(1); showSuggestions = false"
             @keydown.esc="showSuggestions = false"
             @blur="onSearchBlur"
             @focus="search.trim() && suggestions.length && (showSuggestions = true)"
@@ -72,23 +72,27 @@
       </div>
       <div class="filter-group">
         <label>User</label>
-        <select v-model="userId" @change="load">
+        <select v-model="userId" @change="load(1)">
           <option value="">All Users</option>
           <option v-for="u in users" :key="u.id" :value="u.id">{{ u.name }}</option>
         </select>
       </div>
       <div class="filter-group">
         <label>Sort</label>
-        <select v-model="sort" @change="load">
+        <select v-model="sort" @change="load(1)">
           <option value="desc">Newest First</option>
           <option value="asc">Oldest First</option>
         </select>
       </div>
-      <button class="btn btn-primary" @click="load">Search</button>
+      <div class="filter-group">
+        <label>Rows</label>
+        <select v-model.number="contactsPerPage" @change="load(1)">
+          <option v-for="n in CONTACT_PER_PAGE_OPTIONS" :key="n" :value="n">{{ n }}</option>
+        </select>
+      </div>
+      <button class="btn btn-primary" @click="load(1)">Search</button>
       <button class="btn btn-clear" @click="clearFilters" v-if="hasFilters">Clear</button>
-      <button class="btn btn-export" @click="exportContacts" :disabled="exportingContacts">
-        {{ exportingContacts ? 'Exporting…' : 'Export' }}
-      </button>
+      <button class="btn btn-export" @click="openExportModal">Export</button>
     </div>
 
     <!-- Summary toolbar -->
@@ -245,13 +249,13 @@
                   <span v-if="drawer.contact.industry" class="meta-pill">{{ drawer.contact.industry.name }}</span>
                 </div>
               </div>
-              <button class="drawer-close" @click="closeDrawer">✕</button>
+              <button class="drawer-close" @click="closeDrawer" v-html="CI.x"></button>
             </div>
             <div class="drawer-actions" v-if="drawer.contact">
               <router-link :to="`/contacts/${drawer.contact.id}`" class="daction-btn btn-view-full"><span v-html="CI.eye"></span> Full View</router-link>
-              <router-link :to="`/contacts/${drawer.contact.id}/edit`" class="daction-btn btn-edit-c"><span v-html="CI.edit"></span> Edit</router-link>
-              <button type="button" class="daction-btn btn-followup-c" @click="openFollowUpModal()"><span v-html="CI.bell"></span> Follow-Up</button>
-              <button type="button" class="daction-btn btn-forecast-c" @click="openForecastAddForDrawer"><span v-html="CI.trending"></span> Forecast</button>
+              <router-link v-if="can('edit contacts')" :to="`/contacts/${drawer.contact.id}/edit`" class="daction-btn btn-edit-c"><span v-html="CI.edit"></span> Edit</router-link>
+              <button v-if="can('create followups')" type="button" class="daction-btn btn-followup-c" @click="openFollowUpModal()"><span v-html="CI.bell"></span> Follow-Up</button>
+              <button v-if="can('create forecasts')" type="button" class="daction-btn btn-forecast-c" @click="openForecastAddForDrawer"><span v-html="CI.trending"></span> Forecast</button>
             </div>
           </div>
 
@@ -310,7 +314,7 @@
               <div class="drawer-section">
                 <div class="dsec-title-row">
                   <span class="dsec-title">Tasks ({{ drawer.contact.todos?.length ?? 0 }})</span>
-                  <button class="add-task-toggle-btn" @click="openAddTask">+ Add Task</button>
+                  <button v-if="can('create todos')" class="add-task-toggle-btn" @click="openAddTask">+ Add Task</button>
                 </div>
 
                 <!-- Add Task inline form -->
@@ -361,11 +365,11 @@
                         <td style="white-space:pre-line;font-size:12px">{{ td.todo_remark || '—' }}</td>
                         <td class="todo-actions-cell">
                           <button class="fu-count-badge" :class="{ 'fu-has-entries': td.follow_ups?.length }" :title="(td.follow_ups?.length ?? 0) + ' follow-up(s) — click to view/add'" @click="openTaskFuModal(td)">
-                            📞 {{ td.follow_ups?.length ?? 0 }}
+                            <span v-html="CI.phone" style="display:inline-flex;align-items:center;margin-right:3px"></span>{{ td.follow_ups?.length ?? 0 }}
                           </button>
-                          <button v-if="td.completion_status !== 'completed'" class="todo-done-btn" title="Mark complete" @click="toggleDrawerTodoDone(td, 'completed')">✓</button>
-                          <button v-else class="todo-undo-btn" title="Mark pending" @click="toggleDrawerTodoDone(td, 'pending')">↩</button>
-                          <button class="todo-del-btn" title="Delete task" @click="deleteDrawerTodo(td)">✕</button>
+                          <button v-if="td.completion_status !== 'completed'" class="todo-done-btn" title="Mark complete" @click="toggleDrawerTodoDone(td, 'completed')" v-html="CI.check"></button>
+                          <button v-else class="todo-undo-btn" title="Mark pending" @click="toggleDrawerTodoDone(td, 'pending')" v-html="CI.rotateCcw"></button>
+                          <button class="todo-del-btn" title="Delete task" @click="deleteDrawerTodo(td)" v-html="CI.x"></button>
                         </td>
                       </tr>
                     </template>
@@ -423,7 +427,7 @@
       <div class="remark-modal delete-modal">
         <div class="remark-modal-header delete-modal-header">
           <strong>Delete Contact</strong>
-          <button class="remark-close" @click="closeDeleteModal">✕</button>
+          <button class="remark-close" @click="closeDeleteModal" v-html="CI.x"></button>
         </div>
         <div class="delete-modal-body">
           <div class="delete-warning-icon" v-html="CIL.warning"></div>
@@ -456,7 +460,7 @@
       <div class="remark-modal">
         <div class="remark-modal-header">
           <strong>{{ remarkModal.company }}</strong>
-          <button class="remark-close" @click="remarkModal.show = false">✕</button>
+          <button class="remark-close" @click="remarkModal.show = false" v-html="CI.x"></button>
         </div>
         <div class="remark-modal-body">{{ remarkModal.text }}</div>
       </div>
@@ -470,7 +474,7 @@
             <strong class="add-modal-title">Add New Contact</strong>
             <span class="add-modal-step-pill">Step {{ addStep }} of 2</span>
           </div>
-          <button class="remark-close" @click="closeAddModal">✕</button>
+          <button class="remark-close" @click="closeAddModal" v-html="CI.x"></button>
         </div>
 
         <div v-if="addStep === 1" class="add-modal-body">
@@ -538,7 +542,7 @@
             </div>
             <div class="add-modal-actions">
               <button type="button" class="btn btn-clear" @click="closeAddModal">Cancel</button>
-              <button type="submit" class="btn btn-primary" :disabled="!!addDupError">Next →</button>
+              <button type="submit" class="btn btn-primary" :disabled="!!addDupError">Next <span v-html="CI.chevronRight" style="display:inline-flex;align-items:center"></span></button>
             </div>
           </form>
         </div>
@@ -571,7 +575,7 @@
               </div>
             </div>
             <div class="add-modal-actions">
-              <button type="button" class="btn btn-clear" @click="addStep = 1">← Back</button>
+              <button type="button" class="btn btn-clear" @click="addStep = 1"><span v-html="CI.chevronLeft" style="display:inline-flex;align-items:center"></span> Back</button>
               <button type="submit" class="btn btn-primary" :disabled="addSaving">
                 {{ addSaving ? 'Saving…' : 'Register Company' }}
               </button>
@@ -589,7 +593,7 @@
             <strong class="add-modal-title">Log Follow-Up</strong>
             <span class="company-chip-inline"><span v-html="CI.building"></span> {{ drawer.contact?.name }}</span>
           </div>
-          <button class="remark-close" @click="closeFollowUpModal">✕</button>
+          <button class="remark-close" @click="closeFollowUpModal" v-html="CI.x"></button>
         </div>
         <div class="add-modal-body">
           <form @submit.prevent="submitFollowUpModal">
@@ -642,7 +646,7 @@
               {{ taskFuModal.todo.task?.name ?? 'Task' }} — {{ fmtDate(taskFuModal.todo.todo_date) }}
             </span>
           </div>
-          <button class="remark-close" @click="closeTaskFuModal">✕</button>
+          <button class="remark-close" @click="closeTaskFuModal" v-html="CI.x"></button>
         </div>
         <div class="add-modal-body task-fu-body">
           <div v-if="taskFuModal.todo?.todo_remark" class="task-fu-remark">
@@ -702,7 +706,7 @@
             <strong class="add-modal-title">Add Task</strong>
             <span class="company-chip-inline"><span v-html="CI.building"></span> {{ addTaskModal.contact?.name }}</span>
           </div>
-          <button class="remark-close" @click="closeAddTaskModal">✕</button>
+          <button class="remark-close" @click="closeAddTaskModal" v-html="CI.x"></button>
         </div>
         <div class="add-modal-body">
           <form @submit.prevent="submitAddTaskModal">
@@ -743,7 +747,7 @@
             <strong class="add-modal-title">Edit Company</strong>
             <span class="company-chip-inline"><span v-html="CI.building"></span> {{ editContactModal.contactName }}</span>
           </div>
-          <button class="remark-close" @click="closeEditContactModal">✕</button>
+          <button class="remark-close" @click="closeEditContactModal" v-html="CI.x"></button>
         </div>
         <div class="add-modal-body">
           <div v-if="editContactModal.loading" class="drawer-loading">Loading…</div>
@@ -859,14 +863,22 @@
                 </td>
                 <td class="col-action" @click.stop>
                   <div class="action-btns">
-                    <button class="icon-btn btn-todo" title="Add Task" @click="openAddTaskModal(c)" v-html="CI.list"></button>
-                    <button class="icon-btn btn-edit" title="Edit Contact" @click="openEditContactModal(c)" v-html="CI.edit"></button>
-                    <button class="icon-btn btn-delete" title="Delete Contact" @click="openDeleteModal(c)" v-html="CI.trash"></button>
+                    <button v-if="can('create todos')" class="icon-btn btn-todo" title="Add Task" @click="openAddTaskModal(c)" v-html="CI.list"></button>
+                    <button v-if="can('edit contacts')" class="icon-btn btn-edit" title="Edit Contact" @click="openEditContactModal(c)" v-html="CI.edit"></button>
+                    <button v-if="can('delete contacts')" class="icon-btn btn-delete" title="Delete Contact" @click="openDeleteModal(c)" v-html="CI.trash"></button>
                   </div>
                 </td>
               </tr>
             </tbody>
           </table>
+        </div>
+        <div v-if="meta.last_page > 1" class="pagination">
+          <span class="pagination-info">Showing {{ contacts.length }} of {{ meta.total }} contacts</span>
+          <div class="pagination-btns">
+            <button :disabled="meta.current_page <= 1" @click="load(meta.current_page - 1)"><span v-html="CI.chevronLeft" style="display:inline-flex;align-items:center"></span> Prev</button>
+            <span>Page {{ meta.current_page }} of {{ meta.last_page }}</span>
+            <button :disabled="meta.current_page >= meta.last_page" @click="load(meta.current_page + 1)">Next <span v-html="CI.chevronRight" style="display:inline-flex;align-items:center"></span></button>
+          </div>
         </div>
       </div>
     </template>
@@ -997,17 +1009,17 @@
                 <td><span v-if="t.task" class="dtask-badge">{{ t.task }}</span><span v-else class="muted-dash">—</span></td>
                 <td style="font-size:12px;white-space:pre-line;color:#374151">{{ t.todo_remark || '—' }}</td>
                 <td style="text-align:center">
-                  <button v-if="t.completion_status !== 'completed'" class="todo-done-btn" title="Mark complete" @click="markTodoDone(t)">✓</button>
-                  <button v-else class="todo-undo-btn" title="Mark pending" @click="markTodoPending(t)">↩</button>
+                  <button v-if="t.completion_status !== 'completed'" class="todo-done-btn" title="Mark complete" @click="markTodoDone(t)" v-html="CI.check"></button>
+                  <button v-else class="todo-undo-btn" title="Mark pending" @click="markTodoPending(t)" v-html="CI.rotateCcw"></button>
                 </td>
               </tr>
             </tbody>
           </table>
         </div>
         <div v-if="todoMeta.last_page > 1" class="pagination">
-          <button :disabled="todoMeta.current_page <= 1" @click="todoChangePage(todoMeta.current_page - 1)">← Prev</button>
+          <button :disabled="todoMeta.current_page <= 1" @click="todoChangePage(todoMeta.current_page - 1)"><span v-html="CI.chevronLeft" style="display:inline-flex;align-items:center"></span> Prev</button>
           <span>Page {{ todoMeta.current_page }} of {{ todoMeta.last_page }}</span>
-          <button :disabled="todoMeta.current_page >= todoMeta.last_page" @click="todoChangePage(todoMeta.current_page + 1)">Next →</button>
+          <button :disabled="todoMeta.current_page >= todoMeta.last_page" @click="todoChangePage(todoMeta.current_page + 1)">Next <span v-html="CI.chevronRight" style="display:inline-flex;align-items:center"></span></button>
         </div>
       </div>
     </template>
@@ -1077,19 +1089,149 @@
           </table>
         </div>
         <div v-if="forecastMeta.last_page > 1" class="pagination">
-          <button :disabled="forecastMeta.current_page <= 1" @click="forecastChangePage(forecastMeta.current_page - 1)">← Prev</button>
+          <button :disabled="forecastMeta.current_page <= 1" @click="forecastChangePage(forecastMeta.current_page - 1)"><span v-html="CI.chevronLeft" style="display:inline-flex;align-items:center"></span> Prev</button>
           <span>Page {{ forecastMeta.current_page }} of {{ forecastMeta.last_page }}</span>
-          <button :disabled="forecastMeta.current_page >= forecastMeta.last_page" @click="forecastChangePage(forecastMeta.current_page + 1)">Next →</button>
+          <button :disabled="forecastMeta.current_page >= forecastMeta.last_page" @click="forecastChangePage(forecastMeta.current_page + 1)">Next <span v-html="CI.chevronRight" style="display:inline-flex;align-items:center"></span></button>
         </div>
       </div>
     </template>
+
+    <!-- Export Modal -->
+    <div v-if="exportModal.open" class="remark-overlay" @click.self="exportModal.open = false">
+      <div class="export-modal">
+        <div class="export-modal-header">
+          <div>
+            <strong class="export-modal-title">Export Contacts</strong>
+            <p class="export-modal-sub">Choose what to export, then pick your columns.</p>
+          </div>
+          <button class="remark-close" @click="exportModal.open = false" v-html="CI.x"></button>
+        </div>
+
+        <div class="export-modal-body">
+
+          <!-- ① How many to export -->
+          <div class="export-section">
+            <div class="export-section-label">How many records?</div>
+            <div class="export-scope-options">
+
+              <label class="export-scope-card" :class="{ 'export-scope-card--on': exportModal.scope === 'page' }">
+                <input type="radio" v-model="exportModal.scope" value="page" hidden>
+                <div class="export-scope-card-body">
+                  <div class="export-scope-card-title">This page only</div>
+                  <div class="export-scope-card-desc">{{ contacts.length }} row(s) currently shown on screen — instant, no extra request</div>
+                </div>
+                <span class="export-scope-badge">{{ contacts.length }}</span>
+              </label>
+
+              <label class="export-scope-card" :class="{ 'export-scope-card--on': exportModal.scope === 'all' }">
+                <input type="radio" v-model="exportModal.scope" value="all" hidden>
+                <div class="export-scope-card-body">
+                  <div class="export-scope-card-title">All matching results</div>
+                  <div class="export-scope-card-desc">Every record that matches your current filters (date, user, search)</div>
+                </div>
+                <span class="export-scope-badge">{{ meta.total ?? '?' }}</span>
+              </label>
+
+              <label class="export-scope-card" :class="{ 'export-scope-card--on': exportModal.scope === 'custom' }">
+                <input type="radio" v-model="exportModal.scope" value="custom" hidden>
+                <div class="export-scope-card-body">
+                  <div class="export-scope-card-title">Custom limit</div>
+                  <div class="export-scope-card-desc">
+                    Export the first
+                    <input
+                      v-if="exportModal.scope === 'custom'"
+                      type="number"
+                      v-model.number="exportModal.customLimit"
+                      min="1" :max="meta.total || 9999"
+                      class="export-custom-input"
+                      @click.stop
+                    >
+                    <strong v-else>N</strong>
+                    records (from page 1)
+                  </div>
+                </div>
+                <span class="export-scope-badge" v-if="exportModal.scope === 'custom'">{{ Math.min(exportModal.customLimit, meta.total || 9999) }}</span>
+              </label>
+
+              <label v-if="isAdmin" class="export-scope-card" :class="{ 'export-scope-card--on': exportModal.scope === 'all_data' }">
+                <input type="radio" v-model="exportModal.scope" value="all_data" hidden>
+                <div class="export-scope-card-body">
+                  <div class="export-scope-card-title">All data</div>
+                  <div class="export-scope-card-desc">Every contact in the system — ignores all filters, date range, and user selection</div>
+                </div>
+                <span class="export-scope-badge">All</span>
+              </label>
+
+            </div>
+          </div>
+
+          <!-- ② Active filters reminder -->
+          <div class="export-section">
+            <div class="export-section-label">Active filters</div>
+            <div class="export-filters-row">
+              <span class="export-filter-chip" :class="{ 'export-filter-chip--dim': !dateFrom && !dateTo }">
+                <span v-html="CI.calendar" style="display:inline-flex;align-items:center;margin-right:4px"></span>{{ dateFrom || dateTo ? `${dateFrom || '…'} → ${dateTo || '…'}` : 'All dates' }}
+              </span>
+              <span class="export-filter-chip" :class="{ 'export-filter-chip--dim': !userId }">
+                <span v-html="CI.user" style="display:inline-flex;align-items:center;margin-right:4px"></span>{{ userId ? (users.find(u => u.id == userId)?.name ?? 'User filtered') : 'All users' }}
+              </span>
+              <span class="export-filter-chip" :class="{ 'export-filter-chip--dim': !search }">
+                <span v-html="CI.search" style="display:inline-flex;align-items:center;margin-right:4px"></span>{{ search || 'No search' }}
+              </span>
+              <span class="export-filter-chip export-filter-chip--sort">
+                <span v-html="sort === 'desc' ? CI.arrowDown : CI.arrowUp" style="display:inline-flex;align-items:center;margin-right:4px"></span>{{ sort === 'desc' ? 'Newest first' : 'Oldest first' }}
+              </span>
+            </div>
+          </div>
+
+          <!-- ③ Column picker -->
+          <div class="export-section">
+            <div class="export-cols-head">
+              <span class="export-section-label" style="margin-bottom:0">Columns to include</span>
+              <div class="export-cols-actions">
+                <button class="export-link-btn" @click="exportCols.forEach(c => c.checked = true)">All</button>
+                <span class="export-dot-sep">·</span>
+                <button class="export-link-btn" @click="exportCols.forEach(c => c.checked = false)">None</button>
+              </div>
+            </div>
+            <div class="export-cols-grid">
+              <label v-for="col in exportCols" :key="col.key" class="export-col-check">
+                <input type="checkbox" v-model="col.checked">
+                <span>{{ col.label }}</span>
+              </label>
+            </div>
+          </div>
+
+        </div>
+
+        <div class="export-modal-footer">
+          <span class="export-footer-count">
+            Will export <strong>{{ exportRowCount }}</strong> record(s) × <strong>{{ exportCols.filter(c => c.checked).length }}</strong> column(s)
+          </span>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-clear" @click="exportModal.open = false">Cancel</button>
+            <button
+              class="btn btn-export"
+              :disabled="exportModal.loading || exportCols.every(c => !c.checked)"
+              @click="executeExport"
+              style="display:inline-flex;align-items:center;gap:6px"
+            >
+              <svg v-if="!exportModal.loading" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;flex-shrink:0">
+                <path d="M12 15V3m0 12-4-4m4 4 4-4M2 17l.621 2.485A2 2 0 0 0 4.561 21h14.878a2 2 0 0 0 1.94-1.515L22 17"/>
+              </svg>
+              {{ exportModal.loading ? 'Exporting…' : 'Download Excel' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <!-- Forecast delete confirmation -->
     <div v-if="forecastDeleteModal.show" class="remark-overlay" @click.self="closeForecastDeleteModal">
       <div class="remark-modal delete-modal">
         <div class="remark-modal-header delete-modal-header">
           <strong>Delete Forecast</strong>
-          <button class="remark-close" @click="closeForecastDeleteModal">✕</button>
+          <button class="remark-close" @click="closeForecastDeleteModal" v-html="CI.x"></button>
         </div>
         <div class="delete-modal-body">
           <div class="delete-warning-icon" v-html="CIL.warning"></div>
@@ -1113,7 +1255,7 @@
       <div class="remark-modal delete-modal">
         <div class="remark-modal-header delete-modal-header">
           <strong>Delete Task</strong>
-          <button class="remark-close" @click="closeTodoDeleteModal">✕</button>
+          <button class="remark-close" @click="closeTodoDeleteModal" v-html="CI.x"></button>
         </div>
         <div class="delete-modal-body">
           <div class="delete-warning-icon" v-html="CIL.warning"></div>
@@ -1146,9 +1288,9 @@
     <div class="toast-container">
       <transition-group name="toast" tag="div" class="toast-list">
         <div v-for="t in toasts" :key="t.id" :class="['toast-item', `toast-${t.type}`]">
-          <span class="toast-check">{{ t.type === 'success' ? '✓' : '✕' }}</span>
+          <span class="toast-check" v-html="t.type === 'success' ? CI.check : CI.x"></span>
           <span class="toast-text">{{ t.message }}</span>
-          <button class="toast-dismiss" @click="dismissToast(t.id)">✕</button>
+          <button class="toast-dismiss" @click="dismissToast(t.id)" v-html="CI.x"></button>
         </div>
       </transition-group>
     </div>
@@ -1161,6 +1303,9 @@ import { useRouter } from 'vue-router';
 import api from '../api.js';
 import LoadingSpinner from '../components/LoadingSpinner.vue';
 import ForecastFormModal from '../components/ForecastFormModal.vue';
+import { usePermissions } from '../composables/usePermissions.js';
+
+const { can, isAdmin } = usePermissions();
 
 const router = useRouter();
 
@@ -1177,18 +1322,28 @@ function dismissToast(id) { toasts.value = toasts.value.filter(t => t.id !== id)
 // ── Icons (same SVG style as the sidebar) ──
 const _si = (p, sz = 14) => `<svg width="${sz}" height="${sz}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
 const ICO = {
-  list:      (sz) => _si('<line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>', sz),
-  chart:     (sz) => _si('<rect x="3" y="13" width="4" height="8" rx="1"/><rect x="10" y="7" width="4" height="14" rx="1"/><rect x="17" y="3" width="4" height="18" rx="1"/>', sz),
-  clipboard: (sz) => _si('<path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="12" y2="16"/>', sz),
-  trending:  (sz) => _si('<polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/>', sz),
-  eye:       (sz) => _si('<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>', sz),
-  edit:      (sz) => _si('<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>', sz),
-  trash:     (sz) => _si('<polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>', sz),
-  warning:   (sz) => _si('<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>', sz),
-  building:  (sz) => _si('<path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>', sz),
-  search:    (sz) => _si('<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>', sz),
-  message:   (sz) => _si('<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>', sz),
-  bell:      (sz) => _si('<path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>', sz),
+  list:        (sz) => _si('<line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>', sz),
+  chart:       (sz) => _si('<rect x="3" y="13" width="4" height="8" rx="1"/><rect x="10" y="7" width="4" height="14" rx="1"/><rect x="17" y="3" width="4" height="18" rx="1"/>', sz),
+  clipboard:   (sz) => _si('<path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="12" y2="16"/>', sz),
+  trending:    (sz) => _si('<polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/>', sz),
+  eye:         (sz) => _si('<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>', sz),
+  edit:        (sz) => _si('<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>', sz),
+  trash:       (sz) => _si('<polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>', sz),
+  warning:     (sz) => _si('<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>', sz),
+  building:    (sz) => _si('<path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>', sz),
+  search:      (sz) => _si('<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>', sz),
+  message:     (sz) => _si('<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>', sz),
+  bell:        (sz) => _si('<path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>', sz),
+  chevronLeft: (sz) => _si('<polyline points="15 18 9 12 15 6"/>', sz),
+  chevronRight:(sz) => _si('<polyline points="9 18 15 12 9 6"/>', sz),
+  calendar:    (sz) => _si('<rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>', sz),
+  user:        (sz) => _si('<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>', sz),
+  arrowUp:     (sz) => _si('<line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/>', sz),
+  arrowDown:   (sz) => _si('<line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/>', sz),
+  check:       (sz) => _si('<polyline points="20 6 9 17 4 12"/>', sz),
+  rotateCcw:   (sz) => _si('<polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.63"/>', sz),
+  x:           (sz) => _si('<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>', sz),
+  phone:       (sz) => _si('<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.72 12 19.79 19.79 0 0 1 1.62 3.4A2 2 0 0 1 3.59 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 8a16 16 0 0 0 6 6l.77-.77a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 21.73 16z"/>', sz),
 };
 const CI  = Object.fromEntries(Object.entries(ICO).map(([k, fn]) => [k, fn(14)]));
 const CIL = Object.fromEntries(Object.entries(ICO).map(([k, fn]) => [k, fn(40)]));
@@ -1225,6 +1380,9 @@ const sort     = ref('desc');
 const contacts = ref([]);
 const meta     = ref({});
 const loading  = ref(false);
+const contactsPage    = ref(1);
+const contactsPerPage = ref(25);
+const CONTACT_PER_PAGE_OPTIONS = [10, 25, 50, 100];
 
 // ── Search autocomplete ──
 const suggestions     = ref([]);
@@ -1406,11 +1564,12 @@ function resultClass(name) {
 }
 
 // ── Contacts tab ──
-async function load() {
+async function load(page = 1) {
+  contactsPage.value = page;
   loading.value = true;
   showSuggestions.value = false;
   try {
-    const params = { sort: sort.value };
+    const params = { sort: sort.value, per_page: contactsPerPage.value, page: contactsPage.value };
     if (dateFrom.value) params.date_from = dateFrom.value;
     if (dateTo.value)   params.date_to   = dateTo.value;
     if (search.value)   params.search    = search.value;
@@ -1426,54 +1585,137 @@ async function load() {
 function clearFilters() {
   dateFrom.value = ''; dateTo.value = ''; search.value = '';
   userId.value = ''; sort.value = 'desc';
+  contactsPerPage.value = 25;
   suggestions.value = []; showSuggestions.value = false;
-  load();
+  load(1);
 }
 
-const exportingContacts = ref(false);
+// ── Export ──
+const EXPORT_COLUMNS = [
+  { key: 'no',          label: 'No',           width: 45  },
+  { key: 'date_added',  label: 'Date Added',   width: 110 },
+  { key: 'user',        label: 'User',         width: 130 },
+  { key: 'status',      label: 'Status',       width: 110 },
+  { key: 'type',        label: 'Type',         width: 90  },
+  { key: 'industry',    label: 'Industry',     width: 130 },
+  { key: 'address',     label: 'Address',      width: 220 },
+  { key: 'company',     label: 'Company Name', width: 220 },
+  { key: 'category',    label: 'Category',     width: 130 },
+  { key: 'remarks',     label: 'Remarks',      width: 220 },
+];
 
-async function exportContacts() {
-  exportingContacts.value = true;
+const exportModal = ref({ open: false, loading: false, scope: 'page', customLimit: 50 });
+const exportCols  = ref(EXPORT_COLUMNS.map(c => ({ ...c, checked: true })));
+
+const exportRowCount = computed(() => {
+  const s = exportModal.value.scope;
+  if (s === 'page')     return contacts.value.length;
+  if (s === 'all')      return meta.value.total ?? '?';
+  if (s === 'custom')   return Math.min(exportModal.value.customLimit || 0, meta.value.total || 9999);
+  if (s === 'all_data') return 'all';
+  return 0;
+});
+
+function openExportModal() {
+  exportModal.value.scope = 'page';
+  exportModal.value.customLimit = 50;
+  exportModal.value.open = true;
+}
+
+function getCellValue(c, key, idx) {
+  switch (key) {
+    case 'no':         return idx + 1;
+    case 'date_added': return fmtDate(c.created_at);
+    case 'user':       return c.user?.name ?? '—';
+    case 'status':     return c.status?.name ?? '—';
+    case 'type':       return c.type?.name ?? '—';
+    case 'industry':   return c.industry?.name ?? '—';
+    case 'address':    return c.address ?? '—';
+    case 'company':    return c.name ?? '—';
+    case 'category':   return c.category?.name ?? '—';
+    case 'remarks':    return c.remark ?? '—';
+    default:           return '';
+  }
+}
+
+function escHtml(v) {
+  return String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+async function executeExport() {
+  const selected = exportCols.value.filter(c => c.checked);
+  if (!selected.length) return;
+  exportModal.value.loading = true;
   try {
-    const params = { sort: sort.value, per_page: 9999 };
-    if (dateFrom.value) params.date_from = dateFrom.value;
-    if (dateTo.value)   params.date_to   = dateTo.value;
-    if (search.value)   params.search    = search.value;
-    if (userId.value)   params.user_id   = userId.value;
-    const res = await api.get('/v1/contacts/daily', { params });
-    const rows = res.data.data ?? [];
+    let rows;
+    const scope = exportModal.value.scope;
 
-    const headers = ['No', 'Date Added', 'User', 'Status', 'Type', 'Industry', 'Address', 'Company Name', 'Category', 'Remarks'];
-    const lines = [headers];
-    rows.forEach((c, i) => {
-      lines.push([
-        i + 1,
-        fmtDate(c.created_at),
-        c.user?.name ?? '—',
-        c.status?.name ?? '—',
-        c.type?.name ?? '—',
-        c.industry?.name ?? '—',
-        c.address ?? '—',
-        c.name,
-        c.category?.name ?? '—',
-        c.remark ?? '—',
-      ]);
-    });
+    if (scope === 'page') {
+      // Use already-loaded contacts — no extra request needed
+      rows = contacts.value;
+    } else {
+      let params;
+      if (scope === 'all_data') {
+        // Admin: no filters at all — fetch the entire dataset
+        params = { sort: sort.value, per_page: 9999 };
+      } else {
+        params = { sort: sort.value };
+        if (dateFrom.value) params.date_from = dateFrom.value;
+        if (dateTo.value)   params.date_to   = dateTo.value;
+        if (search.value)   params.search    = search.value;
+        if (userId.value)   params.user_id   = userId.value;
+        if (scope === 'custom') {
+          params.per_page = exportModal.value.customLimit || 50;
+          params.page     = 1;
+        } else {
+          params.per_page = 9999;
+        }
+      }
+      const res = await api.get('/v1/contacts/daily', { params });
+      rows = res.data.data ?? [];
+    }
 
-    const csv = '﻿' + lines.map(row => row.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    // Build Excel-compatible HTML table
+    let colDefs = selected.map(c => `<col style="width:${c.width}pt">`).join('');
+    let headerCells = selected.map(c =>
+      `<th style="background:#4f46e5;color:#fff;font-weight:700;padding:8pt 10pt;border:1pt solid #3730a3;white-space:nowrap;font-size:10pt">${escHtml(c.label)}</th>`
+    ).join('');
+
+    let bodyRows = rows.map((c, idx) => {
+      const bg = idx % 2 === 0 ? '#ffffff' : '#f1f5ff';
+      const cells = selected.map(col =>
+        `<td style="padding:6pt 10pt;border:1pt solid #d1d5db;font-size:10pt;vertical-align:top;background:${bg}">${escHtml(getCellValue(c, col.key, idx))}</td>`
+      ).join('');
+      return `<tr>${cells}</tr>`;
+    }).join('');
+
+    const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+<head><meta charset="UTF-8">
+<!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet>
+<x:Name>Contacts</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions>
+</x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]-->
+</head>
+<body>
+<table style="border-collapse:collapse;font-family:Arial,Helvetica,sans-serif;">
+<colgroup>${colDefs}</colgroup>
+<thead><tr>${headerCells}</tr></thead>
+<tbody>${bodyRows}</tbody>
+</table>
+</body></html>`;
+
+    const blob = new Blob(['﻿' + html], { type: 'application/vnd.ms-excel;charset=utf-8' });
     const url  = URL.createObjectURL(blob);
     const a    = document.createElement('a');
     a.href     = url;
-    const today = new Date().toISOString().slice(0, 10);
-    a.download = `Contacts_${today}.csv`;
+    a.download = `Contacts_${new Date().toISOString().slice(0, 10)}.xls`;
     a.click();
     URL.revokeObjectURL(url);
+    exportModal.value.open = false;
     showToast(`Exported ${rows.length} contact(s)`);
   } catch {
     showToast('Export failed', 'error');
   } finally {
-    exportingContacts.value = false;
+    exportModal.value.loading = false;
   }
 }
 
@@ -2443,15 +2685,18 @@ tbody tr:last-child td { border-bottom: none; }
 .pagination {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: space-between;
   gap: 14px;
-  padding: 16px;
+  padding: 14px 18px;
   border-top: 1px solid var(--border-soft);
   font-size: 13px;
   color: var(--text-2);
+  background: var(--surface);
 }
+.pagination-info { font-size: 12px; color: var(--text-3); flex-shrink: 0; }
+.pagination-btns { display: flex; align-items: center; gap: 8px; }
 .pagination button {
-  padding: 8px 16px;
+  padding: 7px 16px;
   border: 1px solid var(--border);
   border-radius: 999px;
   background: var(--surface);
@@ -2467,12 +2712,153 @@ tbody tr:last-child td { border-bottom: none; }
   border-color: var(--primary-soft);
 }
 .pagination button:disabled { opacity: 0.4; cursor: not-allowed; }
-
 /* Empty state */
 .empty-state { text-align: center; padding: 64px 24px; }
 .empty-icon  { display: flex; align-items: center; justify-content: center; margin-bottom: 12px; opacity: 0.7; }
 .empty-title { font-size: 15.5px; font-weight: 700; color: var(--text-1); margin-bottom: 4px; }
 .empty-sub   { font-size: 13px; color: var(--text-3); }
+
+/* Export modal */
+.export-modal {
+  background: var(--surface);
+  border-radius: var(--radius-xl, 14px);
+  box-shadow: 0 24px 60px rgba(0,0,0,0.18);
+  width: min(520px, calc(100vw - 48px));
+  max-height: calc(100vh - 80px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.export-modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 22px 24px 18px;
+  border-bottom: 1px solid var(--border-soft);
+}
+.export-modal-title { font-size: 17px; font-weight: 800; color: var(--text-1); }
+.export-modal-sub   { font-size: 12.5px; color: var(--text-3); margin: 3px 0 0; }
+
+.export-modal-body  { padding: 20px 24px; display: flex; flex-direction: column; gap: 18px; overflow-y: auto; }
+.export-modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 14px 24px;
+  border-top: 1px solid var(--border-soft);
+  background: var(--surface-2, #f8f9ff);
+}
+.export-footer-count { font-size: 12.5px; color: var(--text-3); }
+.export-footer-count strong { color: var(--primary); }
+
+/* Sections */
+.export-section { display: flex; flex-direction: column; gap: 10px; }
+.export-section-label {
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-3);
+  margin-bottom: 2px;
+}
+
+/* Scope cards */
+.export-scope-options { display: flex; flex-direction: column; gap: 8px; }
+.export-scope-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 14px;
+  border: 1.5px solid var(--border-soft);
+  border-radius: var(--radius, 10px);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  background: var(--surface);
+}
+.export-scope-card:hover { border-color: var(--primary); background: var(--primary-soft, #ede9fe); }
+.export-scope-card--on  { border-color: var(--primary); background: var(--primary-soft, #ede9fe); }
+.export-scope-card-body { flex: 1; min-width: 0; }
+.export-scope-card-title { font-size: 13px; font-weight: 700; color: var(--text-1); }
+.export-scope-card-desc  { font-size: 12px; color: var(--text-3); margin-top: 2px; line-height: 1.4; }
+.export-scope-badge {
+  flex-shrink: 0;
+  min-width: 36px;
+  text-align: center;
+  padding: 3px 8px;
+  background: var(--primary);
+  color: #fff;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+}
+.export-custom-input {
+  display: inline-block;
+  width: 64px;
+  padding: 2px 6px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 12px;
+  text-align: center;
+  background: var(--surface);
+  color: var(--text-1);
+  outline: none;
+  vertical-align: middle;
+}
+
+/* Filter chips */
+.export-filters-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.export-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  background: var(--primary-soft, #ede9fe);
+  color: var(--primary);
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.export-filter-chip--dim { background: var(--surface-2, #f1f5fb); color: var(--text-3); }
+.export-filter-chip--sort { background: var(--surface-2, #f1f5fb); color: var(--text-2); }
+
+/* Columns */
+.export-cols-head     { display: flex; align-items: center; justify-content: space-between; margin-bottom: 2px; }
+.export-cols-actions  { display: flex; align-items: center; gap: 4px; }
+.export-link-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--primary);
+  padding: 2px 4px;
+  border-radius: 4px;
+}
+.export-link-btn:hover { text-decoration: underline; }
+.export-dot-sep { color: var(--text-3); font-size: 12px; }
+
+.export-cols-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px 12px;
+}
+.export-col-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text-2);
+  font-weight: 500;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm, 6px);
+  border: 1px solid var(--border-soft);
+  transition: background 0.12s, border-color 0.12s;
+}
+.export-col-check:hover { background: var(--primary-soft, #ede9fe); border-color: var(--primary); }
+.export-col-check input[type="checkbox"] { accent-color: var(--primary); width: 14px; height: 14px; flex-shrink: 0; cursor: pointer; }
 
 /* Modals */
 .remark-overlay {

@@ -7,28 +7,10 @@ Implement these once the system is feature-stable, **before going to production 
 
 ## Priority 1 — Do before ~20K records or 100+ concurrent users
 
-### 1. Cache LookupController (1 hour TTL)
+### 1. ~~Cache LookupController (1 hour TTL)~~ ✅ Done 2026-06-04
 
-**File:** `app/Http/Controllers/Api/V1/LookupController.php`
-
-**Problem:** Every form open fires a fresh DB query loading ALL users, tasks, statuses, industries, categories, types, areas, territories, etc. With many users opening forms simultaneously this hammers the DB unnecessarily since lookup data rarely changes.
-
-**Fix:**
-```php
-return Cache::remember('lookups', 3600, function () {
-    return [
-        'users'      => User::orderBy('name')->get(),
-        'tasks'      => Task::orderBy('name')->get(),
-        'statuses'   => ContactStatus::orderBy('name')->get(),
-        // ... rest of lookups
-    ];
-});
-```
-
-**Invalidate the cache** in `AdminController` whenever a lookup record is created/updated/deleted:
-```php
-Cache::forget('lookups');
-```
+`Cache::remember('lookups', 3600, ...)` added to `LookupController::all()`.
+`Cache::forget('lookups')` added to `AdminController` (store/update/destroy) and `UserManagementController` (store/update/destroy) so the cache busts whenever any lookup value or user record changes.
 
 ---
 
@@ -89,16 +71,13 @@ $emails = $contact->emails()->with('user')->orderByDesc('emailed_at')->paginate(
 
 ---
 
-### 5. Add `per_page` cap to all list endpoints
+### 5. ~~Add `per_page` cap to all list endpoints~~ ✅ Done 2026-06-04
 
-**Files:** `ContactController`, `DealController`, `FollowUpController`, `GlobalTodoController`
-
-**Problem:** No maximum enforced on `per_page` — a request with `?per_page=100000` will try to load 100K rows into memory.
-
-**Fix:** Add a cap in each controller that reads `per_page`:
-```php
-$perPage = min((int) $request->input('per_page', 25), 500);
-```
+`min((int) $request->input('per_page', N), 500)` applied to:
+- `ContactController::index()` and `daily()`
+- `DealController::index()`
+- `FollowUpController::index()`
+- `GlobalTodoController::index()`
 
 ---
 
@@ -221,31 +200,11 @@ These items were identified in the May 2026 data quality audit. Applied fixes (r
 
 ## CRITICAL — Do before going to production
 
-### DQ-1. Soft Deletes on Contact (and User)
+### DQ-1. ~~Soft Deletes on Contact (and User)~~ ✅ Done 2026-06-04
 
-**Files:** `app/Models/Contact.php`, `app/Models/User.php`
-
-**Problem:** Deleting a contact permanently and irreversibly destroys all attached history — todos, follow-ups, deals, emails, calls, forecasts, WhatsApp messages. No recovery is possible. Same for User deletion.
-
-**Fix:**
-```php
-// Migration:
-Schema::table('contacts', function (Blueprint $table) {
-    $table->softDeletes();
-});
-
-// Model:
-use Illuminate\Database\Eloquent\SoftDeletes;
-class Contact extends Model {
-    use SoftDeletes;
-}
-```
-
-**After adding SoftDeletes**, every query on Contact will automatically exclude soft-deleted records. You only need to add `->withTrashed()` in places where you explicitly want to show deleted contacts (e.g. an admin restore screen).
-
-**Watch out for:** The `GET /api/v1/lookups` endpoint and any admin query that does `Contact::all()` — these will automatically exclude deleted contacts once SoftDeletes is active, which is the correct behavior.
-
-**Also consider for:** `User`, `Deal`, `Project` models — same risk of permanent data loss.
+`SoftDeletes` added to `Contact`, `Deal`, and `Project` models. `User` already had it.
+Migration `2026_06_04_000001_add_soft_deletes_to_contacts_deals_projects.php` added `deleted_at` to all three tables and was run successfully.
+The `booted()` cleanup observer in `Contact` was updated from `static::deleting` to `static::forceDeleting` so `reminder_reads` are only cleaned up on permanent deletion, not soft-delete.
 
 ---
 

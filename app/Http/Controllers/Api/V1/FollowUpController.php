@@ -15,7 +15,7 @@ class FollowUpController extends Controller
         $toDate    = $request->input('to_date', now()->toDateString());
         $fromMonth = $request->input('from_month', now()->format('Y-m'));
         $toMonth   = $request->input('to_month', now()->format('Y-m'));
-        $perPage   = (int) $request->input('per_page', 100);
+        $perPage   = min((int) $request->input('per_page', 100), 500);
 
         $query = FollowUp::with(['todo.contact.status', 'todo.contact.type', 'todo.user', 'todo.task'])
             ->orderByDesc('followup_date')

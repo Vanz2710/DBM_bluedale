@@ -6,7 +6,7 @@
         <p class="page-subtitle">List of tasks for each contact</p>
       </div>
       <div class="page-head-actions">
-        <button class="btn-primary-pill" @click="openAddModal">
+        <button v-if="can('create todos')" class="btn-primary-pill" @click="openAddModal">
           <span class="plus-icon" aria-hidden="true">+</span> Add To-Do
         </button>
       </div>
@@ -119,17 +119,17 @@
                 <span v-else class="muted">—</span>
               </td>
               <td>
-                <button v-if="t.completion_status !== 'completed'"
+                <button v-if="can('edit todos') && t.completion_status !== 'completed'"
                         class="icon-btn btn-done" title="Mark complete"
                         @click="markDone(t)" v-html="CI.check"></button>
-                <button v-else
+                <button v-else-if="can('edit todos')"
                         class="icon-btn btn-undo" title="Mark pending"
                         @click="markPending(t)" v-html="CI.undo"></button>
               </td>
               <td class="actions-cell">
-                <button class="icon-btn btn-followup" title="Log a follow-up" @click="openFollowUpModal(t)" v-html="CI.phone"></button>
-                <router-link :to="`/todos/${t.id}/edit`" class="icon-btn btn-edit" title="Edit" v-html="CI.edit"></router-link>
-                <button class="icon-btn btn-delete" title="Delete task" @click="deleteTodo(t)" v-html="CI.trash"></button>
+                <button v-if="can('create followups')" class="icon-btn btn-followup" title="Log a follow-up" @click="openFollowUpModal(t)" v-html="CI.phone"></button>
+                <router-link v-if="can('edit todos')" :to="`/todos/${t.id}/edit`" class="icon-btn btn-edit" title="Edit" v-html="CI.edit"></router-link>
+                <button v-if="can('delete todos')" class="icon-btn btn-delete" title="Delete task" @click="deleteTodo(t)" v-html="CI.trash"></button>
               </td>
             </tr>
           </tbody>
@@ -287,6 +287,9 @@
 import { ref, computed, onMounted } from 'vue';
 import api from '../api.js';
 import LoadingSpinner from '../components/LoadingSpinner.vue';
+import { usePermissions } from '../composables/usePermissions.js';
+
+const { can } = usePermissions();
 
 const _si = (p, sz = 14) => `<svg width="${sz}" height="${sz}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
 const CI = {

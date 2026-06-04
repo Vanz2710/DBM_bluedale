@@ -5,10 +5,10 @@
     <div class="page-head">
       <router-link to="/list" class="back-btn">← Back to Contacts</router-link>
       <div class="head-actions" v-if="contact">
-        <button class="btn btn-outline" @click="openAddTaskPanel">+ Add Task</button>
-        <button class="btn btn-info"    @click="openForecastAdd">+ Forecast</button>
-        <router-link :to="`/contacts/${id}/edit`" class="btn btn-warn">Edit</router-link>
-        <button v-if="isAdmin" class="btn btn-danger" @click="openDeleteModal">Delete</button>
+        <button v-if="can('create todos')" class="btn btn-outline" @click="openAddTaskPanel">+ Add Task</button>
+        <button v-if="can('create forecasts')" class="btn btn-info" @click="openForecastAdd">+ Forecast</button>
+        <router-link v-if="can('edit contacts')" :to="`/contacts/${id}/edit`" class="btn btn-warn">Edit</router-link>
+        <button v-if="can('delete contacts')" class="btn btn-danger" @click="openDeleteModal">Delete</button>
       </div>
     </div>
 
@@ -188,9 +188,9 @@
               </td>
               <td style="text-align:center">
                 <div class="task-action-cell">
-                  <button v-if="td.completion_status !== 'completed'" class="done-btn" title="Mark complete" @click="toggleDone(td, 'completed')">✓</button>
-                  <button v-else class="undo-btn" title="Mark pending" @click="toggleDone(td, 'pending')">↩</button>
-                  <button class="task-del-btn" title="Delete task" @click="deleteTask(td)">✕</button>
+                  <button v-if="can('edit todos') && td.completion_status !== 'completed'" class="done-btn" title="Mark complete" @click="toggleDone(td, 'completed')">✓</button>
+                  <button v-else-if="can('edit todos')" class="undo-btn" title="Mark pending" @click="toggleDone(td, 'pending')">↩</button>
+                  <button v-if="can('delete todos')" class="task-del-btn" title="Delete task" @click="deleteTask(td)">✕</button>
                 </div>
               </td>
             </tr>
@@ -202,7 +202,7 @@
       <div class="card">
         <div class="card-title-row">
           <span class="card-title">Forecast History ({{ contact.forecasts?.length ?? 0 }})</span>
-          <button class="btn btn-sm btn-info" @click="openForecastAdd">+ Add Forecast</button>
+          <button v-if="can('create forecasts')" class="btn btn-sm btn-info" @click="openForecastAdd">+ Add Forecast</button>
         </div>
         <p v-if="!contact.forecasts?.length" class="empty-text">No forecasts recorded yet.</p>
         <table v-else class="data-table">
@@ -225,8 +225,8 @@
               <td class="date-cell">{{ fmtDate(f.forecast_updatedate) }}</td>
               <td>
                 <div class="action-pair">
-                  <button class="inline-btn edit-btn" @click="openForecastEdit(f.id)">Edit</button>
-                  <button class="inline-btn del-btn"  @click="deleteForecast(f.id)">Del</button>
+                  <button v-if="can('edit forecasts')" class="inline-btn edit-btn" @click="openForecastEdit(f.id)">Edit</button>
+                  <button v-if="can('delete forecasts')" class="inline-btn del-btn" @click="deleteForecast(f.id)">Del</button>
                 </div>
               </td>
             </tr>
@@ -340,6 +340,9 @@ import { useRoute, useRouter } from 'vue-router';
 import api from '../api.js';
 import LoadingSpinner from '../components/LoadingSpinner.vue';
 import ForecastFormModal from '../components/ForecastFormModal.vue';
+import { usePermissions } from '../composables/usePermissions.js';
+
+const { can } = usePermissions();
 
 const route  = useRoute();
 const router = useRouter();

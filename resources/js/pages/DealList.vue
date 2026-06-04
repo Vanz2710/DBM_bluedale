@@ -30,7 +30,7 @@
           <button :class="{ active: viewMode === 'pipeline' }" @click="setView('pipeline')" title="Pipeline view">&#9646; Pipeline</button>
           <button :class="{ active: viewMode === 'list' }" @click="setView('list')" title="List view">&#9776; List</button>
         </div>
-        <router-link to="/deals/add" class="btn-add">+ Add Deal</router-link>
+        <router-link v-if="can('create deals')" to="/deals/add" class="btn-add">+ Add Deal</router-link>
       </div>
     </div>
 
@@ -106,8 +106,8 @@
                   <span v-if="deal.expected_close_date" class="dc-date">{{ fmt(deal.expected_close_date) }}</span>
                 </div>
                 <div class="dc-actions">
-                  <router-link :to="`/deals/${deal.id}/edit`" class="dc-btn dc-edit">Edit</router-link>
-                  <button class="dc-btn dc-del" @click="confirmDelete(deal)">Del</button>
+                  <router-link v-if="can('edit deals')" :to="`/deals/${deal.id}/edit`" class="dc-btn dc-edit">Edit</router-link>
+                  <button v-if="can('delete deals')" class="dc-btn dc-del" @click="confirmDelete(deal)">Del</button>
                 </div>
               </div>
             </div>
@@ -176,8 +176,8 @@
                 <td>{{ d.user_name ?? '—' }}</td>
                 <td>{{ d.entry_date ?? '—' }}</td>
                 <td class="td-actions">
-                  <router-link :to="`/deals/${d.id}/edit`" class="icon-btn ibtn-edit" title="Edit">&#9998;</router-link>
-                  <button class="icon-btn ibtn-del" title="Delete" @click="confirmDelete(d)">&#128465;</button>
+                  <router-link v-if="can('edit deals')" :to="`/deals/${d.id}/edit`" class="icon-btn ibtn-edit" title="Edit">&#9998;</router-link>
+                  <button v-if="can('delete deals')" class="icon-btn ibtn-del" title="Delete" @click="confirmDelete(d)">&#128465;</button>
                 </td>
               </tr>
             </tbody>
@@ -213,6 +213,9 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import api from '../api.js';
+import { usePermissions } from '../composables/usePermissions.js';
+
+const { can } = usePermissions();
 
 const STAGES = ['New Lead', 'Contacted', 'Quotation Sent', 'Negotiation', 'Won', 'Lost'];
 const STAGE_CLASSES = {

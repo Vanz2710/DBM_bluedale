@@ -208,40 +208,48 @@ Route::middleware('auth:sanctum')->group(function () {
         });
 
         // Social Media Reminders
-        Route::apiResource('social-media-reminders', SocialMediaReminderController::class)->only(['index', 'store', 'update', 'destroy']);
+        Route::middleware('can:manage social-media')->group(function () {
+            Route::apiResource('social-media-reminders', SocialMediaReminderController::class)->only(['index', 'store', 'update', 'destroy']);
+        });
 
         // Product Availability
-        Route::get('product-availability', [ProductAvailabilityController::class, 'index']);
-        Route::post('product-availability', [ProductAvailabilityController::class, 'store']);
-        Route::post('product-availability/proposal', [ProductAvailabilityController::class, 'proposal']);
-        Route::post('product-availability/products', [ProductAvailabilityController::class, 'createProduct']);
-        Route::post('product-availability/resolve-maps-url', [ProductAvailabilityController::class, 'resolveMapsUrl']);
-        Route::put('product-availability/products/{product}', [ProductAvailabilityController::class, 'updateProduct']);
-        Route::post('product-availability/products/{product}/photo', [ProductAvailabilityController::class, 'uploadPhoto']);
-        Route::delete('product-availability/products/{product}/photo', [ProductAvailabilityController::class, 'deletePhoto']);
-        Route::put('product-availability/bookings/{booking}', [ProductAvailabilityController::class, 'updateBooking']);
-        Route::delete('product-availability/bookings/{booking}', [ProductAvailabilityController::class, 'destroyBooking']);
+        Route::middleware('can:manage product-availability')->group(function () {
+            Route::get('product-availability', [ProductAvailabilityController::class, 'index']);
+            Route::post('product-availability', [ProductAvailabilityController::class, 'store']);
+            Route::post('product-availability/proposal', [ProductAvailabilityController::class, 'proposal']);
+            Route::post('product-availability/products', [ProductAvailabilityController::class, 'createProduct']);
+            Route::post('product-availability/resolve-maps-url', [ProductAvailabilityController::class, 'resolveMapsUrl']);
+            Route::put('product-availability/products/{product}', [ProductAvailabilityController::class, 'updateProduct']);
+            Route::post('product-availability/products/{product}/photo', [ProductAvailabilityController::class, 'uploadPhoto']);
+            Route::delete('product-availability/products/{product}/photo', [ProductAvailabilityController::class, 'deletePhoto']);
+            Route::put('product-availability/bookings/{booking}', [ProductAvailabilityController::class, 'updateBooking']);
+            Route::delete('product-availability/bookings/{booking}', [ProductAvailabilityController::class, 'destroyBooking']);
+        });
 
         // Posting Calendar
-        Route::get('posting-calendar', [PostingCalendarController::class, 'index']);
-        Route::post('posting-calendar', [PostingCalendarController::class, 'store']);
-        Route::put('posting-calendar/{postingCalendarReminder}', [PostingCalendarController::class, 'update']);
-        Route::delete('posting-calendar/{postingCalendarReminder}', [PostingCalendarController::class, 'destroy']);
+        Route::middleware('can:manage posting-calendar')->group(function () {
+            Route::get('posting-calendar', [PostingCalendarController::class, 'index']);
+            Route::post('posting-calendar', [PostingCalendarController::class, 'store']);
+            Route::put('posting-calendar/{postingCalendarReminder}', [PostingCalendarController::class, 'update']);
+            Route::delete('posting-calendar/{postingCalendarReminder}', [PostingCalendarController::class, 'destroy']);
+        });
 
         // Email Campaigns
-        Route::get('email-campaigns/settings', [EmailCampaignController::class, 'settings']);
-        Route::get('email-campaigns', [EmailCampaignController::class, 'index']);
-        Route::post('email-campaigns', [EmailCampaignController::class, 'store']);
-        Route::put('email-campaigns/{campaign}', [EmailCampaignController::class, 'update']);
-        Route::delete('email-campaigns/{campaign}', [EmailCampaignController::class, 'destroy']);
-        Route::post('email-campaigns/{campaign}/schedule', [EmailCampaignController::class, 'schedule']);
-        Route::post('email-campaigns/{campaign}/send-test', [EmailCampaignController::class, 'sendTest']);
-        Route::get('email-campaigns/{campaign}/sync-stats', [EmailCampaignController::class, 'syncStats']);
-        // Email Templates
-        Route::get('email-templates', [EmailCampaignController::class, 'templateIndex']);
-        Route::post('email-templates', [EmailCampaignController::class, 'templateStore']);
-        Route::put('email-templates/{template}', [EmailCampaignController::class, 'templateUpdate']);
-        Route::delete('email-templates/{template}', [EmailCampaignController::class, 'templateDestroy']);
+        Route::middleware('can:manage email-campaigns')->group(function () {
+            Route::get('email-campaigns/settings', [EmailCampaignController::class, 'settings']);
+            Route::get('email-campaigns', [EmailCampaignController::class, 'index']);
+            Route::post('email-campaigns', [EmailCampaignController::class, 'store']);
+            Route::put('email-campaigns/{campaign}', [EmailCampaignController::class, 'update']);
+            Route::delete('email-campaigns/{campaign}', [EmailCampaignController::class, 'destroy']);
+            Route::post('email-campaigns/{campaign}/schedule', [EmailCampaignController::class, 'schedule']);
+            Route::post('email-campaigns/{campaign}/send-test', [EmailCampaignController::class, 'sendTest']);
+            Route::get('email-campaigns/{campaign}/sync-stats', [EmailCampaignController::class, 'syncStats']);
+            // Email Templates
+            Route::get('email-templates', [EmailCampaignController::class, 'templateIndex']);
+            Route::post('email-templates', [EmailCampaignController::class, 'templateStore']);
+            Route::put('email-templates/{template}', [EmailCampaignController::class, 'templateUpdate']);
+            Route::delete('email-templates/{template}', [EmailCampaignController::class, 'templateDestroy']);
+        });
 
         // Admin lookup CRUD
         Route::middleware('can:manage lookups')->group(function () {

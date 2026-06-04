@@ -4,16 +4,17 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Contact extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected static function booted(): void
     {
         // reminder_reads uses a polymorphic source_id with no FK — clean up manually
-        // before the DB cascade deletes todos/followups (which would orphan the reads)
-        static::deleting(function (Contact $contact) {
+        // only on force-delete; soft-delete leaves children intact
+        static::forceDeleting(function (Contact $contact) {
             $todoIds = $contact->todos()->pluck('id');
             if ($todoIds->isNotEmpty()) {
                 $followUpIds = FollowUp::whereIn('todo_id', $todoIds)->pluck('id');

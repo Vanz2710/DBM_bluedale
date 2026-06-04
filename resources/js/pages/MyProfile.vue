@@ -182,6 +182,38 @@
             </div>
           </div>
 
+          <!-- Your Permissions -->
+          <div class="card">
+            <h3 class="card-heading">
+              <svg class="h-icon h-icon--primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="11" width="18" height="11" rx="2"/>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+              </svg>
+              Your Permissions
+            </h3>
+
+            <!-- Super-admin: full access -->
+            <div v-if="profile.roles?.includes('super-admin')" class="perm-full-access">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+              </svg>
+              Full system access — super-admin bypasses all permission checks.
+            </div>
+
+            <!-- Regular users -->
+            <template v-else>
+              <div v-if="!activePermGroups.length" class="perm-empty">No permissions assigned. Contact your administrator.</div>
+              <div v-else class="perm-list">
+                <div v-for="group in activePermGroups" :key="group.label" class="perm-group">
+                  <span class="perm-group-label">{{ group.label }}</span>
+                  <div class="perm-group-chips">
+                    <span v-for="p in group.activePerms" :key="p" class="perm-chip">{{ formatPerm(p) }}</span>
+                  </div>
+                </div>
+              </div>
+            </template>
+          </div>
+
         </div>
       </div>
     </template>
@@ -200,8 +232,31 @@ const profileMsg    = ref(null);
 const pwMsg         = ref(null);
 const showPwForm    = ref(false);
 
-const profile = ref({ name: '', email: '', phone: '', job_title: '', roles: [], created_at: null, updated_at: null });
+const profile = ref({ name: '', email: '', phone: '', job_title: '', roles: [], permissions: [], created_at: null, updated_at: null });
 const pw      = ref({ current: '', password: '', password_confirmation: '' });
+
+const PERM_GROUPS = [
+  { label: 'Contacts',    perms: ['view contacts','create contacts','edit contacts','delete contacts','import contacts'] },
+  { label: 'To-Dos',     perms: ['view todos','create todos','edit todos','delete todos'] },
+  { label: 'Deals',      perms: ['view deals','create deals','edit deals','delete deals'] },
+  { label: 'Forecasts',  perms: ['view forecasts','create forecasts','edit forecasts','delete forecasts','view forecast summary'] },
+  { label: 'Projects',   perms: ['view projects','create projects','edit projects','delete projects'] },
+  { label: 'Follow-Ups', perms: ['view followups','create followups','edit followups','delete followups'] },
+  { label: 'Analytics',  perms: ['view analytics','view summary','view data-health','view performance'] },
+  { label: 'Marketing',  perms: ['manage social-media','manage posting-calendar','manage email-campaigns','manage product-availability'] },
+  { label: 'Admin Tools', perms: ['manage lookups','manage webhooks','manage territories'] },
+];
+
+const activePermGroups = computed(() => {
+  const userPerms = new Set(profile.value.permissions ?? []);
+  return PERM_GROUPS
+    .map(g => ({ ...g, activePerms: g.perms.filter(p => userPerms.has(p)) }))
+    .filter(g => g.activePerms.length > 0);
+});
+
+function formatPerm(perm) {
+  return perm.replace(/-/g, ' ').split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+}
 
 const initials = computed(() => {
   const parts = (profile.value.name || '').trim().split(/\s+/).filter(Boolean);
@@ -616,6 +671,49 @@ async function changePassword() {
   padding: 2px 10px;
   font-size: 11px;
   font-weight: 700;
+}
+
+/* ── Permissions card ────────────────────────────────────── */
+.perm-full-access {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: var(--primary-fixed);
+  color: var(--primary);
+  border-radius: 8px;
+  font-size: 12.5px;
+  font-weight: 600;
+}
+.perm-empty {
+  font-size: 12.5px;
+  color: var(--on-surface-variant);
+  font-weight: 500;
+}
+.perm-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 280px;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+.perm-group { display: flex; flex-direction: column; gap: 5px; }
+.perm-group-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--on-surface-variant);
+}
+.perm-group-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.perm-chip {
+  background: var(--primary-fixed);
+  color: var(--primary);
+  border-radius: 999px;
+  padding: 2px 9px;
+  font-size: 11px;
+  font-weight: 600;
 }
 
 /* ── Responsive ──────────────────────────────────────────── */

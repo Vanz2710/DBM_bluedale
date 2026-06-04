@@ -5,7 +5,7 @@
         <h1>Projects</h1>
         <p>Manage projects linked to contacts</p>
       </div>
-      <router-link to="/projects/add" class="btn-add">+ Add Project</router-link>
+      <router-link v-if="can('create projects')" to="/projects/add" class="btn-add">+ Add Project</router-link>
     </div>
 
     <div class="toolbar">
@@ -87,8 +87,8 @@
             <td>{{ p.entry_date ?? '—' }}</td>
             <td>{{ p.user_name ?? '—' }}</td>
             <td>
-              <router-link :to="`/projects/${p.id}/edit`" class="icon-btn btn-edit" title="Edit">✏️</router-link>
-              <button class="icon-btn btn-del" title="Delete" @click="confirmDelete(p)">🗑️</button>
+              <router-link v-if="can('edit projects')" :to="`/projects/${p.id}/edit`" class="icon-btn btn-edit" title="Edit">✏️</router-link>
+              <button v-if="can('delete projects')" class="icon-btn btn-del" title="Delete" @click="confirmDelete(p)">🗑️</button>
             </td>
           </tr>
         </tbody>
@@ -134,6 +134,9 @@
 import { ref, computed, onMounted } from 'vue';
 import api from '../api.js';
 import LoadingSpinner from '../components/LoadingSpinner.vue';
+import { usePermissions } from '../composables/usePermissions.js';
+
+const { can } = usePermissions();
 
 const today = new Date().toISOString().slice(0, 10);
 const firstOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10);

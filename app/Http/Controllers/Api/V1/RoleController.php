@@ -47,6 +47,10 @@ class RoleController extends Controller
 
     public function destroy(Role $role)
     {
+        if (in_array($role->name, ['super-admin', 'admin'])) {
+            return response()->json(['message' => 'System roles cannot be deleted.'], 422);
+        }
+
         $role->delete();
         return response()->json(['status' => 'success']);
     }

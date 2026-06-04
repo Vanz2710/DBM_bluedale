@@ -3,7 +3,7 @@ import laravel from 'laravel-vite-plugin';
 import vue from '@vitejs/plugin-vue';
 
 export default defineConfig({
-    base: '/library_crm_v2/public/',
+    base: process.env.VITE_BASE_URL ?? '/library_crm_v2/public/',
     plugins: [
         laravel({
             input: ['resources/css/app.css', 'resources/js/app.js'],

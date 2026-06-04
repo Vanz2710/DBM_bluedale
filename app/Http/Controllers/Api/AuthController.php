@@ -122,7 +122,9 @@ class AuthController extends Controller
             'email'          => $user->email,
             'email_verified' => $user->email_verified_at !== null,
             'roles'          => $user->getRoleNames(),
-            'permissions'    => $user->getAllPermissions()->pluck('name'),
+            'permissions'    => $user->hasRole('super-admin')
+                ? null
+                : $user->getAllPermissions()->pluck('name'),
             'last_login_at'  => $user->last_login_at,
             'login_count'    => $user->login_count,
         ];

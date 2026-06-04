@@ -7,7 +7,7 @@
       </div>
       <div class="page-head-actions">
         <router-link to="/forecasts/summary" class="btn-light-pill">Summary</router-link>
-        <button type="button" class="btn-primary-pill" @click="openAdd">
+        <button v-if="can('create forecasts')" type="button" class="btn-primary-pill" @click="openAdd">
           <span class="plus-icon" aria-hidden="true">+</span> Add Forecast
         </button>
       </div>
@@ -114,8 +114,8 @@
               <td>{{ f.user_name ?? '—' }}</td>
               <td><span class="date-text">{{ fmtDate(f.forecast_updatedate) }}</span></td>
               <td class="actions-cell">
-                <button type="button" class="icon-btn btn-edit" title="Edit" @click="openEdit(f.id)" v-html="CI.edit"></button>
-                <button class="icon-btn btn-del" title="Delete" @click="confirmDelete(f)" v-html="CI.trash"></button>
+                <button v-if="can('edit forecasts')" type="button" class="icon-btn btn-edit" title="Edit" @click="openEdit(f.id)" v-html="CI.edit"></button>
+                <button v-if="can('delete forecasts')" class="icon-btn btn-del" title="Delete" @click="confirmDelete(f)" v-html="CI.trash"></button>
               </td>
             </tr>
           </tbody>
@@ -168,6 +168,9 @@ import { computed, onMounted, reactive, ref } from 'vue';
 import api from '../api.js';
 import LoadingSpinner from '../components/LoadingSpinner.vue';
 import ForecastFormModal from '../components/ForecastFormModal.vue';
+import { usePermissions } from '../composables/usePermissions.js';
+
+const { can } = usePermissions();
 
 const _si = (p, sz = 14) => `<svg width="${sz}" height="${sz}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
 const CI = {

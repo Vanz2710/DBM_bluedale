@@ -6,10 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Contact;
 use App\Models\Deal;
 use App\Models\FollowUp;
-use App\Models\KpiTarget;
-use App\Models\Project;
 use App\Models\ToDo;
-use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -27,44 +24,19 @@ class PredictiveController extends Controller
         return $u->id;
     }
 
-    private function metricActual(int $userId, string $metric, string $from, string $to): float
-    {
-        $fromDt = "{$from} 00:00:00";
-        $toDt   = "{$to} 23:59:59";
-
-        return match ($metric) {
-            'new_contacts'        => Contact::where('user_id', $userId)->whereBetween('created_at', [$fromDt, $toDt])->count(),
-            'todos_completed'     => ToDo::where('user_id', $userId)->where('completion_status', 'completed')->whereBetween('completed_at', [$fromDt, $toDt])->count(),
-            'followups_completed' => FollowUp::whereHas('todo', fn ($q) => $q->where('user_id', $userId))->where('completion_status', 'completed')->whereBetween('completed_at', [$fromDt, $toDt])->count(),
-            'projects_created'    => Project::where('user_id', $userId)->whereBetween('created_at', [$fromDt, $toDt])->count(),
-            'deals_created'       => Deal::where('user_id', $userId)->whereBetween('created_at', [$fromDt, $toDt])->count(),
-            'deals_won'           => Deal::where('user_id', $userId)->where('status', 'won')->whereBetween('updated_at', [$fromDt, $toDt])->count(),
-            'won_deal_value'      => (float) Deal::where('user_id', $userId)->where('status', 'won')->whereBetween('updated_at', [$fromDt, $toDt])->sum('value'),
-            default               => 0,
-        };
-    }
-
     // ── 1. Summary KPI cards ──────────────────────────────────────────────────
 
     public function summary(Request $request)
     {
         $uid     = $this->resolveUserId($request);
-        $today   = Carbon::today()->toDateString();
-        $in7     = Carbon::today()->addDays(7)->toDateString();
         $isAdmin = $request->user()->hasAnyRole(['admin', 'super-admin']);
 
-        // Contacts with no todo activity in 30+ days
-        $latestTodo = ToDo::select('contact_id', DB::raw('MAX(todo_date) as last_todo'))
-            ->when($uid, fn ($q) => $q->where('user_id', $uid))
-            ->groupBy('contact_id');
-
-        $atRisk = DB::table('contacts as c')
-            ->leftJoinSub($latestTodo, 'lt', 'c.id', '=', 'lt.contact_id')
+        // Non-raw contacts not updated in 60+ days
+        $neglected = DB::table('contacts as c')
+            ->join('contact_statuses as s', 'c.status_id', '=', 's.id')
+            ->where('s.name', 'not like', '%Raw%')
+            ->whereRaw('DATEDIFF(NOW(), c.updated_at) >= 60')
             ->when($uid, fn ($q) => $q->where('c.user_id', $uid))
-            ->where(fn ($q) =>
-                $q->whereNull('lt.last_todo')
-                  ->orWhereRaw('DATEDIFF(CURDATE(), lt.last_todo) >= 30')
-            )
             ->count();
 
         // Open deal pipeline weighted by probability
@@ -73,46 +45,31 @@ class PredictiveController extends Controller
             ->selectRaw('SUM(value * COALESCE(probability, 50) / 100) as weighted')
             ->value('weighted');
 
-        // Pending todos due in the next 7 days
-        $overdueRisk = ToDo::where('completion_status', 'pending')
-            ->whereBetween('todo_date', [$today, $in7])
-            ->when($uid, fn ($q) => $q->where('user_id', $uid))
-            ->count();
-
-        // Agents below 80% pace on any KPI target (admin, no user filter)
-        $agentsOffPace = null;
-        if ($isAdmin && !$uid) {
-            $monthStart  = Carbon::now()->startOfMonth()->toDateString();
-            $monthEnd    = Carbon::now()->endOfMonth()->toDateString();
-            $daysInMonth = Carbon::now()->daysInMonth;
-            $daysPassed  = max(1, Carbon::now()->day);
-            $offPaceCount = 0;
-
-            foreach (User::all() as $u) {
-                $targets = KpiTarget::where('user_id', $u->id)->get();
-                if ($targets->isEmpty()) continue;
-                foreach ($targets as $t) {
-                    $actual    = $this->metricActual($u->id, $t->metric, $monthStart, $monthEnd);
-                    $projected = ($actual / $daysPassed) * $daysInMonth;
-                    $pacePct   = $t->target_value > 0 ? ($projected / $t->target_value) * 100 : 100;
-                    if ($pacePct < 80) {
-                        $offPaceCount++;
-                        break;
-                    }
-                }
-            }
-            $agentsOffPace = $offPaceCount;
+        // Agents carrying more than 1.5× the average contact load (admin-only)
+        $overloadedAgents = null;
+        if ($isAdmin && ! $uid) {
+            $counts           = Contact::selectRaw('user_id, COUNT(*) as cnt')->groupBy('user_id')->pluck('cnt');
+            $avg              = $counts->count() > 0 ? $counts->avg() : 0;
+            $overloadedAgents = $counts->filter(fn ($c) => $c > $avg * 1.5)->count();
         }
 
+        // Non-raw contacts not updated in 30+ days
+        $unworkedOpps = DB::table('contacts as c')
+            ->join('contact_statuses as s', 'c.status_id', '=', 's.id')
+            ->where('s.name', 'not like', '%Raw%')
+            ->whereRaw('DATEDIFF(NOW(), c.updated_at) >= 30')
+            ->when($uid, fn ($q) => $q->where('c.user_id', $uid))
+            ->count();
+
         return response()->json([
-            'at_risk'         => $atRisk,
-            'pipeline_value'  => $pipelineValue ? round((float) $pipelineValue, 2) : 0,
-            'agents_off_pace' => $agentsOffPace,
-            'overdue_risk'    => $overdueRisk,
+            'neglected'         => $neglected,
+            'pipeline_value'    => $pipelineValue ? round((float) $pipelineValue, 2) : 0,
+            'overloaded_agents' => $overloadedAgents,
+            'unworked_opps'     => $unworkedOpps,
         ]);
     }
 
-    // ── 2. Revenue pipeline forecast ──────────────────────────────────────────
+    // ── 2. Revenue pipeline forecast (unchanged) ──────────────────────────────
 
     public function forecast(Request $request)
     {
@@ -126,7 +83,7 @@ class PredictiveController extends Controller
         $byMonth = [];
         foreach ($deals as $d) {
             $key = Carbon::parse($d->expected_close_date)->format('Y-m');
-            if (!isset($byMonth[$key])) {
+            if (! isset($byMonth[$key])) {
                 $byMonth[$key] = [
                     'month'          => $key,
                     'label'          => Carbon::parse($d->expected_close_date)->format('M Y'),
@@ -150,116 +107,111 @@ class PredictiveController extends Controller
         return response()->json($result);
     }
 
-    // ── 3. At-risk contacts ───────────────────────────────────────────────────
+    // ── 3. Neglected contacts ─────────────────────────────────────────────────
+    //    Non-raw contacts (Potential, Existing Client, etc.) that have not been
+    //    updated in 60+ days — contacts that were qualified but then forgotten.
 
     public function atRisk(Request $request)
     {
         $uid       = $this->resolveUserId($request);
-        $threshold = max(1, (int) $request->get('threshold', 30));
-
-        $latestTodo = ToDo::select('contact_id', DB::raw('MAX(todo_date) as last_todo'))
-            ->when($uid, fn ($q) => $q->where('user_id', $uid))
-            ->groupBy('contact_id');
+        $threshold = max(1, (int) $request->get('threshold', 60));
 
         $contacts = DB::table('contacts as c')
-            ->leftJoinSub($latestTodo, 'lt', 'c.id', '=', 'lt.contact_id')
+            ->join('contact_statuses as s', 'c.status_id', '=', 's.id')
+            ->join('users as u', 'c.user_id', '=', 'u.id')
+            ->where('s.name', 'not like', '%Raw%')
+            ->whereRaw('DATEDIFF(NOW(), c.updated_at) >= ?', [$threshold])
             ->when($uid, fn ($q) => $q->where('c.user_id', $uid))
-            ->where(fn ($q) =>
-                $q->whereNull('lt.last_todo')
-                  ->orWhereRaw('DATEDIFF(CURDATE(), lt.last_todo) >= ?', [$threshold])
-            )
             ->select([
                 'c.id',
                 'c.name',
-                DB::raw('COALESCE(DATEDIFF(CURDATE(), lt.last_todo), DATEDIFF(CURDATE(), DATE(c.created_at))) as days_since_activity'),
-                'lt.last_todo as last_activity_date',
+                's.name as status_name',
+                'u.name as owner_name',
+                DB::raw('DATEDIFF(NOW(), c.updated_at) as days_since_update'),
             ])
-            ->orderByDesc('days_since_activity')
+            ->orderByDesc('days_since_update')
             ->limit(30)
             ->get();
 
         return response()->json($contacts);
     }
 
-    // ── 4. Agent pace-to-target ───────────────────────────────────────────────
+    // ── 4. Agent coverage load ────────────────────────────────────────────────
+    //    Total contacts per agent, split into raw vs actionable (engaged).
 
     public function pace(Request $request)
     {
-        $uid         = $this->resolveUserId($request);
-        $user        = $request->user();
-        $isAdmin     = $user->hasAnyRole(['admin', 'super-admin']);
-        $monthStart  = Carbon::now()->startOfMonth()->toDateString();
-        $monthEnd    = Carbon::now()->endOfMonth()->toDateString();
-        $daysInMonth = Carbon::now()->daysInMonth;
-        $daysPassed  = max(1, Carbon::now()->day);
+        $uid     = $this->resolveUserId($request);
+        $user    = $request->user();
+        $isAdmin = $user->hasAnyRole(['admin', 'super-admin']);
 
-        $users = ($isAdmin && !$uid)
-            ? User::orderBy('name')->get()
-            : User::where('id', $uid ?? $user->id)->get();
+        $rows = DB::table('contacts as c')
+            ->join('contact_statuses as s', 'c.status_id', '=', 's.id')
+            ->join('users as u', 'c.user_id', '=', 'u.id')
+            ->when($uid, fn ($q) => $q->where('c.user_id', $uid))
+            ->when(! $isAdmin && ! $uid, fn ($q) => $q->where('c.user_id', $user->id))
+            ->groupBy('c.user_id', 'u.name')
+            ->selectRaw("
+                c.user_id,
+                u.name,
+                COUNT(*) as total,
+                SUM(CASE WHEN s.name LIKE '%Raw%' THEN 1 ELSE 0 END) as raw_count,
+                SUM(CASE WHEN s.name NOT LIKE '%Raw%' THEN 1 ELSE 0 END) as engaged_count
+            ")
+            ->orderByDesc('total')
+            ->get();
 
-        $result = [];
-        foreach ($users as $u) {
-            $targets = KpiTarget::where('user_id', $u->id)->get();
-            if ($targets->isEmpty()) continue;
+        $maxTotal = $rows->max('total') ?: 1;
 
-            $metrics   = [];
-            $pacePcts  = [];
-
-            foreach ($targets as $t) {
-                $actual    = $this->metricActual($u->id, $t->metric, $monthStart, $monthEnd);
-                $projected = round(($actual / $daysPassed) * $daysInMonth, 1);
-                $pacePct   = $t->target_value > 0
-                    ? min(150, round(($projected / $t->target_value) * 100, 1))
-                    : 100;
-
-                $pacePcts[] = $pacePct;
-                $metrics[]  = [
-                    'metric'    => $t->metric,
-                    'target'    => (float) $t->target_value,
-                    'actual'    => $actual,
-                    'projected' => $projected,
-                    'pace_pct'  => $pacePct,
-                ];
-            }
-
-            $result[] = [
-                'user_id'  => $u->id,
-                'name'     => $u->name,
-                'pace_pct' => count($pacePcts) ? round(array_sum($pacePcts) / count($pacePcts), 1) : null,
-                'metrics'  => $metrics,
-            ];
-        }
+        $result = $rows->map(fn ($row) => [
+            'user_id'       => $row->user_id,
+            'name'          => $row->name,
+            'total'         => (int) $row->total,
+            'raw_count'     => (int) $row->raw_count,
+            'engaged_count' => (int) $row->engaged_count,
+            'load_pct'      => round($row->total / $maxTotal * 100, 1),
+            'engaged_pct'   => $row->total > 0 ? round($row->engaged_count / $row->total * 100, 1) : 0,
+        ]);
 
         return response()->json($result);
     }
 
-    // ── 5. Overdue risk (next 7 days) ─────────────────────────────────────────
+    // ── 5. Unworked segment opportunities ────────────────────────────────────
+    //    By industry: how many actionable contacts haven't been touched in 30+ days.
 
     public function overdueRisk(Request $request)
     {
-        $uid   = $this->resolveUserId($request);
-        $today = Carbon::today()->toDateString();
-        $in7   = Carbon::today()->addDays(7)->toDateString();
+        $uid       = $this->resolveUserId($request);
+        $threshold = 30;
 
-        $todos = ToDo::with(['contact:id,name'])
-            ->where('completion_status', 'pending')
-            ->whereBetween('todo_date', [$today, $in7])
-            ->when($uid, fn ($q) => $q->where('user_id', $uid))
-            ->orderBy('todo_date')
-            ->limit(50)
+        $rows = DB::table('contacts as c')
+            ->join('contact_statuses as s', 'c.status_id', '=', 's.id')
+            ->join('contact_industries as i', 'c.industry_id', '=', 'i.id')
+            ->where('s.name', 'not like', '%Raw%')
+            ->when($uid, fn ($q) => $q->where('c.user_id', $uid))
+            ->groupBy('c.industry_id', 'i.name')
+            ->selectRaw("
+                c.industry_id,
+                i.name as industry_name,
+                COUNT(*) as total,
+                SUM(CASE WHEN DATEDIFF(NOW(), c.updated_at) >= {$threshold} THEN 1 ELSE 0 END) as unworked
+            ")
+            ->having('total', '>=', 1)
+            ->orderByDesc('unworked')
+            ->limit(10)
             ->get()
-            ->map(fn ($t) => [
-                'id'           => $t->id,
-                'title'        => $t->todo_remark ?? 'Untitled task',
-                'todo_date'    => $t->todo_date?->format('Y-m-d'),
-                'contact_name' => $t->contact?->name ?? '—',
-                'contact_id'   => $t->contact_id,
+            ->map(fn ($r) => [
+                'industry_id'   => $r->industry_id,
+                'industry_name' => $r->industry_name,
+                'total'         => (int) $r->total,
+                'unworked'      => (int) $r->unworked,
+                'unworked_pct'  => $r->total > 0 ? round($r->unworked / $r->total * 100, 1) : 0,
             ]);
 
-        return response()->json($todos);
+        return response()->json($rows);
     }
 
-    // ── 6. Lead conversion by segment ────────────────────────────────────────
+    // ── 6. Lead conversion by segment (unchanged) ────────────────────────────
 
     public function segments(Request $request)
     {
@@ -292,7 +244,7 @@ class PredictiveController extends Controller
                 ->get();
 
             foreach ($rows as $row) {
-                $rate = $row->total > 0 ? round($row->won / $row->total * 100, 1) : 0;
+                $rate     = $row->total > 0 ? round($row->won / $row->total * 100, 1) : 0;
                 $result[] = [
                     'key'       => $dim['label'] . '_' . $row->segment_id,
                     'name'      => $row->name,
@@ -309,7 +261,7 @@ class PredictiveController extends Controller
         return response()->json($result);
     }
 
-    // ── 7. Deal win probability (auto-scored) ─────────────────────────────────
+    // ── 7. Deal win probability (unchanged) ──────────────────────────────────
 
     public function deals(Request $request)
     {
@@ -326,7 +278,6 @@ class PredictiveController extends Controller
         $result = $deals->map(function ($d) use ($today) {
             $base = (float) ($d->probability ?? 50);
 
-            // Urgency: penalise overdue close dates, reward upcoming ones
             $urgencyBonus = 0;
             $daysToClose  = null;
             if ($d->expected_close_date) {
@@ -334,7 +285,6 @@ class PredictiveController extends Controller
                 $urgencyBonus = $daysToClose < 0 ? -20 : ($daysToClose <= 14 ? 5 : 0);
             }
 
-            // Activity: recent todos on the contact in the last 30 days
             $recentActivity = $d->contact_id
                 ? ToDo::where('contact_id', $d->contact_id)
                     ->where('todo_date', '>=', $today->copy()->subDays(30)->toDateString())
@@ -361,66 +311,47 @@ class PredictiveController extends Controller
         return response()->json($result);
     }
 
-    // ── 8. Activity trend + 2-week projection ────────────────────────────────
+    // ── 8. Portfolio growth trend ─────────────────────────────────────────────
+    //    Weekly new contacts added over 8 weeks + 2-week weighted projection.
 
     public function trend(Request $request)
     {
         $uid = $this->resolveUserId($request);
 
-        // 6 actual weeks (oldest first)
         $actual = [];
-        for ($i = 5; $i >= 0; $i--) {
+        for ($i = 7; $i >= 0; $i--) {
             $start  = Carbon::now()->startOfWeek()->subWeeks($i)->toDateString();
             $end    = Carbon::now()->startOfWeek()->subWeeks($i)->endOfWeek()->toDateString();
-            $fromDt = "{$start} 00:00:00";
-            $toDt   = "{$end} 23:59:59";
 
             $actual[] = [
-                'week'                => Carbon::parse($start)->format('d M'),
-                'week_start'          => $start,
-                'todos_completed'     => ToDo::where('completion_status', 'completed')
-                    ->whereBetween('completed_at', [$fromDt, $toDt])
+                'week'           => Carbon::parse($start)->format('d M'),
+                'week_start'     => $start,
+                'contacts_added' => Contact::whereBetween('created_at', ["{$start} 00:00:00", "{$end} 23:59:59"])
                     ->when($uid, fn ($q) => $q->where('user_id', $uid))
                     ->count(),
-                'followups_completed' => FollowUp::where('completion_status', 'completed')
-                    ->whereBetween('completed_at', [$fromDt, $toDt])
-                    ->when($uid, fn ($q) =>
-                        $q->whereHas('todo', fn ($q2) => $q2->where('user_id', $uid))
-                    )
-                    ->count(),
-                'contacts_added'      => Contact::whereBetween('created_at', [$fromDt, $toDt])
-                    ->when($uid, fn ($q) => $q->where('user_id', $uid))
-                    ->count(),
-                'projected'           => false,
+                'projected'      => false,
             ];
         }
 
-        // Weighted projection from the last 3 actual weeks (weights: 1, 2, 3)
-        $last3      = array_slice($actual, -3);
-        $weights    = [1, 2, 3];
-        $weightSum  = 6;
-        $projection = [];
-        foreach (['todos_completed', 'followups_completed', 'contacts_added'] as $metric) {
-            $weighted = 0;
-            foreach ($last3 as $i => $w) {
-                $weighted += $w[$metric] * $weights[$i];
-            }
-            $projection[$metric] = (int) round($weighted / $weightSum);
+        // Weighted average of last 3 weeks (weights: 1, 2, 3)
+        $last3     = array_slice($actual, -3);
+        $weights   = [1, 2, 3];
+        $weighted  = 0;
+        foreach ($last3 as $i => $w) {
+            $weighted += $w['contacts_added'] * $weights[$i];
         }
+        $proj = (int) round($weighted / 6);
 
-        $result = $actual;
         for ($i = 1; $i <= 2; $i++) {
             $weekStart = Carbon::now()->startOfWeek()->addWeeks($i);
-            $result[]  = [
-                'week'                => $weekStart->format('d M'),
-                'week_start'          => $weekStart->toDateString(),
-                'todos_completed'     => $projection['todos_completed'],
-                'followups_completed' => $projection['followups_completed'],
-                'contacts_added'      => $projection['contacts_added'],
-                'projected'           => true,
+            $actual[]  = [
+                'week'           => $weekStart->format('d M'),
+                'week_start'     => $weekStart->toDateString(),
+                'contacts_added' => $proj,
+                'projected'      => true,
             ];
         }
 
-        return response()->json($result);
+        return response()->json($actual);
     }
 }

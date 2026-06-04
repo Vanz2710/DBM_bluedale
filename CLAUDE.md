@@ -122,7 +122,7 @@ Model domains (all flat in `app/Models/`):
 - Components: `LoadingSpinner.vue`, `NotificationBell.vue` (reads `GET /api/v1/reminders` — returns `overdue`, `today`, `upcoming` CRM reminders + `alerts` array of unread `SystemAlert` rows for admins)
 - User settings and dashboard layout are fetched from server on app mount via `useSettings.js` and cached in localStorage
 
-**Adding a new page requires three steps:** (1) create the Vue component in `resources/js/pages/`, (2) add a lazy-loaded route in `resources/js/router/index.js`, (3) add the route to the appropriate group in `ALL_GROUPS` in `App.vue`.
+**Adding a new page requires three steps:** (1) create the Vue component in `resources/js/pages/`, (2) add a lazy-loaded route in `resources/js/router/index.js`, (3) add the route to the appropriate group in `ALL_GROUPS` in `App.vue`. **`ALL_GROUPS` powers both the sidebar and the topbar search bar** — a page not listed there cannot be found via search. Always include the correct `permission` field on the nav item so the search bar automatically hides the page from users who lack that permission (mirroring the sidebar behaviour).
 
 **Adding a new admin page requires one extra step:** also add a link to `adminLinks` array in `Settings.vue` so it appears in the Settings → Admin tab quick-access list.
 
@@ -148,6 +148,24 @@ Spatie roles: `super-admin`, `admin`, regular user. Admin-only routes are groupe
 
 Sub-resource access (todos, emails, calls on a Contact) is gated on the parent Contact permission (`view contacts`), not per-sub-resource permissions. Deals and Projects use granular `view`/`create`/`edit`/`delete` permissions per action. Territories use `manage territories` for write operations only.
 
+**Every new feature MUST complete all four of these steps — no exceptions:**
+
+**Step 1 — Define the permission in `RolesAndPermissionsSeeder.php`**
+Add an entry to the `$permissions` array following the `"verb noun"` convention (e.g. `'manage social-media'`, `'view reports'`). Include a plain-English `description`.
+
+**Step 2 — Assign it to the correct default roles in the same seeder**
+- `admin` role gets everything automatically (via the `$adminExcluded` filter) — no action needed.
+- `user` role: add to the `syncPermissions` list if regular staff should have it by default.
+- `viewer` role: add only if read-only viewers should see it.
+- If it should be admin-only by default, leave it out of `user` and `viewer` — the admin can grant it later via the RBAC panel.
+
+**Step 3 — Gate the API routes in `routes/api.php`**
+Wrap the route group with `Route::middleware('can:your-permission')->group(function () { ... })`.
+Never leave authenticated routes without a `can:` middleware — `auth:sanctum` alone only proves identity, not authorisation.
+
+**Step 4 — Add the `permission` field to the nav item in `App.vue`**
+In `ALL_GROUPS`, add `permission: 'your-permission'` to the nav item. The sidebar and topbar search both filter by this field automatically — users without the permission won't see the link in either place. If a page should only be search-visible (not in the sidebar), add it to a group with `section: 'account'` or any section other than `'main'`/`'tools'`.
+
 ### Performance Module
 `PerformanceController` serves:
 - `GET /v1/performance/overview` — KPI counts for a period (week/month/year/range), overdue items, target progress
@@ -162,3 +180,70 @@ Controllers stream CSVs with UTF-8 BOM for Excel compatibility using `response()
 
 ### Testing
 Tests use a separate database (`bgoc_crm_test` on port 3307), bcrypt rounds reduced to 4 for speed, and `QUEUE_CONNECTION=sync` so jobs run inline. Configuration is in `phpunit.xml`.
+
+---
+
+## Pre-Deployment Checklist
+
+Use `.env.production.example` as the production `.env` template. Every item below must be resolved before the app goes live.
+
+### Environment Config (Critical — do these first)
+
+- [ ] `APP_DEBUG=false` — exposes stack traces, SQL queries, and env vars if left `true`
+- [ ] `APP_ENV=production`
+- [ ] `APP_URL=https://your-domain.com` — all generated links (password reset, admin emails) use this value; wrong URL = broken emails
+- [ ] `APP_KEY` — run `php artisan key:generate` on the production server; never copy a dev key
+- [ ] `LOG_LEVEL=warning` — `debug` fills disk fast in production
+
+### Frontend Build
+
+- [ ] Set `VITE_BASE_URL` in production `.env` to `/` (root domain) or `/subfolder/` before running `npm run build` — the Vite config reads this value; wrong path = all JS/CSS assets 404
+- [ ] Run `npm run build` on the server (or copy the built `public/build/` folder)
+
+### Database
+
+- [ ] Run `php artisan migrate --force` against the production database
+- [ ] Run `php artisan db:seed --class=RolesAndPermissionsSeeder` to seed all permissions and default roles
+- [ ] Verify the production DB is on port **3307** (`DB_PORT=3307`) — the app will silently hit the wrong DB on port 3306 otherwise
+
+### Mail
+
+- [ ] Replace Gmail SMTP with a transactional mail service (Brevo, SendGrid, or Mailgun) — Gmail app passwords have low sending limits and can be revoked without warning
+- [ ] Set `MAIL_FROM_ADDRESS` to a domain-matched address (e.g. `noreply@your-domain.com`)
+- [ ] Test email delivery end-to-end: password reset, first-login admin alert, inactivity alert
+- [ ] Set `admin_notification_email` in System Settings (Admin → System Settings in the UI) so admin alerts go to the right inbox
+
+### Security
+
+- [ ] `SESSION_ENCRYPT=true` — encrypt session data at rest
+- [ ] `SESSION_DOMAIN=your-domain.com` — lock sessions to your domain
+- [ ] Confirm the Gmail app password from dev has been rotated (it was exposed in the development `.env`)
+
+### Queue Worker
+
+- [ ] Set up a persistent queue worker process — `php artisan queue:work --daemon` must run continuously or WhatsApp webhook jobs and any other queued jobs will pile up unprocessed. Use Supervisor (Linux) or a Windows service to keep it alive across reboots.
+- [ ] Alternatively, if WhatsApp integration is not active, confirm `QUEUE_CONNECTION=sync` is acceptable for the load level
+
+### WhatsApp (if using)
+
+- [ ] Fill in all four `WHATSAPP_*` env vars — the webhook endpoint is live but will silently fail without them
+- [ ] Verify the webhook URL with Meta Business Suite after deployment
+
+### Laravel Caches (run after all config is set)
+
+```bash
+php artisan config:cache
+php artisan route:cache
+php artisan view:cache
+```
+
+### First Login After Deployment
+
+1. Log in as `super-admin`
+2. Go to **Admin → System Settings** and set `admin_notification_email`
+3. Go to **Admin → User Management** and create user accounts for staff
+4. Verify the notification bell works and test emails arrive
+
+### Known Dead Code (not a blocker, but clean up when time allows)
+
+Email verification is functionally disabled (all users auto-verified on creation) but the routes, controller (`EmailVerificationController`), and page (`VerifyEmail.vue`) still exist. They cause no harm but create confusion. Remove them in a post-launch cleanup.

@@ -41,7 +41,7 @@ class ContactController extends Controller
         $sortBy  = in_array($request->input('sort_by'), $allowedSort) ? $request->input('sort_by') : 'name';
         $sortDir = $request->input('sort_dir') === 'desc' ? 'desc' : 'asc';
 
-        $contacts = $query->orderBy($sortBy, $sortDir)->paginate($request->input('per_page', 100));
+        $contacts = $query->orderBy($sortBy, $sortDir)->paginate(min((int) $request->input('per_page', 100), 500));
 
         return response()->json($contacts);
     }
@@ -51,7 +51,7 @@ class ContactController extends Controller
         $date     = $request->input('date');
         $dateFrom = $request->input('date_from');
         $dateTo   = $request->input('date_to');
-        $perPage  = (int) $request->input('per_page', 100);
+        $perPage  = min((int) $request->input('per_page', 100), 500);
 
         $query = Contact::with(['status', 'type', 'industry', 'category', 'user']);
 
