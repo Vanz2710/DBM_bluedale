@@ -23,6 +23,8 @@ import AiWorkflowDemo from '../pages/AiWorkflowDemo.vue';
 import MarketingAiDemo from '../pages/MarketingAiDemo.vue';
 import MarketingEmailDemo from '../pages/MarketingEmailDemo.vue';
 import ProductAvailability from '../pages/ProductAvailability.vue';
+import DeptTaskManager from '../pages/DeptTaskManager.vue';
+import ProductionSupport from '../pages/ProductionSupport.vue';
 
 const routes = [
     { path: '/login',                      component: Login,       name: 'login',        meta: { public: true } },
@@ -50,6 +52,8 @@ const routes = [
     { path: '/marketing-ai-demo',          component: MarketingAiDemo, name: 'marketing-ai-demo' },
     { path: '/marketing-email',            component: MarketingEmailDemo, name: 'marketing-email' },
     { path: '/product-availability',       component: ProductAvailability, name: 'product-availability' },
+    { path: '/dept-tasks',                 component: DeptTaskManager,     name: 'dept-tasks' },
+    { path: '/production-support',         component: ProductionSupport,   name: 'production-support' },
 ];
 
 export default routes;
