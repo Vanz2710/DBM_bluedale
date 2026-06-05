@@ -9,6 +9,7 @@ use App\Models\SystemAlert;
 use App\Models\ToDo;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 
 class ReminderController extends Controller
 {
@@ -25,7 +26,7 @@ class ReminderController extends Controller
         // Admin with user_id → that user's data; otherwise always current user's
         $targetUserId = ($isAdmin && $userId) ? (int) $userId : $user->id;
 
-        $todos = ToDo::select(
+        $todos = Cache::remember("reminders_todos_{$targetUserId}", 30, fn () => ToDo::select(
             'to_dos.id', 'to_dos.contact_id', 'to_dos.user_id',
             'to_dos.todo_date', 'to_dos.todo_remark',
             'contacts.name as contact_name'
@@ -34,9 +35,10 @@ class ReminderController extends Controller
             ->where('to_dos.user_id', $targetUserId)
             ->whereBetween('to_dos.todo_date', [$pastFrom, $futureEnd])
             ->orderBy('to_dos.todo_date')
-            ->get();
+            ->get()
+        );
 
-        $followUps = FollowUp::select(
+        $followUps = Cache::remember("reminders_followups_{$targetUserId}", 30, fn () => FollowUp::select(
             'follow_ups.id', 'follow_ups.todo_id',
             'follow_ups.followup_date', 'follow_ups.action_type',
             'to_dos.contact_id', 'contacts.name as contact_name'
@@ -46,7 +48,8 @@ class ReminderController extends Controller
             ->where('to_dos.user_id', $targetUserId)
             ->whereBetween('follow_ups.followup_date', [$pastFrom, $futureEnd])
             ->orderBy('follow_ups.followup_date')
-            ->get();
+            ->get()
+        );
 
         $readTodoIds = array_flip(
             ReminderRead::where('user_id', $user->id)

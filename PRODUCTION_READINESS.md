@@ -1,0 +1,90 @@
+# Production Readiness Checklist
+
+## Priority 1 — Redis
+> Fixes queue, cache, permissions, and sessions in one shot
+
+- [x] Install `predis/predis` via Composer — **done** (v3.5.0)
+- [x] Update `.env.production.example` — SESSION/CACHE/QUEUE all set to `redis`, client set to `predis`
+- [ ] On production server: set `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD` in `.env`
+- [ ] Add Redis service in Railway dashboard (or provision on host)
+- [ ] After deploying: run `php artisan permission:cache-reset` to warm Spatie permission cache
+
+---
+
+## Priority 2 — Database Indexes
+> All critical indexes already exist in migrations
+
+- [x] `contacts.user_id`, `contacts.status_id`, `contacts.created_at` — `2026_05_08_120000_add_performance_indexes.php`
+- [x] `to_dos.user_id`, `to_dos.todo_date`, `[user_id, todo_date]` composite — same migration
+- [x] `follow_ups.todo_id`, `follow_ups.followup_date`, composites — `2026_05_28_000001_add_missing_scalability_indexes.php`
+- [x] `deals.[user_id, status]`, `deals.[user_id, expected_close_date]` — same migration
+- [x] `system_alerts.[for_user_id, read_at]` composite — `2026_06_02_000002_create_system_alerts_table.php`
+
+---
+
+## Priority 3 — Failed Jobs Table
+> Already included in the default Laravel jobs migration
+
+- [x] `failed_jobs` table exists and has been migrated — `0001_01_01_000002_create_jobs_table.php`
+- [ ] On production: worker command should use retries — `php artisan queue:work --tries=3 --backoff=30`
+
+---
+
+## Priority 4 — Error Monitoring (Sentry)
+> See errors before users report them — requires a Sentry account
+
+- [x] Sentry account created, free project set up
+- [x] `composer require sentry/sentry-laravel` — v4.25.1 installed
+- [x] `npm install @sentry/vue` — installed
+- [x] `SENTRY_LARAVEL_DSN` added to `.env` and `.env.production.example`
+- [x] `config/sentry.php` created, `bootstrap/app.php` wired with `Integration::handles()`
+- [x] `@sentry/vue` wired up in `resources/js/app.js` with router tracing
+- [ ] Verify on live server: trigger a test error and confirm it appears in Sentry dashboard
+
+---
+
+## Priority 5 — Login Rate Limiting
+> Basic brute-force protection on auth endpoint
+
+- [x] `throttle:10,1` middleware added to `POST auth/login` in `routes/api.php`
+
+---
+
+## Priority 6 — Health Check Endpoint
+> Required for uptime monitors to detect downtime
+
+- [x] `GET /up` route added to `routes/web.php`
+- [ ] Register on UptimeRobot (free) at https://uptimerobot.com — point monitor to `https://your-domain.com/up`
+- [ ] Configure email/SMS alert in UptimeRobot
+
+---
+
+## Priority 7 — Database Backups
+> Last line of defense against bad migrations or data loss
+
+- [ ] Enable automated daily backups on production MySQL instance (Railway: built-in, VPS: mysqldump cron)
+- [ ] Verify backup restoration works (test restore on dev DB once)
+- [ ] Document backup retention period
+
+---
+
+## Priority 8 — Cache Reminders Endpoint
+> Reduce polling DB load from NotificationBell
+
+- [x] `Cache::remember("reminders_todos_{$userId}", 30, ...)` added to `ReminderController::index()`
+- [x] `Cache::remember("reminders_followups_{$userId}", 30, ...)` added — join queries cached, read states always fresh
+
+---
+
+## Priority 9 — Correct Log Level
+> Prevent disk fill from debug logging in production
+
+- [x] `.env.production.example` updated: `LOG_CHANNEL=errorlog`, `LOG_LEVEL=warning`
+
+---
+
+## Deployment Files Still Needed
+
+- [ ] Create `Procfile` — `web: php artisan serve --host=0.0.0.0 --port=$PORT`
+- [ ] Create `nixpacks.toml` — PHP 8.3 + Composer build phases for Railway
+- [ ] Set `VITE_BASE_URL=/` and run `npm run build` before deploying
