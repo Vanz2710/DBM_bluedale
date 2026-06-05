@@ -40,7 +40,7 @@ use App\Http\Controllers\Api\V1\SystemSettingsController;
 use App\Http\Controllers\Api\V1\UserActivityController;
 
 // Auth (public)
-Route::post('auth/login', [AuthController::class, 'login']);
+Route::post('auth/login', [AuthController::class, 'login'])->middleware('throttle:10,1');
 
 // Public lead capture (no auth required)
 Route::post('public/lead', [PublicLeadController::class, 'store'])->middleware('throttle:10,1');

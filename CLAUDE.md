@@ -247,3 +247,144 @@ php artisan view:cache
 ### Known Dead Code (not a blocker, but clean up when time allows)
 
 Email verification is functionally disabled (all users auto-verified on creation) but the routes, controller (`EmailVerificationController`), and page (`VerifyEmail.vue`) still exist. They cause no harm but create confusion. Remove them in a post-launch cleanup.
+
+---
+
+## cPanel Deployment Guide
+
+This section covers everything that is **different** from a standard cloud deployment when hosting on cPanel shared/VPS hosting.
+
+### 1. Document Root — Critical
+
+cPanel serves files from `public_html/` by default. Laravel's entry point is `public/`. **Never put Laravel files inside `public_html/` directly.**
+
+Correct layout:
+```
+/home/youraccount/
+  library_crm_v2/        ← entire Laravel project goes here (outside public_html)
+    app/
+    routes/
+    public/              ← this is what the web server must serve
+    ...
+  public_html/           ← leave alone, or point the domain here via symlink
+```
+
+In cPanel → **Addon Domains** or **Subdomains**, set the document root to:
+```
+/home/youraccount/library_crm_v2/public
+```
+This is the single most important step — getting it wrong means a blank page or directory listing.
+
+### 2. Database Port Change
+
+The dev database runs on port **3307** (XAMPP default). cPanel MySQL always runs on port **3306**. Update in `.env`:
+```
+DB_PORT=3306
+DB_HOST=localhost        # usually 'localhost' on cPanel, not 127.0.0.1
+DB_DATABASE=youraccount_dbname   # cPanel prefixes DB names with your account username
+DB_USERNAME=youraccount_dbuser
+DB_PASSWORD=
+```
+Create the database and user via **cPanel → MySQL Databases**. The legacy DBs (port 3306, bluedale2_crmbgoc etc.) are local XAMPP databases — leave `DB_LEGACY_*` vars blank; the import command is irrelevant in production.
+
+### 3. Redis — Likely Unavailable
+
+Shared cPanel hosting almost never has Redis. Two options:
+
+**Option A — No Redis (simplest):** Fall back to file/database drivers.
+```
+SESSION_DRIVER=file
+CACHE_STORE=file
+QUEUE_CONNECTION=sync      # or 'database' if queue jobs matter
+```
+Spatie permission cache will use file cache — still fast enough for most loads. If WhatsApp integration is not active, `QUEUE_CONNECTION=sync` is fine.
+
+**Option B — External Redis (if WhatsApp queue is needed):** Use [Upstash](https://upstash.com) free tier Redis. Set `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD` from Upstash dashboard, keep `REDIS_CLIENT=predis`.
+
+### 4. Queue Worker — No Daemons on Shared Hosting
+
+cPanel shared hosting cannot run persistent daemon processes. Use a **cron job** instead:
+
+In **cPanel → Cron Jobs**, add a job every minute:
+```
+* * * * * /usr/local/bin/php /home/youraccount/library_crm_v2/artisan queue:work --stop-when-empty --tries=3 2>&1
+```
+`--stop-when-empty` means the process exits after clearing the queue instead of running forever. On VPS cPanel, use Supervisor instead (same as any Linux server).
+
+### 5. Frontend Build — Do It Locally
+
+cPanel shared hosting has no Node.js. Build assets on your local machine before uploading:
+```bash
+# In your local project with VITE_BASE_URL=/ in .env
+npm run build
+```
+Then upload the generated `public/build/` folder to the server. Only this folder needs to be uploaded — not `node_modules/`.
+
+### 6. Composer Install on Server
+
+Via **cPanel → Terminal** (or SSH):
+```bash
+cd ~/library_crm_v2
+composer install --no-dev --optimize-autoloader
+```
+`--no-dev` skips test/debug packages. `--optimize-autoloader` generates a classmap for faster autoloading in production.
+
+### 7. File Permissions
+
+Laravel needs write access to two directories:
+```bash
+chmod -R 755 storage/
+chmod -R 755 bootstrap/cache/
+```
+If uploads fail, try `775`. Most cPanel hosts run PHP as the owner account so 755 works.
+
+### 8. Storage Symlink
+
+Run once after deploying:
+```bash
+php artisan storage:link
+```
+This creates `public/storage → storage/app/public`. Required for any user-uploaded files.
+
+### 9. `.htaccess` and mod_rewrite
+
+Laravel's `public/.htaccess` handles Vue SPA routing (all 404s → `index.php`). cPanel Apache almost always has `mod_rewrite` enabled. If you get 404 on page refresh, verify `AllowOverride All` is set for your document root — ask the host to confirm.
+
+### 10. Artisan Commands (run via SSH or cPanel Terminal)
+
+```bash
+php artisan key:generate
+php artisan migrate --force
+php artisan db:seed --class=RolesAndPermissionsSeeder
+php artisan config:cache
+php artisan route:cache
+php artisan view:cache
+php artisan permission:cache-reset
+```
+Run in this order. `config:cache` must come after you've set all `.env` values — it bakes the config into a single file.
+
+### 11. cPanel `.env` Setup
+
+You cannot run `cp .env.example .env` via file manager easily. Recommended: create `.env` directly via **cPanel → File Manager → New File**, then paste contents. Make sure the file is in the Laravel root (same level as `composer.json`), not inside `public/`.
+
+### 12. PHP Version
+
+Go to **cPanel → MultiPHP Manager** and set the PHP version for your domain to **8.3** (minimum). The app uses PHP 8.3+ syntax — it will fail on 8.1 or lower.
+
+### 13. SSL
+
+Enable **AutoSSL** in cPanel (free Let's Encrypt). Set `APP_URL=https://your-domain.com` (with https). Sessions use `secure` cookies in production — HTTP-only will break auth.
+
+### cPanel Deployment Order Summary
+
+1. Upload all Laravel files to `~/library_crm_v2/` (outside `public_html`)
+2. Set document root in Addon Domain/Subdomain config to `~/library_crm_v2/public`
+3. Set PHP version to 8.3 in MultiPHP Manager
+4. Create MySQL database + user via cPanel MySQL Databases
+5. Create `.env` with correct `DB_PORT=3306`, `DB_HOST=localhost`, and Redis fallback if needed
+6. SSH in: `composer install --no-dev --optimize-autoloader`
+7. Upload locally-built `public/build/` folder
+8. Run artisan commands (key:generate → migrate → seed → cache commands → storage:link)
+9. Enable AutoSSL
+10. Set up cron job for queue worker (if needed)
+11. First login: set `admin_notification_email` in System Settings
