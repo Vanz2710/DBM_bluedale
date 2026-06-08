@@ -12,7 +12,12 @@
       "Bash(npm run *)",
       "Bash(php artisan *)",
       "Bash(Get-ChildItem -Path resources\\\\views -Recurse -Filter *.blade.php)",
-      "Bash(Select-Object -ExpandProperty FullName)"
+      "Bash(Select-Object -ExpandProperty FullName)",
+      "Bash(Get-ChildItem -Path \"c:\\\\xampp2\\\\htdocs\\\\CRMBGOC_test\" -Recurse)",
+      "Bash(Select-Object FullName)",
+      "Bash(Get-ChildItem -Path \"c:\\\\xampp2\\\\htdocs\\\\CRMBGOC_test\\\\app\\\\Models\" -File)",
+      "Bash(Select-Object -ExpandProperty Name)",
+      "Bash(Sort-Object)"
     ]
   }
 }
