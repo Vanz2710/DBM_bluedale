@@ -19,8 +19,6 @@ return new class extends Migration
             $table->string('posting_staff_initials', 10)->nullable();
             $table->string('report_status')->default('pending');
             $table->timestamps();
-
-            $table->index(['month', 'company_name']);
         });
     }
 
