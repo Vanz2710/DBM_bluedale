@@ -1,3 +1,17 @@
+<IfModule mod_mime.c>
+    AddType application/javascript .js .mjs
+    AddType text/css .css
+</IfModule>
+
+<IfModule mod_headers.c>
+    <FilesMatch "\.js$">
+        Header always set Content-Type "application/javascript; charset=utf-8"
+    </FilesMatch>
+    <FilesMatch "\.mjs$">
+        Header always set Content-Type "application/javascript; charset=utf-8"
+    </FilesMatch>
+</IfModule>
+
 <IfModule mod_rewrite.c>
     <IfModule mod_negotiation.c>
         Options -MultiViews -Indexes
@@ -17,6 +31,9 @@
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteCond %{REQUEST_URI} (.+)/$
     RewriteRule ^ %1 [L,R=301]
+
+    # Force JS/MJS files through Laravel for correct MIME type (InfinityFree serves them as text/html)
+    RewriteRule ^build/assets/.+\.(js|mjs)$ index.php [L]
 
     # Send Requests To Front Controller...
     RewriteCond %{REQUEST_FILENAME} !-d
