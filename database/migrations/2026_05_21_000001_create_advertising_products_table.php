@@ -15,8 +15,6 @@ return new class extends Migration
             $table->string('type')->default('A1');
             $table->string('product_type');
             $table->timestamps();
-
-            $table->index(['product_type', 'site_name']);
         });
     }
 
