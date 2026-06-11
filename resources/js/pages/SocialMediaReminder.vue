@@ -413,17 +413,17 @@ thead th {
   background: #fffb00; color: #111827; padding: 9px 8px; font-size: 11px; font-weight: 900;
   text-transform: uppercase; text-align: center; white-space: nowrap;
 }
-tbody td { padding: 0; height: 42px; color: #111827; background: var(--surface); vertical-align: middle; }
+tbody td { padding: 0; height: 42px; color: var(--text-1); background: var(--surface); vertical-align: middle; }
 .no-col { width: 52px; text-align: center; font-weight: 800; }
 .action-col { width: 86px; text-align: center; }
 
 .plain-input {
   width: 100%; min-height: 40px; border: none; padding: 0 8px; background: transparent;
-  font-size: 12px; color: #111827; outline: none;
+  font-size: 12px; color: var(--text-1); outline: none;
 }
 .plain-select {
   width: 100%; min-height: 40px; border: none; padding: 0 8px; background: transparent;
-  font-size: 12px; color: #111827; outline: none;
+  font-size: 12px; color: var(--text-1); outline: none;
 }
 .client-input { min-width: 210px; font-weight: 700; color: #075985; text-decoration: underline; }
 .package-input { min-width: 230px; text-align: center; }

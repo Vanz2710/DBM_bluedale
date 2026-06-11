@@ -726,7 +726,7 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   gap: 20px;
-  padding: 28px 28px 48px;
+  padding: 28px 32px 48px;
   max-width: 1500px;
   margin: 0 auto;
 }
@@ -740,7 +740,7 @@ onUnmounted(() => {
   flex-wrap: wrap;
 }
 .ca-header-left h1 {
-  font-size: 26px;
+  font-size: 28px;
   font-weight: 800;
   color: var(--text-1);
   margin: 0 0 4px;
@@ -786,7 +786,7 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  background: var(--bg-2, #fff);
+  background: var(--surface);
   border: 1px solid var(--border, #e2e8f0);
   border-radius: 12px;
   box-shadow: 0 8px 32px rgba(0,0,0,0.12);
@@ -857,7 +857,7 @@ onUnmounted(() => {
 
 /* ── Filter Bar ──────────────────────────────────────────────────────────── */
 .ca-filter-bar {
-  background: var(--bg-2, #fff);
+  background: var(--surface);
   border: 1px solid var(--border, #e2e8f0);
   border-radius: 12px;
   padding: 14px 18px;
@@ -909,7 +909,7 @@ onUnmounted(() => {
   gap: 18px;
 }
 .ca-kpi {
-  background: var(--bg-2, #fff);
+  background: var(--surface);
   border: 1px solid var(--border, #e2e8f0);
   border-radius: 12px;
   padding: 20px;
@@ -957,7 +957,7 @@ onUnmounted(() => {
 
 /* ── Cards ───────────────────────────────────────────────────────────────── */
 .ca-card {
-  background: var(--bg-2, #fff);
+  background: var(--surface);
   border: 1px solid var(--border, #e2e8f0);
   border-radius: 12px;
   padding: 22px;
@@ -1133,7 +1133,7 @@ onUnmounted(() => {
   font-size: 12.5px;
   font-weight: 600;
   color: var(--text-1);
-  background: var(--bg-2, #fff);
+  background: var(--surface);
   cursor: pointer;
   outline: none;
   transition: border-color 0.12s;

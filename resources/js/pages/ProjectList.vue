@@ -245,7 +245,7 @@ onMounted(load);
 </script>
 
 <style scoped>
-.page { padding: 24px 28px; }
+.page { padding: 28px 32px; }
 .page-banner {
   background: linear-gradient(135deg, #1a2f4a, #0ea5e9);
   border-radius: 10px; padding: 20px 28px; margin-bottom: 20px; color: white;
@@ -296,9 +296,9 @@ thead th {
   border-bottom: 2px solid var(--border); text-align: left; white-space: nowrap;
 }
 thead th.sortable { cursor: pointer; user-select: none; }
-thead th.sortable:hover { color: #0ea5e9; background: #f0f9ff; }
+thead th.sortable:hover { color: #0ea5e9; background: var(--surface-2); }
 .sort-icon { font-size: 11px; }
-tbody td { padding: 10px 12px; border-bottom: 1px solid var(--border); color: #374151; vertical-align: middle; }
+tbody td { padding: 10px 12px; border-bottom: 1px solid var(--border); color: var(--text-1); vertical-align: middle; }
 tbody tr:last-child td { border-bottom: none; }
 tbody tr:hover { background: var(--app-bg); }
 
@@ -344,7 +344,7 @@ tbody tr:hover { background: var(--app-bg); }
 .modal-company { font-size: 12px; color: #0ea5e9; font-weight: 600; margin-bottom: 12px !important; }
 .remark-full {
   background: var(--app-bg); border: 1px solid var(--border); border-radius: 8px;
-  padding: 14px 16px; font-size: 13px; color: #374151; white-space: pre-wrap;
+  padding: 14px 16px; font-size: 13px; color: var(--text-1); white-space: pre-wrap;
   max-height: 300px; overflow-y: auto; margin-bottom: 16px;
 }
 .modal-btns { display: flex; gap: 10px; justify-content: flex-end; }

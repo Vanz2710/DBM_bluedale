@@ -92,61 +92,64 @@ async function save() {
 <style scoped>
 .page { padding: 28px 32px; max-width: 720px; }
 .page-header { margin-bottom: 28px; }
-.page-title  { font-size: 22px; font-weight: 700; color: #111827; margin: 0 0 4px; }
-.page-subtitle { font-size: 14px; color: #6b7280; margin: 0; }
+.page-title  { font-size: 28px; font-weight: 800; color: var(--text-1); letter-spacing: -0.5px; margin: 0 0 4px; }
+.page-subtitle { font-size: 13.5px; color: var(--text-3); margin: 0; }
 
-.msg-box    { padding: 12px 16px; border-radius: 8px; font-size: 14px; margin-bottom: 20px; }
-.success-box { background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; }
-.error-box   { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
+.msg-box    { padding: 12px 16px; border-radius: var(--radius-sm); font-size: 14px; margin-bottom: 20px; }
+.success-box { background: var(--success-soft); color: var(--success); border: 1px solid var(--success-soft); }
+.error-box   { background: var(--danger-soft); color: var(--danger); border: 1px solid var(--danger-soft); }
 
 .loading-wrap { display: flex; justify-content: center; padding: 60px 0; }
 
 .settings-card {
-  background: #fff;
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
   overflow: hidden;
 }
 
 .card-section { padding: 28px 28px 20px; }
 
-.section-title { font-size: 15px; font-weight: 700; color: #111827; margin: 0 0 6px; }
-.section-desc  { font-size: 13px; color: #6b7280; margin: 0 0 24px; }
+.section-title { font-size: 15px; font-weight: 700; color: var(--text-1); margin: 0 0 6px; }
+.section-desc  { font-size: 13px; color: var(--text-2); margin: 0 0 24px; }
 
 .field-group  { display: flex; flex-direction: column; gap: 6px; }
-.field-label  { font-size: 13px; font-weight: 600; color: #374151; }
-.field-desc   { font-size: 12px; color: #9ca3af; margin: 0; }
+.field-label  { font-size: 13px; font-weight: 600; color: var(--text-2); }
+.field-desc   { font-size: 12px; color: var(--text-3); margin: 0; }
 .field-input  {
   padding: 10px 14px;
-  border: 1px solid #d1d5db;
-  border-radius: 8px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
   font-size: 14px;
-  color: #111827;
+  color: var(--text-1);
+  background: var(--surface);
   outline: none;
-  transition: border-color 0.15s;
+  transition: border-color 0.15s, box-shadow 0.15s;
   max-width: 420px;
 }
-.field-input:focus { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.12); }
+.field-input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); }
 
 .card-footer {
   padding: 16px 28px;
-  background: #f9fafb;
-  border-top: 1px solid #e5e7eb;
+  background: var(--surface-2);
+  border-top: 1px solid var(--border);
   display: flex;
   justify-content: flex-end;
 }
 
 .btn-save {
   padding: 9px 22px;
-  background: #4f46e5;
-  color: #fff;
+  background: var(--primary);
+  color: var(--primary-on);
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
+  box-shadow: 0 6px 18px -6px var(--focus-ring);
   transition: background 0.15s;
 }
-.btn-save:hover:not(:disabled) { background: #4338ca; }
+.btn-save:hover:not(:disabled) { background: var(--primary-hover); }
 .btn-save:disabled { opacity: 0.5; cursor: not-allowed; }
 </style>

@@ -516,13 +516,13 @@ onMounted(() => { load(); loadSummary(); loadUsers(); });
 }
 .fc {
   height: 32px; padding: 0 10px; border: 1.5px solid var(--border);
-  border-radius: 6px; font-size: 12px; outline: none; background: var(--surface); color: #374151;
+  border-radius: 6px; font-size: 12px; outline: none; background: var(--surface); color: var(--text-1);
 }
 .fc:focus { border-color: #0d9488; }
 .fc-date  { width: 130px; }
 .fc-search { flex: 1; min-width: 140px; }
 .date-range { display: flex; align-items: center; gap: 4px; }
-.date-sep { font-size: 11px; color: #94a3b8; }
+.date-sep { font-size: 11px; color: var(--text-3); }
 .fb {
   height: 32px; padding: 0 14px; border: none; border-radius: 6px;
   font-size: 12px; font-weight: 700; cursor: pointer; white-space: nowrap;
@@ -645,11 +645,11 @@ onMounted(() => { load(); loadSummary(); loadUsers(); });
 /* Drag grip */
 .dc-grip {
   padding: 9px 2px 9px 6px;
-  font-size: 11px; color: #cbd5e1; letter-spacing: -1px;
+  font-size: 11px; color: var(--text-3); letter-spacing: -1px;
   cursor: grab; flex-shrink: 0; line-height: 1;
   transition: color 0.12s;
 }
-.deal-card:hover .dc-grip { color: #94a3b8; }
+.deal-card:hover .dc-grip { color: var(--text-3); }
 
 /* Card body */
 .dc-body { padding: 9px 10px 9px 0; flex: 1; min-width: 0; }
@@ -659,7 +659,7 @@ onMounted(() => { load(); loadSummary(); loadUsers(); });
 .dc-chips   { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 6px; }
 .dc-val  { font-size: 10px; font-weight: 700; color: #0d9488; background: #f0fdf4; padding: 1px 6px; border-radius: 8px; }
 .dc-prob { font-size: 10px; color: var(--text-2); background: var(--app-bg); padding: 1px 6px; border-radius: 8px; }
-.dc-date { font-size: 10px; color: #94a3b8; background: #f8fafc; padding: 1px 6px; border-radius: 8px; }
+.dc-date { font-size: 10px; color: var(--text-3); background: #f8fafc; padding: 1px 6px; border-radius: 8px; }
 .dc-actions { display: flex; gap: 5px; }
 .dc-btn {
   flex: 1; height: 22px; border-radius: 5px; font-size: 10px; font-weight: 700;
@@ -685,7 +685,7 @@ onMounted(() => { load(); loadSummary(); loadUsers(); });
 .pld-won         { background: #22c55e; }
 .pld-lost        { background: #ef4444; }
 .pl-name  { font-size: 10px; color: var(--text-2); white-space: nowrap; }
-.pl-arrow { font-size: 11px; color: #cbd5e1; }
+.pl-arrow { font-size: 11px; color: var(--text-3); }
 .pl-hint  { font-size: 10px; color: var(--text-3); margin-left: 8px; font-style: italic; }
 
 /* ── List table ── */
@@ -710,7 +710,7 @@ thead th {
 }
 thead th.sortable { cursor: pointer; user-select: none; }
 thead th.sortable:hover { color: #0d9488; background: #f0fdfa; }
-tbody td { padding: 8px 10px; border-bottom: 1px solid var(--border); color: #374151; vertical-align: middle; }
+tbody td { padding: 8px 10px; border-bottom: 1px solid var(--border); color: var(--text-1); vertical-align: middle; }
 tbody tr:last-child td { border-bottom: none; }
 tbody tr:hover { background: var(--app-bg); }
 .td-title { max-width: 180px; font-weight: 600; color: var(--text-1); }

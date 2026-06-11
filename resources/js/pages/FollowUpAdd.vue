@@ -140,7 +140,7 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.page { padding: 24px 28px; max-width: 760px; }
+.page { padding: 28px 32px; max-width: 760px; }
 .page-banner {
   background: linear-gradient(135deg, #1a2f4a, #e11d48);
   border-radius: 10px; padding: 20px 28px; margin-bottom: 20px; color: white;
@@ -169,7 +169,7 @@ onMounted(async () => {
 .btn { height: 42px; padding: 0 20px; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; border: none; text-decoration: none; display: inline-flex; align-items: center; }
 .btn-cancel { background: var(--app-bg); color: var(--text-2); }
 .btn-save   { flex: 1; background: #e11d48; color: white; justify-content: center; }
-.btn-save:disabled { background: #94a3b8; cursor: not-allowed; }
+.btn-save:disabled { background: var(--text-3); cursor: not-allowed; }
 
 @media (max-width: 768px) {
   .page { padding: 16px 12px; }
