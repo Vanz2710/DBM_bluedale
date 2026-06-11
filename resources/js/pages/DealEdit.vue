@@ -237,7 +237,7 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.page { padding: 24px 28px; max-width: 760px; }
+.page { padding: 28px 32px; max-width: 760px; }
 .page-banner {
   background: linear-gradient(135deg, #134e4a, #0d9488);
   border-radius: 10px; padding: 20px 28px; margin-bottom: 20px; color: white;
@@ -276,7 +276,7 @@ onMounted(async () => {
   border: 1.5px solid var(--border); border-radius: 8px; z-index: 100;
   max-height: 220px; overflow-y: auto; box-shadow: 0 4px 12px rgba(0,0,0,0.1);
 }
-.dropdown-item { padding: 9px 14px; font-size: 13px; cursor: pointer; color: #374151; }
+.dropdown-item { padding: 9px 14px; font-size: 13px; cursor: pointer; color: var(--text-1); }
 .dropdown-item:hover { background: #f0fdf4; color: #0d9488; }
 .selected-contact { display: block; font-size: 12px; color: #10b981; font-weight: 600; margin-top: 4px; }
 
@@ -287,7 +287,7 @@ onMounted(async () => {
 .btn { height: 42px; padding: 0 20px; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; border: none; text-decoration: none; display: inline-flex; align-items: center; }
 .btn-cancel { background: var(--app-bg); color: var(--text-2); }
 .btn-save   { flex: 1; background: #0d9488; color: white; justify-content: center; }
-.btn-save:disabled { background: #94a3b8; cursor: not-allowed; }
+.btn-save:disabled { background: var(--text-3); cursor: not-allowed; }
 
 @media (max-width: 768px) {
   .page { padding: 16px 12px; }

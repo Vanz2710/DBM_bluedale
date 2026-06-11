@@ -760,7 +760,7 @@ onMounted(() => switchTab('pending'));
 .form-grid   { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 20px; padding: 20px 24px; }
 .form-grid-3 { grid-template-columns: 1fr 1fr 1fr; }
 .form-field  { display: flex; flex-direction: column; gap: 5px; }
-.form-field label { font-size: 12px; font-weight: 600; color: #374151; }
+.form-field label { font-size: 12px; font-weight: 600; color: var(--text-2); }
 .form-field input, .form-field select {
   height: 38px; padding: 0 12px;
   border: 1.5px solid var(--border); border-radius: 8px;
@@ -796,10 +796,10 @@ onMounted(() => switchTab('pending'));
 /* ── Table ── */
 table { width: 100%; border-collapse: collapse; }
 thead th { background: var(--app-bg); color: var(--text-2); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; padding: 11px 16px; border-bottom: 1px solid var(--border); text-align: left; }
-tbody td { padding: 12px 16px; border-bottom: 1px solid var(--border); font-size: 13px; color: #374151; vertical-align: middle; }
+tbody td { padding: 12px 16px; border-bottom: 1px solid var(--border); font-size: 13px; color: var(--text-1); vertical-align: middle; }
 tbody tr:last-child td { border-bottom: none; }
 tbody tr:hover { background: var(--app-bg); }
-.num { color: #cbd5e1; font-size: 12px; width: 40px; }
+.num { color: var(--text-3); font-size: 12px; width: 40px; }
 .muted { color: var(--text-3); }
 .empty-state { text-align: center; padding: 40px; color: var(--text-3); font-size: 13px; }
 .role-name { font-weight: 600; color: var(--text-1); }
@@ -855,7 +855,7 @@ tbody tr:hover { background: var(--app-bg); }
 .check-row { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 8px; cursor: pointer; transition: background 0.1s; }
 .check-row:hover { background: var(--app-bg); }
 .check-row input { accent-color: var(--primary); width: 16px; height: 16px; flex-shrink: 0; }
-.check-label { font-size: 13px; color: #374151; }
+.check-label { font-size: 13px; color: var(--text-2); }
 .modal-foot { display: flex; align-items: center; gap: 8px; padding: 16px 24px; border-top: 1px solid var(--border); }
 .selected-count { font-size: 12px; color: var(--text-3); flex: 1; }
 .modal-foot .btn { height: 36px; }

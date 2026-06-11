@@ -124,7 +124,7 @@ onMounted(loadLookups);
 </script>
 
 <style scoped>
-.page { padding: 24px 28px; max-width: 680px; }
+.page { padding: 28px 32px; max-width: 680px; }
 .page-banner {
   background: linear-gradient(135deg, #1a2f4a, #7c3aed);
   border-radius: 10px; padding: 20px 28px; margin-bottom: 20px; color: white;
@@ -139,7 +139,7 @@ onMounted(loadLookups);
   width: 100%; height: 40px; padding: 0 14px; border: 1.5px solid var(--border);
   border-radius: 8px; font-size: 13px; color: var(--text-1); outline: none; background: var(--surface);
 }
-.form-group select:focus { border-color: #7c3aed; }
+.form-group select:focus { border-color: var(--primary); }
 
 .loading-msg { text-align: center; padding: 32px; color: var(--text-3); }
 .empty-hint { text-align: center; padding: 32px; color: var(--text-3); font-size: 14px; }
@@ -151,20 +151,20 @@ onMounted(loadLookups);
   border-bottom: 2px solid var(--border); text-align: left;
 }
 .col-target { width: 140px; text-align: center; }
-.targets-section tbody td { padding: 10px 14px; border-bottom: 1px solid var(--border); font-size: 13px; color: #374151; }
+.targets-section tbody td { padding: 10px 14px; border-bottom: 1px solid var(--border); font-size: 13px; color: var(--text-1); }
 .targets-section tbody tr:last-child td { border-bottom: none; }
-.targets-section tbody tr:hover { background: #faf5ff; }
+.targets-section tbody tr:hover { background: var(--primary-soft); }
 
 .target-input {
   width: 90px; height: 36px; padding: 0 10px; border: 1.5px solid var(--border);
   border-radius: 7px; font-size: 13px; text-align: center; outline: none;
 }
-.target-input:focus { border-color: #7c3aed; box-shadow: 0 0 0 3px rgba(124,58,237,0.1); }
+.target-input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); }
 
 .btn-row { display: flex; justify-content: flex-end; }
 .btn { height: 42px; padding: 0 24px; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; border: none; }
-.btn-save { background: #7c3aed; color: white; }
-.btn-save:disabled { background: #94a3b8; cursor: not-allowed; }
+.btn-save { background: var(--primary); color: var(--primary-on); }
+.btn-save:disabled { background: var(--text-3); cursor: not-allowed; }
 
 .success-box { background: #dcfce7; color: #166534; border-radius: 8px; padding: 10px 14px; font-size: 13px; margin-bottom: 14px; font-weight: 600; }
 .error-box { background: #fee2e2; color: #991b1b; border-radius: 8px; padding: 10px 14px; font-size: 13px; margin-bottom: 14px; }

@@ -331,26 +331,26 @@ async function changePassword() {
 </script>
 
 <style scoped>
-/* ── Design tokens (from Stitch) ─────────────────────────── */
+/* ── Local token aliases mapped onto the global theme ────── */
+/* These custom names are kept so the rest of the file keeps working,
+   but they now reference the global :root / [data-theme=dark] tokens
+   so the page themes correctly and is dark-mode safe. */
 .page {
-  --primary:            #630ed4;
-  --primary-hover:      #5a00c6;
-  --primary-fixed:      #eaddff;
-  --secondary:          #006591;
-  --tertiary:           #005c25;
-  --surface:            #f8f9ff;
-  --surface-bright:     #f8f9ff;
-  --surface-low:        #eff4ff;
-  --surface-lowest:     #ffffff;
-  --on-surface:         #0b1c30;
-  --on-surface-variant: #4a4455;
-  --outline-variant:    #ccc3d8;
-  --error:              #ba1a1a;
-  --error-container:    #ffdad6;
+  --primary-fixed:      var(--primary-soft);
+  --secondary:          var(--info);
+  --tertiary:           var(--success);
+  --surface-bright:     var(--surface);
+  --surface-low:        var(--surface-2);
+  --surface-lowest:     var(--surface);
+  --on-surface:         var(--text-1);
+  --on-surface-variant: var(--text-2);
+  --outline-variant:    var(--border);
+  --error:              var(--danger);
+  --error-container:    var(--danger-soft);
 
-  padding: 28px;
+  padding: 28px 32px;
   max-width: 1200px;
-  background: var(--surface);
+  background: var(--app-bg);
   min-height: 100%;
   box-sizing: border-box;
 }
@@ -382,18 +382,18 @@ async function changePassword() {
 /* ── Cards ───────────────────────────────────────────────── */
 .card {
   background: var(--surface-lowest);
-  border-radius: 12px;
-  border: 1px solid rgba(204, 195, 216, 0.2);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-soft);
   padding: 24px;
   margin-bottom: 20px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  box-shadow: var(--shadow-sm);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
   position: relative;
   overflow: hidden;
 }
 .card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  box-shadow: var(--shadow-md);
 }
 .card--accent::before {
   content: '';
@@ -401,7 +401,7 @@ async function changePassword() {
   top: 0; left: 0; right: 0;
   height: 3px;
   background: linear-gradient(to right, var(--primary), #39b8fd);
-  border-radius: 12px 12px 0 0;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
 }
 
 /* ── Card heading ────────────────────────────────────────── */
@@ -466,14 +466,14 @@ async function changePassword() {
   align-items: center;
   gap: 8px;
   padding: 10px 14px;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   font-size: 13px;
   font-weight: 500;
   margin-bottom: 16px;
 }
 .alert svg { width: 16px; height: 16px; flex-shrink: 0; }
-.alert-error   { background: var(--error-container); color: var(--error); border: 1px solid rgba(186,26,26,0.2); }
-.alert-success { background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; }
+.alert-error   { background: var(--danger-soft); color: var(--danger); border: 1px solid var(--danger-soft); }
+.alert-success { background: var(--success-soft); color: var(--success); border: 1px solid var(--success-soft); }
 
 /* ── Fields ──────────────────────────────────────────────── */
 .fields-grid {
@@ -498,7 +498,7 @@ async function changePassword() {
 .pill-input {
   width: 100%;
   border-radius: 9999px;
-  border: 1.5px solid rgba(204, 195, 216, 0.5);
+  border: 1.5px solid var(--border);
   background: var(--surface-bright);
   padding: 8px 16px;
   font-size: 13.5px;
@@ -508,13 +508,13 @@ async function changePassword() {
   transition: border-color 0.15s, box-shadow 0.15s;
   box-sizing: border-box;
 }
-.pill-input::placeholder { color: #b0a8bb; }
+.pill-input::placeholder { color: var(--text-3); }
 .pill-input:hover:not(:focus):not(:disabled) {
-  border-color: rgba(99, 14, 212, 0.4);
+  border-color: var(--primary);
 }
 .pill-input:focus {
   border-color: var(--primary);
-  box-shadow: 0 0 0 1px var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-soft);
 }
 .pill-input--disabled {
   background: var(--surface-low);
@@ -557,12 +557,12 @@ async function changePassword() {
   font-size: 13.5px;
   font-weight: 700;
   cursor: pointer;
-  box-shadow: 0 4px 14px 0 rgba(124, 58, 237, 0.39);
+  box-shadow: 0 4px 14px 0 var(--focus-ring);
   transition: background 0.15s, box-shadow 0.15s, opacity 0.15s;
 }
 .btn-primary:hover:not(:disabled) {
   background: var(--primary-hover);
-  box-shadow: 0 6px 20px rgba(124, 58, 237, 0.23);
+  box-shadow: 0 6px 20px -4px var(--focus-ring);
 }
 .btn-primary:disabled { opacity: 0.55; cursor: not-allowed; }
 
@@ -573,7 +573,7 @@ async function changePassword() {
   padding: 7px 16px;
   background: transparent;
   color: var(--primary);
-  border: 1.5px solid rgba(99, 14, 212, 0.45);
+  border: 1.5px solid var(--primary-soft);
   border-radius: 9999px;
   font-size: 13px;
   font-weight: 600;
@@ -619,7 +619,7 @@ async function changePassword() {
 }
 .pw-divider {
   height: 1px;
-  background: rgba(204, 195, 216, 0.3);
+  background: var(--border);
   margin: 16px 0;
 }
 .pw-form-wrap { overflow: hidden; }
@@ -643,7 +643,7 @@ async function changePassword() {
   justify-content: space-between;
   gap: 12px;
   padding: 11px 0;
-  border-bottom: 1px solid rgba(204, 195, 216, 0.2);
+  border-bottom: 1px solid var(--border-soft);
 }
 .detail-row.no-border { border-bottom: none; }
 .detail-label {

@@ -191,7 +191,7 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.page { max-width: 900px; margin: 0 auto; padding: 24px 28px; }
+.page { max-width: 900px; margin: 0 auto; padding: 28px 32px; }
 .page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; }
 .page-title { font-size: 20px; font-weight: 700; color: var(--text-1); margin: 0 0 4px; }
 .page-sub { font-size: 13px; color: var(--text-2); margin: 0; }
@@ -228,7 +228,7 @@ onMounted(async () => {
 .form-input { width: 100%; padding: 8px 12px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 13px; color: var(--text-1); box-sizing: border-box; }
 .form-input:focus { outline: none; border-color: #3b82f6; }
 .events-list { display: flex; flex-direction: column; gap: 8px; }
-.event-check { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #374151; cursor: pointer; }
+.event-check { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-1); cursor: pointer; }
 .event-check input[type="checkbox"] { width: 15px; height: 15px; cursor: pointer; }
 .event-check input[type="radio"] { width: 15px; height: 15px; cursor: pointer; }
 .format-options { display: flex; flex-direction: column; gap: 10px; }
