@@ -79,6 +79,21 @@ return [
             'engine'    => null,
         ],
 
+        'old_crm' => [
+            'driver'    => 'mysql',
+            'host'      => env('DB_OLD_CRM_HOST', '127.0.0.1'),
+            'port'      => env('DB_OLD_CRM_PORT', '3306'),
+            'database'  => env('DB_OLD_CRM_DATABASE', 'bluedale_crmbgoc'),
+            'username'  => env('DB_OLD_CRM_USERNAME', 'root'),
+            'password'  => env('DB_OLD_CRM_PASSWORD', ''),
+            'unix_socket' => env('DB_SOCKET', ''),
+            'charset'   => 'utf8mb4',
+            'collation' => 'utf8mb4_unicode_ci',
+            'prefix'    => '',
+            'strict'    => false,
+            'engine'    => null,
+        ],
+
         'legacy' => [
             'driver' => env('DB_LEGACY_CONNECTION', 'mysql'),
             'host' => env('DB_LEGACY_HOST', '127.0.0.1'),

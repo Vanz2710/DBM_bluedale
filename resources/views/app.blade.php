@@ -15,7 +15,7 @@
         <link rel="stylesheet" href="{{ asset('build/' . $cssFile) }}">
         @endforeach
         @if($jsFile)
-        <script src="{{ asset('build/' . $jsFile) }}"></script>
+        <script defer src="{{ asset('build/' . $jsFile) }}"></script>
         @endif
     @else
         @vite(['resources/css/app.css', 'resources/js/app.js'])
