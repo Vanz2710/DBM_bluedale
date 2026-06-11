@@ -16,7 +16,9 @@
       "PowerShell(Select-String -Path \"c:\\\\xampp\\\\htdocs\\\\library_crm_v2\\\\public\\\\build\\\\assets\\\\app-BHg9g60H.js\" -Pattern \"library_crm_v2|BASE_URL|createWebHistory\" | Select-Object -First 5 | ForEach-Object { $_.Line.Substring\\(0, [Math]::Min\\(200, $_.Line.Length\\)\\) })",
       "PowerShell($content = Get-Content \"c:\\\\xampp\\\\htdocs\\\\library_crm_v2\\\\public\\\\build\\\\assets\\\\app-BHg9g60H.js\" -Raw; if \\($content -match 'library_crm_v2'\\) { \"FOUND old base in app.js\" } else { \"CLEAN - no old base path in app.js\" }; if \\($content -match 'createWebHistory\\\\\\(\"\\([^\"]+\\)\"'\\) { \"Router base: $\\($Matches[1]\\)\" })",
       "PowerShell(Add-Type -AssemblyName System.IO.Compression.FileSystem; $zip = [System.IO.Compression.ZipFile]::OpenRead\\(\"c:\\\\xampp\\\\htdocs\\\\library_crm_v2\\\\public\\\\build_new.zip\"\\); $zip.Entries | Select-Object -First 10 FullName; $zip.Dispose\\(\\))",
-      "PowerShell(ls \"c:\\\\xampp\\\\htdocs\\\\library_crm_v2\\\\public\\\\build\\\\assets\" | Where-Object { $_.Extension -eq '.css' } | Select-Object Name, Length)"
+      "PowerShell(ls \"c:\\\\xampp\\\\htdocs\\\\library_crm_v2\\\\public\\\\build\\\\assets\" | Where-Object { $_.Extension -eq '.css' } | Select-Object Name, Length)",
+      "Bash(Get-ChildItem -Path \"c:\\\\xampp\\\\htdocs\\\\library_crm_v2\" -MaxDepth 1 -Filter \"*.md\")",
+      "Bash(Select-Object Name, LastWriteTime)"
     ]
   }
 }
