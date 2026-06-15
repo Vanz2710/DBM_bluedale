@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="page">
     <div class="page-head">
       <div class="page-head-left">
@@ -82,11 +82,11 @@
               <th>Product</th>
               <th>Type</th>
               <th>Snapshot</th>
-              <th class="sortable" @click="changeSort('amount')">Amount <span class="sort-icon">{{ sortIcon('amount') }}</span></th>
-              <th class="sortable" @click="changeSort('forecast_date')">Forecast Date <span class="sort-icon">{{ sortIcon('forecast_date') }}</span></th>
+              <th class="sortable" @click="changeSort('amount')">Amount <span class="sort-icon" v-html="sortIcon('amount')"></span></th>
+              <th class="sortable" @click="changeSort('forecast_date')">Forecast Date <span class="sort-icon" v-html="sortIcon('forecast_date')"></span></th>
               <th>Result</th>
               <th>Assigned</th>
-              <th class="sortable" @click="changeSort('forecast_updatedate')">Updated <span class="sort-icon">{{ sortIcon('forecast_updatedate') }}</span></th>
+              <th class="sortable" @click="changeSort('forecast_updatedate')">Updated <span class="sort-icon" v-html="sortIcon('forecast_updatedate')"></span></th>
               <th>Actions</th>
             </tr>
           </thead>
@@ -235,8 +235,10 @@ function fmtDate(value) {
 }
 
 function sortIcon(field) {
-  if (sortField.value !== field) return '';
-  return sortDir.value === 'asc' ? '↑' : '↓';
+  if (sortField.value !== field) return '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="opacity:0.4"><line x1="12" y1="20" x2="12" y2="4"/><polyline points="5 11 12 4 19 11"/><polyline points="19 13 12 20 5 13"/></svg>';
+  return sortDir.value === 'asc'
+    ? '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>'
+    : '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>';
 }
 
 function changeSort(field) {
@@ -312,7 +314,7 @@ onMounted(async () => {
   background: var(--primary); color: var(--primary-on);
   border: none; border-radius: 999px; padding: 11px 20px;
   font-size: 13px; font-weight: 700; cursor: pointer; white-space: nowrap;
-  box-shadow: 0 8px 22px -8px rgba(124,58,237,0.6);
+  box-shadow: 0 8px 22px -8px rgba(29,78,216,0.6);
   transition: background 0.15s, transform 0.06s;
 }
 .btn-primary-pill:hover { background: var(--primary-hover); }
@@ -352,7 +354,7 @@ onMounted(async () => {
 }
 .btn { height: 38px; padding: 0 18px; border: none; border-radius: 999px; cursor: pointer; font-size: 13px; font-weight: 600; transition: background 0.15s, transform 0.06s; }
 .btn:active { transform: translateY(1px); }
-.btn-primary { background: var(--primary); color: var(--primary-on); box-shadow: 0 6px 18px -6px rgba(124,58,237,0.55); }
+.btn-primary { background: var(--primary); color: var(--primary-on); box-shadow: 0 6px 18px -6px rgba(29,78,216,0.55); }
 .btn-primary:hover { background: var(--primary-hover); }
 .btn-clear { background: var(--surface); color: var(--text-2); border: 1px solid var(--border); }
 .btn-clear:hover { background: var(--danger-soft); color: var(--danger); border-color: var(--danger-soft); }

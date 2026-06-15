@@ -1,32 +1,40 @@
-<template>
+﻿<template>
   <div class="dashboard">
-    <!-- Header -->
-    <div class="dash-header">
-      <div class="dash-header-left">
-        <h1 class="dash-title">Dashboard</h1>
-        <span v-if="editMode" class="edit-hint">
-          <Move :size="12" />
-          Drag &amp; resize to customise
-        </span>
-      </div>
-      <div class="dash-header-actions">
-        <button
-          class="btn btn-ghost"
-          :class="{ 'btn-ghost--active': editMode }"
-          @click="editMode = !editMode"
-          :title="editMode ? 'Exit edit mode' : 'Rearrange widgets'"
-        >
-          <LayoutGrid :size="14" />
-          {{ editMode ? 'Done' : 'Edit Layout' }}
-        </button>
-        <span
-          v-if="saveStatus !== 'idle'"
-          class="save-status"
-          :class="`save-status--${saveStatus}`"
-        >{{ saveStatus === 'saved' ? 'Saved' : saveStatus === 'error' ? 'Save failed' : 'Saving…' }}</span>
-        <button class="btn btn-primary" @click="showPicker = true">
-          <Plus :size="14" /> Add Widget
-        </button>
+    <!-- Welcome hero -->
+    <div class="dash-hero" data-tour="dash-hero">
+      <div class="hero-glow" aria-hidden="true"></div>
+      <div class="hero-inner">
+        <div class="hero-text">
+          <span class="hero-eyebrow">{{ todayLabel }}</span>
+          <h1 class="hero-greeting">
+            {{ greeting }}<template v-if="firstName">, {{ firstName }}</template>
+          </h1>
+          <p class="hero-sub">Here's your workspace at a glance — drag, resize and add widgets to make it your own.</p>
+        </div>
+        <div class="hero-actions">
+          <span v-if="editMode" class="edit-hint">
+            <Move :size="12" />
+            Drag &amp; resize to customise
+          </span>
+          <span
+            v-if="saveStatus !== 'idle'"
+            class="save-status"
+            :class="`save-status--${saveStatus}`"
+          >{{ saveStatus === 'saved' ? 'Saved' : saveStatus === 'error' ? 'Save failed' : 'Saving…' }}</span>
+          <button
+            class="hbtn hbtn-ghost"
+            :class="{ 'hbtn-ghost--active': editMode }"
+            @click="editMode = !editMode"
+            :title="editMode ? 'Exit edit mode' : 'Rearrange widgets'"
+            data-tour="dash-edit-layout"
+          >
+            <LayoutGrid :size="14" />
+            {{ editMode ? 'Done' : 'Edit Layout' }}
+          </button>
+          <button class="hbtn hbtn-solid" @click="showPicker = true" data-tour="dash-add-widget">
+            <Plus :size="14" /> Add Widget
+          </button>
+        </div>
       </div>
     </div>
 
@@ -121,35 +129,24 @@
 </template>
 
 <script setup>
-import { ref, watch, onMounted, onUnmounted, nextTick } from 'vue';
+import { ref, watch, onMounted, onUnmounted, nextTick, defineAsyncComponent } from 'vue';
 import { GridLayout, GridItem } from 'grid-layout-plus';
 import { Plus, X, LayoutGrid, Move, TrendingUp, Users, BarChart2, ClipboardList, Target, CalendarCheck, Briefcase, Zap, AlertTriangle, BarChart3 } from 'lucide-vue-next';
 import api from '../api.js';
 import LoadingSpinner from './LoadingSpinner.vue';
 
-import RevenueChartWidget       from './widgets/RevenueChartWidget.vue';
-import RecentContactsWidget     from './widgets/RecentContactsWidget.vue';
-import KpiStatsWidget           from './widgets/KpiStatsWidget.vue';
-import TasksWidget              from './widgets/TasksWidget.vue';
-import KpiTargetWidget          from './widgets/KpiTargetWidget.vue';
-import UpcomingFollowUpsWidget  from './widgets/UpcomingFollowUpsWidget.vue';
-import DealPipelineWidget       from './widgets/DealPipelineWidget.vue';
-import PredictiveSummaryWidget  from './widgets/PredictiveSummaryWidget.vue';
-import AtRiskContactsWidget     from './widgets/AtRiskContactsWidget.vue';
-import ForecastPipelineWidget   from './widgets/ForecastPipelineWidget.vue';
-
-// --- Registry -----------------------------------------------------------
+// --- Registry (lazy-loaded — only fetched when a widget is actually on the canvas) ---
 const widgetComponents = {
-  RevenueChartWidget,
-  RecentContactsWidget,
-  KpiStatsWidget,
-  TasksWidget,
-  KpiTargetWidget,
-  UpcomingFollowUpsWidget,
-  DealPipelineWidget,
-  PredictiveSummaryWidget,
-  AtRiskContactsWidget,
-  ForecastPipelineWidget,
+  RevenueChartWidget:       defineAsyncComponent(() => import('./widgets/RevenueChartWidget.vue')),
+  RecentContactsWidget:     defineAsyncComponent(() => import('./widgets/RecentContactsWidget.vue')),
+  KpiStatsWidget:           defineAsyncComponent(() => import('./widgets/KpiStatsWidget.vue')),
+  TasksWidget:              defineAsyncComponent(() => import('./widgets/TasksWidget.vue')),
+  KpiTargetWidget:          defineAsyncComponent(() => import('./widgets/KpiTargetWidget.vue')),
+  UpcomingFollowUpsWidget:  defineAsyncComponent(() => import('./widgets/UpcomingFollowUpsWidget.vue')),
+  DealPipelineWidget:       defineAsyncComponent(() => import('./widgets/DealPipelineWidget.vue')),
+  PredictiveSummaryWidget:  defineAsyncComponent(() => import('./widgets/PredictiveSummaryWidget.vue')),
+  AtRiskContactsWidget:     defineAsyncComponent(() => import('./widgets/AtRiskContactsWidget.vue')),
+  ForecastPipelineWidget:   defineAsyncComponent(() => import('./widgets/ForecastPipelineWidget.vue')),
 };
 
 const WIDGET_CATALOG = [
@@ -233,6 +230,14 @@ const DEFAULT_LAYOUT = [
 ];
 
 const ROW_HEIGHT = 80;
+
+// --- Greeting -----------------------------------------------------------
+const _user      = JSON.parse(localStorage.getItem('crm_user') || 'null');
+const firstName  = String(_user?.name || '').trim().split(/\s+/)[0] || '';
+const _now       = new Date();
+const _hour      = _now.getHours();
+const greeting   = _hour < 12 ? 'Good morning' : _hour < 18 ? 'Good afternoon' : 'Good evening';
+const todayLabel = _now.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 
 // --- State --------------------------------------------------------------
 const layout        = ref([]);
@@ -350,26 +355,62 @@ onMounted(async () => {
   padding: 28px 28px 48px;
 }
 
-/* Header */
-.dash-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 12px;
+/* Welcome hero */
+.dash-hero {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  background:
+    radial-gradient(1100px 320px at 88% -45%, rgba(96,165,250,0.55), transparent 60%),
+    linear-gradient(118deg, #0f2456 0%, #1d4ed8 52%, #1e40af 100%);
+  box-shadow: 0 18px 40px -20px rgba(15,36,86,0.7);
   margin-bottom: 24px;
 }
-.dash-header-left {
-  display: flex;
-  align-items: center;
-  gap: 12px;
+.hero-glow {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(420px 220px at 10% 130%, rgba(29,78,216,0.5), transparent 70%);
+  pointer-events: none;
 }
-.dash-title {
+.hero-inner {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 18px;
+  padding: 26px 30px;
+}
+.hero-text { min-width: 0; }
+.hero-eyebrow {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(237,233,254,0.82);
+  margin-bottom: 8px;
+}
+.hero-greeting {
   font-size: 28px;
   font-weight: 800;
-  color: var(--text-1);
-  margin: 0;
   letter-spacing: -0.5px;
+  color: #fff;
+  margin: 0;
+  line-height: 1.15;
+}
+.hero-sub {
+  font-size: 13.5px;
+  color: rgba(237,233,254,0.78);
+  margin: 8px 0 0;
+  max-width: 460px;
+  line-height: 1.5;
+}
+.hero-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 .edit-hint {
   display: inline-flex;
@@ -377,16 +418,46 @@ onMounted(async () => {
   gap: 5px;
   font-size: 11.5px;
   font-weight: 500;
-  color: var(--primary-text);
-  background: var(--primary-soft);
-  padding: 5px 11px;
+  color: #fff;
+  background: rgba(255,255,255,0.16);
+  padding: 6px 11px;
   border-radius: 999px;
 }
-.dash-header-actions {
-  display: flex;
+
+/* Hero action buttons */
+.hbtn {
+  display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
+  padding: 9px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s, box-shadow 0.15s, transform 0.06s;
+  white-space: nowrap;
+  line-height: 1.2;
 }
+.hbtn:active { transform: translateY(1px); }
+.hbtn-ghost {
+  background: rgba(255,255,255,0.14);
+  border-color: rgba(255,255,255,0.28);
+  color: #fff;
+}
+.hbtn-ghost:hover { background: rgba(255,255,255,0.24); }
+.hbtn-ghost--active {
+  background: #fff;
+  border-color: #fff;
+  color: var(--primary-text);
+}
+.hbtn-solid {
+  background: #fff;
+  color: var(--primary-text);
+  border-color: #fff;
+  box-shadow: 0 8px 20px -8px rgba(0,0,0,0.4);
+}
+.hbtn-solid:hover { background: #f5f3ff; }
 
 /* Buttons */
 .btn {
@@ -424,7 +495,7 @@ onMounted(async () => {
   background: var(--primary);
   color: var(--primary-on);
   border-color: var(--primary);
-  box-shadow: 0 6px 18px -6px rgba(124,58,237,0.55);
+  box-shadow: 0 6px 18px -6px rgba(29,78,216,0.55);
 }
 .btn-primary:hover:not(:disabled) {
   background: var(--primary-hover);
@@ -439,16 +510,16 @@ onMounted(async () => {
 }
 .save-status--pending,
 .save-status--saving {
-  color: var(--text-3);
-  background: var(--surface-2, #f1f5f9);
+  color: #fff;
+  background: rgba(255, 255, 255, 0.16);
 }
 .save-status--saved {
-  color: var(--success);
-  background: var(--success-soft);
+  color: #fff;
+  background: rgba(34, 197, 94, 0.92);
 }
 .save-status--error {
-  color: var(--danger);
-  background: var(--danger-soft);
+  color: #fff;
+  background: rgba(239, 68, 68, 0.92);
 }
 .btn-icon {
   display: inline-flex;
@@ -510,8 +581,8 @@ onMounted(async () => {
   animation: widget-glow 3s ease-out forwards;
 }
 @keyframes widget-glow {
-  0%   { border-color: var(--primary); box-shadow: 0 0 0 4px var(--primary-soft), 0 0 24px 6px rgba(124,58,237,0.35), var(--shadow-md); }
-  40%  { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft), 0 0 18px 4px rgba(124,58,237,0.25), var(--shadow-md); }
+  0%   { border-color: var(--primary); box-shadow: 0 0 0 4px var(--primary-soft), 0 0 24px 6px rgba(29,78,216,0.35), var(--shadow-md); }
+  40%  { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft), 0 0 18px 4px rgba(29,78,216,0.25), var(--shadow-md); }
   100% { border-color: var(--border-soft); box-shadow: var(--shadow-sm); }
 }
 .widget-remove {
@@ -634,17 +705,17 @@ onMounted(async () => {
 /* Responsive */
 @media (max-width: 640px) {
   .dashboard { padding: 16px 14px 32px; }
-  .dash-header { flex-direction: column; align-items: flex-start; }
-  .dash-header-actions { flex-wrap: wrap; }
-  .dash-title { font-size: 22px; }
-  .btn { padding: 8px 14px; font-size: 12.5px; }
+  .hero-inner { flex-direction: column; align-items: flex-start; padding: 22px 20px; }
+  .hero-actions { width: 100%; }
+  .hero-greeting { font-size: 23px; }
+  .hbtn, .btn { padding: 8px 14px; font-size: 12.5px; }
 }
 </style>
 
 <!-- Override grid-layout-plus placeholder colour to match new accent -->
 <style>
 .vgl-item--placeholder {
-  --vgl-placeholder-bg: #7c3aed;
+  --vgl-placeholder-bg: #1d4ed8;
   --vgl-placeholder-opacity: 14%;
   border-radius: 14px;
 }

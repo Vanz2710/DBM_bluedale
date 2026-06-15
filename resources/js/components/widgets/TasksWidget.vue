@@ -3,7 +3,7 @@
     <div class="tw-head">
       <div class="tw-title-wrap">
         <span class="tw-title">Tasks To Do</span>
-        <span class="tw-sub">{{ tasks.length }} pending</span>
+        <span class="tw-sub">Today · {{ tasks.length }} pending</span>
       </div>
       <router-link to="/todos" class="tw-view-all">View All</router-link>
     </div>
@@ -62,9 +62,11 @@ function taskLink(t) {
 }
 
 onMounted(async () => {
+  const now = new Date();
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
   try {
     const { data } = await api.get('/v1/todos', {
-      params: { per_page: 8, view: 'All', completion_status: 'pending' },
+      params: { per_page: 8, view: 'Day', date: todayStr, completion_status: 'pending' },
     });
     tasks.value = data.data ?? data ?? [];
   } catch {

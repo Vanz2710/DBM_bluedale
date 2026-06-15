@@ -53,6 +53,12 @@ class ContactAnalysisController extends Controller
                 ->whereBetween('completed_at', ["{$from} 00:00:00", "{$to} 23:59:59"])->count();
         $e1 = $tBase()->whereBetween('todo_date', [$from, $to])->distinct('contact_id')->count('contact_id');
 
+        // Overdue tasks (pending, past due — not date-range-scoped, always current state)
+        $overdue = $tBase()
+            ->where('completion_status', 'pending')
+            ->where('todo_date', '<', today()->toDateString())
+            ->count();
+
         // Previous period (same length)
         $c0 = $cBase()->whereBetween('created_at', ["{$prevFrom} 00:00:00", "{$prevTo} 23:59:59"])->count();
         $t0 = $tBase()->whereBetween('todo_date',  [$prevFrom, $prevTo])->count();
@@ -96,6 +102,7 @@ class ContactAnalysisController extends Controller
             'prev_tasks_created'       => $t0,
             'prev_followups_completed' => $f0,
             'prev_engaged_contacts'    => $e0,
+            'overdue_tasks'            => $overdue,
             'daily_trend'              => $trend,
         ]);
     }
@@ -195,14 +202,14 @@ class ContactAnalysisController extends Controller
             ->when($search, fn ($q) => $q->where('contacts.name', 'like', "%{$search}%"));
 
         match ($health) {
-            'active'  => $query->whereNotNull('lt.last_todo_date')
-                               ->whereRaw('DATEDIFF(CURDATE(), lt.last_todo_date) < 30'),
-            'at_risk' => $query->whereNotNull('lt.last_todo_date')
-                               ->whereRaw('DATEDIFF(CURDATE(), lt.last_todo_date) BETWEEN 30 AND 60'),
-            'dormant' => $query->where(fn ($q) =>
-                             $q->whereNull('lt.last_todo_date')
-                               ->orWhereRaw('DATEDIFF(CURDATE(), lt.last_todo_date) > 60')),
-            default   => null,
+            'active'      => $query->whereNotNull('lt.last_todo_date')
+                                   ->whereRaw('DATEDIFF(CURDATE(), lt.last_todo_date) < 30'),
+            'at_risk'     => $query->whereNotNull('lt.last_todo_date')
+                                   ->whereRaw('DATEDIFF(CURDATE(), lt.last_todo_date) BETWEEN 30 AND 60'),
+            'dormant'     => $query->whereNotNull('lt.last_todo_date')
+                                   ->whereRaw('DATEDIFF(CURDATE(), lt.last_todo_date) > 60'),
+            'no_activity' => $query->whereNull('lt.last_todo_date'),
+            default       => null,
         };
 
         match ($sortBy) {
@@ -242,8 +249,8 @@ class ContactAnalysisController extends Controller
                 COUNT(*) as total,
                 SUM(CASE WHEN lt.last_todo_date IS NOT NULL AND DATEDIFF(CURDATE(), lt.last_todo_date) < 30              THEN 1 ELSE 0 END) as active,
                 SUM(CASE WHEN lt.last_todo_date IS NOT NULL AND DATEDIFF(CURDATE(), lt.last_todo_date) BETWEEN 30 AND 60 THEN 1 ELSE 0 END) as at_risk,
-                SUM(CASE WHEN lt.last_todo_date IS NULL     OR  DATEDIFF(CURDATE(), lt.last_todo_date) > 60              THEN 1 ELSE 0 END) as dormant,
-                SUM(CASE WHEN lt.last_todo_date IS NULL THEN 1 ELSE 0 END) as no_activity
+                SUM(CASE WHEN lt.last_todo_date IS NOT NULL AND DATEDIFF(CURDATE(), lt.last_todo_date) > 60              THEN 1 ELSE 0 END) as dormant,
+                SUM(CASE WHEN lt.last_todo_date IS NULL                                                                  THEN 1 ELSE 0 END) as no_activity
             ")
             ->first();
 
@@ -262,6 +269,34 @@ class ContactAnalysisController extends Controller
                 'dormant'     => (int) ($summary->dormant     ?? 0),
                 'no_activity' => (int) ($summary->no_activity ?? 0),
             ],
+        ]);
+    }
+
+    // ── Contact status distribution ───────────────────────────────────────────
+    public function statusDistribution(Request $request)
+    {
+        $uid = $this->userId($request);
+
+        $rows = Contact::select([
+                DB::raw("COALESCE(cs.name, 'No Status') as status_name"),
+                DB::raw('COUNT(*) as cnt'),
+            ])
+            ->leftJoin('contact_statuses as cs', 'contacts.status_id', '=', 'cs.id')
+            ->when($uid, fn ($q) => $q->where('contacts.user_id', $uid))
+            ->when($request->filled('industry_id'), fn ($q) => $q->where('contacts.industry_id', $request->input('industry_id')))
+            ->groupBy('cs.id', 'cs.name')
+            ->orderByDesc('cnt')
+            ->get();
+
+        $total = $rows->sum('cnt');
+
+        return response()->json([
+            'total'    => $total,
+            'statuses' => $rows->map(fn ($r) => [
+                'name'  => $r->status_name,
+                'count' => (int) $r->cnt,
+                'pct'   => $total > 0 ? round($r->cnt / $total * 100, 1) : 0,
+            ]),
         ]);
     }
 

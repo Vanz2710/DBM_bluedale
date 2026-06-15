@@ -1,17 +1,17 @@
-<template>
+﻿<template>
   <div class="page">
-    <header class="page-header">
+    <div class="page-head">
       <div>
         <p class="eyebrow">Social Media Planner</p>
         <h1>Posting Calendar</h1>
         <p>Schedule FB, IG, TikTok, and content reminders for the social media team.</p>
       </div>
       <div class="month-control">
-        <button type="button" @click="changeMonth(-1)">&lt;</button>
+        <button type="button" @click="changeMonth(-1)" class="month-btn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
         <strong>{{ monthLabel }}</strong>
-        <button type="button" @click="changeMonth(1)">&gt;</button>
+        <button type="button" @click="changeMonth(1)" class="month-btn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>
       </div>
-    </header>
+    </div>
 
     <section class="entry-panel">
       <div class="field">
@@ -118,15 +118,42 @@
           </div>
           <span class="status-badge" :class="`status-${item.status}`">{{ statusLabel(item.status) }}</span>
           <button type="button" class="btn-edit" @click="editReminder(item)">Edit</button>
-          <button type="button" class="btn-delete" @click="deleteReminder(item)">Delete</button>
+          <button type="button" class="btn-delete" @click="openDeleteModal(item)">Delete</button>
         </article>
       </div>
     </section>
   </div>
+
+  <Teleport to="body">
+    <div v-if="deleteModal.open" class="conf-overlay" @click.self="closeDeleteModal">
+      <div class="conf-modal">
+        <div class="conf-head">
+          <div>
+            <p class="conf-title">Delete Reminder</p>
+            <p class="conf-sub">This cannot be undone.</p>
+          </div>
+          <button class="conf-close" @click="closeDeleteModal"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+        </div>
+        <div class="conf-body">
+          <svg class="conf-warn" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+            <line x1="12" y1="9" x2="12" y2="13"/><circle cx="12" cy="17" r="1" fill="#f59e0b" stroke="none"/>
+          </svg>
+          <p class="conf-text">Delete <strong>{{ deleteModal.item?.title }}</strong>?</p>
+        </div>
+        <div class="conf-foot">
+          <button class="conf-cancel" @click="closeDeleteModal">Cancel</button>
+          <button class="conf-delete" :disabled="deleteModal.loading" @click="confirmDelete">
+            {{ deleteModal.loading ? 'Deleting…' : 'Delete' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </Teleport>
 </template>
 
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onMounted, ref, watch, reactive } from 'vue';
 import api from '../api';
 
 const platforms = ['FB', 'IG', 'TikTok', 'LinkedIn', 'Website'];
@@ -255,11 +282,23 @@ function editReminder(item) {
   };
 }
 
-async function deleteReminder(item) {
-  if (!confirm(`Delete reminder "${item.title}"?`)) return;
-  await api.delete(`/v1/posting-calendar/${item.id}`);
-  reminders.value = reminders.value.filter((row) => row.id !== item.id);
-  if (editingId.value === item.id) clearForm();
+const deleteModal = reactive({ open: false, item: null, loading: false });
+function openDeleteModal(item) { deleteModal.item = item; deleteModal.open = true; }
+function closeDeleteModal() { deleteModal.open = false; deleteModal.item = null; deleteModal.loading = false; }
+
+async function confirmDelete() {
+  if (!deleteModal.item) return;
+  deleteModal.loading = true;
+  try {
+    await api.delete(`/v1/posting-calendar/${deleteModal.item.id}`);
+    if (editingId.value === deleteModal.item.id) clearForm();
+    reminders.value = reminders.value.filter((row) => row.id !== deleteModal.item.id);
+    closeDeleteModal();
+  } catch {
+    closeDeleteModal();
+  } finally {
+    deleteModal.loading = false;
+  }
 }
 
 function clearForm() {
@@ -299,17 +338,18 @@ function statusLabel(status) {
 
 <style scoped>
 .page { padding: 28px 32px; color: var(--text-1); }
-.page-header {
+.page-head {
   background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px 20px;
   display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 24px;
 }
 .eyebrow { margin: 0 0 5px; color: var(--primary); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; }
-.page-header h1 { margin: 0 0 4px; font-size: 28px; font-weight: 800; color: var(--text-1); letter-spacing: -0.5px; }
-.page-header p { margin: 0; color: var(--text-3); font-size: 13.5px; }
+.page-head h1 { margin: 0 0 4px; font-size: 28px; font-weight: 800; color: var(--text-1); letter-spacing: -0.5px; }
+.page-head p { margin: 0; color: var(--text-3); font-size: 13.5px; }
 .month-control { display: flex; align-items: center; gap: 10px; }
 .month-control strong { min-width: 160px; text-align: center; font-size: 15px; color: var(--text-1); }
-.month-control button {
-  width: 34px; height: 34px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-2); cursor: pointer; font-size: 18px; color: var(--text-1);
+.month-btn {
+  width: 34px; height: 34px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-2); cursor: pointer; color: var(--text-1);
+  display: flex; align-items: center; justify-content: center;
 }
 .entry-panel, .toolbar {
   background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; margin-bottom: 14px;
@@ -328,7 +368,7 @@ function statusLabel(status) {
 .btn-add, .btn-clear {
   height: 36px; border: none; border-radius: var(--radius-sm); padding: 0 15px; font-size: 13px; font-weight: 600; cursor: pointer;
 }
-.btn-add { background: var(--primary); color: var(--primary-on); box-shadow: 0 6px 18px -6px rgba(124,58,237,0.45); }
+.btn-add { background: var(--primary); color: var(--primary-on); box-shadow: 0 6px 18px -6px rgba(29,78,216,0.45); }
 .btn-add:disabled { background: var(--text-3); cursor: not-allowed; box-shadow: none; }
 .btn-clear { background: var(--surface-2); color: var(--text-2); border: 1px solid var(--border); }
 .summary-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
@@ -401,9 +441,27 @@ function statusLabel(status) {
 }
 @media (max-width: 760px) {
   .page { padding: 18px 14px; }
-  .page-header { flex-direction: column; align-items: stretch; }
+  .page-head { flex-direction: column; align-items: stretch; }
   .field, .date-field, .time-field { width: 100%; min-width: 0; }
   .btn-add, .btn-clear { width: 100%; }
   .summary-grid { grid-template-columns: 1fr; }
 }
+
+/* ── Confirm modal ── */
+.conf-overlay { position: fixed; inset: 0; background: rgba(15,23,42,0.5); z-index: 900; display: flex; align-items: center; justify-content: center; padding: 16px; }
+.conf-modal { background: var(--surface); border-radius: var(--radius-lg); width: 100%; max-width: 420px; box-shadow: var(--shadow-lg); border: 1px solid var(--border-soft); overflow: hidden; }
+.conf-head { display: flex; justify-content: space-between; align-items: flex-start; padding: 18px 22px 14px; border-bottom: 1px solid var(--border-soft); }
+.conf-title { font-size: 15px; font-weight: 700; color: var(--text-1); margin: 0 0 2px; }
+.conf-sub { font-size: 12px; color: var(--text-3); margin: 0; }
+.conf-close { background: none; border: none; cursor: pointer; font-size: 16px; color: var(--text-3); line-height: 1; padding: 0; }
+.conf-close:hover { color: var(--text-1); }
+.conf-body { padding: 20px 24px; display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; }
+.conf-warn { width: 44px; height: 44px; flex-shrink: 0; }
+.conf-text { font-size: 14px; color: var(--text-1); margin: 0; line-height: 1.5; }
+.conf-foot { display: flex; justify-content: flex-end; gap: 10px; padding: 14px 22px; border-top: 1px solid var(--border-soft); }
+.conf-cancel { height: 38px; padding: 0 18px; background: none; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 13px; font-weight: 600; color: var(--text-2); cursor: pointer; }
+.conf-cancel:hover { background: var(--surface-2); }
+.conf-delete { height: 38px; padding: 0 18px; background: var(--danger); color: #fff; border: none; border-radius: var(--radius-sm); font-size: 13px; font-weight: 700; cursor: pointer; }
+.conf-delete:hover:not(:disabled) { background: #b91c1c; }
+.conf-delete:disabled { opacity: 0.5; cursor: not-allowed; }
 </style>

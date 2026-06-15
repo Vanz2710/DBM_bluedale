@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="page">
     <div class="page-head">
       <div class="page-head-left">
@@ -7,9 +7,11 @@
       </div>
       <div class="page-head-actions">
         <button v-if="allUnread.length > 0" class="btn-mark-all" @click="markAllRead" :disabled="marking">
-          {{ marking ? 'Marking…' : '✓ Mark all read' }}
+          <svg v-if="!marking" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle;margin-right:4px"><polyline points="20 6 9 17 4 12"/></svg>{{ marking ? 'Marking…' : 'Mark all read' }}
         </button>
-        <button class="btn-refresh" @click="load" :disabled="loading" title="Refresh">↺</button>
+        <button class="btn-refresh" @click="load" :disabled="loading" title="Refresh">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.63"/></svg>
+        </button>
       </div>
     </div>
 
@@ -29,7 +31,7 @@
       <!-- Overdue -->
       <div class="section-card overdue-card" v-if="overdue.length > 0">
         <div class="section-hdr">
-          <span class="sec-icon">⚠</span>
+          <span class="sec-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></span>
           <span class="sec-title">Overdue</span>
           <span class="sec-badge overdue-badge">{{ overdue.length }}</span>
         </div>
@@ -52,7 +54,7 @@
             </div>
             <div class="item-date overdue-date">{{ fmtDate(item.due_date) }}</div>
             <div class="item-actions">
-              <router-link :to="item.link" class="btn-go" title="Open">→ Open</router-link>
+              <router-link :to="item.link" class="btn-go" title="Open">Open</router-link>
               <button
                 v-if="!item.is_read"
                 class="btn-dismiss"
@@ -68,7 +70,7 @@
       <!-- Due Today -->
       <div class="section-card today-card" v-if="today.length > 0">
         <div class="section-hdr">
-          <span class="sec-icon">📅</span>
+          <span class="sec-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span>
           <span class="sec-title">Due Today</span>
           <span class="sec-badge today-badge">{{ today.length }}</span>
         </div>
@@ -91,7 +93,7 @@
             </div>
             <div class="item-date today-date">Today</div>
             <div class="item-actions">
-              <router-link :to="item.link" class="btn-go" title="Open">→ Open</router-link>
+              <router-link :to="item.link" class="btn-go" title="Open">Open</router-link>
               <button
                 v-if="!item.is_read"
                 class="btn-dismiss"
@@ -107,7 +109,7 @@
       <!-- Upcoming -->
       <div class="section-card upcoming-card" v-if="upcoming.length > 0">
         <div class="section-hdr">
-          <span class="sec-icon">🗓</span>
+          <span class="sec-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span>
           <span class="sec-title">Upcoming (7 days)</span>
           <span class="sec-badge upcoming-badge">{{ upcoming.length }}</span>
         </div>
@@ -130,7 +132,7 @@
             </div>
             <div class="item-date upcoming-date">{{ fmtDate(item.due_date) }}</div>
             <div class="item-actions">
-              <router-link :to="item.link" class="btn-go" title="Open">→ Open</router-link>
+              <router-link :to="item.link" class="btn-go" title="Open">Open</router-link>
               <button
                 v-if="!item.is_read"
                 class="btn-dismiss"
@@ -144,7 +146,7 @@
       </div>
 
       <div v-if="!overdue.length && !today.length && !upcoming.length" class="all-clear">
-        <div class="all-clear-icon">🎉</div>
+        <div class="all-clear-icon"><svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>
         <div class="all-clear-title">All caught up!</div>
         <div class="all-clear-sub">No overdue or upcoming reminders in the next 7 days.</div>
       </div>
@@ -242,7 +244,7 @@ onMounted(async () => {
   background: var(--primary); color: var(--primary-on);
   border: none; border-radius: 999px; padding: 9px 18px;
   font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap;
-  box-shadow: 0 6px 18px -6px rgba(124,58,237,0.55);
+  box-shadow: 0 6px 18px -6px rgba(29,78,216,0.55);
   transition: background 0.15s;
 }
 .btn-mark-all:hover:not(:disabled) { background: var(--primary-hover); }
@@ -250,7 +252,7 @@ onMounted(async () => {
 .btn-refresh {
   background: var(--surface); color: var(--text-2);
   border: 1px solid var(--border); border-radius: 999px;
-  width: 38px; height: 38px; font-size: 18px; cursor: pointer;
+  width: 38px; height: 38px; cursor: pointer;
   display: flex; align-items: center; justify-content: center;
   transition: border-color 0.15s, color 0.15s;
 }
@@ -286,7 +288,7 @@ onMounted(async () => {
   display: flex; align-items: center; gap: 10px;
   padding: 14px 20px; border-bottom: 1px solid var(--border-soft);
 }
-.sec-icon  { font-size: 16px; }
+.sec-icon  { display: inline-flex; align-items: center; line-height: 1; }
 .sec-title { font-size: 14px; font-weight: 700; color: var(--text-1); }
 .sec-badge {
   font-size: 11.5px; font-weight: 700; padding: 3px 10px; border-radius: 999px;
@@ -325,7 +327,7 @@ onMounted(async () => {
 .item-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
 .btn-go {
   background: var(--primary-soft); color: var(--primary-text);
-  border: 1px solid rgba(124,58,237,0.15);
+  border: 1px solid rgba(29,78,216,0.15);
   border-radius: 999px; padding: 5px 12px; font-size: 12px; font-weight: 600;
   text-decoration: none; white-space: nowrap;
   transition: background 0.12s;
@@ -344,7 +346,7 @@ onMounted(async () => {
   background: var(--surface); border-radius: var(--radius-lg); padding: 64px 20px;
   text-align: center; box-shadow: var(--shadow-sm); border: 1px solid var(--border-soft);
 }
-.all-clear-icon  { font-size: 42px; margin-bottom: 14px; }
+.all-clear-icon  { display: flex; justify-content: center; margin-bottom: 14px; }
 .all-clear-title { font-size: 18px; font-weight: 800; color: var(--text-1); margin-bottom: 6px; letter-spacing: -0.3px; }
 .all-clear-sub   { font-size: 13.5px; color: var(--text-3); }
 

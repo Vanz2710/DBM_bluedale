@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Models\Contact;
 use App\Models\Deal;
-use App\Models\FollowUp;
 use App\Models\ToDo;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -19,7 +18,7 @@ class PredictiveController extends Controller
     {
         $u = $request->user();
         if ($u->hasAnyRole(['admin', 'super-admin'])) {
-            return $request->filled('user_id') ? (int) $request->user_id : null;
+            return $request->filled('user_id') ? (int) $request->input('user_id') : null;
         }
         return $u->id;
     }
@@ -63,7 +62,7 @@ class PredictiveController extends Controller
 
         return response()->json([
             'neglected'         => $neglected,
-            'pipeline_value'    => $pipelineValue ? round((float) $pipelineValue, 2) : 0,
+            'pipeline_value'    => $pipelineValue !== null ? round((float) $pipelineValue, 2) : null,
             'overloaded_agents' => $overloadedAgents,
             'unworked_opps'     => $unworkedOpps,
         ]);
@@ -114,7 +113,7 @@ class PredictiveController extends Controller
     public function atRisk(Request $request)
     {
         $uid       = $this->resolveUserId($request);
-        $threshold = max(1, (int) $request->get('threshold', 60));
+        $threshold = max(1, (int) $request->input('threshold', 60));
 
         $contacts = DB::table('contacts as c')
             ->join('contact_statuses as s', 'c.status_id', '=', 's.id')
@@ -186,13 +185,13 @@ class PredictiveController extends Controller
 
         $rows = DB::table('contacts as c')
             ->join('contact_statuses as s', 'c.status_id', '=', 's.id')
-            ->join('contact_industries as i', 'c.industry_id', '=', 'i.id')
+            ->leftJoin('contact_industries as i', 'c.industry_id', '=', 'i.id')
             ->where('s.name', 'not like', '%Raw%')
             ->when($uid, fn ($q) => $q->where('c.user_id', $uid))
             ->groupBy('c.industry_id', 'i.name')
             ->selectRaw("
                 c.industry_id,
-                i.name as industry_name,
+                COALESCE(i.name, 'Unassigned') as industry_name,
                 COUNT(*) as total,
                 SUM(CASE WHEN DATEDIFF(NOW(), c.updated_at) >= {$threshold} THEN 1 ELSE 0 END) as unworked
             ")
@@ -211,57 +210,7 @@ class PredictiveController extends Controller
         return response()->json($rows);
     }
 
-    // ── 6. Lead conversion by segment (unchanged) ────────────────────────────
-
-    public function segments(Request $request)
-    {
-        $uid = $this->resolveUserId($request);
-
-        $dimensions = [
-            ['label' => 'Industry', 'col' => 'industry_id', 'table' => 'contact_industries'],
-            ['label' => 'Type',     'col' => 'type_id',     'table' => 'contact_types'],
-        ];
-
-        $result = [];
-        foreach ($dimensions as $dim) {
-            $rows = DB::table('contacts as c')
-                ->join("{$dim['table']} as d", "c.{$dim['col']}", '=', 'd.id')
-                ->leftJoin('deals as dl', fn ($j) =>
-                    $j->on('dl.contact_id', '=', 'c.id')->where('dl.status', 'won')
-                )
-                ->when($uid, fn ($q) => $q->where('c.user_id', $uid))
-                ->whereNotNull("c.{$dim['col']}")
-                ->groupBy("c.{$dim['col']}", 'd.name')
-                ->selectRaw("
-                    c.{$dim['col']} as segment_id,
-                    d.name          as name,
-                    COUNT(DISTINCT c.id)  as total,
-                    COUNT(DISTINCT dl.id) as won
-                ")
-                ->having('total', '>=', 3)
-                ->orderByDesc('won')
-                ->limit(5)
-                ->get();
-
-            foreach ($rows as $row) {
-                $rate     = $row->total > 0 ? round($row->won / $row->total * 100, 1) : 0;
-                $result[] = [
-                    'key'       => $dim['label'] . '_' . $row->segment_id,
-                    'name'      => $row->name,
-                    'dimension' => $dim['label'],
-                    'total'     => (int) $row->total,
-                    'won'       => (int) $row->won,
-                    'rate'      => $rate,
-                ];
-            }
-        }
-
-        usort($result, fn ($a, $b) => $b['rate'] <=> $a['rate']);
-
-        return response()->json($result);
-    }
-
-    // ── 7. Deal win probability (unchanged) ──────────────────────────────────
+    // ── 6. Deal win probability ───────────────────────────────────────────────
 
     public function deals(Request $request)
     {
@@ -311,47 +260,4 @@ class PredictiveController extends Controller
         return response()->json($result);
     }
 
-    // ── 8. Portfolio growth trend ─────────────────────────────────────────────
-    //    Weekly new contacts added over 8 weeks + 2-week weighted projection.
-
-    public function trend(Request $request)
-    {
-        $uid = $this->resolveUserId($request);
-
-        $actual = [];
-        for ($i = 7; $i >= 0; $i--) {
-            $start  = Carbon::now()->startOfWeek()->subWeeks($i)->toDateString();
-            $end    = Carbon::now()->startOfWeek()->subWeeks($i)->endOfWeek()->toDateString();
-
-            $actual[] = [
-                'week'           => Carbon::parse($start)->format('d M'),
-                'week_start'     => $start,
-                'contacts_added' => Contact::whereBetween('created_at', ["{$start} 00:00:00", "{$end} 23:59:59"])
-                    ->when($uid, fn ($q) => $q->where('user_id', $uid))
-                    ->count(),
-                'projected'      => false,
-            ];
-        }
-
-        // Weighted average of last 3 weeks (weights: 1, 2, 3)
-        $last3     = array_slice($actual, -3);
-        $weights   = [1, 2, 3];
-        $weighted  = 0;
-        foreach ($last3 as $i => $w) {
-            $weighted += $w['contacts_added'] * $weights[$i];
-        }
-        $proj = (int) round($weighted / 6);
-
-        for ($i = 1; $i <= 2; $i++) {
-            $weekStart = Carbon::now()->startOfWeek()->addWeeks($i);
-            $actual[]  = [
-                'week'           => $weekStart->format('d M'),
-                'week_start'     => $weekStart->toDateString(),
-                'contacts_added' => $proj,
-                'projected'      => true,
-            ];
-        }
-
-        return response()->json($actual);
-    }
 }

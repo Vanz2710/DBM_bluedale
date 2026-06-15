@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="forbidden-page">
     <div class="forbidden-card">
       <div class="forbidden-icon-wrap">
@@ -143,7 +143,7 @@ const permission = computed(() => route.query.permission ?? null);
   text-decoration: none;
   cursor: pointer;
   transition: background 0.15s, box-shadow 0.15s;
-  box-shadow: 0 4px 14px rgba(124, 58, 237, 0.3);
+  box-shadow: 0 4px 14px rgba(29, 78, 216, 0.3);
 }
 .btn-primary:hover {
   background: var(--primary-hover);

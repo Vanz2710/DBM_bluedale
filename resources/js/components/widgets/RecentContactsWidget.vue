@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="rc-widget">
     <div class="rc-head">
       <div class="rc-title-wrap">
@@ -45,7 +45,7 @@ function initials(name) {
 // Deterministic pastel based on the name — keeps the same color across reloads
 function avatarStyle(name) {
   const palette = [
-    { bg: '#ede9fe', fg: '#6d28d9' },
+    { bg: '#dbeafe', fg: '#1e40af' },
     { bg: '#dcfce7', fg: '#15803d' },
     { bg: '#dbeafe', fg: '#1d4ed8' },
     { bg: '#fef3c7', fg: '#a16207' },

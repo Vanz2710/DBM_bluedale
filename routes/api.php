@@ -36,6 +36,7 @@ use App\Http\Controllers\Api\V1\PostingCalendarController;
 use App\Http\Controllers\Api\V1\ContactAnalysisController;
 use App\Http\Controllers\Api\V1\EmailCampaignController;
 use App\Http\Controllers\Api\V1\PredictiveController;
+use App\Http\Controllers\Api\V1\ContactEditGrantController;
 use App\Http\Controllers\Api\V1\SystemSettingsController;
 use App\Http\Controllers\Api\V1\UserActivityController;
 
@@ -74,10 +75,10 @@ Route::middleware('auth:sanctum')->group(function () {
 
         // Contact Analysis
         Route::middleware('can:view contacts')->group(function () {
-            Route::get('contact-analysis/overview',         [ContactAnalysisController::class, 'overview']);
-            Route::get('contact-analysis/lead-source',      [ContactAnalysisController::class, 'leadSource']);
-            Route::get('contact-analysis/followup-actions', [ContactAnalysisController::class, 'followupActions']);
-            Route::get('contact-analysis/engagement',       [ContactAnalysisController::class, 'engagement']);
+            Route::get('contact-analysis/overview',             [ContactAnalysisController::class, 'overview']);
+            Route::get('contact-analysis/lead-source',          [ContactAnalysisController::class, 'leadSource']);
+            Route::get('contact-analysis/status-distribution',  [ContactAnalysisController::class, 'statusDistribution']);
+            Route::get('contact-analysis/engagement',           [ContactAnalysisController::class, 'engagement']);
         });
 
         // Predictive Insights
@@ -87,9 +88,7 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::get('predictive/at-risk',      [PredictiveController::class, 'atRisk']);
             Route::get('predictive/pace',         [PredictiveController::class, 'pace']);
             Route::get('predictive/overdue-risk', [PredictiveController::class, 'overdueRisk']);
-            Route::get('predictive/segments',     [PredictiveController::class, 'segments']);
             Route::get('predictive/deals',        [PredictiveController::class, 'deals']);
-            Route::get('predictive/trend',        [PredictiveController::class, 'trend']);
         });
 
         // Analytics & reporting
@@ -153,9 +152,10 @@ Route::middleware('auth:sanctum')->group(function () {
 
         // Global to-do list
         Route::middleware('can:view todos')->group(function () {
-            Route::get('todos/export', [GlobalTodoController::class, 'export']);
-            Route::get('todos', [GlobalTodoController::class, 'index']);
-            Route::get('todos/{todo}', [GlobalTodoController::class, 'show']);
+            Route::get('todos/export',       [GlobalTodoController::class, 'export']);
+            Route::get('todos/active-dates', [GlobalTodoController::class, 'activeDates']);
+            Route::get('todos',              [GlobalTodoController::class, 'index']);
+            Route::get('todos/{todo}',       [GlobalTodoController::class, 'show']);
         });
         Route::patch('todos/{id}/status', [GlobalTodoController::class, 'updateStatus'])->middleware('can:edit todos');
         Route::post('todos', [GlobalTodoController::class, 'store'])->middleware('can:create todos');
@@ -165,6 +165,7 @@ Route::middleware('auth:sanctum')->group(function () {
         // Contacts — specific routes before parameterised to avoid conflicts
         Route::middleware('can:view contacts')->group(function () {
             Route::get('contacts/daily', [ContactController::class, 'daily']);
+            Route::get('contacts/export', [ContactController::class, 'export']);
             Route::get('contacts/check-duplicate', [ContactController::class, 'checkDuplicate']);
             Route::get('contacts', [ContactController::class, 'index']);
             Route::get('contacts/{contact}', [ContactController::class, 'show']);
@@ -178,6 +179,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('contacts', [ContactController::class, 'store'])->middleware('can:create contacts');
         Route::put('contacts/{contact}', [ContactController::class, 'update'])->middleware('can:edit contacts');
         Route::patch('contacts/{contact}', [ContactController::class, 'update'])->middleware('can:edit contacts');
+        Route::patch('contacts/{contact}/closed', [ContactController::class, 'toggleClosed'])->middleware('can:edit contacts');
         Route::delete('contacts/{contact}', [ContactController::class, 'destroy'])->middleware('can:delete contacts');
 
         // Contact sub-resources (writes — editing a contact's data)
@@ -276,6 +278,10 @@ Route::middleware('auth:sanctum')->group(function () {
         });
 
         Route::middleware('can:manage users')->group(function () {
+            Route::get('contact-edit-grants', [ContactEditGrantController::class, 'index']);
+            Route::post('contact-edit-grants', [ContactEditGrantController::class, 'store']);
+            Route::delete('contact-edit-grants/{id}', [ContactEditGrantController::class, 'destroy']);
+
             Route::get('system-settings', [SystemSettingsController::class, 'index']);
             Route::put('system-settings', [SystemSettingsController::class, 'update']);
 

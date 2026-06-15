@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="page">
     <div class="page-banner">
       <h1>Performance Targets</h1>
@@ -17,32 +17,34 @@
       <LoadingSpinner v-if="loadingTargets" />
 
       <div v-else-if="selectedUserId && tasks.length > 0" class="targets-section">
-        <div v-if="saved" class="success-box">✔ Targets saved successfully.</div>
+        <div v-if="saved" class="success-box"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle;margin-right:5px"><polyline points="20 6 9 17 4 12"/></svg>Targets saved successfully.</div>
         <div v-if="saveError" class="error-box">{{ saveError }}</div>
 
-        <table>
-          <thead>
-            <tr>
-              <th>Task</th>
-              <th class="col-target">Weekly Target</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="task in tasks" :key="task.id">
-              <td>{{ task.name }}</td>
-              <td>
-                <input
-                  type="number"
-                  min="0"
-                  max="9999"
-                  class="target-input"
-                  v-model.number="targetMap[task.id]"
-                  placeholder="0"
-                >
-              </td>
-            </tr>
-          </tbody>
-        </table>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Task</th>
+                <th class="col-target">Weekly Target</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="task in tasks" :key="task.id">
+                <td>{{ task.name }}</td>
+                <td>
+                  <input
+                    type="number"
+                    min="0"
+                    max="9999"
+                    class="target-input"
+                    v-model.number="targetMap[task.id]"
+                    placeholder="0"
+                  >
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
 
         <div class="btn-row">
           <button class="btn btn-save" @click="saveTargets" :disabled="saving">
@@ -126,7 +128,7 @@ onMounted(loadLookups);
 <style scoped>
 .page { padding: 28px 32px; max-width: 680px; }
 .page-banner {
-  background: linear-gradient(135deg, #1a2f4a, #7c3aed);
+  background: linear-gradient(135deg, #1a2f4a, #1d4ed8);
   border-radius: 10px; padding: 20px 28px; margin-bottom: 20px; color: white;
 }
 .page-banner h1 { font-size: 18px; font-weight: 700; margin: 0 0 4px; }
@@ -144,16 +146,17 @@ onMounted(loadLookups);
 .loading-msg { text-align: center; padding: 32px; color: var(--text-3); }
 .empty-hint { text-align: center; padding: 32px; color: var(--text-3); font-size: 14px; }
 
-.targets-section table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-.targets-section thead th {
+.table-wrap { border-radius: var(--radius); border: 1px solid var(--border); overflow: hidden; margin-bottom: 20px; }
+.table-wrap table { width: 100%; border-collapse: collapse; }
+.table-wrap thead th {
   background: var(--app-bg); color: var(--text-2); font-size: 10px; font-weight: 700;
   text-transform: uppercase; letter-spacing: 0.7px; padding: 10px 14px;
   border-bottom: 2px solid var(--border); text-align: left;
 }
 .col-target { width: 140px; text-align: center; }
-.targets-section tbody td { padding: 10px 14px; border-bottom: 1px solid var(--border); font-size: 13px; color: var(--text-1); }
-.targets-section tbody tr:last-child td { border-bottom: none; }
-.targets-section tbody tr:hover { background: var(--primary-soft); }
+.table-wrap tbody td { padding: 10px 14px; border-bottom: 1px solid var(--border); font-size: 13px; color: var(--text-1); }
+.table-wrap tbody tr:last-child td { border-bottom: none; }
+.table-wrap tbody tr:hover { background: var(--primary-soft); }
 
 .target-input {
   width: 90px; height: 36px; padding: 0 10px; border: 1.5px solid var(--border);

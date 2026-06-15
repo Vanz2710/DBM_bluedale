@@ -8,7 +8,7 @@ import routes, { setupGuard } from './router/index.js';
 import { setRouter } from './api.js';
 
 const router = createRouter({
-    history: createWebHistory(import.meta.env.BASE_URL),
+    history: createWebHistory(import.meta.env.VITE_APP_BASE ?? '/'),
     routes,
 });
 

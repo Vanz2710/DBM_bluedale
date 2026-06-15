@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="page">
     <div class="page-head">
       <div class="page-head-left">
@@ -6,7 +6,7 @@
         <p class="page-subtitle">{{ bannerSub }}</p>
       </div>
       <div class="page-head-actions">
-        <button v-if="tab === 'contacts' && can('create contacts')" class="btn-primary-pill" @click="openAddModal">
+        <button v-if="tab === 'contacts' && can('create contacts')" class="btn-primary-pill" data-tour="add-contact-btn" @click="openAddModal">
           <span class="plus-icon" aria-hidden="true">+</span> Add New Contact
         </button>
         <button v-else-if="tab === 'forecast' && can('create forecasts')" class="btn-primary-pill" @click="openForecastAdd()">
@@ -24,7 +24,7 @@
         <span class="tab-icon" v-html="CI.chart"></span> Summary
       </button>
       <button :class="['tab-btn', { 'tab-active': tab === 'tasks' }]" @click="switchTab('tasks')">
-        <span class="tab-icon" v-html="CI.clipboard"></span> Tasks
+        <span class="tab-icon" v-html="CI.clipboard"></span> To-Do
       </button>
       <button :class="['tab-btn', { 'tab-active': tab === 'forecast' }]" @click="switchTab('forecast')">
         <span class="tab-icon" v-html="CI.trending"></span> Forecast
@@ -40,7 +40,7 @@
             <span class="date-input-prefix">From</span>
             <input type="date" v-model="dateFrom" @change="load(1)" class="date-range-input">
           </div>
-          <span class="date-range-sep">→</span>
+          <span class="date-range-sep"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span>
           <div class="date-input-wrap">
             <span class="date-input-prefix">To</span>
             <input type="date" v-model="dateTo" @change="load(1)" class="date-range-input">
@@ -78,6 +78,27 @@
         </select>
       </div>
       <div class="filter-group">
+        <label>Status</label>
+        <select v-model="statusId" @change="load(1)">
+          <option value="">All</option>
+          <option v-for="s in lookups.statuses" :key="s.id" :value="s.id">{{ s.name }}</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label>Type</label>
+        <select v-model="typeId" @change="load(1)">
+          <option value="">All</option>
+          <option v-for="t in lookups.types" :key="t.id" :value="t.id">{{ t.name }}</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label>Category</label>
+        <select v-model="categoryId" @change="load(1)">
+          <option value="">All</option>
+          <option v-for="c in lookups.categories" :key="c.id" :value="c.id">{{ c.name }}</option>
+        </select>
+      </div>
+      <div class="filter-group">
         <label>Sort</label>
         <select v-model="sort" @change="load(1)">
           <option value="desc">Newest First</option>
@@ -99,68 +120,70 @@
     <div v-else-if="tab === 'summary'" class="toolbar">
       <div class="filter-group">
         <label>Year</label>
-        <select v-model="summaryYear" @change="loadSummary">
+        <select v-model="summaryYear" @change="applySummaryFilters">
           <option v-for="y in summaryYears" :key="y" :value="y">{{ y }}</option>
         </select>
       </div>
       <div class="filter-group wide">
         <label>Search</label>
-        <input v-model="summaryFilters.search" @keyup.enter="loadSummary" placeholder="Company name…">
+        <input v-model="summaryFilters.search" @keyup.enter="applySummaryFilters" placeholder="Company name…">
       </div>
       <div class="filter-group">
         <label>User</label>
-        <select v-model="summaryFilters.user_id" @change="loadSummary">
+        <select v-model="summaryFilters.user_id" @change="applySummaryFilters">
           <option value="">All Users</option>
           <option v-for="u in users" :key="u.id" :value="u.id">{{ u.name }}</option>
         </select>
       </div>
       <div class="filter-group">
         <label>Status</label>
-        <select v-model="summaryFilters.status_id" @change="loadSummary">
+        <select v-model="summaryFilters.status_id" @change="applySummaryFilters">
           <option value="">All</option>
           <option v-for="s in lookups.statuses" :key="s.id" :value="s.id">{{ s.name }}</option>
         </select>
       </div>
       <div class="filter-group">
         <label>Type</label>
-        <select v-model="summaryFilters.type_id" @change="loadSummary">
+        <select v-model="summaryFilters.type_id" @change="applySummaryFilters">
           <option value="">All</option>
           <option v-for="t in lookups.types" :key="t.id" :value="t.id">{{ t.name }}</option>
         </select>
       </div>
       <div class="filter-group">
         <label>Category</label>
-        <select v-model="summaryFilters.category_id" @change="loadSummary">
+        <select v-model="summaryFilters.category_id" @change="applySummaryFilters">
           <option value="">All</option>
           <option v-for="c in lookups.categories" :key="c.id" :value="c.id">{{ c.name }}</option>
         </select>
       </div>
       <div class="filter-group">
         <label>Industry</label>
-        <select v-model="summaryFilters.industry_id" @change="loadSummary">
+        <select v-model="summaryFilters.industry_id" @change="applySummaryFilters">
           <option value="">All</option>
           <option v-for="i in lookups.industries" :key="i.id" :value="i.id">{{ i.name }}</option>
         </select>
       </div>
-      <button class="btn btn-primary" @click="loadSummary">Search</button>
+      <button class="btn btn-primary" @click="applySummaryFilters">Search</button>
       <button class="btn btn-clear" @click="resetSummaryFilters">Reset</button>
       <button class="btn btn-export" @click="exportSummary">Export</button>
     </div>
 
     <!-- Tasks toolbar -->
     <div v-else-if="tab === 'tasks'" class="toolbar">
-      <div class="filter-group">
-        <label>View</label>
-        <select v-model="todoView" @change="loadTodos">
-          <option>All</option>
-          <option>Day</option>
-          <option>Month</option>
-          <option>Year</option>
-        </select>
-      </div>
-      <div v-if="todoView !== 'All'" class="filter-group">
-        <label>Date</label>
-        <input type="date" v-model="todoDate" @change="loadTodos">
+      <div class="date-nav">
+        <button class="date-nav-arrow" @click="shiftTodoDate(-1)" type="button">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <CalendarPicker
+          v-model="todoDate"
+          :marked-dates="todoMarked"
+          :loading-dates="todoMarkLoading"
+          @update:modelValue="loadTodos"
+          @month-change="({ year, month }) => loadTodoMarkedDates(year, month)"
+        />
+        <button class="date-nav-arrow" @click="shiftTodoDate(1)" type="button">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
       </div>
       <div class="filter-group wide">
         <label>Search</label>
@@ -251,11 +274,23 @@
               </div>
               <button class="drawer-close" @click="closeDrawer" v-html="CI.x"></button>
             </div>
+            <div v-if="drawer.contact?.is_permanently_closed" class="drawer-closed-banner">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+              Permanently Closed
+            </div>
             <div class="drawer-actions" v-if="drawer.contact">
               <router-link :to="`/contacts/${drawer.contact.id}`" class="daction-btn btn-view-full"><span v-html="CI.eye"></span> Full View</router-link>
-              <router-link v-if="can('edit contacts')" :to="`/contacts/${drawer.contact.id}/edit`" class="daction-btn btn-edit-c"><span v-html="CI.edit"></span> Edit</router-link>
+              <router-link v-if="can('edit contacts') && drawer.contact.can_edit" :to="`/contacts/${drawer.contact.id}/edit`" class="daction-btn btn-edit-c"><span v-html="CI.edit"></span> Edit</router-link>
               <button v-if="can('create followups')" type="button" class="daction-btn btn-followup-c" @click="openFollowUpModal()"><span v-html="CI.bell"></span> Follow-Up</button>
               <button v-if="can('create forecasts')" type="button" class="daction-btn btn-forecast-c" @click="openForecastAddForDrawer"><span v-html="CI.trending"></span> Forecast</button>
+              <button
+                v-if="can('edit contacts') && drawer.contact.can_edit"
+                type="button"
+                :class="drawer.contact.is_permanently_closed ? 'daction-btn btn-reopen-c' : 'daction-btn btn-close-c'"
+                @click="drawer.contact.is_permanently_closed ? toggleDrawerClosed() : openDrawerClosedModal()"
+              >
+                {{ drawer.contact.is_permanently_closed ? 'Mark Active' : 'Mark Closed' }}
+              </button>
             </div>
           </div>
 
@@ -284,7 +319,13 @@
                   </div>
                 </div>
                 <div v-if="drawer.contact.address" class="dinfo-full">
-                  <div class="dinfo-label">Address</div>
+                  <div class="dinfo-label-row">
+                    <span class="dinfo-label">Address</span>
+                    <a :href="mapsUrl(drawer.contact)" target="_blank" rel="noopener noreferrer" class="maps-link" @click.stop>
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                      Maps
+                    </a>
+                  </div>
                   <div class="dinfo-value">{{ drawer.contact.address }}</div>
                 </div>
                 <div v-if="drawer.contact.remark" class="dinfo-full">
@@ -313,7 +354,7 @@
               <!-- Tasks + their Follow-Ups nested -->
               <div class="drawer-section">
                 <div class="dsec-title-row">
-                  <span class="dsec-title">Tasks ({{ drawer.contact.todos?.length ?? 0 }})</span>
+                  <span class="dsec-title">To-Dos ({{ drawer.contact.todos?.length ?? 0 }})</span>
                   <button v-if="can('create todos')" class="add-task-toggle-btn" @click="openAddTask">+ Add Task</button>
                 </div>
 
@@ -825,7 +866,6 @@
                 <th class="col-status">Status</th>
                 <th class="col-type">Type</th>
                 <th class="col-industry">Industry</th>
-                <th class="col-address">Address</th>
                 <th class="col-name">Company Name</th>
                 <th class="col-category">Category</th>
                 <th class="col-remark">Remarks</th>
@@ -834,50 +874,70 @@
             </thead>
             <tbody>
               <tr v-if="contacts.length === 0">
-                <td colspan="11" class="empty-state">
+                <td colspan="10" class="empty-state">
                   <div class="empty-icon" v-html="CIL.search"></div>
                   <div class="empty-title">No contacts found</div>
                   <div class="empty-sub">Try adjusting the date or search filters</div>
                 </td>
               </tr>
               <tr v-for="(c, idx) in contacts" :key="c.id" class="contact-row" @click="openDrawer(c)" style="cursor:pointer">
-                <td class="col-no"><span class="row-num">{{ idx + 1 }}</span></td>
+                <td class="col-no"><span class="row-num">{{ (meta.from ?? 1) + idx }}</span></td>
                 <td class="col-date"><span class="date-text">{{ fmtDate(c.created_at) }}</span></td>
-                <td class="col-user">
-                  <div class="user-cell">
-                    <span class="user-avatar">{{ initials(c.user?.name) }}</span>
-                    <span class="user-name">{{ c.user?.name ?? '—' }}</span>
-                  </div>
-                </td>
+                <td class="col-user"><span class="user-name">{{ c.user?.name ?? '—' }}</span></td>
                 <td class="col-status">
                   <span class="badge badge-status" :class="statusClass(c.status?.name)">{{ c.status?.name ?? '—' }}</span>
                 </td>
                 <td class="col-type"><span class="tag">{{ c.type?.name ?? '—' }}</span></td>
                 <td class="col-industry">{{ c.industry?.name ?? '—' }}</td>
-                <td class="col-address"><span class="address-text">{{ c.address || '—' }}</span></td>
-                <td class="col-name"><span class="company-link">{{ c.name }}</span></td>
+                <td class="col-name">
+                  <span class="company-link">{{ c.name }}</span>
+                  <span v-if="c.is_permanently_closed" class="closed-badge">Closed</span>
+                </td>
                 <td class="col-category"><span class="tag tag-category">{{ c.category?.name ?? '—' }}</span></td>
                 <td class="col-remark" @click.stop>
-                  <button v-if="c.remark" class="remark-btn" :title="c.remark" @click="showRemark(c)" v-html="CI.message"></button>
+                  <button v-if="c.remark" class="remark-inline-btn" @click="showRemark(c)" :title="'Click to expand'">
+                    <span class="remark-text-preview">{{ c.remark }}</span>
+                  </button>
                   <span v-else class="muted-dash">—</span>
                 </td>
                 <td class="col-action" @click.stop>
                   <div class="action-btns">
-                    <button v-if="can('create todos')" class="icon-btn btn-todo" title="Add Task" @click="openAddTaskModal(c)" v-html="CI.list"></button>
-                    <button v-if="can('edit contacts')" class="icon-btn btn-edit" title="Edit Contact" @click="openEditContactModal(c)" v-html="CI.edit"></button>
-                    <button v-if="can('delete contacts')" class="icon-btn btn-delete" title="Delete Contact" @click="openDeleteModal(c)" v-html="CI.trash"></button>
+                    <button v-if="can('create todos')" class="action-chip chip-task" title="Add Task" @click="openAddTaskModal(c)">
+                      <span class="chip-icon" v-html="CI.list"></span>
+                      <span class="chip-label">Task</span>
+                    </button>
+                    <button v-if="can('edit contacts') && c.can_edit" class="action-chip chip-edit" title="Edit Contact" @click="openEditContactModal(c)">
+                      <span class="chip-icon" v-html="CI.edit"></span>
+                      <span class="chip-label">Edit</span>
+                    </button>
+                    <button v-if="can('delete contacts') && c.can_edit" class="action-chip chip-delete" title="Delete Contact" @click="openDeleteModal(c)">
+                      <span class="chip-icon" v-html="CI.trash"></span>
+                      <span class="chip-label">Del</span>
+                    </button>
                   </div>
                 </td>
               </tr>
             </tbody>
           </table>
         </div>
-        <div v-if="meta.last_page > 1" class="pagination">
+        <div v-if="(meta.total ?? 0) > 0" class="pagination">
           <span class="pagination-info">Showing {{ contacts.length }} of {{ meta.total }} contacts</span>
           <div class="pagination-btns">
-            <button :disabled="meta.current_page <= 1" @click="load(meta.current_page - 1)"><span v-html="CI.chevronLeft" style="display:inline-flex;align-items:center"></span> Prev</button>
-            <span>Page {{ meta.current_page }} of {{ meta.last_page }}</span>
-            <button :disabled="meta.current_page >= meta.last_page" @click="load(meta.current_page + 1)">Next <span v-html="CI.chevronRight" style="display:inline-flex;align-items:center"></span></button>
+            <button class="page-nav" :disabled="meta.current_page <= 1" @click="load(meta.current_page - 1)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 18l-6-6 6-6"/></svg>
+            </button>
+            <template v-for="pg in pageNumbers" :key="'pg-' + pg">
+              <button
+                v-if="pg !== '...'"
+                class="page-num"
+                :class="{ 'page-num--on': pg === meta.current_page }"
+                @click="load(pg)"
+              >{{ pg }}</button>
+              <span v-else class="page-ellipsis">…</span>
+            </template>
+            <button class="page-nav" :disabled="meta.current_page >= meta.last_page" @click="load(meta.current_page + 1)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18l6-6-6-6"/></svg>
+            </button>
           </div>
         </div>
       </div>
@@ -890,7 +950,7 @@
         <div class="table-header-bar">
           <span class="record-count">
             <span class="count-label">Activity {{ summaryYear }}</span>
-            <span class="count-badge">{{ summaryContacts.length }} contact(s)</span>
+            <span class="count-badge">{{ summaryMeta.total ?? summaryContacts.length }} contact(s)</span>
           </span>
           <div class="summary-legend">
             <span class="legend-dot dot-completed"></span><span class="legend-label">Contacted</span>
@@ -899,14 +959,14 @@
           </div>
         </div>
         <div class="table-scroll">
-          <table>
+          <table class="summary-table">
             <thead>
               <tr>
                 <th class="col-check"><input type="checkbox" @change="toggleAllSummary" ref="summarySelectAllRef"></th>
-                <th class="col-no">#</th>
-                <th class="col-name">Company</th>
-                <th class="col-user">User</th>
-                <th class="col-status">Status</th>
+                <th class="sum-no-col">#</th>
+                <th class="sum-name-col">Company</th>
+                <th class="sum-user-col">User</th>
+                <th class="sum-status-col">Status</th>
                 <th class="sum-activity-col">Activity {{ summaryYear }}</th>
               </tr>
             </thead>
@@ -919,16 +979,11 @@
                 </td>
               </tr>
               <tr v-for="(c, idx) in summaryContacts" :key="c.id" class="contact-row" @click="openDrawer(c)" style="cursor:pointer">
-                <td @click.stop><input type="checkbox" :value="c.id" v-model="summarySelectedIds"></td>
-                <td class="col-no"><span class="row-num">{{ idx + 1 }}</span></td>
-                <td class="col-name"><span class="company-link">{{ c.name }}</span></td>
-                <td class="col-user">
-                  <div class="user-cell">
-                    <span class="user-avatar">{{ initials(c.user) }}</span>
-                    <span class="user-name">{{ c.user ?? '—' }}</span>
-                  </div>
-                </td>
-                <td class="col-status">
+                <td class="col-check" @click.stop><input type="checkbox" :value="c.id" v-model="summarySelectedIds"></td>
+                <td class="sum-no-col"><span class="row-num">{{ idx + 1 }}</span></td>
+                <td class="sum-name-col"><span class="sum-company-link">{{ c.name }}</span></td>
+                <td class="sum-user-col"><span class="user-name">{{ c.user ?? '—' }}</span></td>
+                <td class="sum-status-col">
                   <span class="badge badge-status" :class="statusClass(c.status)">{{ c.status ?? '—' }}</span>
                 </td>
                 <td class="sum-activity-cell">
@@ -955,6 +1010,26 @@
               </tr>
             </tbody>
           </table>
+        </div>
+        <div v-if="(summaryMeta.total ?? 0) > 0" class="pagination">
+          <span class="pagination-info">Showing {{ summaryContacts.length }} of {{ summaryMeta.total }} contacts</span>
+          <div class="pagination-btns">
+            <button class="page-nav" :disabled="summaryMeta.current_page <= 1" @click="summaryChangePage(summaryMeta.current_page - 1)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 18l-6-6 6-6"/></svg>
+            </button>
+            <template v-for="pg in summaryPageNumbers" :key="'spg-' + pg">
+              <button
+                v-if="pg !== '...'"
+                class="page-num"
+                :class="{ 'page-num--on': pg === summaryMeta.current_page }"
+                @click="summaryChangePage(pg)"
+              >{{ pg }}</button>
+              <span v-else class="page-ellipsis">…</span>
+            </template>
+            <button class="page-nav" :disabled="summaryMeta.current_page >= summaryMeta.last_page" @click="summaryChangePage(summaryMeta.current_page + 1)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18l6-6-6-6"/></svg>
+            </button>
+          </div>
         </div>
       </div>
     </template>
@@ -1000,12 +1075,7 @@
                 <td class="col-name">
                   <button class="task-company-btn" @click="openDrawer({ id: t.contact_id })">{{ t.contact_name }}</button>
                 </td>
-                <td class="col-user">
-                  <div class="user-cell">
-                    <span class="user-avatar">{{ initials(t.user) }}</span>
-                    <span class="user-name">{{ t.user ?? '—' }}</span>
-                  </div>
-                </td>
+                <td class="col-user"><span class="user-name">{{ t.user ?? '—' }}</span></td>
                 <td><span v-if="t.task" class="dtask-badge">{{ t.task }}</span><span v-else class="muted-dash">—</span></td>
                 <td style="font-size:12px;white-space:pre-line;color:#374151">{{ t.todo_remark || '—' }}</td>
                 <td style="text-align:center">
@@ -1071,12 +1141,7 @@
                 <td class="fcol-amount fcast-amount">{{ fmtCurrency(f.amount) }}</td>
                 <td class="col-date"><span class="date-text">{{ fmtDate(f.forecast_date) }}</span></td>
                 <td><span class="result-badge" :class="resultClass(f.result_name)">{{ f.result_name ?? 'No Result' }}</span></td>
-                <td class="col-user">
-                  <div class="user-cell">
-                    <span class="user-avatar">{{ initials(f.user_name) }}</span>
-                    <span class="user-name">{{ f.user_name ?? '—' }}</span>
-                  </div>
-                </td>
+                <td class="col-user"><span class="user-name">{{ f.user_name ?? '—' }}</span></td>
                 <td class="col-date"><span class="date-text">{{ fmtDate(f.forecast_updatedate) }}</span></td>
                 <td class="col-action" @click.stop>
                   <div class="action-btns">
@@ -1102,89 +1167,14 @@
         <div class="export-modal-header">
           <div>
             <strong class="export-modal-title">Export Contacts</strong>
-            <p class="export-modal-sub">Choose what to export, then pick your columns.</p>
+            <p class="export-modal-sub">Pick what to include, then download.</p>
           </div>
           <button class="remark-close" @click="exportModal.open = false" v-html="CI.x"></button>
         </div>
 
         <div class="export-modal-body">
 
-          <!-- ① How many to export -->
-          <div class="export-section">
-            <div class="export-section-label">How many records?</div>
-            <div class="export-scope-options">
-
-              <label class="export-scope-card" :class="{ 'export-scope-card--on': exportModal.scope === 'page' }">
-                <input type="radio" v-model="exportModal.scope" value="page" hidden>
-                <div class="export-scope-card-body">
-                  <div class="export-scope-card-title">This page only</div>
-                  <div class="export-scope-card-desc">{{ contacts.length }} row(s) currently shown on screen — instant, no extra request</div>
-                </div>
-                <span class="export-scope-badge">{{ contacts.length }}</span>
-              </label>
-
-              <label class="export-scope-card" :class="{ 'export-scope-card--on': exportModal.scope === 'all' }">
-                <input type="radio" v-model="exportModal.scope" value="all" hidden>
-                <div class="export-scope-card-body">
-                  <div class="export-scope-card-title">All matching results</div>
-                  <div class="export-scope-card-desc">Every record that matches your current filters (date, user, search)</div>
-                </div>
-                <span class="export-scope-badge">{{ meta.total ?? '?' }}</span>
-              </label>
-
-              <label class="export-scope-card" :class="{ 'export-scope-card--on': exportModal.scope === 'custom' }">
-                <input type="radio" v-model="exportModal.scope" value="custom" hidden>
-                <div class="export-scope-card-body">
-                  <div class="export-scope-card-title">Custom limit</div>
-                  <div class="export-scope-card-desc">
-                    Export the first
-                    <input
-                      v-if="exportModal.scope === 'custom'"
-                      type="number"
-                      v-model.number="exportModal.customLimit"
-                      min="1" :max="meta.total || 9999"
-                      class="export-custom-input"
-                      @click.stop
-                    >
-                    <strong v-else>N</strong>
-                    records (from page 1)
-                  </div>
-                </div>
-                <span class="export-scope-badge" v-if="exportModal.scope === 'custom'">{{ Math.min(exportModal.customLimit, meta.total || 9999) }}</span>
-              </label>
-
-              <label v-if="isAdmin" class="export-scope-card" :class="{ 'export-scope-card--on': exportModal.scope === 'all_data' }">
-                <input type="radio" v-model="exportModal.scope" value="all_data" hidden>
-                <div class="export-scope-card-body">
-                  <div class="export-scope-card-title">All data</div>
-                  <div class="export-scope-card-desc">Every contact in the system — ignores all filters, date range, and user selection</div>
-                </div>
-                <span class="export-scope-badge">All</span>
-              </label>
-
-            </div>
-          </div>
-
-          <!-- ② Active filters reminder -->
-          <div class="export-section">
-            <div class="export-section-label">Active filters</div>
-            <div class="export-filters-row">
-              <span class="export-filter-chip" :class="{ 'export-filter-chip--dim': !dateFrom && !dateTo }">
-                <span v-html="CI.calendar" style="display:inline-flex;align-items:center;margin-right:4px"></span>{{ dateFrom || dateTo ? `${dateFrom || '…'} → ${dateTo || '…'}` : 'All dates' }}
-              </span>
-              <span class="export-filter-chip" :class="{ 'export-filter-chip--dim': !userId }">
-                <span v-html="CI.user" style="display:inline-flex;align-items:center;margin-right:4px"></span>{{ userId ? (users.find(u => u.id == userId)?.name ?? 'User filtered') : 'All users' }}
-              </span>
-              <span class="export-filter-chip" :class="{ 'export-filter-chip--dim': !search }">
-                <span v-html="CI.search" style="display:inline-flex;align-items:center;margin-right:4px"></span>{{ search || 'No search' }}
-              </span>
-              <span class="export-filter-chip export-filter-chip--sort">
-                <span v-html="sort === 'desc' ? CI.arrowDown : CI.arrowUp" style="display:inline-flex;align-items:center;margin-right:4px"></span>{{ sort === 'desc' ? 'Newest first' : 'Oldest first' }}
-              </span>
-            </div>
-          </div>
-
-          <!-- ③ Column picker -->
+          <!-- Column picker -->
           <div class="export-section">
             <div class="export-cols-head">
               <span class="export-section-label" style="margin-bottom:0">Columns to include</span>
@@ -1205,22 +1195,37 @@
         </div>
 
         <div class="export-modal-footer">
-          <span class="export-footer-count">
-            Will export <strong>{{ exportRowCount }}</strong> record(s) × <strong>{{ exportCols.filter(c => c.checked).length }}</strong> column(s)
-          </span>
-          <div style="display:flex;gap:8px">
-            <button class="btn btn-clear" @click="exportModal.open = false">Cancel</button>
+          <p class="export-footer-count">
+            Will export <strong>{{ exportRowCount }}</strong> contact(s) × <strong>{{ exportCols.filter(c => c.checked).length }}</strong> column(s)
+          </p>
+          <div class="export-action-stack">
             <button
-              class="btn btn-export"
+              class="export-dl-btn export-dl-xls"
               :disabled="exportModal.loading || exportCols.every(c => !c.checked)"
-              @click="executeExport"
-              style="display:inline-flex;align-items:center;gap:6px"
+              @click="executeExport('xls')"
             >
-              <svg v-if="!exportModal.loading" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;flex-shrink:0">
-                <path d="M12 15V3m0 12-4-4m4 4 4-4M2 17l.621 2.485A2 2 0 0 0 4.561 21h14.878a2 2 0 0 0 1.94-1.515L22 17"/>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="export-dl-icon">
+                <path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" stroke-linecap="round" stroke-linejoin="round"/>
               </svg>
-              {{ exportModal.loading ? 'Exporting…' : 'Download Excel' }}
+              <span class="export-dl-text">
+                <span class="export-dl-label">{{ exportModal.loading ? 'Exporting…' : 'Download Excel' }}</span>
+                <span class="export-dl-desc">Formatted with borders &amp; column widths</span>
+              </span>
             </button>
+            <button
+              class="export-dl-btn export-dl-csv"
+              :disabled="exportModal.loading || exportCols.every(c => !c.checked)"
+              @click="executeExport('csv')"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="export-dl-icon">
+                <path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              <span class="export-dl-text">
+                <span class="export-dl-label">Download CSV</span>
+                <span class="export-dl-desc">Plain text, opens in any spreadsheet app</span>
+              </span>
+            </button>
+            <button class="export-cancel-btn" @click="exportModal.open = false">Cancel</button>
           </div>
         </div>
       </div>
@@ -1284,6 +1289,36 @@
       @saved="onForecastSaved"
     />
 
+  <!-- Mark as Closed confirm modal -->
+  <Teleport to="body">
+    <div v-if="closedDrawerModal.open" class="conf-overlay" @click.self="closedDrawerModal.open = false">
+      <div class="conf-modal">
+        <div class="conf-head">
+          <div>
+            <p class="conf-title">Mark as Permanently Closed</p>
+            <p class="conf-sub">This contact will be flagged as a closed business.</p>
+          </div>
+          <button class="conf-close" @click="closedDrawerModal.open = false">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+        <div class="conf-body">
+          <svg class="conf-warn" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+            <line x1="12" y1="9" x2="12" y2="13"/><circle cx="12" cy="17" r="1" fill="#f59e0b" stroke="none"/>
+          </svg>
+          <p class="conf-text">Flag <strong>{{ drawer.contact?.name }}</strong> as permanently closed? You can undo this at any time.</p>
+        </div>
+        <div class="conf-foot">
+          <button class="conf-cancel" @click="closedDrawerModal.open = false">Cancel</button>
+          <button class="conf-delete" :disabled="closedDrawerModal.loading" @click="toggleDrawerClosed">
+            {{ closedDrawerModal.loading ? 'Saving…' : 'Mark as Closed' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </Teleport>
+
     <!-- Toast notifications -->
     <div class="toast-container">
       <transition-group name="toast" tag="div" class="toast-list">
@@ -1299,15 +1334,17 @@
 
 <script setup>
 import { ref, computed, onMounted, nextTick } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import api from '../api.js';
 import LoadingSpinner from '../components/LoadingSpinner.vue';
+import CalendarPicker from '../components/CalendarPicker.vue';
 import ForecastFormModal from '../components/ForecastFormModal.vue';
 import { usePermissions } from '../composables/usePermissions.js';
 
 const { can, isAdmin } = usePermissions();
 
 const router = useRouter();
+const route  = useRoute();
 
 // ── Toast notifications ──
 const toasts = ref([]);
@@ -1353,30 +1390,38 @@ const tab = ref('contacts');
 
 function switchTab(newTab) {
   tab.value = newTab;
-  if (newTab === 'summary') loadSummary();
-  else if (newTab === 'tasks') loadTodos();
+  router.replace({ query: newTab !== 'contacts' ? { tab: newTab } : {} });
+  if (newTab === 'summary') { summaryPage.value = 1; loadSummary(); }
+  else if (newTab === 'tasks') {
+    loadTodos();
+    const [y, m] = todoDate.value.split('-').map(Number);
+    loadTodoMarkedDates(y, m);
+  }
   else if (newTab === 'forecast') loadForecasts();
 }
 
 const bannerTitle = computed(() => {
   if (tab.value === 'summary') return 'Activity Summary';
-  if (tab.value === 'tasks') return 'Task Management';
+  if (tab.value === 'tasks') return 'To-Do List';
   if (tab.value === 'forecast') return 'Forecasts';
   return 'List of Contacts';
 });
 const bannerSub = computed(() => {
   if (tab.value === 'summary') return 'Track contact engagement across months and years';
-  if (tab.value === 'tasks') return 'View, manage and complete tasks across all contacts';
+  if (tab.value === 'tasks') return 'View, manage and complete to-dos across all contacts';
   if (tab.value === 'forecast') return 'Track forecasted revenue by company, product, type and result';
   return 'Browse, manage and add new contacts';
 });
 
 // ── Contacts tab state ──
-const dateFrom = ref('');
-const dateTo   = ref('');
-const search   = ref('');
-const userId   = ref('');
-const sort     = ref('desc');
+const dateFrom    = ref('');
+const dateTo      = ref('');
+const search      = ref('');
+const userId      = ref('');
+const statusId    = ref('');
+const typeId      = ref('');
+const categoryId  = ref('');
+const sort        = ref('desc');
 const contacts = ref([]);
 const meta     = ref({});
 const loading  = ref(false);
@@ -1423,10 +1468,12 @@ const summaryLoading      = ref(false);
 const summaryFilters      = ref({ search: '', user_id: '', status_id: '', type_id: '', category_id: '', industry_id: '' });
 const summarySelectedIds  = ref([]);
 const summarySelectAllRef = ref(null);
+const summaryPage         = ref(1);
+const summaryMeta         = ref({});
 
 // ── Tasks tab state ──
-const todoView    = ref('All');
-const todoDate    = ref(new Date().toISOString().slice(0, 10));
+const todoView    = ref('Day');
+const todoDate    = ref((() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; })());
 const todoSearch  = ref('');
 const todoUserId  = ref('');
 const todoStatus  = ref('pending');
@@ -1434,7 +1481,9 @@ const todoPerPage = ref(50);
 const todoPage    = ref(1);
 const todos       = ref([]);
 const todoMeta    = ref({});
-const todoLoading = ref(false);
+const todoLoading    = ref(false);
+const todoMarked     = ref([]);
+const todoMarkLoading = ref(false);
 
 // ── Forecast tab state ──
 const forecasts        = ref([]);
@@ -1514,7 +1563,25 @@ const drawerMonthMap = computed(() => {
 });
 
 // ── Computed ──
-const hasFilters = computed(() => dateFrom.value || dateTo.value || search.value || userId.value);
+const hasFilters = computed(() => dateFrom.value || dateTo.value || search.value || userId.value || statusId.value || typeId.value || categoryId.value);
+
+const pageNumbers = computed(() => {
+  const total = meta.value.last_page ?? 1;
+  const cur   = meta.value.current_page ?? 1;
+  if (total <= 5) return Array.from({ length: total }, (_, i) => i + 1);
+  if (cur <= 3)          return [1, 2, 3, '...', total];
+  if (cur >= total - 2)  return [1, '...', total - 2, total - 1, total];
+  return [1, '...', cur, '...', total];
+});
+
+const summaryPageNumbers = computed(() => {
+  const total = summaryMeta.value.last_page ?? 1;
+  const cur   = summaryMeta.value.current_page ?? 1;
+  if (total <= 5) return Array.from({ length: total }, (_, i) => i + 1);
+  if (cur <= 3)          return [1, 2, 3, '...', total];
+  if (cur >= total - 2)  return [1, '...', total - 2, total - 1, total];
+  return [1, '...', cur, '...', total];
+});
 
 const dateLabel = computed(() => {
   if (!dateFrom.value && !dateTo.value) return 'All Contacts';
@@ -1525,14 +1592,21 @@ const dateLabel = computed(() => {
 });
 
 const todoPeriodLabel = computed(() => {
-  if (todoView.value === 'All') return 'All Tasks';
   const d = new Date(todoDate.value + 'T00:00:00');
-  if (todoView.value === 'Day') return d.toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-  if (todoView.value === 'Month') return d.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
-  return d.getFullYear().toString();
+  return d.toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+});
+
+const todoNavLabel = computed(() => {
+  const d = new Date(todoDate.value + 'T00:00:00');
+  return d.toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' });
 });
 
 // ── Helpers ──
+function mapsUrl(c) {
+  const q = encodeURIComponent([c.name, c.address].filter(Boolean).join(', '));
+  return `https://www.google.com/maps/search/?api=1&query=${q}`;
+}
+
 function fmtDate(d) {
   if (!d) return '—';
   return new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -1570,13 +1644,21 @@ async function load(page = 1) {
   showSuggestions.value = false;
   try {
     const params = { sort: sort.value, per_page: contactsPerPage.value, page: contactsPage.value };
-    if (dateFrom.value) params.date_from = dateFrom.value;
-    if (dateTo.value)   params.date_to   = dateTo.value;
-    if (search.value)   params.search    = search.value;
-    if (userId.value)   params.user_id   = userId.value;
+    if (dateFrom.value)   params.date_from    = dateFrom.value;
+    if (dateTo.value)     params.date_to      = dateTo.value;
+    if (search.value)     params.search       = search.value;
+    if (userId.value)     params.user_id      = userId.value;
+    if (statusId.value)   params.status_id    = statusId.value;
+    if (typeId.value)     params.type_id      = typeId.value;
+    if (categoryId.value) params.category_id  = categoryId.value;
     const res = await api.get('/v1/contacts/daily', { params });
     contacts.value = res.data.data;
-    meta.value = res.data.meta ?? { total: res.data.data?.length ?? 0 };
+    meta.value = res.data.meta ?? {
+      current_page: res.data.current_page ?? 1,
+      last_page:    res.data.last_page    ?? 1,
+      total:        res.data.total        ?? res.data.data?.length ?? 0,
+      from:         res.data.from         ?? 1,
+    };
   } finally {
     loading.value = false;
   }
@@ -1584,7 +1666,8 @@ async function load(page = 1) {
 
 function clearFilters() {
   dateFrom.value = ''; dateTo.value = ''; search.value = '';
-  userId.value = ''; sort.value = 'desc';
+  userId.value = ''; statusId.value = ''; typeId.value = ''; categoryId.value = '';
+  sort.value = 'desc';
   contactsPerPage.value = 25;
   suggestions.value = []; showSuggestions.value = false;
   load(1);
@@ -1598,43 +1681,43 @@ const EXPORT_COLUMNS = [
   { key: 'status',      label: 'Status',       width: 110 },
   { key: 'type',        label: 'Type',         width: 90  },
   { key: 'industry',    label: 'Industry',     width: 130 },
-  { key: 'address',     label: 'Address',      width: 220 },
   { key: 'company',     label: 'Company Name', width: 220 },
   { key: 'category',    label: 'Category',     width: 130 },
+  { key: 'address',     label: 'Address',      width: 220 },
   { key: 'remarks',     label: 'Remarks',      width: 220 },
+  { key: 'pic_names',   label: 'PIC Name(s)',  width: 180 },
+  { key: 'pic_emails',  label: 'Email(s)',     width: 200 },
+  { key: 'pic_mobiles', label: 'Mobile(s)',    width: 150 },
+  { key: 'pic_offices', label: 'Office(s)',    width: 150 },
 ];
 
-const exportModal = ref({ open: false, loading: false, scope: 'page', customLimit: 50 });
+const exportModal = ref({ open: false, loading: false });
 const exportCols  = ref(EXPORT_COLUMNS.map(c => ({ ...c, checked: true })));
 
-const exportRowCount = computed(() => {
-  const s = exportModal.value.scope;
-  if (s === 'page')     return contacts.value.length;
-  if (s === 'all')      return meta.value.total ?? '?';
-  if (s === 'custom')   return Math.min(exportModal.value.customLimit || 0, meta.value.total || 9999);
-  if (s === 'all_data') return 'all';
-  return 0;
-});
+const exportRowCount = computed(() => 'all');
 
 function openExportModal() {
-  exportModal.value.scope = 'page';
-  exportModal.value.customLimit = 50;
   exportModal.value.open = true;
 }
 
 function getCellValue(c, key, idx) {
+  const pics = c.incharges ?? [];
   switch (key) {
-    case 'no':         return idx + 1;
-    case 'date_added': return fmtDate(c.created_at);
-    case 'user':       return c.user?.name ?? '—';
-    case 'status':     return c.status?.name ?? '—';
-    case 'type':       return c.type?.name ?? '—';
-    case 'industry':   return c.industry?.name ?? '—';
-    case 'address':    return c.address ?? '—';
-    case 'company':    return c.name ?? '—';
-    case 'category':   return c.category?.name ?? '—';
-    case 'remarks':    return c.remark ?? '—';
-    default:           return '';
+    case 'no':          return idx + 1;
+    case 'date_added':  return fmtDate(c.created_at);
+    case 'user':        return c.user?.name ?? '—';
+    case 'status':      return c.status?.name ?? '—';
+    case 'type':        return c.type?.name ?? '—';
+    case 'industry':    return c.industry?.name ?? '—';
+    case 'address':     return c.address ?? '—';
+    case 'company':     return c.name ?? '—';
+    case 'category':    return c.category?.name ?? '—';
+    case 'remarks':     return c.remark ?? '—';
+    case 'pic_names':   return pics.length ? pics.map(p => p.name || '—').join('; ') : '—';
+    case 'pic_emails':  return pics.length ? pics.map(p => p.email || '—').join('; ') : '—';
+    case 'pic_mobiles': return pics.length ? pics.map(p => p.phone_mobile || '—').join('; ') : '—';
+    case 'pic_offices': return pics.length ? pics.map(p => p.phone_office || '—').join('; ') : '—';
+    default:            return '';
   }
 }
 
@@ -1642,78 +1725,37 @@ function escHtml(v) {
   return String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
-async function executeExport() {
+async function executeExport(format = 'xls') {
   const selected = exportCols.value.filter(c => c.checked);
   if (!selected.length) return;
   exportModal.value.loading = true;
+  const PIC_KEYS = ['pic_names', 'pic_emails', 'pic_mobiles', 'pic_offices'];
+  const needsIncharges = selected.some(c => PIC_KEYS.includes(c.key));
   try {
-    let rows;
-    const scope = exportModal.value.scope;
+    const qs = new URLSearchParams({ cols: selected.map(c => c.key).join(','), sort: sort.value, format });
+    if (needsIncharges) qs.set('with_incharges', '1');
 
-    if (scope === 'page') {
-      // Use already-loaded contacts — no extra request needed
-      rows = contacts.value;
-    } else {
-      let params;
-      if (scope === 'all_data') {
-        // Admin: no filters at all — fetch the entire dataset
-        params = { sort: sort.value, per_page: 9999 };
-      } else {
-        params = { sort: sort.value };
-        if (dateFrom.value) params.date_from = dateFrom.value;
-        if (dateTo.value)   params.date_to   = dateTo.value;
-        if (search.value)   params.search    = search.value;
-        if (userId.value)   params.user_id   = userId.value;
-        if (scope === 'custom') {
-          params.per_page = exportModal.value.customLimit || 50;
-          params.page     = 1;
-        } else {
-          params.per_page = 9999;
-        }
-      }
-      const res = await api.get('/v1/contacts/daily', { params });
-      rows = res.data.data ?? [];
-    }
+    const token = localStorage.getItem('crm_token');
+    const resp  = await fetch(`/api/v1/contacts/export?${qs}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!resp.ok) throw new Error(`Server error ${resp.status}`);
 
-    // Build Excel-compatible HTML table
-    let colDefs = selected.map(c => `<col style="width:${c.width}pt">`).join('');
-    let headerCells = selected.map(c =>
-      `<th style="background:#4f46e5;color:#fff;font-weight:700;padding:8pt 10pt;border:1pt solid #3730a3;white-space:nowrap;font-size:10pt">${escHtml(c.label)}</th>`
-    ).join('');
-
-    let bodyRows = rows.map((c, idx) => {
-      const bg = idx % 2 === 0 ? '#ffffff' : '#f1f5ff';
-      const cells = selected.map(col =>
-        `<td style="padding:6pt 10pt;border:1pt solid #d1d5db;font-size:10pt;vertical-align:top;background:${bg}">${escHtml(getCellValue(c, col.key, idx))}</td>`
-      ).join('');
-      return `<tr>${cells}</tr>`;
-    }).join('');
-
-    const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
-<head><meta charset="UTF-8">
-<!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet>
-<x:Name>Contacts</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions>
-</x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]-->
-</head>
-<body>
-<table style="border-collapse:collapse;font-family:Arial,Helvetica,sans-serif;">
-<colgroup>${colDefs}</colgroup>
-<thead><tr>${headerCells}</tr></thead>
-<tbody>${bodyRows}</tbody>
-</table>
-</body></html>`;
-
-    const blob = new Blob(['﻿' + html], { type: 'application/vnd.ms-excel;charset=utf-8' });
+    const date = new Date().toISOString().slice(0, 10);
+    const blob = await resp.blob();
     const url  = URL.createObjectURL(blob);
     const a    = document.createElement('a');
     a.href     = url;
-    a.download = `Contacts_${new Date().toISOString().slice(0, 10)}.xls`;
+    a.download = `Contacts_${date}.${format}`;
+    document.body.appendChild(a);
     a.click();
-    URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 500);
     exportModal.value.open = false;
-    showToast(`Exported ${rows.length} contact(s)`);
-  } catch {
-    showToast('Export failed', 'error');
+    showToast(`Downloaded as ${format.toUpperCase()}`);
+  } catch (err) {
+    console.error('[Export]', err);
+    showToast(`Export failed: ${err.message}`, 'error');
   } finally {
     exportModal.value.loading = false;
   }
@@ -1729,12 +1771,28 @@ async function loadSummary() {
   summarySelectedIds.value = [];
   if (summarySelectAllRef.value) summarySelectAllRef.value.checked = false;
   try {
-    const params = { year: summaryYear.value, ...Object.fromEntries(Object.entries(summaryFilters.value).filter(([, v]) => v)) };
+    const params = {
+      year: summaryYear.value,
+      page: summaryPage.value,
+      per_page: 50,
+      ...Object.fromEntries(Object.entries(summaryFilters.value).filter(([, v]) => v)),
+    };
     const res = await api.get('/v1/summary', { params });
     summaryContacts.value = res.data.data;
+    summaryMeta.value = res.data.meta ?? {};
   } finally {
     summaryLoading.value = false;
   }
+}
+
+function applySummaryFilters() {
+  summaryPage.value = 1;
+  loadSummary();
+}
+
+function summaryChangePage(p) {
+  summaryPage.value = p;
+  loadSummary();
 }
 
 function summaryLastContact(c) {
@@ -1749,6 +1807,7 @@ function summaryActiveMonths(c) {
 
 function resetSummaryFilters() {
   summaryFilters.value = { search: '', user_id: '', status_id: '', type_id: '', category_id: '', industry_id: '' };
+  summaryPage.value = 1;
   loadSummary();
 }
 
@@ -1801,6 +1860,28 @@ async function loadTodos() {
 }
 
 function todoChangePage(p) { todoPage.value = p; loadTodos(); }
+
+function shiftTodoDate(n) {
+  const [y, m, day] = todoDate.value.split('-').map(Number);
+  const d = new Date(y, m - 1, day + n);
+  const newDate = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  const oldMonth = todoDate.value.slice(0, 7);
+  todoDate.value = newDate;
+  loadTodos();
+  if (newDate.slice(0, 7) !== oldMonth) {
+    loadTodoMarkedDates(d.getFullYear(), d.getMonth() + 1);
+  }
+}
+
+async function loadTodoMarkedDates(year, month) {
+  todoMarkLoading.value = true;
+  try {
+    const res = await api.get('/v1/todos/active-dates', { params: { year, month } });
+    todoMarked.value = res.data.dates ?? [];
+  } finally {
+    todoMarkLoading.value = false;
+  }
+}
 
 async function markTodoDone(todo) {
   await api.patch(`/v1/todos/${todo.id}/status`, { status: 'completed' });
@@ -1921,6 +2002,26 @@ async function confirmForecastDelete() {
 async function openDrawerById(contactId) {
   if (!contactId) return;
   await openDrawer({ id: contactId });
+}
+
+// ── Drawer closed toggle ──
+const closedDrawerModal = ref({ open: false, loading: false });
+
+function openDrawerClosedModal() { closedDrawerModal.value = { open: true, loading: false }; }
+
+async function toggleDrawerClosed() {
+  if (!drawer.value.contact) return;
+  closedDrawerModal.value.loading = true;
+  try {
+    const res = await api.patch(`/v1/contacts/${drawer.value.contact.id}/closed`);
+    drawer.value.contact.is_permanently_closed = res.data.is_permanently_closed;
+    // sync the badge in the contacts table without a full reload
+    const match = contacts.value.find(c => c.id === drawer.value.contact.id);
+    if (match) match.is_permanently_closed = res.data.is_permanently_closed;
+    closedDrawerModal.value.open = false;
+  } finally {
+    closedDrawerModal.value.loading = false;
+  }
 }
 
 // ── Shared drawer ──
@@ -2223,7 +2324,17 @@ async function submitAdd() {
 }
 
 onMounted(async () => {
-  const lu = await api.get('/v1/lookups');
+  const initialTab = route.query.tab;
+  if (['summary', 'tasks', 'forecast'].includes(initialTab)) {
+    tab.value = initialTab;
+  }
+  const initialLoad =
+    tab.value === 'summary'  ? loadSummary() :
+    tab.value === 'tasks'    ? loadTodos() :
+    tab.value === 'forecast' ? loadForecasts() :
+    load();
+  const [y, m] = todoDate.value.split('-').map(Number);
+  const [lu] = await Promise.all([api.get('/v1/lookups'), initialLoad, loadTodoMarkedDates(y, m)]);
   users.value = lu.data.users ?? [];
   lookups.value = {
     statuses:   lu.data.statuses   ?? [],
@@ -2232,7 +2343,6 @@ onMounted(async () => {
     industries: lu.data.industries ?? [],
     tasks:      lu.data.tasks      ?? [],
   };
-  load();
 });
 </script>
 
@@ -2272,7 +2382,7 @@ onMounted(async () => {
   font-weight: 700;
   cursor: pointer;
   white-space: nowrap;
-  box-shadow: 0 8px 22px -8px rgba(124,58,237,0.6);
+  box-shadow: 0 8px 22px -8px rgba(29,78,216,0.6);
   transition: background 0.15s, transform 0.06s, box-shadow 0.15s;
 }
 .btn-primary-pill:hover { background: var(--primary-hover); }
@@ -2319,7 +2429,7 @@ onMounted(async () => {
 .tab-active {
   color: var(--primary-on) !important;
   background: var(--primary) !important;
-  box-shadow: 0 4px 12px -4px rgba(124,58,237,0.5);
+  box-shadow: 0 4px 12px -4px rgba(29,78,216,0.5);
 }
 
 /* Toolbar */
@@ -2362,6 +2472,27 @@ onMounted(async () => {
   border-color: var(--primary);
   box-shadow: 0 0 0 3px var(--focus-ring);
 }
+
+/* Date navigator */
+.date-nav { display: flex; align-items: center; gap: 4px; align-self: flex-end; }
+.date-nav-arrow {
+  display: flex; align-items: center; justify-content: center;
+  width: 32px; height: 38px; border-radius: 999px;
+  border: 1px solid var(--border); background: var(--surface);
+  cursor: pointer; color: var(--text-2); transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.date-nav-arrow:hover { background: var(--primary-soft); color: var(--primary); border-color: var(--primary-soft); }
+.date-nav-center {
+  display: flex; align-items: center; gap: 7px; cursor: pointer; position: relative;
+  padding: 0 16px; height: 38px; border-radius: 999px;
+  border: 1px solid var(--border); background: var(--surface);
+  font-size: 13px; font-weight: 600; color: var(--text-1);
+  transition: border-color 0.15s, box-shadow 0.15s; white-space: nowrap;
+}
+.date-nav-center:hover { border-color: var(--primary); box-shadow: 0 0 0 3px var(--focus-ring); }
+.date-nav-cal { display: flex; color: var(--text-3); }
+.date-nav-hidden-input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; right: 0; bottom: 0; }
+
 .btn {
   height: 38px;
   padding: 0 18px;
@@ -2376,7 +2507,7 @@ onMounted(async () => {
 .btn-primary {
   background: var(--primary);
   color: var(--primary-on);
-  box-shadow: 0 6px 18px -6px rgba(124,58,237,0.55);
+  box-shadow: 0 6px 18px -6px rgba(29,78,216,0.55);
 }
 .btn-primary:hover:not(:disabled) { background: var(--primary-hover); }
 .btn-clear {
@@ -2430,29 +2561,33 @@ table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .col-address  { width: 140px; }
 .col-name     { min-width: 160px; }
 .col-category { width: 110px; }
-.col-remark   { width: 70px; text-align: center; }
-.col-action   { width: 110px; }
+.col-remark   { width: 200px; }
+.col-action   { width: 160px; white-space: nowrap; }
 
 thead th {
-  background: transparent;
-  color: var(--text-3);
-  font-size: 11.5px;
-  font-weight: 600;
-  text-transform: none;
-  letter-spacing: 0;
-  padding: 14px 14px;
-  border-bottom: 1px solid var(--border-soft);
+  background: var(--surface-2);
+  color: var(--text-2);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.55px;
+  padding: 11px 14px;
+  border-bottom: 2px solid var(--border);
+  border-right: 1px solid var(--border-soft);
   text-align: left;
   white-space: nowrap;
 }
+thead th:last-child { border-right: none; }
 thead th.col-no { text-align: center; }
 tbody td {
-  padding: 16px 14px;
+  padding: 13px 14px;
   border-bottom: 1px solid var(--border-soft);
+  border-right: 1px solid var(--border-soft);
   color: var(--text-1);
   vertical-align: middle;
   font-size: 13.5px;
 }
+tbody td:last-child { border-right: none; }
 tbody tr:last-child td { border-bottom: none; }
 .contact-row { transition: background 0.12s; }
 .contact-row:hover { background: var(--surface-2); }
@@ -2474,20 +2609,6 @@ tbody tr:last-child td { border-bottom: none; }
 .date-text { font-size: 12.5px; color: var(--text-2); font-weight: 500; }
 
 /* User cell */
-.user-cell { display: flex; align-items: center; gap: 10px; }
-.user-avatar {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: var(--primary-soft);
-  color: var(--primary-text);
-  font-size: 11px;
-  font-weight: 700;
-  flex-shrink: 0;
-}
 .user-name { font-weight: 600; font-size: 13px; color: var(--text-1); }
 
 /* Status badge */
@@ -2510,52 +2631,67 @@ tbody tr:last-child td { border-bottom: none; }
 }
 .tag-category { background: var(--primary-soft); color: var(--primary-text); }
 .company-link { color: var(--text-1); font-weight: 600; transition: color 0.15s; }
+.closed-badge {
+  display: inline-block; margin-left: 6px; padding: 1px 7px; border-radius: 999px;
+  font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
+  background: var(--danger-soft); color: var(--danger); vertical-align: middle;
+}
+.col-name { white-space: nowrap; }
+.dinfo-label-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 3px; }
+.maps-link {
+  display: inline-flex; align-items: center; gap: 4px; font-size: 10.5px; font-weight: 700;
+  color: var(--primary-text); text-decoration: none; padding: 2px 8px; border-radius: 999px;
+  background: var(--primary-soft); transition: background 0.15s, color 0.15s; white-space: nowrap;
+}
+.maps-link:hover { background: var(--primary); color: var(--primary-on); }
 
 /* Action buttons */
-.action-btns { display: flex; gap: 4px; align-items: center; }
-.icon-btn {
+.action-btns { display: flex; gap: 5px; align-items: center; }
+
+.action-chip {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 10px;
-  text-decoration: none;
-  font-size: 14px;
-  background: transparent;
-  color: var(--text-3);
-  transition: background 0.15s, color 0.15s, transform 0.08s;
+  gap: 4px;
+  padding: 4px 9px 4px 7px;
+  border-radius: 7px;
+  border: none;
+  cursor: pointer;
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 1;
+  transition: opacity 0.15s, transform 0.08s, box-shadow 0.15s;
 }
-.icon-btn:hover { transform: translateY(-1px); }
-.btn-todo:hover   { background: var(--info-soft);    color: var(--info); }
-.btn-edit:hover   { background: var(--primary-soft); color: var(--primary-text); }
-.btn-delete       { border: none; cursor: pointer; }
-.btn-delete:hover { background: var(--danger-soft);  color: var(--danger); }
+.action-chip:hover { opacity: 0.82; transform: translateY(-1px); box-shadow: 0 3px 8px -2px rgba(0,0,0,0.18); }
+.chip-icon { display: inline-flex; align-items: center; width: 14px; height: 14px; flex-shrink: 0; }
+.chip-icon svg { width: 14px; height: 14px; }
+.chip-label { letter-spacing: 0.2px; }
 
-.address-text {
+.chip-task   { background: var(--info-soft);    color: var(--info); }
+.chip-edit   { background: var(--primary-soft); color: var(--primary-text); }
+.chip-delete { background: var(--danger-soft);  color: var(--danger); }
+
+/* Inline remark text */
+.remark-inline-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  text-align: left;
+  width: 100%;
+}
+.remark-text-preview {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
   font-size: 12.5px;
   color: var(--text-2);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 160px;
-  display: inline-block;
+  line-height: 1.45;
+  max-width: 200px;
+  transition: color 0.15s;
 }
-.remark-btn {
-  background: var(--primary-soft);
-  border: none;
-  border-radius: 8px;
-  width: 30px;
-  height: 30px;
-  cursor: pointer;
-  font-size: 13px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--primary-text);
-  transition: background 0.15s;
-}
-.remark-btn:hover { background: var(--primary); color: var(--primary-on); }
+.remark-inline-btn:hover .remark-text-preview { color: var(--primary-text); }
+
 .muted-dash { color: var(--text-3); font-size: 13px; }
 
 /* Summary-specific */
@@ -2563,70 +2699,93 @@ tbody tr:last-child td { border-bottom: none; }
 .legend-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
 .legend-label { margin-right: 8px; }
 .col-check { width: 32px; text-align: center; }
-.sum-activity-col { min-width: 640px; }
-.sum-activity-cell { padding: 10px 14px; vertical-align: top; }
+
+/* Summary table — scoped column widths so activity always gets room */
+.summary-table { table-layout: fixed; width: 100%; }
+.summary-table .col-check      { width: 36px; text-align: center; vertical-align: middle; }
+.summary-table .sum-no-col     { width: 44px; text-align: center; vertical-align: middle; }
+.summary-table .sum-user-col   { width: 110px; vertical-align: middle; }
+.summary-table .sum-status-col { width: 110px; vertical-align: middle; }
+.summary-table .sum-name-col   { width: 230px; vertical-align: middle; word-break: break-word; }
+.sum-company-link {
+  display: block; font-weight: 600; color: var(--text-1);
+  white-space: normal; word-break: break-word; line-height: 1.4;
+  transition: color 0.15s;
+}
+.contact-row:hover .sum-company-link { color: var(--primary); }
+.sum-activity-col { border-left: 2px solid var(--border-soft); }
+.sum-activity-cell {
+  padding: 12px 16px;
+  vertical-align: top;
+  border-left: 2px solid var(--border-soft);
+  background: var(--surface);
+}
+.contact-row:hover .sum-activity-cell { background: var(--surface-2); }
 
 .sum-act-meta {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
   flex-wrap: wrap;
 }
 .active-badge {
   display: inline-block;
-  padding: 3px 10px;
+  padding: 3px 12px;
   border-radius: 999px;
-  font-size: 11px;
-  font-weight: 700;
+  font-size: 12px;
+  font-weight: 800;
   background: var(--success-soft);
   color: var(--success);
 }
 .sum-lc-inline {
-  font-size: 11px;
-  color: var(--text-3);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-2);
 }
 
 .sum-act-grid {
   display: grid;
   grid-template-columns: repeat(12, 1fr);
-  gap: 3px;
+  gap: 4px;
 }
 .sum-month-cell {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 5px 3px;
-  border-radius: 6px;
+  padding: 7px 4px;
+  border-radius: 8px;
   text-align: center;
-  gap: 2px;
+  gap: 3px;
+  min-height: 58px;
   min-width: 0;
   cursor: default;
-  transition: transform 0.1s, box-shadow 0.1s;
+  transition: transform 0.12s, box-shadow 0.12s;
 }
-.sum-month-cell:hover { transform: scale(1.06); box-shadow: 0 2px 8px -2px rgba(0,0,0,0.12); }
-.smc-empty { background: var(--surface-2); }
-.smc-active { background: var(--success-soft); }
-.smc-cancelled { background: #fef3c7; }
+.sum-month-cell:hover { transform: scale(1.07); box-shadow: 0 3px 10px -2px rgba(0,0,0,0.15); z-index: 1; position: relative; }
+.smc-empty    { background: var(--surface-2); border: 1px solid var(--border-soft); }
+.smc-active   { background: var(--success-soft); border: 1.5px solid var(--success); }
+.smc-cancelled { background: #fef3c7; border: 1.5px solid #fbbf24; }
 .smc-name {
-  font-size: 8px;
+  font-size: 9.5px;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.2px;
+  letter-spacing: 0.3px;
   line-height: 1;
 }
 .smc-empty .smc-name { color: var(--text-3); }
 .smc-active .smc-name { color: var(--success); }
 .smc-cancelled .smc-name { color: #d97706; }
 .smc-date {
-  font-size: 9px;
-  font-weight: 700;
+  font-size: 10.5px;
+  font-weight: 800;
   line-height: 1.2;
 }
 .smc-active .smc-date { color: var(--success); }
 .smc-cancelled .smc-date { color: #d97706; }
 .smc-task {
-  font-size: 8px;
+  font-size: 9px;
+  font-weight: 600;
   line-height: 1.2;
   white-space: nowrap;
   overflow: hidden;
@@ -2686,32 +2845,37 @@ tbody tr:last-child td { border-bottom: none; }
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 14px;
   padding: 14px 18px;
   border-top: 1px solid var(--border-soft);
-  font-size: 13px;
-  color: var(--text-2);
-  background: var(--surface);
+  background: #f8f9ff;
 }
 .pagination-info { font-size: 12px; color: var(--text-3); flex-shrink: 0; }
-.pagination-btns { display: flex; align-items: center; gap: 8px; }
-.pagination button {
-  padding: 7px 16px;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  background: var(--surface);
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 600;
+.pagination-btns { display: flex; align-items: center; gap: 3px; }
+.page-nav {
+  width: 32px; height: 32px;
+  display: flex; align-items: center; justify-content: center;
+  border: none; background: transparent;
+  border-radius: 50%;
   color: var(--text-2);
-  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  cursor: pointer;
+  transition: background 0.12s;
 }
-.pagination button:hover:not(:disabled) {
-  background: var(--primary-soft);
-  color: var(--primary-text);
-  border-color: var(--primary-soft);
+.page-nav svg { width: 14px; height: 14px; }
+.page-nav:hover:not(:disabled) { background: #e5eeff; }
+.page-nav:disabled { opacity: 0.3; cursor: default; }
+.page-num {
+  width: 32px; height: 32px;
+  display: flex; align-items: center; justify-content: center;
+  border: none; background: transparent;
+  border-radius: 50%;
+  font-size: 12.5px; font-weight: 600;
+  color: var(--text-2);
+  cursor: pointer;
+  transition: background 0.12s;
 }
-.pagination button:disabled { opacity: 0.4; cursor: not-allowed; }
+.page-num:hover { background: #e5eeff; }
+.page-num--on { background: var(--primary, #1d4ed8); color: #fff; font-weight: 700; }
+.page-ellipsis { width: 32px; text-align: center; color: var(--text-3); font-size: 13px; line-height: 32px; }
 /* Empty state */
 .empty-state { text-align: center; padding: 64px 24px; }
 .empty-icon  { display: flex; align-items: center; justify-content: center; margin-bottom: 12px; opacity: 0.7; }
@@ -2724,7 +2888,7 @@ tbody tr:last-child td { border-bottom: none; }
   border-radius: var(--radius-xl, 14px);
   box-shadow: 0 24px 60px rgba(0,0,0,0.18);
   width: min(520px, calc(100vw - 48px));
-  max-height: calc(100vh - 80px);
+  max-height: calc(100vh - 64px);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -2736,22 +2900,61 @@ tbody tr:last-child td { border-bottom: none; }
   gap: 16px;
   padding: 22px 24px 18px;
   border-bottom: 1px solid var(--border-soft);
+  flex-shrink: 0;
 }
 .export-modal-title { font-size: 17px; font-weight: 800; color: var(--text-1); }
 .export-modal-sub   { font-size: 12.5px; color: var(--text-3); margin: 3px 0 0; }
 
-.export-modal-body  { padding: 20px 24px; display: flex; flex-direction: column; gap: 18px; overflow-y: auto; }
+.export-modal-body  { padding: 20px 24px; display: flex; flex-direction: column; gap: 18px; overflow-y: auto; flex: 1 1 auto; min-height: 0; }
 .export-modal-footer {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 14px 24px;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 24px 20px;
   border-top: 1px solid var(--border-soft);
   background: var(--surface-2, #f8f9ff);
+  flex-shrink: 0;
 }
-.export-footer-count { font-size: 12.5px; color: var(--text-3); }
+.export-footer-count { font-size: 13px; color: var(--text-3); margin: 0; }
 .export-footer-count strong { color: var(--primary); }
+
+.export-action-stack { display: flex; flex-direction: column; gap: 10px; }
+
+.export-dl-btn {
+  width: 100%;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 13px 16px;
+  border-radius: var(--radius, 10px);
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  transition: opacity 0.15s, transform 0.08s;
+}
+.export-dl-btn:hover:not(:disabled) { opacity: 0.88; transform: translateY(-1px); }
+.export-dl-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.export-dl-icon { width: 20px; height: 20px; flex-shrink: 0; margin-top: 2px; }
+.export-dl-text { display: flex; flex-direction: column; gap: 2px; }
+.export-dl-label { font-size: 14px; font-weight: 700; line-height: 1.2; }
+.export-dl-desc  { font-size: 12px; opacity: 0.82; line-height: 1.3; }
+
+.export-dl-xls { background: #10b981; color: #fff; }
+.export-dl-csv { background: var(--surface); border: 1.5px solid var(--border); color: var(--text-1); }
+
+.export-cancel-btn {
+  width: 100%;
+  padding: 10px 16px;
+  border: none;
+  border-radius: var(--radius-sm, 6px);
+  background: none;
+  cursor: pointer;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--text-3);
+  transition: background 0.12s, color 0.12s;
+}
+.export-cancel-btn:hover { background: var(--border-soft); color: var(--text-2); }
 
 /* Sections */
 .export-section { display: flex; flex-direction: column; gap: 10px; }
@@ -2777,8 +2980,8 @@ tbody tr:last-child td { border-bottom: none; }
   transition: border-color 0.15s, background 0.15s;
   background: var(--surface);
 }
-.export-scope-card:hover { border-color: var(--primary); background: var(--primary-soft, #ede9fe); }
-.export-scope-card--on  { border-color: var(--primary); background: var(--primary-soft, #ede9fe); }
+.export-scope-card:hover { border-color: var(--primary); background: var(--primary-soft, #dbeafe); }
+.export-scope-card--on  { border-color: var(--primary); background: var(--primary-soft, #dbeafe); }
 .export-scope-card-body { flex: 1; min-width: 0; }
 .export-scope-card-title { font-size: 13px; font-weight: 700; color: var(--text-1); }
 .export-scope-card-desc  { font-size: 12px; color: var(--text-3); margin-top: 2px; line-height: 1.4; }
@@ -2814,7 +3017,7 @@ tbody tr:last-child td { border-bottom: none; }
   align-items: center;
   gap: 4px;
   padding: 4px 10px;
-  background: var(--primary-soft, #ede9fe);
+  background: var(--primary-soft, #dbeafe);
   color: var(--primary);
   border-radius: 999px;
   font-size: 12px;
@@ -2857,7 +3060,7 @@ tbody tr:last-child td { border-bottom: none; }
   border: 1px solid var(--border-soft);
   transition: background 0.12s, border-color 0.12s;
 }
-.export-col-check:hover { background: var(--primary-soft, #ede9fe); border-color: var(--primary); }
+.export-col-check:hover { background: var(--primary-soft, #dbeafe); border-color: var(--primary); }
 .export-col-check input[type="checkbox"] { accent-color: var(--primary); width: 14px; height: 14px; flex-shrink: 0; cursor: pointer; }
 
 /* Modals */
@@ -3020,6 +3223,15 @@ tbody tr:last-child td { border-bottom: none; }
 .btn-forecast-c:hover { background: var(--info); color: #fff; }
 .btn-followup-c { background: #fce7f3; color: #9d174d; }
 .btn-followup-c:hover { background: #e11d48; color: #fff; }
+.btn-close-c { background: var(--danger-soft); color: var(--danger); }
+.btn-close-c:hover { background: var(--danger); color: #fff; }
+.btn-reopen-c { background: var(--success-soft); color: var(--success); }
+.btn-reopen-c:hover { background: var(--success); color: #fff; }
+.drawer-closed-banner {
+  display: flex; align-items: center; gap: 7px; margin: 10px 0 4px;
+  background: var(--danger-soft); color: var(--danger); border-radius: var(--radius-sm);
+  padding: 7px 12px; font-size: 12px; font-weight: 700;
+}
 .btn-followup-save { background: #e11d48; color: #fff; border: none; border-radius: 6px; cursor: pointer; }
 .btn-followup-save:disabled { background: #94a3b8; cursor: not-allowed; }
 .btn-followup-submit { flex: 1; background: #e11d48; color: #fff; justify-content: center; height: 42px; padding: 0 20px; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; border: none; display: inline-flex; align-items: center; }
@@ -3505,4 +3717,22 @@ tbody tr:last-child td { border-bottom: none; }
 .toast-enter-from   { transform: translateY(24px); opacity: 0; }
 .toast-leave-to     { transform: translateY(12px); opacity: 0; }
 .toast-move         { transition: transform 0.25s ease; }
+
+/* Confirm modal (shared with Mark as Closed) */
+.conf-overlay { position: fixed; inset: 0; background: rgba(15,23,42,0.5); z-index: 900; display: flex; align-items: center; justify-content: center; padding: 16px; }
+.conf-modal { background: var(--surface); border-radius: var(--radius-lg); width: 100%; max-width: 420px; box-shadow: var(--shadow-lg); border: 1px solid var(--border-soft); overflow: hidden; }
+.conf-head { display: flex; justify-content: space-between; align-items: flex-start; padding: 18px 22px 14px; border-bottom: 1px solid var(--border-soft); }
+.conf-title { font-size: 15px; font-weight: 700; color: var(--text-1); margin: 0 0 2px; }
+.conf-sub { font-size: 12px; color: var(--text-3); margin: 0; }
+.conf-close { background: none; border: none; cursor: pointer; color: var(--text-3); padding: 0; line-height: 1; }
+.conf-close:hover { color: var(--text-1); }
+.conf-body { padding: 20px 24px; display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; }
+.conf-warn { width: 44px; height: 44px; flex-shrink: 0; }
+.conf-text { font-size: 14px; color: var(--text-1); margin: 0; line-height: 1.5; }
+.conf-foot { display: flex; justify-content: flex-end; gap: 10px; padding: 14px 22px; border-top: 1px solid var(--border-soft); }
+.conf-cancel { height: 38px; padding: 0 18px; background: none; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 13px; font-weight: 600; color: var(--text-2); cursor: pointer; }
+.conf-cancel:hover { background: var(--surface-2); }
+.conf-delete { height: 38px; padding: 0 18px; background: var(--danger); color: #fff; border: none; border-radius: var(--radius-sm); font-size: 13px; font-weight: 700; cursor: pointer; }
+.conf-delete:hover:not(:disabled) { background: #b91c1c; }
+.conf-delete:disabled { opacity: 0.5; cursor: not-allowed; }
 </style>

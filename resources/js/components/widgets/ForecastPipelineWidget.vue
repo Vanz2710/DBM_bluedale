@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="fp-widget">
     <div class="fp-head">
       <div class="fp-title-wrap">
@@ -57,8 +57,8 @@ function buildChart() {
         {
           label: 'Total Value',
           data: total,
-          backgroundColor: 'rgba(124,58,237,0.15)',
-          borderColor: 'rgba(124,58,237,0.5)',
+          backgroundColor: 'rgba(29,78,216,0.15)',
+          borderColor: 'rgba(29,78,216,0.5)',
           borderWidth: 1,
           borderRadius: 6,
           order: 2,
@@ -66,8 +66,8 @@ function buildChart() {
         {
           label: 'Weighted',
           data: expected,
-          backgroundColor: 'rgba(124,58,237,0.85)',
-          borderColor: 'rgba(124,58,237,1)',
+          backgroundColor: 'rgba(29,78,216,0.85)',
+          borderColor: 'rgba(29,78,216,1)',
           borderWidth: 0,
           borderRadius: 6,
           order: 1,

@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="page">
     <div class="page-banner">
       <h1>Add Deal</h1>
@@ -37,7 +37,7 @@
               <div class="dropdown-item muted">No results found</div>
             </div>
           </div>
-          <span v-if="selectedContact" class="selected-contact">✔ {{ selectedContact.name }}</span>
+          <span v-if="selectedContact" class="selected-contact"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle;margin-right:3px"><polyline points="20 6 9 17 4 12"/></svg>{{ selectedContact.name }}</span>
         </div>
 
         <div class="form-row">
@@ -223,11 +223,14 @@ onMounted(() => {
 <style scoped>
 .page { padding: 28px 32px; max-width: 760px; }
 .page-banner {
-  background: linear-gradient(135deg, #134e4a, #0d9488);
-  border-radius: 10px; padding: 20px 28px; margin-bottom: 20px; color: white;
+  border-radius: var(--radius-lg); padding: 22px 28px; margin-bottom: 20px; color: white;
+  background:
+    radial-gradient(900px 200px at 90% -20%, rgba(96,165,250,0.5), transparent 55%),
+    linear-gradient(118deg, #0f2456 0%, #1d4ed8 52%, #1e40af 100%);
+  box-shadow: 0 12px 32px -14px rgba(15,36,86,0.65);
 }
-.page-banner h1 { font-size: 18px; font-weight: 700; margin: 0 0 4px; }
-.page-banner p  { font-size: 13px; opacity: 0.8; margin: 0; }
+.page-banner h1 { font-size: 26px; font-weight: 800; margin: 0 0 5px; letter-spacing: -0.4px; }
+.page-banner p  { font-size: 13px; color: rgba(237,233,254,0.82); margin: 0; }
 .card { background: var(--surface); border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); padding: 28px 32px; }
 
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
@@ -243,7 +246,7 @@ onMounted(() => {
 .form-group textarea { height: 100px; padding: 10px 14px; resize: vertical; }
 .form-group input:focus,
 .form-group select:focus,
-.form-group textarea:focus { border-color: #0d9488; box-shadow: 0 0 0 3px rgba(13,148,136,0.1); }
+.form-group textarea:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(29,78,216,0.12); }
 
 .search-wrap { position: relative; }
 .dropdown {
@@ -252,17 +255,17 @@ onMounted(() => {
   max-height: 220px; overflow-y: auto; box-shadow: 0 4px 12px rgba(0,0,0,0.1);
 }
 .dropdown-item { padding: 9px 14px; font-size: 13px; cursor: pointer; color: var(--text-1); }
-.dropdown-item:hover { background: #f0fdf4; color: #0d9488; }
+.dropdown-item:hover { background: var(--primary-soft); color: var(--primary-text); }
 .dropdown-item.muted { color: var(--text-3); cursor: default; }
-.selected-contact { display: block; font-size: 12px; color: #10b981; font-weight: 600; margin-top: 4px; }
+.selected-contact { display: block; font-size: 12px; color: var(--primary); font-weight: 600; margin-top: 4px; }
 
-.char-warn { display: block; font-size: 11px; color: #f59e0b; margin-top: 4px; }
-.error-box { background: #fee2e2; color: #991b1b; border-radius: 8px; padding: 10px 14px; font-size: 13px; margin-bottom: 16px; }
-.req { color: #ef4444; }
+.char-warn { display: block; font-size: 11px; color: var(--warning); margin-top: 4px; }
+.error-box { background: var(--danger-soft); color: var(--danger); border-radius: 8px; padding: 10px 14px; font-size: 13px; margin-bottom: 16px; }
+.req { color: var(--danger); }
 .btn-row { display: flex; gap: 10px; margin-top: 24px; }
 .btn { height: 42px; padding: 0 20px; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; border: none; text-decoration: none; display: inline-flex; align-items: center; }
 .btn-cancel { background: var(--app-bg); color: var(--text-2); }
-.btn-save   { flex: 1; background: #0d9488; color: white; justify-content: center; }
+.btn-save   { flex: 1; background: var(--primary); color: white; justify-content: center; }
 .btn-save:disabled { background: var(--text-3); cursor: not-allowed; }
 
 @media (max-width: 768px) {

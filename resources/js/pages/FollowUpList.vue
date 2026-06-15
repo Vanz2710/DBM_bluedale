@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="page">
     <div class="page-head">
       <div class="page-head-left">
@@ -6,7 +6,7 @@
         <p class="page-subtitle">Track follow-up actions by date range or month range</p>
       </div>
       <div class="page-head-actions">
-        <button v-if="can('create followups')" class="btn-primary-pill" @click="openAddModal">
+        <button v-if="can('create followups')" class="btn-primary-pill" data-tour="add-followup-btn" @click="openAddModal">
           <span class="plus-icon" aria-hidden="true">+</span> Add Follow-Up
         </button>
       </div>
@@ -454,7 +454,7 @@ onMounted(async () => {
   border: none; border-radius: 999px; padding: 11px 20px;
   font-size: 13px; font-weight: 700; cursor: pointer;
   white-space: nowrap; text-decoration: none;
-  box-shadow: 0 8px 22px -8px rgba(124,58,237,0.6);
+  box-shadow: 0 8px 22px -8px rgba(29,78,216,0.6);
   transition: background 0.15s, transform 0.06s;
 }
 .btn-primary-pill:hover { background: var(--primary-hover); }
@@ -468,7 +468,7 @@ onMounted(async () => {
 /* Todo filter banner */
 .filter-banner {
   background: var(--primary-soft); color: var(--primary-text);
-  border: 1px solid rgba(124,58,237,0.2);
+  border: 1px solid rgba(29,78,216,0.2);
   border-radius: var(--radius-lg); padding: 10px 16px; margin-bottom: 14px;
   display: flex; align-items: center; gap: 12px; font-size: 13px; flex-wrap: wrap;
 }
@@ -478,7 +478,7 @@ onMounted(async () => {
 }
 .btn-clear-filter {
   margin-left: auto; background: transparent; color: var(--primary-text);
-  border: 1px solid rgba(124,58,237,0.3); border-radius: 999px;
+  border: 1px solid rgba(29,78,216,0.3); border-radius: 999px;
   padding: 4px 14px; cursor: pointer; font-size: 12px; font-weight: 600;
 }
 .btn-clear-filter:hover { background: var(--primary); color: var(--primary-on); border-color: var(--primary); }
@@ -519,7 +519,7 @@ onMounted(async () => {
 }
 .btn { height: 38px; padding: 0 18px; border: none; border-radius: 999px; cursor: pointer; font-size: 13px; font-weight: 600; transition: background 0.15s, transform 0.06s; }
 .btn:active { transform: translateY(1px); }
-.btn-primary { background: var(--primary); color: var(--primary-on); box-shadow: 0 6px 18px -6px rgba(124,58,237,0.55); }
+.btn-primary { background: var(--primary); color: var(--primary-on); box-shadow: 0 6px 18px -6px rgba(29,78,216,0.55); }
 .btn-primary:hover { background: var(--primary-hover); }
 .btn-export { background: #10b981; color: white; }
 .btn-export:hover { background: #059669; }
@@ -541,11 +541,14 @@ onMounted(async () => {
 .table-scroll { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; font-size: 13px; }
 thead th {
-  background: transparent; color: var(--text-3); font-size: 11.5px; font-weight: 600;
-  padding: 14px 14px; border-bottom: 1px solid var(--border-soft);
+  background: var(--surface-2); color: var(--text-2); font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.55px; padding: 11px 14px;
+  border-bottom: 2px solid var(--border); border-right: 1px solid var(--border-soft);
   text-align: left; white-space: nowrap;
 }
-tbody td { padding: 14px 14px; border-bottom: 1px solid var(--border-soft); color: var(--text-1); vertical-align: middle; }
+thead th:last-child { border-right: none; }
+tbody td { padding: 13px 14px; border-bottom: 1px solid var(--border-soft); border-right: 1px solid var(--border-soft); color: var(--text-1); vertical-align: middle; font-size: 13.5px; }
+tbody td:last-child { border-right: none; }
 tbody tr:last-child td { border-bottom: none; }
 tbody tr:hover { background: var(--surface-2); }
 

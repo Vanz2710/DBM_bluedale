@@ -76,6 +76,31 @@ class GlobalTodoController extends Controller
         return response()->json($todos);
     }
 
+    // ── Active dates for calendar highlight ──────────────────────────────────
+    public function activeDates(Request $request)
+    {
+        $year  = (int) $request->get('year',  now()->year);
+        $month = (int) $request->get('month', now()->month);
+        $user  = $request->user();
+
+        $query = ToDo::whereYear('todo_date', $year)
+            ->whereMonth('todo_date', $month);
+
+        if (!$user->hasAnyRole(['admin', 'super-admin'])) {
+            $query->where('user_id', $user->id);
+        } elseif ($request->filled('user_id')) {
+            $query->where('user_id', (int) $request->user_id);
+        }
+
+        $dates = $query->distinct()
+            ->pluck('todo_date')
+            ->map(fn ($d) => is_string($d) ? substr($d, 0, 10) : $d->format('Y-m-d'))
+            ->unique()
+            ->values();
+
+        return response()->json(['dates' => $dates]);
+    }
+
     public function store(Request $request)
     {
         $validated = $request->validate([

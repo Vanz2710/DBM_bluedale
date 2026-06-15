@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="page">
     <div class="page-head">
       <div class="page-head-left">
@@ -6,7 +6,7 @@
         <p class="page-subtitle">List of tasks for each contact</p>
       </div>
       <div class="page-head-actions">
-        <button v-if="can('create todos')" class="btn-primary-pill" @click="openAddModal">
+        <button v-if="can('create todos')" class="btn-primary-pill" data-tour="add-todo-btn" @click="openAddModal">
           <span class="plus-icon" aria-hidden="true">+</span> Add To-Do
         </button>
       </div>
@@ -18,19 +18,20 @@
     </div>
 
     <div class="toolbar">
-      <div class="filter-date-range">
-        <span class="date-range-label">Date Range</span>
-        <div class="date-range-inputs">
-          <div class="date-input-wrap">
-            <span class="date-input-prefix">From</span>
-            <input type="date" v-model="fromDate" @change="onDateRangeChange" class="date-range-input">
-          </div>
-          <span class="date-range-sep">→</span>
-          <div class="date-input-wrap">
-            <span class="date-input-prefix">To</span>
-            <input type="date" v-model="toDate" @change="onDateRangeChange" class="date-range-input">
-          </div>
-        </div>
+      <div class="date-nav">
+        <button class="date-nav-arrow" @click="shiftDate(-1)" type="button">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <CalendarPicker
+          v-model="navDate"
+          :marked-dates="markedDates"
+          :loading-dates="loadingMarked"
+          @update:modelValue="onCalendarPick"
+          @month-change="({ year, month }) => loadMarkedDates(year, month)"
+        />
+        <button class="date-nav-arrow" @click="shiftDate(1)" type="button">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
       </div>
       <div class="filter-group wide">
         <label>Search</label>
@@ -59,7 +60,7 @@
       <div class="table-header-bar">
         <span class="record-count">
           <span class="count-label">{{ periodLabel }}</span>
-          <span class="count-badge">{{ meta.total ?? todos.length }} task(s)</span>
+          <span class="count-badge">{{ meta.total ?? todos.length }} to-do(s)</span>
         </span>
       </div>
       <LoadingSpinner v-if="loading" />
@@ -126,10 +127,12 @@
                         class="icon-btn btn-undo" title="Mark pending"
                         @click="markPending(t)" v-html="CI.undo"></button>
               </td>
-              <td class="actions-cell">
-                <button v-if="can('create followups')" class="icon-btn btn-followup" title="Log a follow-up" @click="openFollowUpModal(t)" v-html="CI.phone"></button>
-                <router-link v-if="can('edit todos')" :to="`/todos/${t.id}/edit`" class="icon-btn btn-edit" title="Edit" v-html="CI.edit"></router-link>
-                <button v-if="can('delete todos')" class="icon-btn btn-delete" title="Delete task" @click="deleteTodo(t)" v-html="CI.trash"></button>
+              <td>
+                <div class="actions-cell">
+                  <button v-if="can('create followups')" class="icon-btn btn-followup" title="Log a follow-up" @click="openFollowUpModal(t)" v-html="CI.phone"></button>
+                  <router-link v-if="can('edit todos')" :to="`/todos/${t.id}/edit`" class="icon-btn btn-edit" title="Edit" v-html="CI.edit"></router-link>
+                  <button v-if="can('delete todos')" class="icon-btn btn-delete" title="Delete task" @click="openDeleteTodoModal(t)" v-html="CI.trash"></button>
+                </div>
               </td>
             </tr>
           </tbody>
@@ -281,12 +284,40 @@
       </div>
     </div>
   </div>
+
+  <Teleport to="body">
+    <div v-if="deleteTodoModal.open" class="conf-overlay" @click.self="closeDeleteTodoModal">
+      <div class="conf-modal">
+        <div class="conf-head">
+          <div>
+            <p class="conf-title">Delete Task</p>
+            <p class="conf-sub">All linked follow-ups will also be removed.</p>
+          </div>
+          <button class="conf-close" @click="closeDeleteTodoModal"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+        </div>
+        <div class="conf-body">
+          <svg class="conf-warn" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+            <line x1="12" y1="9" x2="12" y2="13"/><circle cx="12" cy="17" r="1" fill="#f59e0b" stroke="none"/>
+          </svg>
+          <p class="conf-text">Delete task for <strong>{{ deleteTodoModal.todo?.contact_name }}</strong>?</p>
+        </div>
+        <div class="conf-foot">
+          <button class="conf-cancel" @click="closeDeleteTodoModal">Cancel</button>
+          <button class="conf-delete" :disabled="deleteTodoModal.loading" @click="confirmDeleteTodo">
+            {{ deleteTodoModal.loading ? 'Deleting…' : 'Delete' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </Teleport>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, reactive } from 'vue';
 import api from '../api.js';
 import LoadingSpinner from '../components/LoadingSpinner.vue';
+import CalendarPicker from '../components/CalendarPicker.vue';
 import { usePermissions } from '../composables/usePermissions.js';
 
 const { can } = usePermissions();
@@ -304,8 +335,7 @@ const CI = {
 const PER_PAGE_OPTIONS = [20, 50, 100];
 const FU_ACTION_TYPES = ['Call', 'Email', 'Meeting', 'Site Visit', 'Presentation', 'Proposal', 'Demo', 'Contract', 'Other'];
 
-const fromDate     = ref('');
-const toDate       = ref('');
+const navDate      = ref((() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; })());
 const search       = ref('');
 const userId       = ref('');
 const statusFilter = ref('pending');
@@ -316,6 +346,8 @@ const meta         = ref({});
 const loading      = ref(false);
 const users        = ref([]);
 const selectedIds  = ref([]);
+const markedDates  = ref([]);
+const loadingMarked = ref(false);
 const selectAllRef = ref(null);
 
 const today = new Date().toISOString().slice(0, 10);
@@ -361,7 +393,7 @@ const addModal    = ref({ open: false, saving: false, error: '' });
 const addForm     = ref({ contact_id: '', task_id: '', user_id: '', todo_date: today, date_created: today, todo_remark: '', status_id: '', type_id: '' });
 
 const hasFilters = computed(() =>
-  fromDate.value || toDate.value || search.value || userId.value || statusFilter.value
+  search.value || userId.value || statusFilter.value
 );
 
 const pageNumbers = computed(() => {
@@ -374,27 +406,20 @@ const pageNumbers = computed(() => {
 });
 
 const periodLabel = computed(() => {
-  if (fromDate.value && toDate.value) {
-    const fmt = d => new Date(d + 'T00:00:00').toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-    return `${fmt(fromDate.value)} → ${fmt(toDate.value)}`;
-  }
-  if (fromDate.value) return `From ${new Date(fromDate.value + 'T00:00:00').toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}`;
-  if (toDate.value)   return `Up to ${new Date(toDate.value + 'T00:00:00').toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}`;
-  return 'All Tasks';
+  const d = new Date(navDate.value + 'T00:00:00');
+  return d.toLocaleDateString('en-GB', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
 });
 
-function onDateRangeChange() {
-  page.value = 1;
-  load();
-}
+const navDateLabel = computed(() => {
+  const d = new Date(navDate.value + 'T00:00:00');
+  return d.toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' });
+});
 
 async function load() {
   loading.value = true;
   selectedIds.value = [];
   try {
-    const params = { view: 'All', per_page: perPage.value, page: page.value };
-    if (fromDate.value)     params.from_date = fromDate.value;
-    if (toDate.value)       params.to_date   = toDate.value;
+    const params = { view: 'All', per_page: perPage.value, page: page.value, from_date: navDate.value, to_date: navDate.value };
     if (search.value)       params.search    = search.value;
     if (userId.value)       params.user_id   = userId.value;
     if (statusFilter.value) params.completion_status = statusFilter.value;
@@ -407,12 +432,45 @@ async function load() {
 }
 
 function clearFilters() {
-  fromDate.value = '';
-  toDate.value   = '';
-  search.value   = '';
-  userId.value   = '';
-  statusFilter.value = '';
-  page.value     = 1;
+  const _d = new Date();
+  const today = `${_d.getFullYear()}-${String(_d.getMonth()+1).padStart(2,'0')}-${String(_d.getDate()).padStart(2,'0')}`;
+  const oldMonth = navDate.value.slice(0, 7);
+  navDate.value      = today;
+  search.value       = '';
+  userId.value       = '';
+  statusFilter.value = 'pending';
+  page.value         = 1;
+  load();
+  if (today.slice(0, 7) !== oldMonth) {
+    loadMarkedDates(_d.getFullYear(), _d.getMonth() + 1);
+  }
+}
+
+function shiftDate(n) {
+  const [y, m, day] = navDate.value.split('-').map(Number);
+  const d = new Date(y, m - 1, day + n);
+  const newDate = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  const oldMonth = navDate.value.slice(0, 7);
+  navDate.value = newDate;
+  page.value = 1;
+  load();
+  if (newDate.slice(0, 7) !== oldMonth) {
+    loadMarkedDates(d.getFullYear(), d.getMonth() + 1);
+  }
+}
+
+async function loadMarkedDates(year, month) {
+  loadingMarked.value = true;
+  try {
+    const res = await api.get('/v1/todos/active-dates', { params: { year, month } });
+    markedDates.value = res.data.dates ?? [];
+  } finally {
+    loadingMarked.value = false;
+  }
+}
+
+function onCalendarPick() {
+  page.value = 1;
   load();
 }
 
@@ -441,11 +499,23 @@ async function markPending(todo) {
   todo.completion_status = 'pending';
 }
 
-async function deleteTodo(todo) {
-  if (!confirm(`Delete task for "${todo.contact_name}"?\nThis also removes all linked follow-ups.`)) return;
-  await api.delete(`/v1/todos/${todo.id}`);
-  todos.value = todos.value.filter(t => t.id !== todo.id);
-  if (meta.value.total) meta.value.total--;
+const deleteTodoModal = reactive({ open: false, todo: null, loading: false });
+function openDeleteTodoModal(todo) { deleteTodoModal.todo = todo; deleteTodoModal.open = true; }
+function closeDeleteTodoModal() { deleteTodoModal.open = false; deleteTodoModal.todo = null; deleteTodoModal.loading = false; }
+
+async function confirmDeleteTodo() {
+  if (!deleteTodoModal.todo) return;
+  deleteTodoModal.loading = true;
+  try {
+    await api.delete(`/v1/todos/${deleteTodoModal.todo.id}`);
+    todos.value = todos.value.filter(t => t.id !== deleteTodoModal.todo.id);
+    if (meta.value.total) meta.value.total--;
+    closeDeleteTodoModal();
+  } catch {
+    closeDeleteTodoModal();
+  } finally {
+    deleteTodoModal.loading = false;
+  }
 }
 
 async function openAddModal() {
@@ -497,6 +567,8 @@ onMounted(async () => {
   const lu = await api.get('/v1/lookups');
   users.value = lu.data.users;
   load();
+  const [y, m] = navDate.value.split('-').map(Number);
+  loadMarkedDates(y, m);
 });
 </script>
 
@@ -516,7 +588,7 @@ onMounted(async () => {
   border: none; border-radius: 999px; padding: 11px 20px;
   font-size: 13px; font-weight: 700; cursor: pointer;
   white-space: nowrap; text-decoration: none;
-  box-shadow: 0 8px 22px -8px rgba(124,58,237,0.6);
+  box-shadow: 0 8px 22px -8px rgba(29,78,216,0.6);
   transition: background 0.15s, transform 0.06s;
 }
 .btn-primary-pill:hover { background: var(--primary-hover); }
@@ -561,32 +633,21 @@ onMounted(async () => {
 }
 .btn { height: 38px; padding: 0 18px; border: none; border-radius: 999px; cursor: pointer; font-size: 13px; font-weight: 600; transition: background 0.15s, transform 0.06s; }
 .btn:active { transform: translateY(1px); }
-.btn-primary { background: var(--primary); color: var(--primary-on); box-shadow: 0 6px 18px -6px rgba(124,58,237,0.55); }
+.btn-primary { background: var(--primary); color: var(--primary-on); box-shadow: 0 6px 18px -6px rgba(29,78,216,0.55); }
 .btn-primary:hover { background: var(--primary-hover); }
 .btn-clear { background: var(--surface); color: var(--text-2); border: 1px solid var(--border); }
 .btn-clear:hover { background: var(--danger-soft); color: var(--danger); border-color: var(--danger-soft); }
 
-/* Date range */
-.filter-date-range { display: flex; flex-direction: column; gap: 5px; }
-.date-range-label { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.7px; color: var(--text-3); padding-left: 2px; }
-.date-range-inputs { display: flex; align-items: center; gap: 6px; }
-.date-input-wrap {
-  display: flex; align-items: center; border: 1px solid var(--border);
-  border-radius: 999px; overflow: hidden; background: var(--surface); height: 38px;
-  transition: border-color 0.15s, box-shadow 0.15s;
+/* Date navigator */
+.date-nav { display: flex; align-items: center; gap: 4px; align-self: flex-end; }
+.date-nav-arrow {
+  display: flex; align-items: center; justify-content: center;
+  width: 32px; height: 38px; border-radius: 999px;
+  border: 1px solid var(--border); background: var(--surface);
+  cursor: pointer; color: var(--text-2); transition: background 0.15s, color 0.15s, border-color 0.15s;
 }
-.date-input-wrap:focus-within { border-color: var(--primary); box-shadow: 0 0 0 3px var(--focus-ring); }
-.date-input-prefix {
-  padding: 0 10px; font-size: 11px; font-weight: 600; color: var(--text-3);
-  background: var(--surface-2); border-right: 1px solid var(--border);
-  height: 100%; display: flex; align-items: center; white-space: nowrap;
-}
-.date-range-input {
-  border: none !important; border-radius: 0 !important; height: 100%;
-  padding: 0 10px; font-size: 13px; background: transparent; outline: none; width: 130px;
-  color: var(--text-1);
-}
-.date-range-sep { color: var(--text-3); font-weight: 700; font-size: 14px; padding: 0 2px; }
+.date-nav-arrow:hover { background: var(--primary-soft); color: var(--primary); border-color: var(--primary-soft); }
+/* CalendarPicker trigger inherits its own styles from the component */
 
 /* Table */
 .table-wrap { background: var(--surface); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); border: 1px solid var(--border-soft); overflow: hidden; }
@@ -601,11 +662,14 @@ onMounted(async () => {
 .table-scroll { }
 table { width: 100%; border-collapse: collapse; font-size: 12px; }
 thead th {
-  background: transparent; color: var(--text-3); font-size: 11px; font-weight: 600;
-  padding: 10px 8px; border-bottom: 1px solid var(--border-soft);
-  text-align: left;
+  background: var(--surface-2); color: var(--text-2); font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.55px; padding: 11px 14px;
+  border-bottom: 2px solid var(--border); border-right: 1px solid var(--border-soft);
+  text-align: left; white-space: nowrap;
 }
-tbody td { padding: 9px 8px; border-bottom: 1px solid var(--border-soft); color: var(--text-1); vertical-align: middle; }
+thead th:last-child { border-right: none; }
+tbody td { padding: 13px 14px; border-bottom: 1px solid var(--border-soft); border-right: 1px solid var(--border-soft); color: var(--text-1); vertical-align: middle; font-size: 13.5px; }
+tbody td:last-child { border-right: none; }
 tbody tr:last-child td { border-bottom: none; }
 tbody tr:hover { background: var(--surface-2); }
 
@@ -637,7 +701,7 @@ tbody tr:hover { background: var(--surface-2); }
 .btn-done:hover { background: #bbf7d0; }
 .btn-undo { background: var(--surface-2); color: var(--text-2); font-weight: 700; }
 .btn-undo:hover { background: var(--border); }
-.actions-cell { display: flex; gap: 4px; }
+.actions-cell { display: flex; gap: 4px; align-items: center; }
 .followup-count {
   display: inline-flex; align-items: center; justify-content: center;
   min-width: 28px; padding: 3px 10px; border-radius: 999px;
@@ -770,7 +834,7 @@ tbody tr:hover { background: var(--surface-2); }
   height: 42px; padding: 0 20px; border-radius: 8px;
   font-size: 14px; font-weight: 700; cursor: pointer; border: none;
   display: inline-flex; align-items: center;
-  box-shadow: 0 6px 18px -6px rgba(124,58,237,0.55);
+  box-shadow: 0 6px 18px -6px rgba(29,78,216,0.55);
 }
 .btn-todo-submit:hover:not(:disabled) { background: var(--primary-hover); }
 .btn-todo-submit:disabled { background: #94a3b8; cursor: not-allowed; box-shadow: none; }
@@ -784,4 +848,22 @@ tbody tr:hover { background: var(--surface-2); }
 .fu-context-item { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
 .fu-context-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-3); }
 .fu-context-value { font-size: 13px; font-weight: 600; color: var(--text-1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ── Confirm modal ── */
+.conf-overlay { position: fixed; inset: 0; background: rgba(15,23,42,0.5); z-index: 900; display: flex; align-items: center; justify-content: center; padding: 16px; }
+.conf-modal { background: var(--surface); border-radius: var(--radius-lg); width: 100%; max-width: 420px; box-shadow: var(--shadow-lg); border: 1px solid var(--border-soft); overflow: hidden; }
+.conf-head { display: flex; justify-content: space-between; align-items: flex-start; padding: 18px 22px 14px; border-bottom: 1px solid var(--border-soft); }
+.conf-title { font-size: 15px; font-weight: 700; color: var(--text-1); margin: 0 0 2px; }
+.conf-sub { font-size: 12px; color: var(--text-3); margin: 0; }
+.conf-close { background: none; border: none; cursor: pointer; font-size: 16px; color: var(--text-3); line-height: 1; padding: 0; }
+.conf-close:hover { color: var(--text-1); }
+.conf-body { padding: 20px 24px; display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; }
+.conf-warn { width: 44px; height: 44px; flex-shrink: 0; }
+.conf-text { font-size: 14px; color: var(--text-1); margin: 0; line-height: 1.5; }
+.conf-foot { display: flex; justify-content: flex-end; gap: 10px; padding: 14px 22px; border-top: 1px solid var(--border-soft); }
+.conf-cancel { height: 38px; padding: 0 18px; background: none; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 13px; font-weight: 600; color: var(--text-2); cursor: pointer; }
+.conf-cancel:hover { background: var(--surface-2); }
+.conf-delete { height: 38px; padding: 0 18px; background: var(--danger); color: #fff; border: none; border-radius: var(--radius-sm); font-size: 13px; font-weight: 700; cursor: pointer; }
+.conf-delete:hover:not(:disabled) { background: #b91c1c; }
+.conf-delete:disabled { opacity: 0.5; cursor: not-allowed; }
 </style>

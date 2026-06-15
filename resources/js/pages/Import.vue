@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="page">
     <div class="page-header">
       <h1 class="page-title">Import Data</h1>
@@ -7,12 +7,18 @@
 
     <div class="stepper">
       <div class="step" :class="{ active: step >= 1, done: step > 1 }">
-        <div class="step-dot">{{ step > 1 ? '✓' : '1' }}</div>
+        <div class="step-dot">
+          <svg v-if="step > 1" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          <span v-else>1</span>
+        </div>
         <span class="step-lbl">Upload File</span>
       </div>
       <div class="step-line" :class="{ filled: step >= 2 }"></div>
       <div class="step" :class="{ active: step >= 2, done: step > 2 }">
-        <div class="step-dot">{{ step > 2 ? '✓' : '2' }}</div>
+        <div class="step-dot">
+          <svg v-if="step > 2" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          <span v-else>2</span>
+        </div>
         <span class="step-lbl">Map Columns</span>
       </div>
       <div class="step-line" :class="{ filled: step >= 3 }"></div>
@@ -27,20 +33,23 @@
       <div class="card-title">Select file to import</div>
       <div class="card-sub">Supported: .xlsx, .xls, .csv &nbsp;·&nbsp; The system auto-detects column headers.</div>
 
-      <div v-if="error" class="msg-box error-box">⚠ {{ error }}</div>
+      <div v-if="error" class="msg-box error-box"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle;margin-right:6px;flex-shrink:0"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>{{ error }}</div>
 
       <div class="drop-zone" :class="{ 'has-file': selectedFile, dragover: isDragging }"
            @dragover.prevent="isDragging = true"
            @dragleave="isDragging = false"
            @drop.prevent="onDrop">
         <input type="file" accept=".xls,.xlsx,.csv" @change="onFileChange" ref="fileInput" class="file-input">
-        <div class="drop-icon">{{ selectedFile ? '✓' : '📁' }}</div>
+        <div class="drop-icon">
+          <svg v-if="!selectedFile" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>
+          <svg v-else width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
         <div class="drop-main">{{ selectedFile ? selectedFile.name : 'Drag & drop your file here' }}</div>
         <div class="drop-sub" v-show="!selectedFile">or click to browse</div>
       </div>
 
       <button class="btn-primary btn-full" :disabled="!selectedFile || uploading" @click="uploadFile">
-        {{ uploading ? 'Scanning file…' : 'Next: Map Columns →' }}
+        {{ uploading ? 'Scanning file…' : 'Next: Map Columns' }}
       </button>
     </div>
 
@@ -49,7 +58,7 @@
       <div class="card-title">Map your columns to database fields</div>
       <div class="card-sub">We found {{ Object.keys(headers).length }} columns. Tell us what each one contains.</div>
 
-      <div class="smart-notice">✓ Smart Scan detected headers. Data starts from row {{ dataStart }}.</div>
+      <div class="smart-notice"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><polyline points="20 6 9 17 4 12"/></svg> Smart Scan detected headers. Data starts from row {{ dataStart }}.</div>
 
       <div class="map-list">
         <div v-for="(headerName, colLetter) in headers" :key="colLetter"
@@ -57,7 +66,7 @@
           <div class="map-col-info">
             <span class="col-letter">Col {{ colLetter }}</span>
             <span class="col-name">{{ headerName }}</span>
-            <span v-if="autoMatchMap[colLetter]" class="auto-badge">✓ Auto-matched</span>
+            <span v-if="autoMatchMap[colLetter]" class="auto-badge"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Auto-matched</span>
           </div>
           <select class="map-select" :class="{ 'auto-matched': autoMatchMap[colLetter] }" v-model="mapping[colLetter]">
             <option value="">Ignore / Do Not Import</option>
@@ -78,9 +87,9 @@
       </div>
 
       <div class="action-row">
-        <button class="btn-ghost" @click="step = 1">← Back</button>
+        <button class="btn-ghost" @click="step = 1"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle;margin-right:3px"><polyline points="15 18 9 12 15 6"/></svg> Back</button>
         <button class="btn-primary" :disabled="importing" @click="processImport">
-          {{ importing ? 'Importing…' : 'Start Import →' }}
+          {{ importing ? 'Importing…' : 'Start Import' }}
         </button>
       </div>
     </div>
@@ -121,7 +130,7 @@
 
       <div class="action-row result-actions">
         <button class="btn-ghost" @click="reset">Import more data</button>
-        <router-link to="/list" class="btn-primary btn-link">View Contacts →</router-link>
+        <router-link to="/list" class="btn-primary btn-link">View Contacts</router-link>
       </div>
     </div>
   </div>
@@ -288,7 +297,7 @@ function reset() {
 .drop-zone.dragover { background: var(--primary-soft); border-color: var(--primary); }
 .drop-zone.has-file { background: #f0fdf4; border-color: #22c55e; border-style: solid; }
 .file-input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
-.drop-icon  { font-size: 36px; margin-bottom: 10px; }
+.drop-icon  { display: flex; justify-content: center; margin-bottom: 10px; }
 .drop-main  { font-size: 15px; font-weight: 600; color: var(--text-1); }
 .drop-sub   { font-size: 13px; color: var(--text-3); margin-top: 5px; }
 
@@ -296,7 +305,7 @@ function reset() {
 .btn-primary {
   padding: 0 20px; height: 40px; background: var(--primary); color: #fff;
   border: none; border-radius: var(--radius-sm); font-size: 13px; font-weight: 600;
-  cursor: pointer; box-shadow: 0 6px 18px -6px rgba(124,58,237,0.45);
+  cursor: pointer; box-shadow: 0 6px 18px -6px rgba(29,78,216,0.45);
   transition: background 0.15s, box-shadow 0.15s;
   display: inline-flex; align-items: center; justify-content: center;
 }

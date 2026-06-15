@@ -9,8 +9,6 @@
 
 <script setup>
 import { ref, onMounted, onBeforeUnmount } from 'vue'
-import lottie from 'lottie-web/build/player/lottie_light'
-import animationData from '../assets/loading.json'
 
 const messages = [
   'Loading…',
@@ -26,7 +24,12 @@ let anim = null
 let msgIndex = 0
 let interval = null
 
-onMounted(() => {
+onMounted(async () => {
+  const [{ default: lottie }, { default: animationData }] = await Promise.all([
+    import('lottie-web/build/player/lottie_light'),
+    import('../assets/loading.json'),
+  ])
+
   anim = lottie.loadAnimation({
     container: container.value,
     renderer: 'svg',

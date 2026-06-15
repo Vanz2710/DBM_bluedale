@@ -5,9 +5,26 @@ const api = axios.create({
     headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
 });
 
-// Attach token from localStorage on every request.
-// Also strip the default JSON Content-Type for FormData requests so axios
-// can compute the correct multipart/form-data boundary.
+// Short-lived GET response cache — prevents duplicate requests fired by multiple
+// components mounting at the same time (dashboard widgets, notification bell, etc.)
+const _cache      = new Map(); // key → { data, exp }
+const _TTL        = 30_000;    // 30 s default
+const _LONG_TTL   = 300_000;   // 5 min for stable reference data that never changes mid-session
+const LONG_TTL_URLS = new Set(['/v1/lookups', '/v1/me/settings']);
+const SKIP_CACHE  = new Set(['/v1/auth/login']); // never cache these
+
+function _cacheKey(config) {
+    const p = config.params ? JSON.stringify(config.params) : '';
+    return (config.url ?? '') + p;
+}
+
+export function bustCache(urlPrefix) {
+    for (const k of _cache.keys()) {
+        if (k.startsWith(urlPrefix)) _cache.delete(k);
+    }
+}
+
+// Attach token + serve cached GET responses where available.
 api.interceptors.request.use((config) => {
     const token = localStorage.getItem('crm_token');
     if (token) config.headers.Authorization = `Bearer ${token}`;
@@ -15,6 +32,18 @@ api.interceptors.request.use((config) => {
         delete config.headers['Content-Type'];
         delete config.headers.common?.['Content-Type'];
         delete config.headers.post?.['Content-Type'];
+    }
+
+    const method = (config.method ?? 'get').toLowerCase();
+    if (method === 'get' && !config._noCache && !SKIP_CACHE.has(config.url)) {
+        const hit = _cache.get(_cacheKey(config));
+        if (hit && Date.now() < hit.exp) {
+            // Return cached data via a custom adapter — no HTTP request made
+            config.adapter = () => Promise.resolve({
+                data: hit.data, status: 200, statusText: 'OK (cached)',
+                headers: {}, config, request: {},
+            });
+        }
     }
     return config;
 });
@@ -29,7 +58,16 @@ export function setRouter(router) {
 
 // Redirect to login on 401; show toast on 403 (deduplicated — one toast per 3s)
 api.interceptors.response.use(
-    (res) => res,
+    (res) => {
+        // Populate cache for successful GET responses
+        const method = (res.config?.method ?? 'get').toLowerCase();
+        if (method === 'get' && res.status === 200 && !res.config?._noCache
+            && !SKIP_CACHE.has(res.config?.url)) {
+            const ttl = LONG_TTL_URLS.has(res.config?.url) ? _LONG_TTL : _TTL;
+            _cache.set(_cacheKey(res.config), { data: res.data, exp: Date.now() + ttl });
+        }
+        return res;
+    },
     (err) => {
         if (err.response?.status === 401 && !_redirecting) {
             _redirecting = true;

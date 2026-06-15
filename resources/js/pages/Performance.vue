@@ -17,7 +17,7 @@
     </div>
 
     <!-- Toolbar -->
-    <div class="toolbar">
+    <div class="toolbar" data-tour="perf-period">
       <div class="filter-group">
         <label>View</label>
         <select v-model="viewType" @change="onViewChange">
@@ -73,7 +73,7 @@
         <div class="section-label">{{ periodLabel }}</div>
 
         <!-- KPI Cards -->
-        <div class="kpi-grid">
+        <div class="kpi-grid" data-tour="perf-kpi-cards">
           <div v-for="card in kpiCards" :key="card.key"
                :class="['kpi-card', `kpi-${card.color}`]">
             <div class="kpi-icon" v-html="ICONS[card.icon]"></div>
@@ -1246,10 +1246,12 @@ tbody tr:hover:not(.total-row) { background: var(--primary-soft); }
 /* ── Team table ───────────────────────────────────────────────────────────── */
 thead th {
   background: var(--surface-2); color: var(--text-2);
-  font-size: 10px; font-weight: 700;
-  text-transform: uppercase; letter-spacing: 0.7px; padding: 10px 14px;
-  border-bottom: 1px solid var(--border); text-align: left; white-space: nowrap;
+  font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.55px; padding: 11px 14px;
+  border-bottom: 2px solid var(--border); border-right: 1px solid var(--border-soft);
+  text-align: left; white-space: nowrap;
 }
+thead th:last-child { border-right: none; }
 .sortable-th { cursor: pointer; user-select: none; transition: color 0.15s, background 0.15s; }
 .sortable-th:hover { color: var(--primary); background: var(--primary-soft); }
 .sort-icon {
@@ -1260,7 +1262,8 @@ thead th {
 .sort-icon.sort-active { opacity: 1; color: var(--primary); }
 .sortable-th:hover .sort-icon { opacity: 0.6; }
 
-tbody td { padding: 10px 14px; border-bottom: 1px solid var(--border-soft); color: var(--text-1); vertical-align: middle; }
+tbody td { padding: 11px 14px; border-bottom: 1px solid var(--border-soft); border-right: 1px solid var(--border-soft); color: var(--text-1); vertical-align: middle; font-size: 13.5px; }
+tbody td:last-child { border-right: none; }
 .user-cell  { font-weight: 600; color: var(--text-1); }
 .num-cell   { text-align: center; }
 .green-cell { color: var(--success); font-weight: 600; }

@@ -8,9 +8,9 @@
     <div v-else class="ps-grid">
       <div class="ps-card ps-card--danger">
         <div class="ps-card-body">
-          <div class="ps-label">At-Risk Contacts</div>
-          <div class="ps-num">{{ fmt(summary.at_risk) }}</div>
-          <div class="ps-hint">No activity 30+ days</div>
+          <div class="ps-label">Neglected Contacts</div>
+          <div class="ps-num">{{ fmt(summary.neglected) }}</div>
+          <div class="ps-hint">No activity 60+ days</div>
         </div>
         <span class="ps-icon ps-icon--danger"><AlertTriangle :size="18" /></span>
       </div>
@@ -24,19 +24,19 @@
       </div>
       <div class="ps-card ps-card--warning">
         <div class="ps-card-body">
-          <div class="ps-label">Overdue Risk</div>
-          <div class="ps-num">{{ fmt(summary.overdue_risk) }}</div>
-          <div class="ps-hint">Tasks due within 7 days</div>
+          <div class="ps-label">Unworked Contacts</div>
+          <div class="ps-num">{{ fmt(summary.unworked_opps) }}</div>
+          <div class="ps-hint">No activity 30+ days</div>
         </div>
         <span class="ps-icon ps-icon--warning"><Clock :size="18" /></span>
       </div>
-      <div class="ps-card" :class="summary.agents_off_pace != null ? 'ps-card--info' : 'ps-card--muted'">
+      <div class="ps-card" :class="summary.overloaded_agents != null ? 'ps-card--info' : 'ps-card--muted'">
         <div class="ps-card-body">
-          <div class="ps-label">Agents Off-Pace</div>
-          <div class="ps-num">{{ summary.agents_off_pace != null ? fmt(summary.agents_off_pace) : '—' }}</div>
-          <div class="ps-hint">Below 80% KPI pace</div>
+          <div class="ps-label">Overloaded Agents</div>
+          <div class="ps-num">{{ summary.overloaded_agents != null ? fmt(summary.overloaded_agents) : '—' }}</div>
+          <div class="ps-hint">1.5× avg contact load</div>
         </div>
-        <span class="ps-icon" :class="summary.agents_off_pace != null ? 'ps-icon--info' : 'ps-icon--muted'">
+        <span class="ps-icon" :class="summary.overloaded_agents != null ? 'ps-icon--info' : 'ps-icon--muted'">
           <Users :size="18" />
         </span>
       </div>
@@ -52,7 +52,7 @@ import { ref, onMounted } from 'vue';
 import { Zap, AlertTriangle, DollarSign, Clock, Users, ArrowRight } from 'lucide-vue-next';
 import api from '../../api.js';
 
-const summary = ref({ at_risk: 0, pipeline_value: 0, overdue_risk: 0, agents_off_pace: null });
+const summary = ref({ neglected: 0, pipeline_value: 0, unworked_opps: 0, overloaded_agents: null });
 const loading = ref(true);
 
 const fmt = (n) => (n ?? 0).toLocaleString();

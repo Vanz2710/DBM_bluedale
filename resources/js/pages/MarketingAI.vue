@@ -1,6 +1,6 @@
-<template>
+﻿<template>
   <div class="page">
-    <div class="page-header">
+    <div class="page-head">
       <div>
         <h1 class="page-title">Marketing AI</h1>
         <p class="page-subtitle">AI-powered segmentation, email drafting, and next-best-action recommendations for your CRM contacts.</p>
@@ -10,7 +10,7 @@
 
     <div class="ai-banner">
       <div class="banner-inner">
-        <div class="banner-icon">&#x2728;</div>
+        <div class="banner-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="white" stroke="white" stroke-width="0"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></div>
         <div>
           <h2>Intelligent Marketing Automation</h2>
           <p>Three AI workflows — segment your contacts, draft personalised emails, and surface the best next action per client.</p>
@@ -113,7 +113,7 @@
           </div>
 
           <div class="composer-actions">
-            <button type="button" class="btn-ghost" @click="generateEmailDraft">&#x21BB; Regenerate</button>
+            <button type="button" class="btn-ghost" @click="generateEmailDraft"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle;margin-right:5px"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.63"/></svg>Regenerate</button>
             <button type="button" class="btn-primary" @click="copyToClipboard">Copy to Clipboard</button>
           </div>
           <div v-if="copySuccess" class="copy-success">Copied!</div>
@@ -131,7 +131,7 @@
             </div>
           </div>
           <div class="brand-tone-note">
-            <span>&#x26A0;&#xFE0F;</span>
+            <span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#92400e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:1px"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></span>
             <span>Always review AI-generated emails before sending. Adjust to match your brand voice.</span>
           </div>
         </div>
@@ -171,17 +171,17 @@
       <h3>How Marketing AI Works</h3>
       <div class="explainer-grid">
         <div class="explainer-item">
-          <div class="explainer-icon">&#x1F4CA;</div>
+          <div class="explainer-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></div>
           <strong>Before AI</strong>
           <p>Manual list-building, generic email blasts, no visibility into which contacts need attention.</p>
         </div>
         <div class="explainer-item">
-          <div class="explainer-icon">&#x1F916;</div>
+          <div class="explainer-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div>
           <strong>With AI</strong>
           <p>Behaviour-based segments, personalised emails drafted in seconds, priority-ranked next actions.</p>
         </div>
         <div class="explainer-item">
-          <div class="explainer-icon">&#x26A0;&#xFE0F;</div>
+          <div class="explainer-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>
           <strong>Important</strong>
           <p>AI suggestions are a starting point — review before sending. Your judgment and relationship context always take precedence.</p>
         </div>
@@ -282,7 +282,7 @@ async function copyToClipboard() {
 
 <style scoped>
 .page { padding: 28px 32px; }
-.page-header {
+.page-head {
   display: flex; justify-content: space-between; align-items: flex-start;
   margin-bottom: 24px; gap: 16px;
 }
@@ -298,7 +298,7 @@ async function copyToClipboard() {
   border-radius: var(--radius); padding: 20px 24px; margin-bottom: 24px; color: #fff;
 }
 .banner-inner { display: flex; align-items: center; gap: 16px; }
-.banner-icon { font-size: 28px; flex-shrink: 0; }
+.banner-icon { display: flex; align-items: center; flex-shrink: 0; }
 .ai-banner h2 { margin: 0 0 4px; font-size: 18px; font-weight: 800; }
 .ai-banner p { margin: 0; font-size: 13px; opacity: 0.88; }
 
@@ -384,7 +384,7 @@ async function copyToClipboard() {
 .btn-primary {
   height: 36px; padding: 0 18px; background: var(--primary); color: var(--primary-on);
   border: none; border-radius: var(--radius-sm); font-size: 13px; font-weight: 600; cursor: pointer;
-  box-shadow: 0 6px 18px -6px rgba(124,58,237,0.45);
+  box-shadow: 0 6px 18px -6px rgba(29,78,216,0.45);
 }
 .btn-primary:hover { background: var(--primary-hover); }
 .copy-success { font-size: 12px; font-weight: 700; color: #16a34a; padding: 2px 0; }
@@ -441,7 +441,7 @@ async function copyToClipboard() {
   background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius);
   padding: 16px; display: flex; flex-direction: column; gap: 8px;
 }
-.explainer-icon { font-size: 22px; }
+.explainer-icon { display: flex; justify-content: center; margin-bottom: 4px; }
 .explainer-item strong { font-size: 13px; font-weight: 700; color: var(--text-1); }
 .explainer-item p { margin: 0; font-size: 12px; color: var(--text-2); line-height: 1.5; }
 
@@ -451,7 +451,7 @@ async function copyToClipboard() {
 }
 @media (max-width: 760px) {
   .page { padding: 18px 14px; }
-  .page-header { flex-direction: column; }
+  .page-head { flex-direction: column; }
   .segment-tabs { gap: 6px; }
 }
 </style>

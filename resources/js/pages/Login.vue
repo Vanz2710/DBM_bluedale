@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="login-root">
 
     <!-- ── Left: brand showcase ──────────────────────────────── -->
@@ -6,15 +6,7 @@
       <div class="left-glow" aria-hidden="true"></div>
 
       <header class="left-brand">
-        <div class="left-logo">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-            <rect x="2"  y="2"  width="9" height="9" rx="2" fill="white" opacity="0.95"/>
-            <rect x="13" y="2"  width="9" height="9" rx="2" fill="white" opacity="0.5"/>
-            <rect x="2"  y="13" width="9" height="9" rx="2" fill="white" opacity="0.5"/>
-            <rect x="13" y="13" width="9" height="9" rx="2" fill="white" opacity="0.95"/>
-          </svg>
-        </div>
-        <span class="left-brand-name">Bluedale<span class="left-brand-accent">CRM</span></span>
+        <img :src="'/images/bluedale-logo.png'" class="left-logo-img" alt="Bluedale Group of Companies" />
       </header>
 
       <div class="left-hero">
@@ -53,15 +45,7 @@
 
         <!-- Brand (mobile only) -->
         <div class="mobile-brand">
-          <div class="brand-logo">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-              <rect x="2"  y="2"  width="9" height="9" rx="2" fill="currentColor" opacity="0.95"/>
-              <rect x="13" y="2"  width="9" height="9" rx="2" fill="currentColor" opacity="0.5"/>
-              <rect x="2"  y="13" width="9" height="9" rx="2" fill="currentColor" opacity="0.5"/>
-              <rect x="13" y="13" width="9" height="9" rx="2" fill="currentColor" opacity="0.95"/>
-            </svg>
-          </div>
-          <span class="mobile-brand-text">Bluedale<span class="mobile-brand-accent">CRM</span></span>
+          <img :src="'/images/bluedale-logo.png'" class="mobile-brand-img" alt="Bluedale Group of Companies" />
         </div>
 
         <h1 class="form-heading">Welcome back</h1>
@@ -177,29 +161,22 @@ async function handleLogin() {
   flex-direction: column;
   padding: 44px 52px;
   color: #fff;
-  background: #160e33;
+  background: #07122a;
 }
 .left-glow {
   position: absolute; inset: 0; z-index: 0; pointer-events: none;
   background:
-    radial-gradient(55% 45% at 78% 12%, rgba(139, 92, 246, 0.45), transparent 70%),
-    radial-gradient(50% 50% at 8% 92%, rgba(76, 29, 149, 0.55), transparent 72%),
-    linear-gradient(158deg, #2a1065 0%, #1a1140 52%, #130c2c 100%);
+    radial-gradient(55% 45% at 78% 12%, rgba(59, 130, 246, 0.45), transparent 70%),
+    radial-gradient(50% 50% at 8% 92%, rgba(15, 36, 86, 0.55), transparent 72%),
+    linear-gradient(158deg, #0d1e4a 0%, #071534 52%, #050e26 100%);
 }
 
 .left-brand,
 .left-hero,
 .left-product { position: relative; z-index: 1; }
 
-.left-brand { display: flex; align-items: center; gap: 11px; }
-.left-logo {
-  width: 40px; height: 40px; border-radius: 12px;
-  background: linear-gradient(135deg, #7c3aed, #a78bfa);
-  display: flex; align-items: center; justify-content: center;
-  box-shadow: 0 10px 26px rgba(124, 58, 237, 0.5);
-}
-.left-brand-name { font-size: 19px; font-weight: 800; letter-spacing: -0.3px; }
-.left-brand-accent { color: #c4b5fd; }
+.left-brand { display: flex; align-items: center; }
+.left-logo-img { height: 38px; width: auto; filter: brightness(0) invert(1); }
 
 /* Hero — vertically centred */
 .left-hero { margin: auto 0; max-width: 440px; }
@@ -221,8 +198,8 @@ async function handleLogin() {
 }
 .feat-ico {
   width: 27px; height: 27px; border-radius: 50%; flex-shrink: 0;
-  background: rgba(167, 139, 250, 0.18); color: #c4b5fd;
-  border: 1px solid rgba(167, 139, 250, 0.3);
+  background: rgba(96, 165, 250, 0.18); color: #93c5fd;
+  border: 1px solid rgba(96, 165, 250, 0.3);
   display: flex; align-items: center; justify-content: center;
 }
 .feat-ico svg { width: 13px; height: 13px; }
@@ -243,8 +220,8 @@ async function handleLogin() {
 .product-info { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .product-pill {
   align-self: flex-start; font-size: 9px; font-weight: 800;
-  letter-spacing: 1px; text-transform: uppercase; color: #c4b5fd;
-  background: rgba(167, 139, 250, 0.18); border-radius: 999px; padding: 2px 9px;
+  letter-spacing: 1px; text-transform: uppercase; color: #93c5fd;
+  background: rgba(96, 165, 250, 0.18); border-radius: 999px; padding: 2px 9px;
 }
 .product-title { font-size: 14.5px; font-weight: 800; }
 .product-sub {
@@ -268,6 +245,7 @@ async function handleLogin() {
 }
 
 .mobile-brand { display: none; }
+.mobile-brand-img { height: 28px; width: auto; }
 
 .form-heading {
   font-size: 30px; font-weight: 800; color: var(--text-1);
@@ -361,7 +339,7 @@ async function handleLogin() {
   .login-right {
     padding: 40px 26px;
     background:
-      radial-gradient(60% 40% at 80% 8%, rgba(124, 58, 237, 0.12), transparent 70%),
+      radial-gradient(60% 40% at 80% 8%, rgba(29, 78, 216, 0.12), transparent 70%),
       var(--surface);
   }
   .login-form-wrap { max-width: 400px; }

@@ -25,14 +25,15 @@ class SummaryController extends Controller
         if ($v = $request->input('category_id')) $query->where('category_id', $v);
         if ($v = $request->input('user_id'))     $query->where('user_id', $v);
 
-        $contacts = $query->orderBy('name')->get();
-        $contactIds = $contacts->pluck('id');
+        $perPage = min((int) $request->input('per_page', 50), 200);
+        $paginated = $query->orderBy('name')->paginate($perPage);
+        $contactIds = $paginated->pluck('id');
 
-        // Fetch completed/cancelled tasks for the selected year, grouped by contact+month
+        // Fetch completed/cancelled tasks for the current page's contacts only
         $todoRows = ToDo::whereIn('contact_id', $contactIds)
             ->whereYear('todo_date', $year)
             ->whereIn('completion_status', ['completed', 'cancelled'])
-            ->with('task', 'user')
+            ->with('task')
             ->orderBy('todo_date')
             ->get();
 
@@ -40,17 +41,15 @@ class SummaryController extends Controller
         $taskMap = [];
         foreach ($todoRows as $t) {
             $month = (int) $t->todo_date->format('n');
-            // Keep the latest entry per month (since ordered by date)
             $taskMap[$t->contact_id][$month] = [
                 'date'   => $t->todo_date->format('d-m-y'),
                 'task'   => $t->task->name ?? '',
                 'remark' => $t->todo_remark ?? '',
-                'user'   => $t->user->name ?? '',
                 'status' => $t->completion_status,
             ];
         }
 
-        $data = $contacts->map(function ($c) use ($taskMap) {
+        $data = $paginated->getCollection()->map(function ($c) use ($taskMap) {
             return [
                 'id'       => $c->id,
                 'name'     => $c->name,
@@ -63,6 +62,15 @@ class SummaryController extends Controller
             ];
         });
 
-        return response()->json(['data' => $data]);
+        return response()->json([
+            'data' => $data,
+            'meta' => [
+                'current_page' => $paginated->currentPage(),
+                'last_page'    => $paginated->lastPage(),
+                'total'        => $paginated->total(),
+                'per_page'     => $paginated->perPage(),
+                'from'         => $paginated->firstItem(),
+            ],
+        ]);
     }
 }

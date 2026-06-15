@@ -3,11 +3,15 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Auth;
 
 class ToDo extends Model
 {
     protected static function booted(): void
     {
+        static::creating(fn($m) => $m->created_by = Auth::id());
+        static::updating(fn($m) => $m->updated_by  = Auth::id());
+
         // Handles explicit ToDo deletes (not cascade from Contact, which is covered in Contact::deleting)
         static::deleting(function (ToDo $todo) {
             $followUpIds = $todo->followUps()->pluck('id');
