@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Auth;
 
 class Contact extends Model
 {
@@ -12,6 +13,9 @@ class Contact extends Model
 
     protected static function booted(): void
     {
+        static::creating(fn($m) => $m->created_by = Auth::id());
+        static::updating(fn($m) => $m->updated_by  = Auth::id());
+
         // reminder_reads uses a polymorphic source_id with no FK — clean up manually
         // only on force-delete; soft-delete leaves children intact
         static::forceDeleting(function (Contact $contact) {
@@ -30,6 +34,7 @@ class Contact extends Model
         'name',
         'address',
         'remark',
+        'is_permanently_closed',
         'whatsapp_phone',
         'lead_source',
         'user_id',
@@ -37,6 +42,10 @@ class Contact extends Model
         'type_id',
         'category_id',
         'industry_id',
+    ];
+
+    protected $casts = [
+        'is_permanently_closed' => 'boolean',
     ];
 
     public function user()

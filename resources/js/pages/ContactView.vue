@@ -1,14 +1,21 @@
-<template>
+﻿<template>
   <div class="page">
 
     <!-- Page header -->
     <div class="page-head">
-      <router-link to="/list" class="back-btn">← Back to Contacts</router-link>
-      <div class="head-actions" v-if="contact">
+      <router-link to="/list" class="back-btn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle;margin-right:4px"><polyline points="15 18 9 12 15 6"/></svg>Back to Contacts</router-link>
+      <div class="head-actions" v-if="contact" data-tour="contact-head-actions">
         <button v-if="can('create todos')" class="btn btn-outline" @click="openAddTaskPanel">+ Add Task</button>
         <button v-if="can('create forecasts')" class="btn btn-info" @click="openForecastAdd">+ Forecast</button>
-        <router-link v-if="can('edit contacts')" :to="`/contacts/${id}/edit`" class="btn btn-warn">Edit</router-link>
-        <button v-if="can('delete contacts')" class="btn btn-danger" @click="openDeleteModal">Delete</button>
+        <button
+          v-if="can('edit contacts') && contact.can_edit"
+          :class="contact.is_permanently_closed ? 'btn btn-success' : 'btn btn-closed'"
+          @click="contact.is_permanently_closed ? toggleClosed() : openClosedModal()"
+        >
+          {{ contact.is_permanently_closed ? 'Mark as Active' : 'Mark as Closed' }}
+        </button>
+        <router-link v-if="can('edit contacts') && contact.can_edit" :to="`/contacts/${id}/edit`" class="btn btn-warn">Edit</router-link>
+        <button v-if="can('delete contacts') && contact.can_edit" class="btn btn-danger" @click="openDeleteModal">Delete</button>
       </div>
     </div>
 
@@ -16,8 +23,14 @@
 
     <template v-else-if="contact">
 
+      <!-- Permanently closed alert -->
+      <div v-if="contact.is_permanently_closed" class="closed-banner">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+        <span>This business is marked as <strong>Permanently Closed</strong>. Records are kept for reference.</span>
+      </div>
+
       <!-- Profile banner -->
-      <div class="profile-banner">
+      <div class="profile-banner" data-tour="contact-banner">
         <div class="profile-avatar">{{ initials(contact.name) }}</div>
         <div class="profile-info">
           <h1 class="profile-name">{{ contact.name }}</h1>
@@ -31,7 +44,7 @@
         <div class="profile-stats">
           <div class="pstat">
             <span class="pstat-num">{{ contact.todos?.length ?? 0 }}</span>
-            <span class="pstat-lbl">Tasks</span>
+            <span class="pstat-lbl">To-Dos</span>
           </div>
           <div class="pstat">
             <span class="pstat-num">{{ totalFollowUps }}</span>
@@ -70,7 +83,13 @@
               </div>
             </div>
             <div v-if="contact.address" class="detail-full">
-              <div class="detail-label">Address</div>
+              <div class="detail-label-row">
+                <span class="detail-label">Address</span>
+                <a :href="mapsUrl(contact)" target="_blank" rel="noopener noreferrer" class="maps-link" @click.stop>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                  Check on Google Maps
+                </a>
+              </div>
               <div class="detail-value">{{ contact.address }}</div>
             </div>
             <div v-if="contact.remark" class="detail-full">
@@ -127,9 +146,9 @@
       </div>
 
       <!-- Tasks -->
-      <div class="card">
+      <div class="card" data-tour="contact-tasks-card">
         <div class="card-title-row">
-          <span class="card-title">Tasks ({{ contact.todos?.length ?? 0 }})</span>
+          <span class="card-title">To-Dos ({{ contact.todos?.length ?? 0 }})</span>
           <button class="btn btn-sm btn-success" @click="openAddTaskPanel">+ Add Task</button>
         </div>
 
@@ -188,9 +207,9 @@
               </td>
               <td style="text-align:center">
                 <div class="task-action-cell">
-                  <button v-if="can('edit todos') && td.completion_status !== 'completed'" class="done-btn" title="Mark complete" @click="toggleDone(td, 'completed')">✓</button>
-                  <button v-else-if="can('edit todos')" class="undo-btn" title="Mark pending" @click="toggleDone(td, 'pending')">↩</button>
-                  <button v-if="can('delete todos')" class="task-del-btn" title="Delete task" @click="deleteTask(td)">✕</button>
+                  <button v-if="can('edit todos') && td.completion_status !== 'completed'" class="done-btn" title="Mark complete" @click="toggleDone(td, 'completed')"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></button>
+                  <button v-else-if="can('edit todos')" class="undo-btn" title="Mark pending" @click="toggleDone(td, 'pending')"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.63"/></svg></button>
+                  <button v-if="can('delete todos')" class="task-del-btn" title="Delete task" @click="openDeleteTaskModal(td)"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
                 </div>
               </td>
             </tr>
@@ -226,7 +245,7 @@
               <td>
                 <div class="action-pair">
                   <button v-if="can('edit forecasts')" class="inline-btn edit-btn" @click="openForecastEdit(f.id)">Edit</button>
-                  <button v-if="can('delete forecasts')" class="inline-btn del-btn" @click="deleteForecast(f.id)">Del</button>
+                  <button v-if="can('delete forecasts')" class="inline-btn del-btn" @click="openDeleteForecastModal(f.id)">Del</button>
                 </div>
               </td>
             </tr>
@@ -247,7 +266,7 @@
               {{ taskFuModal.todo.task?.name ?? 'Task' }} — {{ fmtDate(taskFuModal.todo.todo_date) }}
             </span>
           </div>
-          <button class="modal-close-btn" @click="closeTaskFuModal">✕</button>
+          <button class="modal-close-btn" @click="closeTaskFuModal"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
         </div>
         <div class="modal-body">
           <div v-if="taskFuModal.todo?.todo_remark" class="fu-remark-box">
@@ -302,12 +321,13 @@
       <div class="modal-box delete-modal">
         <div class="modal-head modal-head-danger">
           <strong class="modal-head-title">Delete Company</strong>
-          <button class="modal-close-btn" @click="closeDeleteModal">✕</button>
+          <button class="modal-close-btn" @click="closeDeleteModal"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
         </div>
         <div class="modal-body">
           <p class="delete-text">
             This will permanently delete <strong>{{ contact?.name }}</strong> and all associated tasks, forecasts, and history. This cannot be undone.
           </p>
+          <div v-if="deleteError" class="delete-error">{{ deleteError }}</div>
           <p class="delete-hint">Type <code>confirm delete</code> to proceed:</p>
           <input v-model="deleteConfirmText" class="delete-input" placeholder="confirm delete"
             @keyup.enter="deleteConfirmText === 'confirm delete' && confirmDelete()">
@@ -331,11 +351,94 @@
       @close="closeForecastModal"
       @saved="onForecastSaved"
     />
+
+  <Teleport to="body">
+    <div v-if="closedModal.open" class="conf-overlay" @click.self="closedModal.open = false">
+      <div class="conf-modal">
+        <div class="conf-head">
+          <div>
+            <p class="conf-title">Mark as Permanently Closed</p>
+            <p class="conf-sub">This contact will be flagged as a closed business.</p>
+          </div>
+          <button class="conf-close" @click="closedModal.open = false">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+        <div class="conf-body">
+          <svg class="conf-warn" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+            <line x1="12" y1="9" x2="12" y2="13"/><circle cx="12" cy="17" r="1" fill="#f59e0b" stroke="none"/>
+          </svg>
+          <p class="conf-text">Flag <strong>{{ contact?.name }}</strong> as permanently closed? You can undo this at any time.</p>
+        </div>
+        <div class="conf-foot">
+          <button class="conf-cancel" @click="closedModal.open = false">Cancel</button>
+          <button class="conf-delete" :disabled="closedModal.loading" @click="toggleClosed">
+            {{ closedModal.loading ? 'Saving…' : 'Mark as Closed' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </Teleport>
+
+  <Teleport to="body">
+    <div v-if="deleteTaskModal.open" class="conf-overlay" @click.self="closeDeleteTaskModal">
+      <div class="conf-modal">
+        <div class="conf-head">
+          <div>
+            <p class="conf-title">Delete Task</p>
+            <p class="conf-sub">All linked follow-ups will also be removed.</p>
+          </div>
+          <button class="conf-close" @click="closeDeleteTaskModal"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+        </div>
+        <div class="conf-body">
+          <svg class="conf-warn" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+            <line x1="12" y1="9" x2="12" y2="13"/><circle cx="12" cy="17" r="1" fill="#f59e0b" stroke="none"/>
+          </svg>
+          <p class="conf-text">Delete <strong>{{ deleteTaskModal.todo?.task?.name ?? 'this task' }}</strong> on {{ fmtDate(deleteTaskModal.todo?.todo_date) }}?</p>
+        </div>
+        <div class="conf-foot">
+          <button class="conf-cancel" @click="closeDeleteTaskModal">Cancel</button>
+          <button class="conf-delete" :disabled="deleteTaskModal.loading" @click="confirmDeleteTask">
+            {{ deleteTaskModal.loading ? 'Deleting…' : 'Delete' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </Teleport>
+
+  <Teleport to="body">
+    <div v-if="deleteForecastModal.open" class="conf-overlay" @click.self="closeDeleteForecastModal">
+      <div class="conf-modal">
+        <div class="conf-head">
+          <div>
+            <p class="conf-title">Delete Forecast</p>
+            <p class="conf-sub">This cannot be undone.</p>
+          </div>
+          <button class="conf-close" @click="closeDeleteForecastModal"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+        </div>
+        <div class="conf-body">
+          <svg class="conf-warn" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+            <line x1="12" y1="9" x2="12" y2="13"/><circle cx="12" cy="17" r="1" fill="#f59e0b" stroke="none"/>
+          </svg>
+          <p class="conf-text">Delete this forecast entry?</p>
+        </div>
+        <div class="conf-foot">
+          <button class="conf-cancel" @click="closeDeleteForecastModal">Cancel</button>
+          <button class="conf-delete" :disabled="deleteForecastModal.loading" @click="confirmDeleteForecast">
+            {{ deleteForecastModal.loading ? 'Deleting…' : 'Delete' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </Teleport>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, reactive } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import api from '../api.js';
 import LoadingSpinner from '../components/LoadingSpinner.vue';
@@ -452,11 +555,23 @@ async function toggleDone(todo, status) {
   todo.completion_status = status;
 }
 
-async function deleteTask(todo) {
-  if (!confirm(`Delete "${todo.task?.name ?? 'this task'}" on ${fmtDate(todo.todo_date)}?\nThis also removes all linked follow-ups.`)) return;
-  await api.delete(`/v1/todos/${todo.id}`);
-  const res = await api.get(`/v1/contacts/${id}`);
-  contact.value = res.data.data;
+const deleteTaskModal = reactive({ open: false, todo: null, loading: false });
+function openDeleteTaskModal(todo) { deleteTaskModal.todo = todo; deleteTaskModal.open = true; }
+function closeDeleteTaskModal() { deleteTaskModal.open = false; deleteTaskModal.todo = null; deleteTaskModal.loading = false; }
+
+async function confirmDeleteTask() {
+  if (!deleteTaskModal.todo) return;
+  deleteTaskModal.loading = true;
+  try {
+    await api.delete(`/v1/todos/${deleteTaskModal.todo.id}`);
+    const res = await api.get(`/v1/contacts/${id}`);
+    contact.value = res.data.data;
+    closeDeleteTaskModal();
+  } catch {
+    closeDeleteTaskModal();
+  } finally {
+    deleteTaskModal.loading = false;
+  }
 }
 
 // ── Forecast ──
@@ -475,28 +590,63 @@ async function onForecastSaved() {
   const res = await api.get(`/v1/contacts/${id}`);
   contact.value = res.data.data;
 }
-async function deleteForecast(fid) {
-  if (!confirm('Delete this forecast?')) return;
-  await api.delete(`/v1/forecasts/${fid}`);
-  contact.value.forecasts = contact.value.forecasts.filter(f => f.id !== fid);
+const deleteForecastModal = reactive({ open: false, forecastId: null, loading: false });
+function openDeleteForecastModal(fid) { deleteForecastModal.forecastId = fid; deleteForecastModal.open = true; }
+function closeDeleteForecastModal() { deleteForecastModal.open = false; deleteForecastModal.forecastId = null; deleteForecastModal.loading = false; }
+
+async function confirmDeleteForecast() {
+  if (!deleteForecastModal.forecastId) return;
+  deleteForecastModal.loading = true;
+  try {
+    await api.delete(`/v1/forecasts/${deleteForecastModal.forecastId}`);
+    contact.value.forecasts = contact.value.forecasts.filter(f => f.id !== deleteForecastModal.forecastId);
+    closeDeleteForecastModal();
+  } catch {
+    closeDeleteForecastModal();
+  } finally {
+    deleteForecastModal.loading = false;
+  }
+}
+
+// ── Permanently Closed ──
+const closedModal = reactive({ open: false, loading: false });
+
+function openClosedModal() { closedModal.open = true; }
+
+async function toggleClosed() {
+  closedModal.loading = true;
+  try {
+    const res = await api.patch(`/v1/contacts/${id}/closed`);
+    contact.value.is_permanently_closed = res.data.is_permanently_closed;
+    closedModal.open = false;
+  } finally {
+    closedModal.loading = false;
+  }
+}
+
+function mapsUrl(c) {
+  const q = encodeURIComponent([c.name, c.address].filter(Boolean).join(', '));
+  return `https://www.google.com/maps/search/?api=1&query=${q}`;
 }
 
 // ── Delete ──
 const showDeleteModal  = ref(false);
 const deleteConfirmText = ref('');
 const deleting          = ref(false);
+const deleteError       = ref('');
 
-function openDeleteModal()  { deleteConfirmText.value = ''; showDeleteModal.value = true; }
-function closeDeleteModal() { showDeleteModal.value = false; deleteConfirmText.value = ''; }
+function openDeleteModal()  { deleteConfirmText.value = ''; deleteError.value = ''; showDeleteModal.value = true; }
+function closeDeleteModal() { showDeleteModal.value = false; deleteConfirmText.value = ''; deleteError.value = ''; }
 
 async function confirmDelete() {
   if (deleteConfirmText.value !== 'confirm delete') return;
   deleting.value = true;
+  deleteError.value = '';
   try {
     await api.delete(`/v1/contacts/${id}`);
     router.push('/list');
   } catch (e) {
-    alert(e.response?.data?.message ?? 'Failed to delete contact.');
+    deleteError.value = e.response?.data?.message ?? 'Failed to delete contact.';
     deleting.value = false;
   }
 }
@@ -652,7 +802,7 @@ onMounted(async () => {
 .source-badge { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 11.5px; font-weight: 600; }
 .source-manual         { background: var(--surface-2); color: var(--text-2); }
 .source-web_form       { background: var(--info-soft);    color: var(--info); }
-.source-phone_call     { background: #f5f3ff; color: #7c3aed; }
+.source-phone_call     { background: #f5f3ff; color: #1d4ed8; }
 .source-referral       { background: var(--warning-soft); color: var(--warning); }
 .source-walk_in        { background: #f0fdfa; color: #0f766e; }
 .source-social_media   { background: #fdf2f8; color: #be185d; }
@@ -683,13 +833,14 @@ onMounted(async () => {
 /* Data table */
 .data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .data-table thead th {
-  background: var(--surface-2); color: var(--text-3); font-size: 10.5px; font-weight: 700;
-  text-transform: uppercase; letter-spacing: 0.6px; padding: 9px 12px;
-  border-bottom: 1px solid var(--border-soft); text-align: left; white-space: nowrap;
+  background: var(--surface-2); color: var(--text-2); font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.55px; padding: 11px 14px;
+  border-bottom: 2px solid var(--border); border-right: 1px solid var(--border-soft);
+  text-align: left; white-space: nowrap;
 }
-.data-table thead th:first-child { border-top-left-radius: 10px; }
-.data-table thead th:last-child  { border-top-right-radius: 10px; }
-.data-table tbody td { padding: 12px 12px; border-bottom: 1px solid var(--border-soft); color: var(--text-1); vertical-align: middle; }
+.data-table thead th:last-child { border-right: none; }
+.data-table tbody td { padding: 13px 14px; border-bottom: 1px solid var(--border-soft); border-right: 1px solid var(--border-soft); color: var(--text-1); vertical-align: middle; font-size: 13.5px; }
+.data-table tbody td:last-child { border-right: none; }
 .data-table tbody tr:last-child td { border-bottom: none; }
 .data-table tbody tr:hover { background: var(--surface-2); }
 .date-cell { font-size: 12px; font-weight: 700; color: var(--text-2); white-space: nowrap; }
@@ -860,4 +1011,45 @@ onMounted(async () => {
   .month-grid { grid-template-columns: repeat(4, 1fr); }
   .detail-grid { grid-template-columns: 1fr; }
 }
+
+.delete-error { background: var(--danger-soft); color: var(--danger); border-radius: var(--radius-sm); padding: 8px 12px; font-size: 13px; font-weight: 600; margin-bottom: 10px; }
+
+/* Permanently closed */
+.closed-banner {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--danger-soft); color: var(--danger);
+  border: 1px solid var(--danger); border-radius: var(--radius);
+  padding: 12px 18px; font-size: 13.5px; font-weight: 500;
+  margin-bottom: 18px;
+}
+.closed-banner svg { flex-shrink: 0; }
+.btn-closed { background: var(--danger-soft); color: var(--danger); border: 1px solid var(--danger); }
+.btn-closed:hover { background: var(--danger); color: #fff; }
+.detail-label-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 3px; }
+.maps-link {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 11px; font-weight: 700; color: var(--primary-text);
+  text-decoration: none; padding: 3px 10px; border-radius: 999px;
+  background: var(--primary-soft); transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+.maps-link:hover { background: var(--primary); color: var(--primary-on); }
+
+/* ── Confirm modal ── */
+.conf-overlay { position: fixed; inset: 0; background: rgba(15,23,42,0.5); z-index: 900; display: flex; align-items: center; justify-content: center; padding: 16px; }
+.conf-modal { background: var(--surface); border-radius: var(--radius-lg); width: 100%; max-width: 420px; box-shadow: var(--shadow-lg); border: 1px solid var(--border-soft); overflow: hidden; }
+.conf-head { display: flex; justify-content: space-between; align-items: flex-start; padding: 18px 22px 14px; border-bottom: 1px solid var(--border-soft); }
+.conf-title { font-size: 15px; font-weight: 700; color: var(--text-1); margin: 0 0 2px; }
+.conf-sub { font-size: 12px; color: var(--text-3); margin: 0; }
+.conf-close { background: none; border: none; cursor: pointer; font-size: 16px; color: var(--text-3); line-height: 1; padding: 0; }
+.conf-close:hover { color: var(--text-1); }
+.conf-body { padding: 20px 24px; display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; }
+.conf-warn { width: 44px; height: 44px; flex-shrink: 0; }
+.conf-text { font-size: 14px; color: var(--text-1); margin: 0; line-height: 1.5; }
+.conf-foot { display: flex; justify-content: flex-end; gap: 10px; padding: 14px 22px; border-top: 1px solid var(--border-soft); }
+.conf-cancel { height: 38px; padding: 0 18px; background: none; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 13px; font-weight: 600; color: var(--text-2); cursor: pointer; }
+.conf-cancel:hover { background: var(--surface-2); }
+.conf-delete { height: 38px; padding: 0 18px; background: var(--danger); color: #fff; border: none; border-radius: var(--radius-sm); font-size: 13px; font-weight: 700; cursor: pointer; }
+.conf-delete:hover:not(:disabled) { background: #b91c1c; }
+.conf-delete:disabled { opacity: 0.5; cursor: not-allowed; }
 </style>

@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="page">
 
     <!-- ── Header ── -->
@@ -8,7 +8,7 @@
         <p class="page-subtitle">Monthly forecast totals with contact, status, type, product, result, and owner context.</p>
       </div>
       <div class="page-head-actions">
-        <router-link to="/forecasts" class="btn btn-back">← Back to Forecasts</router-link>
+        <router-link to="/forecasts" class="btn btn-back"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle;margin-right:4px"><polyline points="15 18 9 12 15 6"/></svg>Back to Forecasts</router-link>
       </div>
     </div>
 
@@ -292,7 +292,7 @@ onMounted(async () => {
 .btn-primary {
   background: var(--primary);
   color: var(--primary-on);
-  box-shadow: 0 6px 18px -6px rgba(124,58,237,0.55);
+  box-shadow: 0 6px 18px -6px rgba(29,78,216,0.55);
 }
 .btn-primary:hover:not(:disabled) { background: var(--primary-hover); }
 .btn-back {

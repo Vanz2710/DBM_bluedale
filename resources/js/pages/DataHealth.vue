@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="page">
 
     <!-- Page Header -->
@@ -137,7 +137,7 @@
         <div class="modal-box">
           <div class="modal-header">
             <h2 class="modal-title">Merge Duplicates — {{ mergeModal.name }}</h2>
-            <button class="modal-close" @click="closeMerge">&#x2715;</button>
+            <button class="modal-close" @click="closeMerge"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
           </div>
           <div class="modal-body">
             <p class="modal-hint">Select the contact record to <strong>keep</strong>. All todos, deals, projects, and PICs from the others will be moved to the kept record, and duplicates will be deleted.</p>
@@ -324,7 +324,7 @@ tr:last-child td { border-bottom: none; }
 tr:hover td    { background: var(--surface-2); }
 
 /* ── Buttons ── */
-.btn-primary   { padding: 8px 18px; background: var(--primary); color: var(--primary-on); border: none; border-radius: var(--radius-sm); font-size: 13px; font-weight: 600; cursor: pointer; box-shadow: 0 6px 18px -6px rgba(124,58,237,0.45); transition: background 0.15s; }
+.btn-primary   { padding: 8px 18px; background: var(--primary); color: var(--primary-on); border: none; border-radius: var(--radius-sm); font-size: 13px; font-weight: 600; cursor: pointer; box-shadow: 0 6px 18px -6px rgba(29,78,216,0.45); transition: background 0.15s; }
 .btn-primary:hover:not(:disabled) { background: var(--primary-hover); }
 .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
 .btn-ghost     { padding: 8px 14px; background: var(--surface-2); color: var(--text-2); border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 13px; font-weight: 500; cursor: pointer; transition: background 0.15s; }

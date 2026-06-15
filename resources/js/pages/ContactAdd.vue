@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="page">
     <!-- Step 1 -->
     <template v-if="step === 1">
@@ -72,7 +72,7 @@
           </div>
           <div class="btn-row">
             <router-link to="/contacts" class="btn btn-cancel">Cancel</router-link>
-            <button type="submit" class="btn btn-next" :disabled="!!dupError">Next →</button>
+            <button type="submit" class="btn btn-next" :disabled="!!dupError">Next <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle;margin-left:2px"><polyline points="9 18 15 12 9 6"/></svg></button>
           </div>
         </form>
       </div>
@@ -86,7 +86,7 @@
       </div>
       <div class="card">
         <div class="section-label">Contact Info</div>
-        <div class="company-chip">🏢 {{ form.name }}</div>
+        <div class="company-chip"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle;margin-right:5px"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>{{ form.name }}</div>
         <form @submit.prevent="submit">
           <div v-if="submitError" class="error-box">{{ submitError }}</div>
           <div class="form-row">
@@ -110,7 +110,7 @@
             </div>
           </div>
           <div class="btn-row">
-            <button type="button" class="btn btn-cancel" @click="step = 1">← Back</button>
+            <button type="button" class="btn btn-cancel" @click="step = 1"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle;margin-right:2px"><polyline points="15 18 9 12 15 6"/></svg> Back</button>
             <button type="submit" class="btn btn-save" :disabled="saving">
               {{ saving ? 'Saving…' : 'Register Company' }}
             </button>
@@ -191,18 +191,22 @@ onMounted(async () => {
 <style scoped>
 .page { padding: 28px 32px; max-width: 760px; }
 .page-banner {
-  border-radius: 10px; padding: 20px 28px; margin-bottom: 20px; color: white;
+  border-radius: var(--radius-lg); padding: 22px 28px; margin-bottom: 20px; color: white;
+  background:
+    radial-gradient(900px 200px at 90% -20%, rgba(96,165,250,0.5), transparent 55%),
+    linear-gradient(118deg, #0f2456 0%, #1d4ed8 52%, #1e40af 100%);
+  box-shadow: 0 12px 32px -14px rgba(15,36,86,0.65);
 }
-.page-banner.green { background: linear-gradient(135deg, #1a2f4a, #22c55e); }
-.page-banner h1 { font-size: 18px; font-weight: 700; margin: 0 0 4px; }
-.page-banner p { font-size: 13px; opacity: 0.8; margin: 0; }
+.page-banner.green { /* colour unified — kept for template compat */ }
+.page-banner h1 { font-size: 26px; font-weight: 800; margin: 0 0 5px; letter-spacing: -0.4px; }
+.page-banner p { font-size: 13px; color: rgba(237,233,254,0.82); margin: 0; }
 .card { background: var(--surface); border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); padding: 28px 32px; }
 .section-label {
   font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.7px;
   color: var(--text-2); margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid var(--border);
 }
 .company-chip {
-  background: #eff6ff; color: #1d4ed8; border-radius: 6px; padding: 8px 14px;
+  background: var(--primary-soft); color: var(--primary-text); border-radius: 6px; padding: 8px 14px;
   font-size: 14px; font-weight: 700; display: inline-block; margin-bottom: 20px;
 }
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 0; }
@@ -218,7 +222,7 @@ onMounted(async () => {
 }
 .form-group textarea { height: 80px; padding: 10px 14px; resize: vertical; }
 .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
-  border-color: #22c55e; box-shadow: 0 0 0 3px rgba(34,197,94,0.1);
+  border-color: var(--primary); box-shadow: 0 0 0 3px rgba(29,78,216,0.12);
 }
 .hint { font-size: 11px; color: #f59e0b; margin-top: 4px; }
 .error-hint { color: #ef4444; font-weight: 600; }
@@ -230,9 +234,9 @@ onMounted(async () => {
 .btn-row { display: flex; gap: 10px; margin-top: 24px; }
 .btn { height: 42px; padding: 0 20px; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; border: none; text-decoration: none; display: flex; align-items: center; }
 .btn-cancel { background: var(--app-bg); color: var(--text-2); }
-.btn-next { flex: 1; background: #22c55e; color: white; justify-content: center; }
+.btn-next { flex: 1; background: var(--primary); color: white; justify-content: center; }
 .btn-next:disabled { background: var(--text-3); cursor: not-allowed; }
-.btn-save { flex: 1; background: #22c55e; color: white; justify-content: center; }
+.btn-save { flex: 1; background: var(--primary); color: white; justify-content: center; }
 .btn-save:disabled { background: var(--text-3); cursor: not-allowed; }
 
 /* Responsive */

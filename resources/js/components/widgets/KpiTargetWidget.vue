@@ -13,7 +13,7 @@
     <div v-else-if="!hasTargets" class="kt-empty">
       <Target :size="30" class="kt-empty-icon" />
       <p class="kt-empty-msg">No targets configured yet</p>
-      <router-link to="/performance" class="kt-empty-link">Set targets →</router-link>
+      <router-link to="/performance" class="kt-empty-link">Set targets <ArrowRight :size="12" /></router-link>
     </div>
     <div v-else class="kt-list">
       <div v-for="(row, metric) in targets" :key="metric" class="kt-row">
@@ -36,7 +36,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
-import { Target } from 'lucide-vue-next';
+import { Target, ArrowRight } from 'lucide-vue-next';
 import api from '../../api.js';
 
 const loading  = ref(true);

@@ -1,12 +1,30 @@
-<template>
+﻿<template>
   <div class="page">
     <LoadingSpinner v-if="loading" />
 
     <template v-else>
-      <!-- Page header -->
-      <div class="page-header">
-        <h2 class="page-title">Profile Settings</h2>
-        <p class="page-subtitle">Manage your account details and preferences.</p>
+      <!-- Profile hero -->
+      <div class="profile-hero">
+        <div class="hero-cover" aria-hidden="true"></div>
+        <div class="hero-body">
+          <div class="hero-avatar">{{ initials }}</div>
+          <div class="hero-main">
+            <h2 class="hero-name">{{ profile.name || '—' }}</h2>
+            <p class="hero-role">
+              <span v-if="profile.job_title" class="hero-job">{{ profile.job_title }}</span>
+              <span v-if="profile.job_title && profile.email" class="hero-dot">·</span>
+              <span v-if="profile.email" class="hero-email">{{ profile.email }}</span>
+            </p>
+            <div class="hero-badges">
+              <span v-for="role in profile.roles" :key="role" class="hero-role-badge">{{ role }}</span>
+              <span v-if="!profile.roles?.length" class="hero-role-badge hero-role-badge--muted">No role assigned</span>
+            </div>
+          </div>
+          <div class="hero-meta">
+            <span class="hero-meta-label">Member since</span>
+            <span class="hero-meta-value">{{ profile.created_at ?? '—' }}</span>
+          </div>
+        </div>
       </div>
 
       <div class="layout-grid">
@@ -22,17 +40,6 @@
               </svg>
               Personal Information
             </h3>
-
-            <!-- Avatar row -->
-            <div class="avatar-row">
-              <div class="avatar-ring">
-                <div class="avatar-circle">{{ initials }}</div>
-              </div>
-              <div class="avatar-meta">
-                <p class="avatar-name">{{ profile.name || '—' }}</p>
-                <p class="avatar-hint">Your name initials are used as your avatar</p>
-              </div>
-            </div>
 
             <div v-if="profileMsg" :class="['alert', profileMsg.type === 'error' ? 'alert-error' : 'alert-success']">
               <svg viewBox="0 0 20 20" fill="currentColor"><path v-if="profileMsg.type === 'error'" fill-rule="evenodd" d="M10 18a8 8 0 1 1 0-16 8 8 0 0 1 0 16zm-.75-9.75a.75.75 0 0 1 1.5 0v3a.75.75 0 0 1-1.5 0v-3zm.75 6a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5z" clip-rule="evenodd"/><path v-else fill-rule="evenodd" d="M10 18a8 8 0 1 1 0-16 8 8 0 0 1 0 16zm3.857-9.809a.75.75 0 0 0-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 1 0-1.06 1.061l2.5 2.5a.75.75 0 0 0 1.137-.089l4-5.5z" clip-rule="evenodd"/></svg>
@@ -370,6 +377,91 @@ async function changePassword() {
   font-weight: 500;
   color: var(--on-surface-variant);
 }
+
+/* ── Profile hero ────────────────────────────────────────── */
+.profile-hero {
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  margin-bottom: 24px;
+}
+.hero-cover {
+  height: 96px;
+  background:
+    radial-gradient(60% 130% at 85% 0%, rgba(96, 165, 250, 0.55), transparent 60%),
+    linear-gradient(120deg, #0f2456 0%, #1d4ed8 55%, #1e40af 100%);
+}
+.hero-body {
+  display: flex;
+  align-items: flex-end;
+  gap: 18px;
+  padding: 0 28px 22px;
+  margin-top: -36px;
+  flex-wrap: wrap;
+}
+.hero-avatar {
+  width: 86px;
+  height: 86px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: linear-gradient(135deg, #1d4ed8, #60a5fa);
+  border: 4px solid var(--surface);
+  box-shadow: 0 12px 28px -8px rgba(29, 78, 216, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 31px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+}
+.hero-main { flex: 1; min-width: 200px; padding-bottom: 2px; }
+.hero-name {
+  margin: 0 0 4px;
+  font-size: 22px;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: -0.4px;
+}
+.hero-role {
+  margin: 0 0 11px;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.75);
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+.hero-dot { color: rgba(255, 255, 255, 0.45); }
+.hero-badges { display: flex; flex-wrap: wrap; gap: 6px; }
+.hero-role-badge {
+  background: var(--primary-soft);
+  color: var(--primary-text);
+  border-radius: 999px;
+  padding: 3px 11px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: capitalize;
+}
+.hero-role-badge--muted { background: var(--surface-2); color: var(--text-3); }
+.hero-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: right;
+  margin-left: auto;
+  padding-bottom: 4px;
+}
+.hero-meta-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--text-3);
+}
+.hero-meta-value { font-size: 13px; font-weight: 700; color: var(--text-1); }
 
 /* ── Grid ────────────────────────────────────────────────── */
 .layout-grid {

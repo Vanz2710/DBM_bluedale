@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="cw-widget">
     <div class="cw-head">
       <div class="cw-title-wrap">
@@ -60,8 +60,8 @@ let chartInstance = null;
 let analyticsData = null;
 
 const PALETTE = [
-  '#7c3aed','#6d28d9','#4f46e5','#0891b2','#059669',
-  '#d97706','#dc2626','#db2777','#7c3aed','#0e7490',
+  '#1d4ed8','#1e40af','#4f46e5','#0891b2','#059669',
+  '#d97706','#dc2626','#db2777','#1d4ed8','#0e7490',
 ];
 
 function destroyChart() {
@@ -79,7 +79,7 @@ async function buildChart() {
     const months = activeTab.value === 'trend'
       ? (analyticsData.by_month ?? [])
       : (analyticsData.by_tasks ?? []);
-    const color = activeTab.value === 'trend' ? '#7c3aed' : '#0891b2';
+    const color = activeTab.value === 'trend' ? '#1d4ed8' : '#0891b2';
     const gradientRgb = activeTab.value === 'trend' ? '124,58,237' : '8,145,178';
     const gradient = ctx.createLinearGradient(0, 0, 0, chartCanvas.value.clientHeight || 200);
     gradient.addColorStop(0, `rgba(${gradientRgb},0.28)`);
@@ -187,7 +187,7 @@ function doughnutOpts() {
 
 function tooltipDefaults() {
   return {
-    backgroundColor: '#1e1b4b',
+    backgroundColor: '#0f2456',
     padding: 10,
     titleFont: { size: 11, weight: '600' },
     bodyFont: { size: 12 },

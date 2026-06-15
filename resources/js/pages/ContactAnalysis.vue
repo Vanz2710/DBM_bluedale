@@ -5,7 +5,7 @@
     <div class="ca-header">
       <div class="ca-header-left">
         <h1>Contact Analysis</h1>
-        <p class="ca-subtitle">Insights into acquisition, engagement, and activity patterns across your contacts.</p>
+        <p class="ca-subtitle">Engagement health, pipeline snapshot, and acquisition breakdown for your contacts.</p>
       </div>
       <div class="ca-header-actions">
         <div class="ca-date-wrap" ref="pickerRef">
@@ -41,12 +41,6 @@
             </div>
           </transition>
         </div>
-        <button class="ca-export-btn">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M12 15V3m0 12-4-4m4 4 4-4M2 17l.621 2.485A2 2 0 0 0 4.561 21h14.878a2 2 0 0 0 1.94-1.515L22 17"/>
-          </svg>
-          Export Data
-        </button>
       </div>
     </div>
 
@@ -76,80 +70,137 @@
       <button class="ca-clear-btn" @click="clearFilters">Clear All Filters</button>
     </div>
 
-    <!-- ══ KPI Cards ══════════════════════════════════════════════════════════════ -->
-    <div class="ca-kpi-row">
-      <div v-for="card in kpiCards" :key="card.key" class="ca-kpi">
-        <div class="ca-kpi-top-row">
-          <div class="ca-kpi-icon-wrap" :class="`ca-kpi-icon--${card.key}`">
-            <svg v-if="card.key === 'contacts'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/>
-            </svg>
-            <svg v-else-if="card.key === 'tasks'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18M9 16l2 2 4-4"/>
-            </svg>
-            <svg v-else-if="card.key === 'followups'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z"/><path d="m9 12 2 2 4-4"/>
-            </svg>
-            <svg v-else viewBox="0 0 24 24" fill="currentColor">
-              <path d="M13 2 4.09 12.96A1 1 0 0 0 5 14.5h5.5l-1 7.5 9.41-11.46A1 1 0 0 0 18 9H12.5L13 2z"/>
+    <!-- ══ Attention Required ════════════════════════════════════════════════════ -->
+    <div class="ca-section-label">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="ca-section-icon">
+        <circle cx="12" cy="12" r="10"/><path d="M12 8v4m0 4h.01"/>
+      </svg>
+      Needs Attention
+    </div>
+    <div class="ca-attention-row">
+
+      <div class="ca-attn-card ca-attn-card--overdue">
+        <div class="ca-attn-top">
+          <div class="ca-attn-icon-wrap ca-attn-icon--overdue">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>
             </svg>
           </div>
-          <span
-            v-if="!loading.overview && card.delta !== null"
-            class="ca-kpi-badge"
-            :class="card.delta >= 0 ? 'ca-kpi-badge--up' : 'ca-kpi-badge--down'"
-          >
-            <svg viewBox="0 0 12 12" fill="currentColor" width="9" height="9">
-              <path v-if="card.delta >= 0" d="M6 2l4 8H2z"/>
-              <path v-else d="M6 10L2 2h8z"/>
+          <div class="ca-attn-count">
+            <span v-if="loading.overview">—</span>
+            <span v-else>{{ overviewData?.overdue_tasks ?? 0 }}</span>
+          </div>
+        </div>
+        <div class="ca-attn-label">Overdue Tasks</div>
+        <div class="ca-attn-desc">Pending tasks past their scheduled date</div>
+      </div>
+
+      <div class="ca-attn-card ca-attn-card--dormant" @click="focusEngagement('dormant')" role="button" tabindex="0">
+        <div class="ca-attn-top">
+          <div class="ca-attn-icon-wrap ca-attn-icon--dormant">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+              <line x1="22" y1="9" x2="16" y2="9"/>
             </svg>
-            {{ Math.abs(card.delta) }}%
-          </span>
+          </div>
+          <div class="ca-attn-count">
+            <span v-if="loading.engagement">—</span>
+            <span v-else>{{ engSummary.dormant ?? 0 }}</span>
+          </div>
         </div>
-        <div class="ca-kpi-label">{{ card.label }}</div>
-        <div class="ca-kpi-value">
-          <span v-if="loading.overview">—</span>
-          <span v-else>{{ card.value }}</span>
-        </div>
-        <div v-if="!loading.overview && card.prevValue !== null" class="ca-kpi-prev">
-          vs. {{ card.prevValue }} last period
+        <div class="ca-attn-label">Dormant Contacts</div>
+        <div class="ca-attn-desc">Had activity, gone silent for 60+ days</div>
+        <div class="ca-attn-action">
+          View contacts
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
         </div>
       </div>
+
+      <div class="ca-attn-card ca-attn-card--at-risk" @click="focusEngagement('at_risk')" role="button" tabindex="0">
+        <div class="ca-attn-top">
+          <div class="ca-attn-icon-wrap ca-attn-icon--at-risk">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4m0 4h.01"/>
+            </svg>
+          </div>
+          <div class="ca-attn-count">
+            <span v-if="loading.engagement">—</span>
+            <span v-else>{{ engSummary.at_risk ?? 0 }}</span>
+          </div>
+        </div>
+        <div class="ca-attn-label">At Risk</div>
+        <div class="ca-attn-desc">No activity logged in the last 30–60 days</div>
+        <div class="ca-attn-action">
+          View contacts
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </div>
+      </div>
+
+      <div class="ca-attn-card ca-attn-card--never" @click="focusEngagement('no_activity')" role="button" tabindex="0">
+        <div class="ca-attn-top">
+          <div class="ca-attn-icon-wrap ca-attn-icon--never">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+              <path d="M19 8v6M22 11h-6"/>
+            </svg>
+          </div>
+          <div class="ca-attn-count">
+            <span v-if="loading.engagement">—</span>
+            <span v-else>{{ engSummary.no_activity ?? 0 }}</span>
+          </div>
+        </div>
+        <div class="ca-attn-label">Never Contacted</div>
+        <div class="ca-attn-desc">Contacts with no tasks logged at all</div>
+        <div class="ca-attn-action">
+          View contacts
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </div>
+      </div>
+
     </div>
 
-    <!-- ══ Activity Over Time ════════════════════════════════════════════════════ -->
-    <div class="ca-card">
-      <div class="ca-card-top">
-        <div>
-          <div class="ca-card-title">Activity Over Time</div>
-          <div class="ca-card-sub">Daily volume of primary contact interactions</div>
-        </div>
-        <div class="ca-pill-row">
-          <button
-            v-for="t in TREND_TABS" :key="t.key"
-            class="ca-pill"
-            :class="{ 'ca-pill--on': activeTrend === t.key }"
-            @click="switchTrend(t.key)"
-          >{{ t.label }}</button>
-        </div>
-      </div>
-      <div class="ca-chart-box" style="height:260px">
-        <div v-if="loading.overview" class="ca-chart-loading">Loading…</div>
-        <canvas v-else ref="trendRef" class="ca-canvas"></canvas>
-      </div>
-    </div>
-
-    <!-- ══ Lead Source + Activity Types (asymmetric) ═══════════════════════════ -->
+    <!-- ══ Pipeline Snapshot + Lead Source ══════════════════════════════════════ -->
     <div class="ca-row-asym">
+
+      <!-- Contact Status Distribution -->
+      <div class="ca-card">
+        <div class="ca-card-top">
+          <div>
+            <div class="ca-card-title">Pipeline Snapshot</div>
+            <div class="ca-card-sub">All contacts distributed by current status</div>
+          </div>
+          <span class="ca-card-total">{{ statusDistData.total }} total</span>
+        </div>
+        <div v-if="loading.statusDist" class="ca-chart-loading" style="height:120px">Loading…</div>
+        <template v-else>
+          <div v-if="statusDistData.statuses?.length">
+            <div class="ca-source-bars">
+              <div v-for="(s, i) in statusDistData.statuses" :key="s.name" class="ca-source-bar-item">
+                <div class="ca-source-bar-hdr">
+                  <span>{{ s.name }}</span>
+                  <span class="ca-source-count-pct">
+                    <strong>{{ s.count }}</strong>
+                    <span class="ca-source-pct">{{ s.pct }}%</span>
+                  </span>
+                </div>
+                <div class="ca-source-track">
+                  <div class="ca-source-fill" :style="{ width: s.pct + '%', background: statusColor(i) }"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div v-else class="ca-empty-chart">No contacts found.</div>
+        </template>
+      </div>
 
       <!-- Lead Source -->
       <div class="ca-card">
         <div class="ca-card-top">
           <div>
             <div class="ca-card-title">Lead Source</div>
-            <div class="ca-card-sub">Contacts added in period by acquisition channel</div>
+            <div class="ca-card-sub">New contacts in period by acquisition channel</div>
           </div>
-          <span class="ca-card-total">{{ sourceData.total }} contacts</span>
+          <span class="ca-card-total">{{ sourceData.total }} added</span>
         </div>
         <div v-if="loading.source" class="ca-chart-loading" style="height:120px">Loading…</div>
         <template v-else>
@@ -158,60 +209,30 @@
               <div v-for="s in sourceData.sources" :key="s.source" class="ca-source-bar-item">
                 <div class="ca-source-bar-hdr">
                   <span>{{ s.label }}</span>
-                  <span class="ca-source-pct">{{ s.pct }}%</span>
+                  <span class="ca-source-count-pct">
+                    <strong>{{ s.count }}</strong>
+                    <span class="ca-source-pct">{{ s.pct }}%</span>
+                  </span>
                 </div>
                 <div class="ca-source-track">
                   <div class="ca-source-fill" :style="{ width: s.pct + '%', background: sourceColor(s.source) }"></div>
                 </div>
               </div>
             </div>
-            <table class="ca-tbl ca-tbl--mt">
-              <thead><tr><th>Channel</th><th>Count</th><th>Share</th></tr></thead>
-              <tbody>
-                <tr v-for="s in sourceData.sources" :key="s.source">
-                  <td class="ca-tbl-bold">{{ s.label }}</td>
-                  <td>{{ s.count }}</td>
-                  <td class="ca-tbl-accent">{{ s.pct }}%</td>
-                </tr>
-              </tbody>
-            </table>
           </div>
           <div v-else class="ca-empty-chart">No contacts added in this period.</div>
-        </template>
-      </div>
-
-      <!-- Activity Types -->
-      <div class="ca-card">
-        <div>
-          <div class="ca-card-title">Activity Types</div>
-          <div class="ca-card-sub">Action distribution</div>
-        </div>
-        <div v-if="loading.actions" class="ca-chart-loading" style="height:180px">Loading…</div>
-        <template v-else>
-          <template v-if="actionData.by_action?.length">
-            <div class="ca-chart-box" style="height:200px">
-              <canvas ref="actionRef" class="ca-canvas"></canvas>
-            </div>
-            <div class="ca-legend-grid">
-              <div v-for="(a, i) in actionData.by_action" :key="a.action_type" class="ca-legend-item">
-                <span class="ca-legend-dot" :style="{ background: ACTION_PALETTE[i % ACTION_PALETTE.length] }"></span>
-                <span>{{ a.label }} ({{ a.completion_rate }}%)</span>
-              </div>
-            </div>
-          </template>
-          <div v-else class="ca-empty-chart">No follow-ups logged in this period.</div>
         </template>
       </div>
 
     </div>
 
     <!-- ══ Engagement Health ══════════════════════════════════════════════════════ -->
-    <div class="ca-card ca-card--eng">
+    <div class="ca-card ca-card--eng" ref="engSectionRef">
 
       <div class="ca-eng-head">
         <div>
           <div class="ca-card-title">Engagement Health</div>
-          <div class="ca-card-sub">Identify contacts needing attention based on inactivity days.</div>
+          <div class="ca-card-sub">Contacts ranked by inactivity — click a card above to jump to a specific group.</div>
         </div>
         <div class="ca-health-pill-group">
           <button
@@ -260,15 +281,15 @@
             <thead>
               <tr>
                 <th class="ca-th-sort" @click="sortEng('name')">
-                  Contact Name <span class="ca-sort-icon">{{ sortIcon('name') }}</span>
+                  Contact Name <span class="ca-sort-icon" v-html="sortIcon('name')"></span>
                 </th>
                 <th>Agent</th>
                 <th>Status</th>
                 <th class="ca-th-sort" @click="sortEng('last_todo_date')">
-                  Last Task <span class="ca-sort-icon">{{ sortIcon('last_todo_date') }}</span>
+                  Last Task <span class="ca-sort-icon" v-html="sortIcon('last_todo_date')"></span>
                 </th>
                 <th class="ca-th-sort" @click="sortEng('days_inactive')">
-                  Days Inactive <span class="ca-sort-icon">{{ sortIcon('days_inactive') }}</span>
+                  Days Inactive <span class="ca-sort-icon" v-html="sortIcon('days_inactive')"></span>
                 </th>
                 <th>Health</th>
                 <th></th>
@@ -310,7 +331,7 @@
             <button class="ca-page-nav" :disabled="engMeta.current_page === 1" @click="loadEngagement(engMeta.current_page - 1)">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 18l-6-6 6-6"/></svg>
             </button>
-            <template v-for="pg in pageNumbers" :key="String(pg) + Math.random()">
+            <template v-for="pg in pageNumbers" :key="String(pg) + '_' + engMeta.current_page">
               <button
                 v-if="pg !== '...'"
                 class="ca-page-num"
@@ -332,21 +353,7 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted, onUnmounted, nextTick } from 'vue';
-import {
-  Chart,
-  BarController, BarElement,
-  DoughnutController, ArcElement,
-  CategoryScale, LinearScale,
-  Tooltip, Legend,
-} from 'chart.js';
 import api from '../api.js';
-
-Chart.register(
-  BarController, BarElement,
-  DoughnutController, ArcElement,
-  CategoryScale, LinearScale,
-  Tooltip, Legend,
-);
 
 // ─── Auth ──────────────────────────────────────────────────────────────────
 const user    = JSON.parse(localStorage.getItem('crm_user') || 'null');
@@ -437,94 +444,26 @@ function clearFilters() {
 }
 
 // ─── Loading state ─────────────────────────────────────────────────────────
-const loading = reactive({ overview: false, source: false, actions: false, engagement: false });
+const loading = reactive({ overview: false, source: false, statusDist: false, engagement: false });
 
-// ─── Overview / KPI cards ──────────────────────────────────────────────────
+// ─── Overview (overdue tasks count) ───────────────────────────────────────
 const overviewData = ref(null);
 
-function calcDelta(curr, prev) {
-  if (prev === 0) return curr > 0 ? 100 : null;
-  return Math.round((curr - prev) / prev * 100);
+async function loadOverview() {
+  loading.overview = true;
+  try {
+    const { data } = await api.get('/v1/contact-analysis/overview', { params: buildParams() });
+    overviewData.value = data;
+  } finally {
+    loading.overview = false;
+  }
 }
 
-const kpiCards = computed(() => {
-  const d = overviewData.value;
-  if (!d) return [
-    { key: 'contacts',  label: 'Contacts Added',       value: '—', delta: null, prevValue: null },
-    { key: 'tasks',     label: 'Tasks Scheduled',       value: '—', delta: null, prevValue: null },
-    { key: 'followups', label: 'Follow-Ups Completed',  value: '—', delta: null, prevValue: null },
-    { key: 'engaged',   label: 'Engaged Contacts',      value: '—', delta: null, prevValue: null },
-  ];
-  return [
-    { key: 'contacts',  label: 'Contacts Added',       value: d.contacts_added,      delta: calcDelta(d.contacts_added,      d.prev_contacts_added),      prevValue: d.prev_contacts_added },
-    { key: 'tasks',     label: 'Tasks Scheduled',       value: d.tasks_created,       delta: calcDelta(d.tasks_created,       d.prev_tasks_created),       prevValue: d.prev_tasks_created },
-    { key: 'followups', label: 'Follow-Ups Completed',  value: d.followups_completed, delta: calcDelta(d.followups_completed, d.prev_followups_completed),  prevValue: d.prev_followups_completed },
-    { key: 'engaged',   label: 'Engaged Contacts',      value: d.engaged_contacts,    delta: calcDelta(d.engaged_contacts,    d.prev_engaged_contacts),    prevValue: d.prev_engaged_contacts },
-  ];
-});
-
-// ─── Activity Trend chart ──────────────────────────────────────────────────
-const trendRef   = ref(null);
-let   trendChart = null;
-const activeTrend = ref('contacts');
-
-const TREND_TABS = [
-  { key: 'contacts',  label: 'Contacts',   color: '#7c3aed', rgb: '124,58,237' },
-  { key: 'tasks',     label: 'Tasks',      color: '#0891b2', rgb: '8,145,178' },
-  { key: 'followups', label: 'Follow-Ups', color: '#059669', rgb: '5,150,105' },
-];
-
-function buildTrendChart() {
-  trendChart?.destroy(); trendChart = null;
-  if (!trendRef.value || !overviewData.value?.daily_trend?.length) return;
-  const trend = overviewData.value.daily_trend;
-  const tab   = TREND_TABS.find(t => t.key === activeTrend.value);
-  trendChart  = new Chart(trendRef.value.getContext('2d'), {
-    type: 'bar',
-    data: {
-      labels: trend.map(d => d.date),
-      datasets: [{
-        label: tab.label,
-        data: trend.map(d => d[tab.key]),
-        backgroundColor: `rgba(${tab.rgb},0.5)`,
-        borderColor: tab.color,
-        borderWidth: 1,
-        borderRadius: 4,
-        borderSkipped: false,
-      }],
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: { legend: { display: false }, tooltip: tooltipDefaults() },
-      scales: {
-        x: {
-          border: { display: false },
-          grid:   { display: false },
-          ticks:  { font: { size: 9 }, color: '#94a3b8', maxTicksLimit: 14, maxRotation: 45 },
-        },
-        y: {
-          beginAtZero: true,
-          border: { display: false },
-          grid: { color: 'rgba(148,163,184,0.12)', drawTicks: false },
-          ticks: { font: { size: 10 }, color: '#94a3b8', padding: 8, stepSize: 1 },
-        },
-      },
-    },
-  });
-}
-
-async function switchTrend(key) {
-  activeTrend.value = key;
-  await nextTick();
-  buildTrendChart();
-}
-
-// ─── Lead Source data (progress bars, no chart) ────────────────────────────
+// ─── Lead Source ───────────────────────────────────────────────────────────
 const sourceData = ref({ sources: [], total: 0 });
 
 const SOURCE_COLORS = {
-  manual: '#7c3aed', phone_call: '#0891b2', referral: '#059669',
+  manual: '#1d4ed8', phone_call: '#0891b2', referral: '#059669',
   walk_in: '#d97706', social_media: '#db2777', email_campaign: '#dc2626',
   web_form: '#4f46e5', other: '#64748b', unknown: '#94a3b8',
   exhibition: '#f59e0b', linkedin: '#0e7490', tender: '#84cc16',
@@ -532,39 +471,33 @@ const SOURCE_COLORS = {
 };
 function sourceColor(s) { return SOURCE_COLORS[s] ?? '#94a3b8'; }
 
-// ─── Follow-Up Action chart ────────────────────────────────────────────────
-const actionData  = ref({ by_action: [], total: 0 });
-const actionRef   = ref(null);
-let   actionChart = null;
+async function loadSource() {
+  loading.source = true;
+  try {
+    const { data } = await api.get('/v1/contact-analysis/lead-source', { params: buildParams() });
+    sourceData.value = data;
+  } finally {
+    loading.source = false;
+  }
+}
 
-const ACTION_PALETTE = ['#7c3aed','#0891b2','#059669','#d97706','#dc2626','#db2777','#4f46e5','#0e7490','#84cc16','#f59e0b'];
+// ─── Status Distribution ───────────────────────────────────────────────────
+const statusDistData = ref({ statuses: [], total: 0 });
 
-function buildActionChart() {
-  actionChart?.destroy(); actionChart = null;
-  if (!actionRef.value || !actionData.value.by_action?.length) return;
-  const rows = actionData.value.by_action;
-  actionChart = new Chart(actionRef.value.getContext('2d'), {
-    type: 'doughnut',
-    data: {
-      labels: rows.map(r => r.label),
-      datasets: [{
-        data: rows.map(r => r.total),
-        backgroundColor: ACTION_PALETTE.slice(0, rows.length),
-        borderColor: '#fff',
-        borderWidth: 2,
-        hoverOffset: 6,
-      }],
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      cutout: '62%',
-      plugins: {
-        legend: { display: false },
-        tooltip: tooltipDefaults(),
-      },
-    },
-  });
+const STATUS_PALETTE = ['#1d4ed8','#0891b2','#059669','#d97706','#dc2626','#db2777','#4f46e5','#0e7490','#84cc16','#f59e0b','#64748b'];
+function statusColor(i) { return STATUS_PALETTE[i % STATUS_PALETTE.length]; }
+
+async function loadStatusDist() {
+  loading.statusDist = true;
+  try {
+    const params = {};
+    if (filters.user_id)     params.user_id     = filters.user_id;
+    if (filters.industry_id) params.industry_id = filters.industry_id;
+    const { data } = await api.get('/v1/contact-analysis/status-distribution', { params });
+    statusDistData.value = data;
+  } finally {
+    loading.statusDist = false;
+  }
 }
 
 // ─── Engagement table ──────────────────────────────────────────────────────
@@ -573,6 +506,7 @@ const PER_PAGE_OPTIONS = [10, 20, 50];
 const engData    = ref([]);
 const engMeta    = reactive({ current_page: 1, last_page: 1, total: 0, per_page: 10 });
 const engSummary = ref({ total: 0, active: 0, at_risk: 0, dormant: 0, no_activity: 0 });
+const engSectionRef = ref(null);
 
 const engFilters = reactive({
   health:    '',
@@ -585,10 +519,11 @@ const engFilters = reactive({
 });
 
 const HEALTH_TABS = [
-  { key: '',        label: 'All',     countKey: 'total' },
-  { key: 'active',  label: 'Active',  countKey: 'active' },
-  { key: 'at_risk', label: 'At Risk', countKey: 'at_risk' },
-  { key: 'dormant', label: 'Dormant', countKey: 'dormant' },
+  { key: '',            label: 'All',             countKey: 'total' },
+  { key: 'active',      label: 'Active',          countKey: 'active' },
+  { key: 'at_risk',     label: 'At Risk',         countKey: 'at_risk' },
+  { key: 'dormant',     label: 'Dormant',         countKey: 'dormant' },
+  { key: 'no_activity', label: 'Never Contacted', countKey: 'no_activity' },
 ];
 
 function healthLabel(h) {
@@ -598,6 +533,14 @@ function healthLabel(h) {
 function setHealth(key) {
   engFilters.health = key;
   loadEngagement(1);
+}
+
+function focusEngagement(health) {
+  engFilters.health = health;
+  loadEngagement(1);
+  nextTick(() => {
+    engSectionRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
 }
 
 function sortEng(field) {
@@ -611,8 +554,10 @@ function sortEng(field) {
 }
 
 function sortIcon(field) {
-  if (engFilters.sort_by !== field) return '↕';
-  return engFilters.sort_dir === 'asc' ? '↑' : '↓';
+  if (engFilters.sort_by !== field) return '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="opacity:0.4"><line x1="12" y1="20" x2="12" y2="4"/><polyline points="5 11 12 4 19 11"/><polyline points="19 13 12 20 5 13"/></svg>';
+  return engFilters.sort_dir === 'asc'
+    ? '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>'
+    : '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>';
 }
 
 function initials(name) {
@@ -623,60 +568,12 @@ const pageNumbers = computed(() => {
   const total = engMeta.last_page;
   const cur   = engMeta.current_page;
   if (total <= 5) return Array.from({ length: total }, (_, i) => i + 1);
-  if (cur <= 3)        return [1, 2, 3, '...', total];
-  if (cur >= total - 2) return [1, '...', total - 2, total - 1, total];
+  if (cur <= 3)          return [1, 2, 3, '...', total];
+  if (cur >= total - 2)  return [1, '...', total - 2, total - 1, total];
   return [1, '...', cur, '...', total];
 });
 
-// ─── Shared tooltip style ──────────────────────────────────────────────────
-function tooltipDefaults() {
-  return {
-    backgroundColor: '#1e1b4b',
-    padding: 10,
-    titleFont:   { size: 11, weight: '600' },
-    bodyFont:    { size: 12 },
-    displayColors: false,
-    cornerRadius: 8,
-  };
-}
-
 // ─── Load functions ────────────────────────────────────────────────────────
-async function loadOverview() {
-  loading.overview = true;
-  trendChart?.destroy(); trendChart = null;
-  try {
-    const { data } = await api.get('/v1/contact-analysis/overview', { params: buildParams() });
-    overviewData.value = data;
-  } finally {
-    loading.overview = false;
-  }
-  await nextTick();
-  buildTrendChart();
-}
-
-async function loadSource() {
-  loading.source = true;
-  try {
-    const { data } = await api.get('/v1/contact-analysis/lead-source', { params: buildParams() });
-    sourceData.value = data;
-  } finally {
-    loading.source = false;
-  }
-}
-
-async function loadActions() {
-  loading.actions = true;
-  actionChart?.destroy(); actionChart = null;
-  try {
-    const { data } = await api.get('/v1/contact-analysis/followup-actions', { params: buildParams() });
-    actionData.value = data;
-  } finally {
-    loading.actions = false;
-  }
-  await nextTick();
-  buildActionChart();
-}
-
 async function loadEngagement(page = 1) {
   loading.engagement = true;
   try {
@@ -700,7 +597,7 @@ async function loadEngagement(page = 1) {
 }
 
 async function loadAll() {
-  await Promise.all([loadOverview(), loadSource(), loadActions()]);
+  await Promise.all([loadOverview(), loadSource(), loadStatusDist()]);
 }
 
 // ─── Lifecycle ─────────────────────────────────────────────────────────────
@@ -715,8 +612,6 @@ onMounted(async () => {
 
 onUnmounted(() => {
   document.removeEventListener('click', handleOutsideClick);
-  trendChart?.destroy();
-  actionChart?.destroy();
 });
 </script>
 
@@ -774,8 +669,8 @@ onUnmounted(() => {
   transition: border-color 0.15s, background 0.15s;
   white-space: nowrap;
 }
-.ca-date-btn:hover { border-color: var(--primary, #7c3aed); background: #eaddff; }
-.ca-date-icon { width: 15px; height: 15px; color: var(--primary, #7c3aed); flex-shrink: 0; }
+.ca-date-btn:hover { border-color: var(--primary, #1d4ed8); background: #eaddff; }
+.ca-date-icon { width: 15px; height: 15px; color: var(--primary, #1d4ed8); flex-shrink: 0; }
 .ca-caret     { width: 10px; height: 6px; color: var(--text-3); margin-left: 2px; }
 
 .ca-date-panel {
@@ -794,11 +689,7 @@ onUnmounted(() => {
   min-width: 340px;
 }
 .ca-presets-section { display: flex; flex-direction: column; gap: 8px; }
-.ca-presets {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
+.ca-presets { display: flex; flex-wrap: wrap; gap: 6px; }
 .ca-preset {
   padding: 7px 14px;
   font-size: 13px;
@@ -807,13 +698,12 @@ onUnmounted(() => {
   color: var(--text-2, #475569);
   border-radius: 999px;
   cursor: pointer;
-  text-align: left;
   white-space: nowrap;
   transition: background 0.12s, color 0.12s;
 }
 .ca-preset:hover     { background: #eff4ff; color: var(--text-1); }
-.ca-preset--on       { background: var(--primary, #7c3aed); color: #fff; font-weight: 600; }
-.ca-preset--on:hover { background: var(--primary, #7c3aed); }
+.ca-preset--on       { background: var(--primary, #1d4ed8); color: #fff; font-weight: 600; }
+.ca-preset--on:hover { background: var(--primary, #1d4ed8); }
 
 .ca-custom       { display: flex; flex-direction: column; gap: 10px; }
 .ca-custom-title { font-size: 10.5px; font-weight: 700; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.08em; }
@@ -832,28 +722,9 @@ onUnmounted(() => {
   border-radius: 6px;
   font-size: 13px;
   color: var(--text-1);
-  background: #f8f9ff;
+  background: var(--surface-2);
 }
 .ca-apply-btn { flex-shrink: 0; }
-
-/* ── Export button ───────────────────────────────────────────────────────── */
-.ca-export-btn {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 9px 20px;
-  background: var(--primary, #7c3aed);
-  color: #fff;
-  border: none;
-  border-radius: 999px;
-  font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: transform 0.15s, box-shadow 0.15s;
-}
-.ca-export-btn svg { width: 15px; height: 15px; flex-shrink: 0; }
-.ca-export-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 14px rgba(124,58,237,0.35); }
 
 /* ── Filter Bar ──────────────────────────────────────────────────────────── */
 .ca-filter-bar {
@@ -882,16 +753,16 @@ onUnmounted(() => {
   border-radius: 999px;
   font-size: 12.5px;
   color: var(--text-1);
-  background: #e5eeff;
+  background: var(--border-soft);
   cursor: pointer;
   outline: none;
   transition: box-shadow 0.12s;
 }
-.ca-filter-select:focus { box-shadow: 0 0 0 2px rgba(124,58,237,0.2); }
+.ca-filter-select:focus { box-shadow: 0 0 0 2px rgba(29,78,216,0.2); }
 .ca-clear-btn {
   font-size: 12px;
   font-weight: 700;
-  color: var(--primary, #7c3aed);
+  color: var(--primary, #1d4ed8);
   background: none;
   border: none;
   cursor: pointer;
@@ -902,58 +773,104 @@ onUnmounted(() => {
   margin-left: auto;
 }
 
-/* ── KPI Cards ───────────────────────────────────────────────────────────── */
-.ca-kpi-row {
+/* ── Section label ───────────────────────────────────────────────────────── */
+.ca-section-label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: -6px;
+}
+.ca-section-icon { width: 14px; height: 14px; flex-shrink: 0; }
+
+/* ── Attention Cards ─────────────────────────────────────────────────────── */
+.ca-attention-row {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 18px;
+  gap: 16px;
 }
-.ca-kpi {
+
+.ca-attn-card {
   background: var(--surface);
   border: 1px solid var(--border, #e2e8f0);
+  border-left: 4px solid transparent;
   border-radius: 12px;
   padding: 20px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  transition: transform 0.2s, box-shadow 0.2s;
+  gap: 6px;
+  transition: transform 0.15s, box-shadow 0.15s;
 }
-.ca-kpi:hover { transform: translateY(-4px); box-shadow: 0 8px 24px rgba(0,0,0,0.08); }
+.ca-attn-card[role="button"] { cursor: pointer; }
+.ca-attn-card[role="button"]:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.09);
+}
+.ca-attn-card[role="button"]:focus-visible {
+  outline: 2px solid var(--primary, #1d4ed8);
+  outline-offset: 2px;
+}
 
-.ca-kpi-top-row {
+.ca-attn-card--overdue { border-left-color: #dc2626; }
+.ca-attn-card--dormant { border-left-color: #b91c1c; }
+.ca-attn-card--at-risk { border-left-color: #d97706; }
+.ca-attn-card--never   { border-left-color: #64748b; }
+
+.ca-attn-top {
   display: flex;
-  justify-content: space-between;
   align-items: flex-start;
+  justify-content: space-between;
   margin-bottom: 4px;
 }
-.ca-kpi-icon-wrap {
-  width: 40px; height: 40px;
+
+.ca-attn-icon-wrap {
+  width: 38px; height: 38px;
   border-radius: 8px;
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
 }
-.ca-kpi-icon-wrap svg { width: 20px; height: 20px; }
+.ca-attn-icon-wrap svg { width: 18px; height: 18px; }
 
-.ca-kpi-icon--contacts  { background: #ede9fe; color: #7c3aed; }
-.ca-kpi-icon--tasks     { background: #dbeafe; color: #2563eb; }
-.ca-kpi-icon--followups { background: #dcfce7; color: #16a34a; }
-.ca-kpi-icon--engaged   { background: #ede9fe; color: #7c3aed; }
+.ca-attn-icon--overdue { background: #fee2e2; color: #dc2626; }
+.ca-attn-icon--dormant { background: #fecaca; color: #b91c1c; }
+.ca-attn-icon--at-risk { background: #fef3c7; color: #d97706; }
+.ca-attn-icon--never   { background: #e2e8f0; color: #475569; }
 
-.ca-kpi-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  padding: 3px 8px;
-  border-radius: 999px;
-  font-size: 10.5px;
-  font-weight: 700;
+.ca-attn-count {
+  font-size: 34px;
+  font-weight: 800;
+  color: var(--text-1);
+  line-height: 1;
+  letter-spacing: -0.03em;
 }
-.ca-kpi-badge--up   { background: #dcfce7; color: #166534; }
-.ca-kpi-badge--down { background: #fee2e2; color: #991b1b; }
 
-.ca-kpi-label { font-size: 10.5px; font-weight: 700; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.08em; }
-.ca-kpi-value { font-size: 26px; font-weight: 800; color: var(--text-1); line-height: 1; letter-spacing: -0.02em; }
-.ca-kpi-prev  { font-size: 11px; color: var(--text-3); }
+.ca-attn-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.ca-attn-desc {
+  font-size: 12px;
+  color: var(--text-3);
+  line-height: 1.4;
+  flex: 1;
+}
+.ca-attn-action {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--primary, #1d4ed8);
+  margin-top: 4px;
+}
+.ca-attn-action svg { width: 13px; height: 13px; }
 
 /* ── Cards ───────────────────────────────────────────────────────────────── */
 .ca-card {
@@ -970,38 +887,14 @@ onUnmounted(() => {
 .ca-card-sub   { font-size: 12px; color: var(--text-3); margin: 3px 0 0; }
 .ca-card-total { font-size: 13px; color: var(--text-3); white-space: nowrap; flex-shrink: 0; align-self: center; }
 
-/* ── Trend tab pills ─────────────────────────────────────────────────────── */
-.ca-pill-row {
-  display: flex;
-  background: #e5eeff;
-  border-radius: 999px;
-  padding: 3px;
-  flex-shrink: 0;
-}
-.ca-pill {
-  padding: 6px 16px;
-  font-size: 12px;
-  font-weight: 700;
-  border-radius: 999px;
-  border: none;
-  background: transparent;
-  color: var(--text-3);
-  cursor: pointer;
-  transition: background 0.13s, color 0.13s;
-}
-.ca-pill:hover  { color: var(--text-1); }
-.ca-pill--on    { background: #fff; color: var(--primary, #7c3aed); box-shadow: 0 1px 4px rgba(0,0,0,0.1); }
-
-/* ── Charts ──────────────────────────────────────────────────────────────── */
-.ca-chart-box    { position: relative; width: 100%; }
-.ca-canvas       { position: absolute; inset: 0; width: 100% !important; height: 100% !important; }
+/* ── Charts / loading ────────────────────────────────────────────────────── */
 .ca-chart-loading { display: flex; align-items: center; justify-content: center; font-size: 13px; color: var(--text-3); }
 .ca-empty-chart  { text-align: center; padding: 40px 0; font-size: 13px; color: var(--text-3); }
 
 /* ── Asymmetric two-column ───────────────────────────────────────────────── */
-.ca-row-asym { display: grid; grid-template-columns: 7fr 5fr; gap: 18px; }
+.ca-row-asym { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
 
-/* ── Source progress bars ────────────────────────────────────────────────── */
+/* ── Source / Status progress bars ──────────────────────────────────────── */
 .ca-source-bars { display: flex; flex-direction: column; gap: 12px; }
 .ca-source-bar-item { display: flex; flex-direction: column; gap: 4px; }
 .ca-source-bar-hdr {
@@ -1011,24 +904,24 @@ onUnmounted(() => {
   font-weight: 700;
   color: var(--text-2);
 }
+.ca-source-count-pct {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.ca-source-count-pct strong { color: var(--text-1); }
 .ca-source-pct { color: var(--text-3); font-weight: 600; }
 .ca-source-track {
   width: 100%;
   height: 8px;
-  background: #e5eeff;
+  background: var(--border-soft);
   border-radius: 999px;
   overflow: hidden;
 }
 .ca-source-fill { height: 100%; border-radius: 999px; transition: width 0.5s; }
 
-/* ── Legend grid ─────────────────────────────────────────────────────────── */
-.ca-legend-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; margin-top: 4px; }
-.ca-legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: var(--text-2); }
-.ca-legend-dot  { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-
 /* ── Tables ──────────────────────────────────────────────────────────────── */
 .ca-tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
-.ca-tbl--mt { margin-top: 10px; }
 .ca-tbl th {
   text-align: left;
   font-size: 10.5px;
@@ -1037,19 +930,17 @@ onUnmounted(() => {
   text-transform: uppercase;
   letter-spacing: 0.08em;
   padding: 8px 8px 8px 0;
-  border-bottom: 1px solid #e5eeff;
+  border-bottom: 1px solid var(--border-soft);
 }
 .ca-tbl td {
   padding: 8px 8px 8px 0;
   color: var(--text-2);
-  border-bottom: 1px solid #e5eeff;
+  border-bottom: 1px solid var(--border-soft);
   vertical-align: middle;
 }
 .ca-tbl tr:last-child td { border-bottom: none; }
 .ca-tbl--full { width: 100%; }
 .ca-tbl-scroll { overflow-x: auto; }
-.ca-tbl-bold   { font-weight: 700; color: var(--text-1); }
-.ca-tbl-accent { color: #006591; font-weight: 700; }
 
 /* ── Engagement card ─────────────────────────────────────────────────────── */
 .ca-card--eng { padding: 0; gap: 0; overflow: hidden; }
@@ -1061,10 +952,9 @@ onUnmounted(() => {
   align-items: flex-start;
   gap: 16px;
   padding: 22px 22px 18px;
-  border-bottom: 1px solid #e5eeff;
+  border-bottom: 1px solid var(--border-soft);
 }
 
-/* Health pill group */
 .ca-health-pill-group {
   display: flex;
   flex-wrap: wrap;
@@ -1089,17 +979,16 @@ onUnmounted(() => {
   white-space: nowrap;
 }
 .ca-health-pill strong { font-weight: 700; color: var(--text-2); }
-.ca-health-pill--on { background: #fff; color: var(--primary, #7c3aed); box-shadow: 0 1px 4px rgba(0,0,0,0.1); }
-.ca-health-pill--on strong { color: var(--primary, #7c3aed); }
+.ca-health-pill--on { background: #fff; color: var(--primary, #1d4ed8); box-shadow: 0 1px 4px rgba(0,0,0,0.1); }
+.ca-health-pill--on strong { color: var(--primary, #1d4ed8); }
 
-/* Engagement search + filter bar */
 .ca-eng-bar {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 10px;
   padding: 14px 22px;
-  border-bottom: 1px solid #e5eeff;
+  border-bottom: 1px solid var(--border-soft);
 }
 .ca-search-wrap { position: relative; flex: 1; min-width: 200px; max-width: 320px; }
 .ca-search-icon {
@@ -1114,16 +1003,16 @@ onUnmounted(() => {
 .ca-search-input {
   width: 100%;
   padding: 8px 14px 8px 36px;
-  border: 1px solid #e5eeff;
+  border: 1px solid var(--border-soft);
   border-radius: 999px;
   font-size: 13px;
   color: var(--text-1);
-  background: #e5eeff;
+  background: var(--border-soft);
   outline: none;
   transition: border-color 0.12s, background 0.12s;
   box-sizing: border-box;
 }
-.ca-search-input:focus { background: #fff; border-color: var(--primary, #7c3aed); }
+.ca-search-input:focus { background: #fff; border-color: var(--primary, #1d4ed8); }
 .ca-search-input::placeholder { color: var(--text-3); }
 
 .ca-eng-select {
@@ -1138,14 +1027,9 @@ onUnmounted(() => {
   outline: none;
   transition: border-color 0.12s;
 }
-.ca-eng-select:focus { border-color: var(--primary, #7c3aed); }
+.ca-eng-select:focus { border-color: var(--primary, #1d4ed8); }
 
-.ca-per-page-wrap {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-left: auto;
-}
+.ca-per-page-wrap { display: flex; align-items: center; gap: 6px; margin-left: auto; }
 .ca-per-page-label {
   font-size: 11px;
   font-weight: 700;
@@ -1155,13 +1039,29 @@ onUnmounted(() => {
   white-space: nowrap;
 }
 
-/* Engagement table */
 .ca-tbl--eng { min-width: 680px; }
-.ca-tbl--eng thead { background: #f8f9ff; }
-.ca-tbl--eng th { padding: 12px 14px; border-bottom: 1px solid #e5eeff; }
-.ca-tbl--eng td { padding: 13px 14px; border-bottom: 1px solid #e5eeff; }
+.ca-tbl--eng thead tr { background: var(--surface-2); }
+.ca-tbl--eng thead th {
+  padding: 11px 14px;
+  border-bottom: 2px solid var(--border);
+  border-right: 1px solid var(--border-soft);
+  color: var(--text-2);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+.ca-tbl--eng thead th:last-child { border-right: none; }
+.ca-tbl--eng tbody td {
+  padding: 13px 14px;
+  border-bottom: 1px solid var(--border-soft);
+  border-right: 1px solid var(--border-soft);
+  color: var(--text-1);
+}
+.ca-tbl--eng tbody td:last-child { border-right: none; }
 .ca-tbl--eng tbody tr { transition: background 0.12s; }
-.ca-tbl--eng tbody tr:hover { background: #f8f9ff; }
+.ca-tbl--eng tbody tr:hover { background: var(--surface-2); }
 .ca-tbl--eng tbody tr:last-child td { border-bottom: none; }
 
 .ca-contact-cell { display: flex; align-items: center; gap: 12px; }
@@ -1175,7 +1075,7 @@ onUnmounted(() => {
 .ca-avatar--active      { background: #dcfce7; color: #166534; }
 .ca-avatar--at_risk     { background: #fef3c7; color: #92400e; }
 .ca-avatar--dormant     { background: #fee2e2; color: #991b1b; }
-.ca-avatar--no_activity { background: #e5eeff; color: #4a4455; }
+.ca-avatar--no_activity { background: var(--border-soft); color: #4a4455; }
 
 .ca-status-pill {
   display: inline-block;
@@ -1197,30 +1097,27 @@ onUnmounted(() => {
 .ca-health-pill-badge--active      { background: #dcfce7; color: #166534; }
 .ca-health-pill-badge--at_risk     { background: #fef3c7; color: #92400e; }
 .ca-health-pill-badge--dormant     { background: #fee2e2; color: #991b1b; }
-.ca-health-pill-badge--no_activity { background: #e5eeff; color: #4a4455; }
+.ca-health-pill-badge--no_activity { background: var(--border-soft); color: #4a4455; }
 
 .ca-chevron-cell { width: 40px; text-align: right; }
 .ca-chevron {
   display: inline-flex; align-items: center; justify-content: center;
   width: 28px; height: 28px;
   border-radius: 50%;
-  color: var(--primary, #7c3aed);
+  color: var(--primary, #1d4ed8);
   opacity: 0;
   transition: opacity 0.12s;
 }
 .ca-chevron svg { width: 16px; height: 16px; }
 .ca-eng-row:hover .ca-chevron { opacity: 1; }
 
-/* Sortable headers */
 .ca-th-sort { cursor: pointer; user-select: none; }
-.ca-th-sort:hover { color: var(--primary, #7c3aed); }
+.ca-th-sort:hover { color: var(--primary, #1d4ed8); }
 .ca-sort-icon { font-size: 10px; color: var(--text-3); margin-left: 2px; }
 
-/* Links */
-.ca-link { color: var(--primary, #7c3aed); text-decoration: none; font-weight: 600; }
+.ca-link { color: var(--primary, #1d4ed8); text-decoration: none; font-weight: 600; }
 .ca-link:hover { text-decoration: underline; }
 
-/* Empty */
 .ca-empty { text-align: center; padding: 32px; color: var(--text-3); font-size: 13px; }
 
 /* ── Pagination ───────────────────────────────────────────────────────────── */
@@ -1229,8 +1126,8 @@ onUnmounted(() => {
   align-items: center;
   justify-content: space-between;
   padding: 14px 22px;
-  background: #f8f9ff;
-  border-top: 1px solid #e5eeff;
+  background: var(--surface-2);
+  border-top: 1px solid var(--border-soft);
 }
 .ca-page-count { font-size: 12px; color: var(--text-3); }
 .ca-page-btns  { display: flex; align-items: center; gap: 3px; }
@@ -1244,7 +1141,7 @@ onUnmounted(() => {
   transition: background 0.12s;
 }
 .ca-page-nav svg { width: 14px; height: 14px; }
-.ca-page-nav:hover:not(:disabled) { background: #e5eeff; }
+.ca-page-nav:hover:not(:disabled) { background: var(--border-soft); }
 .ca-page-nav:disabled { opacity: 0.3; cursor: default; }
 .ca-page-num {
   width: 32px; height: 32px;
@@ -1256,8 +1153,8 @@ onUnmounted(() => {
   cursor: pointer;
   transition: background 0.12s;
 }
-.ca-page-num:hover { background: #e5eeff; }
-.ca-page-num--on  { background: var(--primary, #7c3aed); color: #fff; font-weight: 700; }
+.ca-page-num:hover { background: var(--border-soft); }
+.ca-page-num--on  { background: var(--primary, #1d4ed8); color: #fff; font-weight: 700; }
 .ca-page-ellipsis { width: 32px; text-align: center; color: var(--text-3); font-size: 13px; line-height: 32px; }
 
 /* ── Panel transition ─────────────────────────────────────────────────────── */
@@ -1266,16 +1163,16 @@ onUnmounted(() => {
 
 /* ── Responsive ───────────────────────────────────────────────────────────── */
 @media (max-width: 1100px) {
-  .ca-row-asym { grid-template-columns: 1fr 1fr; }
+  .ca-attention-row { grid-template-columns: repeat(2, 1fr); }
 }
 @media (max-width: 900px) {
   .ca              { padding: 18px 14px; }
-  .ca-kpi-row      { grid-template-columns: repeat(2, 1fr); }
-  .ca-row-asym     { grid-template-columns: 1fr; }
+  .ca-attention-row { grid-template-columns: repeat(2, 1fr); }
+  .ca-row-asym      { grid-template-columns: 1fr; }
 }
 @media (max-width: 600px) {
   .ca              { padding: 14px 10px; }
-  .ca-kpi-row       { grid-template-columns: 1fr 1fr; }
+  .ca-attention-row { grid-template-columns: 1fr 1fr; }
   .ca-date-panel    { min-width: 0; right: -10px; }
   .ca-header-actions { width: 100%; }
   .ca-health-pill-group { border-radius: 12px; }

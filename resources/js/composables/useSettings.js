@@ -4,7 +4,7 @@ import api from '../api.js';
 const LS_KEY = 'crm_settings';
 
 const DEFAULTS = {
-    theme:             'system',
+    theme:             'light',
     timezone:          '',
     date_format:       'DD/MM/YYYY',
     time_format:       '12h',

@@ -1,14 +1,14 @@
-<template>
+﻿<template>
   <div class="page">
     <div class="page-header">
       <div>
-        <h1>Site Availability</h1>
-        <p>Billboard, Temp Board and Lamp Post Bunting rental schedule for {{ year }}.</p>
+        <h1 class="page-title">Site Availability</h1>
+        <p class="page-subtitle">Billboard, Temp Board and Lamp Post Bunting rental schedule for {{ year }}.</p>
       </div>
       <div class="year-control">
-        <button type="button" @click="changeYear(-1)">&lt;</button>
+        <button type="button" @click="changeYear(-1)" aria-label="Previous year"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
         <input v-model.number="year" type="number" min="2020" max="2100" @change="load">
-        <button type="button" @click="changeYear(1)">&gt;</button>
+        <button type="button" @click="changeYear(1)" aria-label="Next year"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>
       </div>
     </div>
 
@@ -629,8 +629,8 @@
               <ul class="review-sites">
                 <li v-for="p in selectedProducts" :key="p.id">
                   <strong>{{ p.site_name }}</strong>
-                  <span :class="['photo-status', p.site_photo ? 'ok' : 'missing']">{{ p.site_photo ? '✓ photo' : '✗ no photo' }}</span>
-                  <span :class="['photo-status', p.site_map_photo ? 'ok' : 'missing']">{{ p.site_map_photo ? '✓ map' : '✗ no map' }}</span>
+                  <span :class="['photo-status', p.site_photo ? 'ok' : 'missing']"><svg v-if="p.site_photo" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle;margin-right:2px"><polyline points="20 6 9 17 4 12"/></svg><svg v-else width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle;margin-right:2px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>{{ p.site_photo ? 'photo' : 'no photo' }}</span>
+                  <span :class="['photo-status', p.site_map_photo ? 'ok' : 'missing']"><svg v-if="p.site_map_photo" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle;margin-right:2px"><polyline points="20 6 9 17 4 12"/></svg><svg v-else width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle;margin-right:2px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>{{ p.site_map_photo ? 'map' : 'no map' }}</span>
                 </li>
               </ul>
             </div>
@@ -651,10 +651,64 @@
       </section>
     </div>
   </div>
+
+  <Teleport to="body">
+    <div v-if="removePhotoModal.open" class="conf-overlay" @click.self="closeRemovePhotoModal">
+      <div class="conf-modal">
+        <div class="conf-head">
+          <div>
+            <p class="conf-title">Remove Photo</p>
+            <p class="conf-sub">This cannot be undone.</p>
+          </div>
+          <button class="conf-close" @click="closeRemovePhotoModal"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+        </div>
+        <div class="conf-body">
+          <svg class="conf-warn" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+            <line x1="12" y1="9" x2="12" y2="13"/><circle cx="12" cy="17" r="1" fill="#f59e0b" stroke="none"/>
+          </svg>
+          <p class="conf-text">Remove this photo?</p>
+        </div>
+        <div class="conf-foot">
+          <button class="conf-cancel" @click="closeRemovePhotoModal">Cancel</button>
+          <button class="conf-delete" :disabled="removePhotoModal.loading" @click="confirmRemovePhoto">
+            {{ removePhotoModal.loading ? 'Removing…' : 'Remove Photo' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </Teleport>
+
+  <Teleport to="body">
+    <div v-if="removeBookingModal.open" class="conf-overlay" @click.self="closeRemoveBookingModal">
+      <div class="conf-modal">
+        <div class="conf-head">
+          <div>
+            <p class="conf-title">Remove Booking</p>
+            <p class="conf-sub">This cannot be undone.</p>
+          </div>
+          <button class="conf-close" @click="closeRemoveBookingModal"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+        </div>
+        <div class="conf-body">
+          <svg class="conf-warn" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+            <line x1="12" y1="9" x2="12" y2="13"/><circle cx="12" cy="17" r="1" fill="#f59e0b" stroke="none"/>
+          </svg>
+          <p class="conf-text">Remove booking for <strong>{{ removeBookingModal.booking?.company_name }}</strong>?</p>
+        </div>
+        <div class="conf-foot">
+          <button class="conf-cancel" @click="closeRemoveBookingModal">Cancel</button>
+          <button class="conf-delete" :disabled="removeBookingModal.loading" @click="confirmRemoveBooking">
+            {{ removeBookingModal.loading ? 'Removing…' : 'Remove Booking' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </Teleport>
 </template>
 
 <script setup>
-import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, ref, watch, reactive } from 'vue';
 import api from '../api.js';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -1167,18 +1221,31 @@ async function uploadPhoto(product, kind, file, fromWizard = false) {
   }
 }
 
-async function removePhoto(kind) {
-  if (!selectedProduct.value) return;
-  if (!window.confirm('Remove this photo?')) return;
+const removePhotoModal = reactive({ open: false, kind: null, loading: false });
+function openRemovePhotoModal(kind) { removePhotoModal.kind = kind; removePhotoModal.open = true; }
+function closeRemovePhotoModal() { removePhotoModal.open = false; removePhotoModal.kind = null; removePhotoModal.loading = false; }
+
+async function confirmRemovePhoto() {
+  if (!selectedProduct.value || !removePhotoModal.kind) return;
+  removePhotoModal.loading = true;
   error.value = '';
   try {
     await api.delete(`/v1/product-availability/products/${selectedProduct.value.id}/photo`, {
-      data: { kind },
+      data: { kind: removePhotoModal.kind },
     });
-    applyPhotoUpdate(selectedProduct.value.id, kind, null, null);
+    applyPhotoUpdate(selectedProduct.value.id, removePhotoModal.kind, null, null);
+    closeRemovePhotoModal();
   } catch (e) {
     error.value = e.response?.data?.message ?? 'Failed to remove photo.';
+    closeRemovePhotoModal();
+  } finally {
+    removePhotoModal.loading = false;
   }
+}
+
+async function removePhoto(kind) {
+  if (!selectedProduct.value) return;
+  openRemovePhotoModal(kind);
 }
 
 function applyPhotoUpdate(productId, kind, path, url) {
@@ -1329,9 +1396,7 @@ function addFromCellMenu() {
 async function deleteFromCellMenu() {
   const { row, booking } = cellMenu.value;
   if (!booking) return;
-  if (!window.confirm(`Remove booking for ${booking.company_name}?`)) return;
-  await deleteBooking(row, booking);
-  closeCellMenu();
+  openRemoveBookingModal(row, booking);
 }
 
 async function onCellDateChange(event, field) {
@@ -1461,12 +1526,27 @@ async function deleteBooking(row, booking) {
   }
 }
 
+const removeBookingModal = reactive({ open: false, row: null, booking: null, loading: false });
+function openRemoveBookingModal(row, booking) { removeBookingModal.row = row; removeBookingModal.booking = booking; removeBookingModal.open = true; }
+function closeRemoveBookingModal() { removeBookingModal.open = false; removeBookingModal.row = null; removeBookingModal.booking = null; removeBookingModal.loading = false; }
+
+async function confirmRemoveBooking() {
+  if (!removeBookingModal.row || !removeBookingModal.booking) return;
+  removeBookingModal.loading = true;
+  try {
+    await deleteBooking(removeBookingModal.row, removeBookingModal.booking);
+    closeCellMenu();
+    closeRemoveBookingModal();
+  } catch {
+    closeRemoveBookingModal();
+  } finally {
+    removeBookingModal.loading = false;
+  }
+}
+
 async function removeBooking(row, booking) {
   if (!booking) return;
-  const confirmed = window.confirm(`Remove booking for ${booking.company_name}?`);
-  if (!confirmed) return;
-
-  await deleteBooking(row, booking);
+  openRemoveBookingModal(row, booking);
 }
 
 function clearFilters() {
@@ -1836,12 +1916,9 @@ onMounted(load);
 
 <style scoped>
 .page { padding: 28px 32px; color: var(--text-1); }
-.page-header {
-  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px 20px;
-  display: flex; justify-content: space-between; gap: 16px; align-items: center; margin-bottom: 14px;
-}
-.page-header h1 { margin: 0 0 4px; font-size: 28px; font-weight: 800; color: var(--text-1); letter-spacing: -0.5px; }
-.page-header p { margin: 0; color: var(--text-3); font-size: 13.5px; }
+.page-header { display: flex; justify-content: space-between; gap: 16px; align-items: center; margin-bottom: 20px; }
+.page-title { margin: 0 0 4px; font-size: 28px; font-weight: 800; color: var(--text-1); letter-spacing: -0.5px; }
+.page-subtitle { margin: 0; color: var(--text-3); font-size: 13.5px; }
 .year-control { display: flex; align-items: center; gap: 6px; }
 .year-control button {
   width: 34px; height: 34px; border: 1px solid var(--border); border-radius: var(--radius-sm);
@@ -1895,7 +1972,7 @@ onMounted(load);
   height: 36px; border: none; border-radius: var(--radius-sm); padding: 0 16px;
   font-size: 13px; font-weight: 600; cursor: pointer;
 }
-.btn-add { background: var(--primary); color: var(--primary-on); box-shadow: 0 6px 18px -6px rgba(124,58,237,0.4); }
+.btn-add { background: var(--primary); color: var(--primary-on); box-shadow: 0 6px 18px -6px rgba(29,78,216,0.4); }
 .btn-add:hover { background: var(--primary-hover); }
 .btn-add:disabled, .btn-proposal:disabled { background: var(--text-3); cursor: not-allowed; box-shadow: none; }
 .btn-dark { background: var(--text-1); color: #ffffff; }
@@ -1971,7 +2048,7 @@ onMounted(load);
 .select-col input {
   appearance: none; -webkit-appearance: none;
   width: 16px; height: 16px; padding: 0; cursor: pointer;
-  border: 1.5px solid #1f2937; border-radius: 3px; background: #ffffff;
+  border: 1.5px solid var(--border); border-radius: 3px; background: var(--surface);
   display: inline-grid; place-content: center; vertical-align: middle;
 }
 .select-col input::before {
@@ -2007,7 +2084,7 @@ onMounted(load);
   font-size: 9.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.3px;
   background: #eef2f7; color: #475569; border: 1px solid transparent;
 }
-.badge-product { background: #ede9fe; color: #5b21b6; }
+.badge-product { background: #dbeafe; color: #5b21b6; }
 .badge-type { background: #fef3c7; color: #92400e; }
 .badge-status-existing { background: #dcfce7; color: #166534; }
 .badge-status-raw-new { background: #dbeafe; color: #1e40af; }
@@ -2073,7 +2150,7 @@ onMounted(load);
 .detail-grid { display: grid; grid-template-columns: minmax(260px, 1fr) minmax(280px, 1.15fr); gap: 18px; align-items: start; }
 .detail-panel, .landmark-panel { min-width: 0; }
 .detail-actions, .landmark-actions {
-  min-height: 40px; background: #171717; color: #ffffff; border: 1.5px solid #111827;
+  min-height: 40px; background: var(--text-1); color: #ffffff; border: 1px solid var(--border);
   border-bottom: none; display: flex; align-items: center; justify-content: space-between;
   gap: 10px; padding: 7px 10px 7px 16px; font-size: 10px; font-weight: 900; text-transform: uppercase;
 }
@@ -2081,27 +2158,27 @@ onMounted(load);
   height: 26px; border: none; border-radius: 5px; padding: 0 10px; font-size: 10px;
   font-weight: 900; cursor: pointer;
 }
-.detail-actions > button, .landmark-actions > button, .btn-save-detail, .btn-save-landmarks { background: #ffffff; color: #172033; }
-.btn-cancel-detail, .btn-cancel-landmarks { background: #334155; color: #ffffff; }
+.detail-actions > button, .landmark-actions > button, .btn-save-detail, .btn-save-landmarks { background: #ffffff; color: var(--text-1); }
+.btn-cancel-detail, .btn-cancel-landmarks { background: var(--text-2); color: #ffffff; }
 .detail-actions button:disabled, .landmark-actions button:disabled { opacity: 0.6; cursor: not-allowed; }
 .detail-edit-actions, .landmark-edit-actions { display: flex; align-items: center; gap: 6px; }
 .detail-table, .landmark-table { width: 100%; min-width: 0; border-collapse: collapse; font-size: 11px; }
 .detail-table th, .detail-table td, .landmark-table th, .landmark-table td {
-  border: 1.5px solid #111827; height: 40px; padding: 8px 10px; background: var(--surface); vertical-align: middle;
+  border: 1px solid var(--border); height: 40px; padding: 8px 10px; background: var(--surface); vertical-align: middle;
 }
 .detail-table th, .landmark-table th { width: 42%; text-transform: uppercase; font-size: 10px; font-weight: 900; text-align: center; }
 .detail-table td, .landmark-table td { font-weight: 750; text-align: center; line-height: 1.3; }
-.detail-table a { color: #2563eb; font-weight: 900; text-decoration: underline; }
+.detail-table a { color: var(--primary); font-weight: 700; text-decoration: underline; }
 .detail-table input, .landmark-table input {
   width: 100%; min-height: 30px; border: 1px solid var(--border); border-radius: 5px;
   padding: 0 8px; color: var(--text-1); font-size: 11px; font-weight: 800; text-align: center;
   outline: none;
 }
-.detail-table input:focus, .landmark-table input:focus { border-color: #2563eb; box-shadow: 0 0 0 2px rgba(37,99,235,0.14); }
+.detail-table input:focus, .landmark-table input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); }
 .map-link {
   display: inline-flex; align-items: center; justify-content: center; min-height: 36px; margin-top: 18px;
-  padding: 0 14px; border-radius: 7px; background: #172033; color: #ffffff; font-size: 12px;
-  font-weight: 850; text-decoration: none;
+  padding: 0 14px; border-radius: var(--radius-sm); background: var(--text-1); color: #ffffff; font-size: 12px;
+  font-weight: 700; text-decoration: none;
 }
 
 /* Add/Edit Booking modal */
@@ -2168,11 +2245,11 @@ onMounted(load);
   display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 18px;
 }
 .photo-panel {
-  border: 1.5px solid #111827; background: var(--surface); border-radius: 6px; overflow: hidden;
+  border: 1px solid var(--border); background: var(--surface); border-radius: var(--radius-sm); overflow: hidden;
   display: flex; flex-direction: column;
 }
 .photo-actions {
-  background: #171717; color: #fff; padding: 7px 10px;
+  background: var(--text-1); color: #fff; padding: 7px 10px;
   display: flex; align-items: center; justify-content: space-between; gap: 8px;
   font-size: 10px; font-weight: 900; text-transform: uppercase;
 }
@@ -2180,7 +2257,7 @@ onMounted(load);
   height: 26px; border: none; border-radius: 5px; padding: 0 10px; font-size: 10px;
   font-weight: 900; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;
 }
-.btn-upload { background: #fff; color: #172033; }
+.btn-upload { background: #fff; color: var(--text-1); }
 .btn-upload input { display: none; }
 .btn-upload:has(input:disabled) { opacity: 0.6; cursor: not-allowed; }
 .btn-remove-photo { background: #fee2e2; color: #991b1b; }
@@ -2231,7 +2308,7 @@ onMounted(load);
 }
 .wizard-grid .field.full { grid-column: 1 / -1; }
 .wizard-grid .field.full.inline-checkbox label {
-  display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; color: #1f2937;
+  display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; color: var(--text-1);
   text-transform: none; letter-spacing: 0;
 }
 .wizard-grid .field.full.inline-checkbox input { width: auto; height: auto; }
@@ -2413,4 +2490,22 @@ onMounted(load);
   .register-form-grid { grid-template-columns: 1fr; }
   .leaflet-map { height: 320px; }
 }
+
+/* ── Confirm modal ── */
+.conf-overlay { position: fixed; inset: 0; background: rgba(15,23,42,0.5); z-index: 3000; display: flex; align-items: center; justify-content: center; padding: 16px; }
+.conf-modal { background: var(--surface); border-radius: var(--radius-lg); width: 100%; max-width: 420px; box-shadow: var(--shadow-lg); border: 1px solid var(--border-soft); overflow: hidden; }
+.conf-head { display: flex; justify-content: space-between; align-items: flex-start; padding: 18px 22px 14px; border-bottom: 1px solid var(--border-soft); }
+.conf-title { font-size: 15px; font-weight: 700; color: var(--text-1); margin: 0 0 2px; }
+.conf-sub { font-size: 12px; color: var(--text-3); margin: 0; }
+.conf-close { background: none; border: none; cursor: pointer; font-size: 16px; color: var(--text-3); line-height: 1; padding: 0; }
+.conf-close:hover { color: var(--text-1); }
+.conf-body { padding: 20px 24px; display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; }
+.conf-warn { width: 44px; height: 44px; flex-shrink: 0; }
+.conf-text { font-size: 14px; color: var(--text-1); margin: 0; line-height: 1.5; }
+.conf-foot { display: flex; justify-content: flex-end; gap: 10px; padding: 14px 22px; border-top: 1px solid var(--border-soft); }
+.conf-cancel { height: 38px; padding: 0 18px; background: none; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 13px; font-weight: 600; color: var(--text-2); cursor: pointer; }
+.conf-cancel:hover { background: var(--surface-2); }
+.conf-delete { height: 38px; padding: 0 18px; background: var(--danger); color: #fff; border: none; border-radius: var(--radius-sm); font-size: 13px; font-weight: 700; cursor: pointer; }
+.conf-delete:hover:not(:disabled) { background: #b91c1c; }
+.conf-delete:disabled { opacity: 0.5; cursor: not-allowed; }
 </style>

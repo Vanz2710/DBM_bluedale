@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="page">
     <div class="page-banner">
       <h1>Edit Follow-Up</h1>
@@ -120,11 +120,14 @@ onMounted(async () => {
 <style scoped>
 .page { padding: 28px 32px; max-width: 760px; }
 .page-banner {
-  background: linear-gradient(135deg, #1a2f4a, #e11d48);
-  border-radius: 10px; padding: 20px 28px; margin-bottom: 20px; color: white;
+  border-radius: var(--radius-lg); padding: 22px 28px; margin-bottom: 20px; color: white;
+  background:
+    radial-gradient(900px 200px at 90% -20%, rgba(96,165,250,0.5), transparent 55%),
+    linear-gradient(118deg, #0f2456 0%, #1d4ed8 52%, #1e40af 100%);
+  box-shadow: 0 12px 32px -14px rgba(15,36,86,0.65);
 }
-.page-banner h1 { font-size: 18px; font-weight: 700; margin: 0 0 4px; }
-.page-banner p  { font-size: 13px; opacity: 0.8; margin: 0; }
+.page-banner h1 { font-size: 26px; font-weight: 800; margin: 0 0 5px; letter-spacing: -0.4px; }
+.page-banner p  { font-size: 13px; color: rgba(237,233,254,0.82); margin: 0; }
 .card { background: var(--surface); border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); padding: 28px 32px; }
 .loading-msg { text-align: center; padding: 40px; color: var(--text-3); }
 
@@ -147,14 +150,14 @@ onMounted(async () => {
 }
 .form-group textarea { height: 120px; padding: 10px 14px; resize: vertical; }
 .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
-  border-color: #e11d48; box-shadow: 0 0 0 3px rgba(225,29,72,0.1);
+  border-color: var(--primary); box-shadow: 0 0 0 3px rgba(29,78,216,0.12);
 }
-.error-box { background: #fee2e2; color: #991b1b; border-radius: 8px; padding: 10px 14px; font-size: 13px; margin-bottom: 16px; }
-.req { color: #ef4444; }
+.error-box { background: var(--danger-soft); color: var(--danger); border-radius: 8px; padding: 10px 14px; font-size: 13px; margin-bottom: 16px; }
+.req { color: var(--danger); }
 .btn-row { display: flex; gap: 10px; margin-top: 24px; }
 .btn { height: 42px; padding: 0 20px; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; border: none; text-decoration: none; display: inline-flex; align-items: center; }
 .btn-cancel { background: var(--app-bg); color: var(--text-2); }
-.btn-save   { flex: 1; background: #e11d48; color: white; justify-content: center; }
+.btn-save   { flex: 1; background: var(--primary); color: white; justify-content: center; }
 .btn-save:disabled { background: var(--text-3); cursor: not-allowed; }
 
 @media (max-width: 768px) {

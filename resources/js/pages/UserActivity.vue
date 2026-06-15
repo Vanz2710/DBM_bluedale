@@ -47,8 +47,8 @@
               <th>Last Login</th>
               <th title="Total logins">Logins</th>
               <th title="Contacts owned">Contacts</th>
-              <th title="Todos completed in period">Todos ✓</th>
-              <th title="Follow-ups completed in period">F/U ✓</th>
+              <th title="Todos completed in period">Todos Done</th>
+              <th title="Follow-ups completed in period">F/U Done</th>
               <th title="Deals created in period">Deals</th>
               <th title="Projects created in period">Projects</th>
               <th>Member Since</th>

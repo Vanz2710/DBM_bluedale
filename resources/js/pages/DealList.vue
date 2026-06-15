@@ -145,15 +145,15 @@
             <thead>
               <tr>
                 <th>No</th>
-                <th class="sortable" @click="changeSort('title')">Title {{ sortIcon('title') }}</th>
+                <th class="sortable" @click="changeSort('title')">Title <span v-html="sortIcon('title')"></span></th>
                 <th>Stage</th>
                 <th>Status</th>
                 <th>Company</th>
-                <th class="sortable" @click="changeSort('value')">Value {{ sortIcon('value') }}</th>
-                <th class="sortable" @click="changeSort('probability')">Prob. {{ sortIcon('probability') }}</th>
-                <th class="sortable" @click="changeSort('expected_close_date')">Close {{ sortIcon('expected_close_date') }}</th>
+                <th class="sortable" @click="changeSort('value')">Value <span v-html="sortIcon('value')"></span></th>
+                <th class="sortable" @click="changeSort('probability')">Prob. <span v-html="sortIcon('probability')"></span></th>
+                <th class="sortable" @click="changeSort('expected_close_date')">Close <span v-html="sortIcon('expected_close_date')"></span></th>
                 <th>Assigned</th>
-                <th class="sortable" @click="changeSort('created_at')">Added {{ sortIcon('created_at') }}</th>
+                <th class="sortable" @click="changeSort('created_at')">Added <span v-html="sortIcon('created_at')"></span></th>
                 <th>Actions</th>
               </tr>
             </thead>
@@ -273,8 +273,10 @@ function fmtValue(v) {
 }
 
 function sortIcon(f) {
-  if (sortField.value !== f) return '⇅';
-  return sortDir.value === 'asc' ? '↑' : '↓';
+  if (sortField.value !== f) return '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="opacity:0.4"><line x1="12" y1="20" x2="12" y2="4"/><polyline points="5 11 12 4 19 11"/><polyline points="19 13 12 20 5 13"/></svg>';
+  return sortDir.value === 'asc'
+    ? '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>'
+    : '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>';
 }
 
 function changeSort(f) {

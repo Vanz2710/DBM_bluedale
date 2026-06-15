@@ -100,6 +100,32 @@ class RolesAndPermissionsSeeder extends Seeder
             // Note: 'manage email-campaigns' is intentionally admin-only by default
         ]);
 
+        // supervisor: full user access + data-health, import, and email campaigns
+        $supervisor = Role::firstOrCreate(['name' => 'supervisor', 'guard_name' => 'web']);
+        $supervisor->syncPermissions([
+            'view contacts', 'create contacts', 'edit contacts', 'delete contacts',
+            'view todos', 'create todos', 'edit todos', 'delete todos',
+            'view deals', 'create deals', 'edit deals', 'delete deals',
+            'view forecasts', 'create forecasts', 'edit forecasts', 'delete forecasts', 'view forecast summary',
+            'view projects', 'create projects', 'edit projects', 'delete projects',
+            'view followups', 'create followups', 'edit followups', 'delete followups',
+            'import contacts',
+            'view analytics', 'view summary', 'view performance', 'view data-health',
+            'manage social-media', 'manage posting-calendar', 'manage product-availability',
+            'manage email-campaigns',
+        ]);
+
+        // internal support: view + create/edit across CRM resources, no delete, no admin/marketing tools
+        $internalSupport = Role::firstOrCreate(['name' => 'internal support', 'guard_name' => 'web']);
+        $internalSupport->syncPermissions([
+            'view contacts', 'create contacts', 'edit contacts',
+            'view todos', 'create todos', 'edit todos',
+            'view followups', 'create followups', 'edit followups',
+            'view deals',
+            'view projects',
+            'view analytics', 'view summary',
+        ]);
+
         // viewer: read-only across all CRM resources
         $viewer = Role::firstOrCreate(['name' => 'viewer', 'guard_name' => 'web']);
         $viewer->syncPermissions([

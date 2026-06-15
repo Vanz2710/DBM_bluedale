@@ -1,218 +1,149 @@
-# Deferred Scalability Work
+# Deferred Work & Development Roadmap
 
-These items were identified in the May 2026 scalability audit but deferred because features are still being added.
-Implement these once the system is feature-stable, **before going to production with real user load** or when data exceeds ~20K contacts / 100K todos.
+## Current Phase Assessment — 2026-06-15
 
----
+**Phase: Late Active Development → Pre-Staging**
 
-## Priority 1 — Do before ~20K records or 100+ concurrent users
+The core CRM is feature-rich and has a staging deployment on InfinityFree (`https://bgoccrm.infinityfreeapp.com`). Feature additions are still in progress (most recently: CalendarPicker with todo date indicators, Reports user scoping, UI tokenization pass). `TESTING_PHASE.md` exists but is 0% complete — formal testing has not started. The production target is cPanel.
 
-### 1. ~~Cache LookupController (1 hour TTL)~~ ✅ Done 2026-06-04
-
-`Cache::remember('lookups', 3600, ...)` added to `LookupController::all()`.
-`Cache::forget('lookups')` added to `AdminController` (store/update/destroy) and `UserManagementController` (store/update/destroy) so the cache busts whenever any lookup value or user record changes.
-
----
-
-### 2. Cache PerformanceController overview (5 min TTL)
-
-**File:** `app/Http/Controllers/Api/V1/PerformanceController.php`
-
-**Problem:** Every performance dashboard load fires 10+ COUNT queries. With 20 users refreshing every few minutes this becomes hundreds of DB round-trips per minute.
-
-**Fix:** Cache per user per period key:
-```php
-$cacheKey = "perf_overview_{$userId}_{$period}_{$from}_{$to}";
-return Cache::remember($cacheKey, 300, function () use (...) {
-    // existing KPI logic
-});
-```
-
-**Invalidate** when a todo/follow-up/deal is created or completed (use model observers or Controller after-save calls).
+**Key facts driving priorities:**
+- Features are still being added → component splits and constraint migrations would conflict with active work
+- InfinityFree staging is up but not fully bootstrapped (STAGING_TODO.md steps 2–6 pending)
+- InfinityFree required non-standard code hacks (`usePublicPath`, IIFE build format) that must be reverted before cPanel
+- `docs/current-code-progress.md` and `docs/upgrade-checklist.md` are pre-rewrite plain PHP artifacts — they no longer describe the codebase
 
 ---
 
-### 3. Refactor PerformanceController to single aggregation query
+## DO NOW — Safe During Active Feature Development
 
-**File:** `app/Http/Controllers/Api/V1/PerformanceController.php` — `overview()` and `team()` methods
+These are additive and low-risk. No conflicts with ongoing feature work.
 
-**Problem:** Currently fires one `COUNT()` query per KPI metric per user. The `team()` method multiplies this by N users (O(N×10) queries).
+### ~~NOW-1. Audit Trail — `created_by` / `updated_by`~~ ✅ Done 2026-06-15
 
-**Fix:** Replace the individual counts with a single query using conditional aggregation:
-```sql
-SELECT
-  COUNT(CASE WHEN table = 'contacts' AND user_id = ? AND created_at BETWEEN ? AND ? THEN 1 END) as contacts_added,
-  COUNT(CASE WHEN table = 'to_dos'   AND user_id = ? AND date_created BETWEEN ? AND ? THEN 1 END) as todos_created,
-  ...
-FROM dual
-```
+**Why now:** The longer this waits, the more records exist without attribution. Fully additive — just nullable columns and model events. Every new record from this point on will be tracked. Hardest to retrofit after data accumulates.
 
-Or use `DB::table()->selectRaw('COUNT(CASE WHEN ...) as metric_name, ...')` per entity and merge results. This reduces from 10+ queries to 1 per entity table.
-
----
-
-### 4. Paginate contact emails and calls
-
-**Files:**
-- `app/Http/Controllers/Api/V1/ContactEmailController.php` — `index()` method, line 14
-- `app/Http/Controllers/Api/V1/ContactCallController.php` — `index()` method, line 14
-
-**Problem:** Loads ALL emails/calls for a contact into memory. A contact with 500+ emails will OOM.
-
-**Fix:** Replace `.get()` with `.paginate(20)` and update the Vue component to handle paginated responses with a "Load more" button or infinite scroll.
+**Files:** New migration + `booted()` events on `Contact`, `Deal`, `Project`, `ToDo`, `FollowUp`
 
 ```php
-// Before
-$emails = $contact->emails()->with('user')->orderByDesc('emailed_at')->get();
+// Migration (one per table, or combine into one):
+$table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
+$table->foreignId('updated_by')->nullable()->constrained('users')->nullOnDelete();
 
-// After
-$emails = $contact->emails()->with('user')->orderByDesc('emailed_at')->paginate(20);
+// Model booted():
+use Illuminate\Support\Facades\Auth;
+static::creating(fn($m) => $m->created_by = Auth::id());
+static::updating(fn($m) => $m->updated_by = Auth::id());
 ```
 
 ---
 
-### 5. ~~Add `per_page` cap to all list endpoints~~ ✅ Done 2026-06-04
+### ~~NOW-2. Extract `useLookups.js` Composable~~ ✅ Done 2026-06-15
 
-`min((int) $request->input('per_page', N), 500)` applied to:
-- `ContactController::index()` and `daily()`
-- `DealController::index()`
-- `FollowUpController::index()`
-- `GlobalTodoController::index()`
+**Why now:** Every add/edit form copies the same `GET /api/v1/lookups` fetch on mount. Centralizing it means every new form written from here on uses one line instead of a repeated block. Low risk, immediate ROI.
 
----
+**File:** Create `resources/js/composables/useLookups.js`
 
-## Priority 2 — Do before ~50K contacts
+```js
+import { ref, onMounted } from 'vue';
+import api from '../api.js';
 
-### 6. Full-text search on contacts.name
-
-**File:** `app/Http/Controllers/Api/V1/ContactController.php` — search logic
-
-**Problem:** `WHERE name LIKE '%term%'` forces a full table scan. At 50K+ contacts, search becomes noticeably slow (0.5s+).
-
-**Options (pick one):**
-
-**Option A — MySQL Full-Text (simplest, no new infrastructure):**
-```php
-// Migration:
-$table->fullText('name');
-
-// Query:
-Contact::whereFullText('name', $search)->paginate(25);
-```
-Limitation: no partial-word matching (use `*` suffix: `"john*"` in boolean mode).
-
-**Option B — Meilisearch + Laravel Scout (best UX, requires separate service):**
-```bash
-composer require laravel/scout
-# Add Meilisearch driver, sync contacts index
-```
-Gives instant, typo-tolerant search. Requires running Meilisearch server.
-
----
-
-### 7. Refactor AnalyticsController to fewer queries
-
-**File:** `app/Http/Controllers/Api/V1/AnalyticsController.php`
-
-**Problem:** Fires 5 separate `GROUP BY` queries sequentially (by status, industry, category, user, type). These all scan the same `contacts` table.
-
-**Fix:** Run them all concurrently using `DB::statement` in parallel, or restructure as a single pass that groups by multiple dimensions. At minimum, add the applied filters to all 5 queries consistently so they benefit from indexes.
-
----
-
-### 8. Fix GlobalTodoController N+1 subquery
-
-**File:** `app/Http/Controllers/Api/V1/GlobalTodoController.php`
-
-**Problem:** Uses `addSelect([last_followup_date => FollowUp::...subquery...])` which fires one subquery per todo row returned. 100 todos per page = 100 extra queries.
-
-**Fix:** Either:
-- Use a `JOIN` with `MAX(followup_date)` grouped by `todo_id` instead of a correlated subquery
-- Or eager-load the latest follow-up as a relationship with `->latestOfMany()`
-
-```php
-// Model relationship:
-public function latestFollowUp(): HasOne
-{
-    return $this->hasOne(FollowUp::class)->latestOfMany('followup_date');
+export function useLookups() {
+  const lookups = ref({});
+  const loading = ref(false);
+  onMounted(async () => {
+    loading.value = true;
+    try {
+      const { data } = await api.get('/lookups');
+      lookups.value = data;
+    } finally {
+      loading.value = false;
+    }
+  });
+  return { lookups, loading };
 }
-
-// Controller:
-->with('latestFollowUp')
 ```
 
 ---
 
-### 9. Cap Forecast detail rows
+## BEFORE TESTING — Must complete before TESTING_PHASE.md can run
 
-**File:** `app/Http/Controllers/Api/V1/ForecastController.php` — `summary()` method, line ~80
+### BT-1. Finish InfinityFree Staging (STAGING_TODO.md steps 1–6)
 
-**Problem:** `->get()` with no limit on the forecast rows query. A filtered view could load tens of thousands of rows into PHP memory.
+The following are still pending in `STAGING_TODO.md`:
 
-**Fix:** Add a pagination or reasonable hard limit:
-```php
-$rows = (clone $base)->orderBy('forecast_date')->paginate(500);
-// or for the summary aggregate: ensure only aggregated totals are returned, not raw rows
+- [ ] Delete the now-empty `public/` folder from `htdocs/` in File Manager
+- [ ] Create `.env` on the server (File Manager → New File, paste the `.env` block from `STAGING_TODO.md`)
+- [ ] Create `run_setup.php` and visit it to run: migrate, seed, config:cache, route:cache, view:cache, storage:link
+- [ ] **Delete `run_setup.php` immediately after** — it grants anyone full database access
+- [ ] Visit `https://bgoccrm.infinityfreeapp.com` and confirm login page loads
+- [ ] Log in as super-admin, check a few pages, verify no 500 errors
+
+Until staging is bootstrapped end-to-end, `TESTING_PHASE.md` cannot be formally checked off.
+
+---
+
+### BT-2. Build Production Assets Locally (TESTING_PHASE.md A1)
+
+InfinityFree has no Node.js. Build must happen locally before upload:
+
+```bash
+# In local .env, set:
+VITE_BASE_URL=/
+
+npm run build
+# Confirm public/build/ is generated, then upload to staging
 ```
 
----
-
-## Priority 3 — When you have Redis available
-
-### 10. Switch cache driver from `database` to Redis
-
-**File:** `.env`
-
-**Problem:** The default cache driver is `database`, which means cache reads/writes hit the DB — defeating the purpose.
-
-**Fix:**
-```env
-CACHE_DRIVER=redis
-REDIS_HOST=127.0.0.1
-REDIS_PORT=6379
-```
-
-Install Redis locally or via Docker. All `Cache::remember()` calls from fixes #1 and #2 above benefit automatically.
+Restore local `VITE_BASE_URL` to the XAMPP path after.
 
 ---
 
-### 11. Queue expensive export/import jobs
+### BT-3. Email Provider Decision (TESTING_PHASE.md A3)
 
-**Currently:** CSV exports stream synchronously (fine for now). Large imports (`ImportController`) run inline.
+Gmail SMTP is fine for staging. Choose:
 
-**Future fix:** Move imports > 500 rows to a queued job with progress tracking using Laravel's built-in Queue + a simple status endpoint the frontend polls.
+- **Option A (quick):** Keep Gmail SMTP for staging — add credentials to staging `.env`
+- **Option B (proper for production):** Create free Brevo account (300/day free), swap SMTP creds in `.env.production.example`
 
----
-
-## Notes
-
-- All index migrations from this audit were applied on **2026-05-28** via `2026_05_28_000001_add_missing_scalability_indexes.php`.
-- The LIKE search on `contacts.name` (Fix #6) is the single biggest UX-affecting issue at scale — prioritize it as soon as contacts exceed ~30K rows.
-- Fixes #1–5 can be done in a single afternoon and have the highest impact per effort.
+Minimum email tests to confirm delivery from the live server:
+1. First-login admin alert email
+2. Inactivity flag email
+3. Password change system alert (in-app bell only — no email)
 
 ---
 
-# Deferred Data Quality Work
+### BT-4. Note InfinityFree-Specific Code Hacks for cPanel Revert
 
-These items were identified in the May 2026 data quality audit. Applied fixes (reminder_reads orphan cleanup, ContactIncharge name required, lookup table unique constraints) were completed on **2026-05-28**.
+**These must be reverted when deploying to cPanel.** Documented in `docs/INFINITYFREE_STATUS.md` Part 2.
 
----
+| File | InfinityFree change | cPanel action |
+|------|--------------------|--------------------|
+| `bootstrap/app.php` | `->usePublicPath(dirname(__DIR__))` appended | Remove this line |
+| `vite.config.js` | `format: 'iife'`, `inlineDynamicImports: true` | Revert to standard chunk output, OR keep IIFE (both work on cPanel) |
+| `resources/views/app.blade.php` | Manual manifest reader replacing `@vite()` | Keep (works fine on cPanel) or revert to `@vite()` |
 
-## CRITICAL — Do before going to production
-
-### DQ-1. ~~Soft Deletes on Contact (and User)~~ ✅ Done 2026-06-04
-
-`SoftDeletes` added to `Contact`, `Deal`, and `Project` models. `User` already had it.
-Migration `2026_06_04_000001_add_soft_deletes_to_contacts_deals_projects.php` added `deleted_at` to all three tables and was run successfully.
-The `booted()` cleanup observer in `Contact` was updated from `static::deleting` to `static::forceDeleting` so `reminder_reads` are only cleaned up on permanent deletion, not soft-delete.
+The public path override (`bootstrap/app.php`) is the only **required** revert. The others are optional.
 
 ---
 
-## HIGH — Do before going to production
+### BT-5. Archive Stale Pre-Rewrite Docs
 
-### DQ-2. ENUM / CHECK constraints on status fields
+These files describe the old plain PHP system from before the Laravel/Vue rewrite. They no longer reflect the codebase and will confuse anyone reading them:
 
-**Problem:** The following fields are validated at the application layer only. A raw SQL insert, a seeder bug, or a future developer bypassing the controller can store invalid values that silently corrupt reports.
+- `docs/current-code-progress.md` — describes old plain PHP structure (ammars/ folder, bluedale2_crmbgoc, plain `index.php`, `view.php`)
+- `docs/upgrade-checklist.md` — plain PHP → Laravel 8 upgrade checklist for a different codebase
+
+**Action:** Move to `docs/archive/` or add a one-line notice at the top of each: `> Archived — describes the pre-Laravel/Vue plain PHP system (2025). No longer relevant.`
+
+---
+
+## BEFORE PRODUCTION — After Feature Freeze
+
+Only start these once new feature additions have stopped. Structural changes mid-development cause merge conflicts and slow active work.
+
+### PP-1. DQ-2 — ENUM / CHECK Constraints on Status Fields
+
+**Condition:** Do only after all status/stage values are confirmed final — adding a new valid value after constraints are set requires a new migration.
 
 | Field | Table | Valid values |
 |-------|-------|-------------|
@@ -227,137 +158,39 @@ The `booted()` cleanup observer in `Contact` was updated from `static::deleting`
 | `posting_status` | `social_media_reminders` | pending, wfa, approved, scheduling, posted |
 | `report_status` | `social_media_reminders` | pending, wfa, done, completed |
 
-**Fix (Option A — ENUM, simplest):**
 ```php
-// Replace the string column with an ENUM:
+// Option A — ENUM (simplest):
 $table->enum('completion_status', ['pending', 'completed', 'cancelled'])->default('pending')->change();
-```
-Downside: adding a new valid value requires a new migration.
 
-**Fix (Option B — CHECK constraint, more flexible):**
-```php
-DB::statement("ALTER TABLE to_dos ADD CONSTRAINT chk_completion_status 
+// Option B — CHECK constraint (MySQL 8.0.16+, more flexible):
+DB::statement("ALTER TABLE to_dos ADD CONSTRAINT chk_completion_status
     CHECK (completion_status IN ('pending','completed','cancelled'))");
 ```
-CHECK constraints are supported in MySQL 8.0.16+.
-
-**Do this AFTER features are stable** — if you're still adding new status values (e.g. a new deal stage), defer until the list is final.
 
 ---
 
-### DQ-3. Audit trail — created_by / updated_by
+### PP-2. FS-1 — Split ContactList.vue (3,042 lines)
 
-**Problem:** The system records *when* something was created/updated but not *who* changed it last. For a multi-user CRM this becomes a problem when investigating data issues or disputes.
+**Most important split.** A 3,000-line Vue component is the biggest maintainability risk in the codebase. A developer asked to change one tab's filter has to understand everything before touching anything.
 
-**Fix:** Add `created_by` and `updated_by` columns to core entities and auto-populate them:
-
-```php
-// Migration for contacts (repeat for deals, projects, todos):
-$table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
-$table->foreignId('updated_by')->nullable()->constrained('users')->nullOnDelete();
-
-// Model observer or booted event:
-static::creating(fn($m) => $m->created_by = Auth::id());
-static::updating(fn($m) => $m->updated_by = Auth::id());
-```
-
-**Priority tables:** `contacts`, `deals`, `projects`, `to_dos`, `follow_ups`
-
----
-
-## MEDIUM — Nice to have
-
-### DQ-4. Add timestamps to tables missing them
-
-The following tables have no `created_at` / `updated_at` and no way to know when records were created:
-
-| Table | Impact |
-|-------|--------|
-| `reminder_reads` | Can't tell when a user read a reminder |
-| `round_robin_state` | Can't track last assignment time |
-| `webhooks` | Can't tell when a webhook was registered |
-
-**Fix:**
-```php
-Schema::table('reminder_reads', function (Blueprint $table) {
-    $table->timestamps();
-});
-// Repeat for round_robin_state, webhooks
-```
-
----
-
-### DQ-5. Enforce territory_id cleanup on contact when territory deleted
-
-**Problem:** Deleting a territory leaves all contacts pointing to a now-dead `territory_id`. The FK is nullable so no crash occurs, but contacts silently lose their territory classification.
-
-**Fix:** Either cascade null on delete (already the correct behavior if FK is set to `nullOnDelete`) or add a `Territory::deleting` event that nulls out the field first:
-
-```php
-static::deleting(function (Territory $territory) {
-    Contact::where('territory_id', $territory->id)->update(['territory_id' => null]);
-});
-```
-
-Check whether the current FK on `contacts.territory_id` already has `nullOnDelete()` — if it does, MySQL handles this automatically.
-
----
-
-# Deferred Frontend Structure Work
-
-These items were identified in the May 2026 folder structure audit. Applied fixes (`.env.example` documented, `TaskEdit.vue` → `TodoEdit.vue`, `MarketingEmailDemo.vue` → `EmailCampaigns.vue`) were completed on **2026-05-28**.
-
-Do these **after features are stable** — splitting large components mid-development causes merge conflicts and makes active work harder.
-
----
-
-## CRITICAL — Do before handing over to another developer
-
-### FS-1. Split ContactList.vue (3,042 lines)
-
-**File:** `resources/js/pages/ContactList.vue`
-
-**Problem:** A single 3,000-line Vue component is the biggest maintainability risk in the codebase. A new developer asked to change one tab's filter behaviour has to understand 3,000 lines before touching anything.
-
-**Fix:** Create a `resources/js/pages/contacts/` subdirectory and split by tab:
-
+**Target structure:**
 ```
 pages/contacts/
 ├── ContactListPage.vue      (shell: tabs, shared state, API calls)
-├── ContactsTab.vue          (the contacts table + filters)
-├── SummaryTab.vue           (summary/analytics tab)
-├── TasksTab.vue             (todos tab inside contacts)
-└── ForecastTab.vue          (forecast tab inside contacts)
+├── ContactsTab.vue          (contacts table + filters)
+├── SummaryTab.vue           (analytics/summary tab)
+├── TasksTab.vue             (todos tab — CalendarPicker already uses correct props)
+└── ForecastTab.vue          (forecast tab)
 ```
 
-Each tab component receives data as props from `ContactListPage.vue` and emits events back. Shared filter state stays in the parent.
+Each tab receives data as props from `ContactListPage.vue` and emits events back. Shared filter state stays in the parent.
 
 ---
 
-### FS-2. Split ProductAvailability.vue (1,714 lines)
+### PP-3. FS-3 — Split Performance.vue (1,106 lines)
 
-**File:** `resources/js/pages/ProductAvailability.vue`
+4 tabs in one 1,100-line file. Second priority after ContactList.vue.
 
-**Problem:** Mixes product listing, booking management, photo uploads, and form logic in one file.
-
-**Fix:** Split into:
-```
-pages/products/
-├── ProductAvailabilityPage.vue   (container)
-├── ProductsGrid.vue              (listing)
-├── BookingForm.vue               (booking modal/form)
-└── ProductPhotoUpload.vue        (photo management)
-```
-
----
-
-### FS-3. Split Performance.vue (1,106 lines)
-
-**File:** `resources/js/pages/Performance.vue`
-
-**Problem:** 4 tabs (Overview, Activity, Team, Targets) in one 1,100-line file. Adding a new KPI card requires understanding the whole file.
-
-**Fix:** Split into:
 ```
 pages/performance/
 ├── PerformancePage.vue      (shell: tab switching)
@@ -369,127 +202,220 @@ pages/performance/
 
 ---
 
-### FS-4. Split RbacPanel.vue (868 lines)
+### PP-4. Complete TESTING_PHASE.md (Parts B–F)
 
-**File:** `resources/js/pages/RbacPanel.vue`
+Work through all testing sections in order once staging is stable:
 
-**Problem:** Mixes role management, permission assignment, and user-role assignment in one file.
+- **Part B** — Staging environment setup (Railway or InfinityFree fully running)
+- **Part C** — Feature testing checklist (~65 local items + ~8 live items)
+- **Part D** — Non-functional: mobile, cross-browser, security spot-check, email delivery
+- **Part E** — Bug log — resolve all Critical and High bugs before proceeding
+- **Part F** — Go/No-Go sign-off
 
-**Fix:** Split into:
+Do not open `DEPLOY_CPANEL.md` until all Part F boxes are checked.
+
+---
+
+## PRODUCTION LAUNCH — cPanel Deployment Gate
+
+Open items from `PRODUCTION_READINESS.md`:
+
+- [ ] Configure Redis on production server: set `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD` in `.env` — OR confirm file driver fallback is acceptable for load level
+- [ ] Run `php artisan permission:cache-reset` after first deploy to warm Spatie permission cache
+- [ ] Register on UptimeRobot (free) — point to `https://your-domain.com/up`, configure email/SMS alert
+- [ ] Enable automated daily MySQL backups (cPanel built-in or mysqldump cron), verify restoration works
+- [ ] Verify Sentry receives errors from live server — trigger a test error, confirm it appears in Sentry dashboard
+- [ ] Swap to production email provider (Brevo or SendGrid) if still on Gmail SMTP
+- [ ] Set `admin_notification_email` in Admin → System Settings on first super-admin login
+- [ ] Run artisan cache commands after all `.env` values are final:
+  ```bash
+  php artisan config:cache
+  php artisan route:cache
+  php artisan view:cache
+  php artisan permission:cache-reset
+  ```
+
+---
+
+## POST-PRODUCTION — Scalability
+
+Not relevant at current data volumes. Revisit when approaching 20K contacts / 100+ concurrent users.
+
+### Scale-1. Cache PerformanceController Overview (5 min TTL)
+
+**File:** `app/Http/Controllers/Api/V1/PerformanceController.php`
+
+Every performance dashboard load fires 10+ COUNT queries. With 20 users refreshing every few minutes this becomes hundreds of DB round-trips per minute.
+
+```php
+$cacheKey = "perf_overview_{$userId}_{$period}_{$from}_{$to}";
+return Cache::remember($cacheKey, 300, function () use (...) {
+    // existing KPI logic
+});
 ```
-pages/rbac/
-├── RbacPage.vue             (container)
-├── RolesTab.vue             (role CRUD)
-├── PermissionsTab.vue       (permission list + assignment)
-└── UsersTab.vue             (user-role assignments)
+
+Invalidate when a todo/follow-up/deal is created or completed (model observer or after-save controller call).
+
+---
+
+### Scale-2. Refactor PerformanceController to Single Aggregation Query
+
+**File:** `app/Http/Controllers/Api/V1/PerformanceController.php` — `overview()` and `team()` methods
+
+Currently fires one `COUNT()` per KPI metric per user. `team()` multiplies this by N users — O(N×10) queries.
+
+Replace with a single query using conditional aggregation:
+```php
+DB::table('to_dos')->selectRaw('
+    COUNT(CASE WHEN user_id = ? AND date_created BETWEEN ? AND ? THEN 1 END) as todos_created,
+    COUNT(CASE WHEN user_id = ? AND completion_status = "completed" AND completed_at BETWEEN ? AND ? THEN 1 END) as todos_completed
+    ...
+', [...])
 ```
 
 ---
+
+### Scale-3. Paginate Contact Emails and Calls
+
+**Files:** `ContactEmailController::index()` line 14, `ContactCallController::index()` line 14
+
+A contact with 500+ emails will OOM. Replace `.get()` with `.paginate(20)` and add "Load more" in `ContactView.vue`.
+
+```php
+// Before:
+$emails = $contact->emails()->with('user')->orderByDesc('emailed_at')->get();
+// After:
+$emails = $contact->emails()->with('user')->orderByDesc('emailed_at')->paginate(20);
+```
+
+---
+
+### Scale-4. Full-Text Search on contacts.name
+
+**Current:** `WHERE name LIKE '%term%'` forces a full table scan. Noticeably slow past ~30K contacts.
+
+**Option A — MySQL Full-Text (simplest, no new infrastructure):**
+```php
+// Migration:
+$table->fullText('name');
+// Query:
+Contact::whereFullText('name', $search)->paginate(25);
+```
+
+**Option B — Meilisearch + Laravel Scout** — instant, typo-tolerant search; requires a separate Meilisearch service.
+
+---
+
+### Scale-5. Refactor AnalyticsController to Fewer Queries
+
+**File:** `app/Http/Controllers/Api/V1/AnalyticsController.php`
+
+Fires 5 sequential `GROUP BY` queries on the same `contacts` table (by status, industry, category, user, type). Run concurrently or consolidate into a single pass at high load.
+
+---
+
+### Scale-6. Fix GlobalTodoController N+1 Subquery
+
+**File:** `app/Http/Controllers/Api/V1/GlobalTodoController.php`
+
+`addSelect([last_followup_date => FollowUp::...subquery...])` fires one subquery per todo row. 100 todos per page = 100 extra queries.
+
+```php
+// Model — add relationship:
+public function latestFollowUp(): HasOne
+{
+    return $this->hasOne(FollowUp::class)->latestOfMany('followup_date');
+}
+
+// Controller — replace addSelect with:
+->with('latestFollowUp')
+```
+
+---
+
+### Scale-7. Cap Forecast Detail Rows
+
+**File:** `app/Http/Controllers/Api/V1/ForecastController.php` — `summary()` method
+
+`->get()` with no limit can load tens of thousands of rows into PHP memory on a wide date range.
+
+```php
+$rows = (clone $base)->orderBy('forecast_date')->paginate(500);
+```
+
+---
+
+### Scale-8. Switch Cache Driver to Redis
+
+```env
+CACHE_DRIVER=redis
+REDIS_HOST=127.0.0.1
+REDIS_PORT=6379
+```
+
+All `Cache::remember()` calls (LookupController, ReminderController, PerformanceController) benefit automatically. Only relevant once Redis is available on production.
+
+---
+
+### Scale-9. Queue Large Export/Import Jobs
+
+Large imports (>500 rows) run inline via `ImportController`. At high usage, move to queued jobs with a progress endpoint the frontend polls. Low priority unless import sizes grow significantly.
+
+---
+
+## POST-PRODUCTION — Frontend Structure
+
+Do after features are stable. Structural splits mid-development cause merge conflicts.
+
+### FS-2. Split ProductAvailability.vue (1,714 lines)
+
+```
+pages/products/
+├── ProductAvailabilityPage.vue   (container)
+├── ProductsGrid.vue              (listing)
+├── BookingForm.vue               (booking modal/form)
+└── ProductPhotoUpload.vue        (photo management)
+```
+
+### FS-4. Split RbacPanel.vue (868 lines)
+
+```
+pages/rbac/
+├── RbacPage.vue
+├── RolesTab.vue
+├── PermissionsTab.vue
+└── UsersTab.vue
+```
 
 ### FS-5. Split Settings.vue (865 lines)
 
-**File:** `resources/js/pages/Settings.vue`
+Audit sections first, then extract each to `pages/settings/`.
 
-**Problem:** Unclear scope — review what sections are in here and split into focused sub-components if mixed concerns.
+### FS-7. Standardize API Endpoint Naming
 
-**Fix:** Audit the sections first, then extract each into a dedicated component under `pages/settings/`.
+Mixed conventions: `/social-media-reminders` (kebab), `/forecasts` (single word), `/admin/rbac` (no hyphen). Pick kebab-case and apply consistently in `routes/api.php`. Update all Vue `api.js` calls to match. Low priority — inconsistency causes no bugs but confuses new developers.
 
----
+### FS-8. Rename Misleading Route Names in Router
 
-## HIGH — Do alongside the component splits
+- `task-edit` maps to `TodoEdit.vue` → rename to `todo-edit`
+- `task-add` maps to adding a todo from a contact → rename to `contact-todo-add`
 
-### FS-6. Extract reusable composables
+Search before changing: `grep -r "task-edit\|task-add" resources/js/`
 
-**File:** `resources/js/composables/` (currently only `useSettings.js`)
+### FS-9. Clarify CrmList.vue vs ContactList.vue
 
-**Problem:** Filtering logic, pagination, search state, and form validation are duplicated across all 39 page components. A bug fix in one filter has to be applied 10+ times.
+Add a one-line comment at the top of each explaining the distinction, or rename `CrmList.vue` → `ContactBrowse.vue`.
 
-**Fix:** Create one composable per concern:
+### FS-10. Subfolder app/Models/ by Domain
 
-```js
-// useFilters.js — shared filter state + reset logic
-// usePagination.js — page/perPage state + URL sync
-// useSearch.js — debounced search + clear
-// useFormValidation.js — common required field, email, date validation
-// useLookups.js — fetch + cache /api/v1/lookups on mount
-```
+**Option A (full grouping):** Group into `Contact/`, `Sales/`, `Activity/`, `Marketing/`, etc.
 
-Start with `useLookups.js` — every add/edit form calls the same `GET /api/v1/lookups` endpoint. Centralising it also makes it easy to add frontend caching later.
+**Option B (minimal — recommended):** Move `app/Models/Admin/Role.php` and `Permission.php` to `app/Models/` root. Removes the only inconsistency with minimal effort.
 
----
+### FS-11. Fix tailwind.config.js Content Scanning
 
-## MEDIUM — Nice to have
+The content array scans only `.blade.php`, not `.vue` files. If any Tailwind classes are added to Vue components in the future, they'll be silently purged from the production build.
 
-### FS-7. Standardize API endpoint naming
-
-**Problem:** API paths mix naming conventions:
-- Kebab-case: `/social-media-reminders`, `/product-availability`, `/posting-calendar`
-- Single word: `/forecasts`, `/contacts`, `/deals`
-- Inconsistent: `/admin/performance-targets` (hyphen) vs `/admin/rbac` (no hyphen)
-
-**Fix:** Pick one convention (kebab-case recommended since it matches all multi-word paths already) and apply consistently in `routes/api.php`. Update Vue `api.js` calls to match.
-
-This is low-priority since it's internal and the inconsistency doesn't cause bugs — but it confuses new developers reading the route file.
-
----
-
-### FS-8. Rename remaining misleading route names in router
-
-**Problem:** After renaming the files, a few route `name` values are still inconsistent:
-- Route `task-edit` maps to `TodoEdit.vue` — should be `todo-edit`
-- Route `task-add` maps to `TaskAdd.vue` which adds a todo from a contact — consider `contact-todo-add`
-
-**Fix:** Update the `name` fields in `resources/js/router/index.js` and update any `router.push({ name: 'task-edit' })` calls in Vue components to match.
-
-Search for usages first: `grep -r "task-edit\|task-add" resources/js/`
-
----
-
-### FS-9. Clarify CrmList.vue / CrmView.vue vs ContactList.vue / ContactView.vue
-
-**Files:** `resources/js/pages/CrmList.vue`, `resources/js/pages/CrmView.vue`
-
-**Problem:** Four files with near-identical names live side by side in `pages/`. A new developer cannot tell the difference without opening both. Currently:
-- `/list` → `ContactList.vue` — the primary contacts view (multi-tab, with todos/forecasts/summary)
-- `/crm` → `CrmList.vue` — a different filtered view of contacts
-
-**Fix:** Either rename to make the distinction obvious (e.g. `CrmList.vue` → `LegacyContactList.vue` or `ContactBrowse.vue`) or add a one-line comment at the top of each file explaining what makes it different from the other.
-
----
-
-### FS-10. Subfolder `app/Models/` by domain
-
-**Problem:** All 30+ models sit in a flat `app/Models/` directory except RBAC models which are in `app/Models/Admin/`. The inconsistency confuses new developers ("why do only Role and Permission get a subfolder?").
-
-**Fix (Option A — full domain grouping, cleaner):**
-```
-app/Models/
-├── Contact/         Contact, ContactStatus, ContactType, ContactCategory,
-│                    ContactIndustry, ContactArea, ContactIncharge,
-│                    ContactEmail, ContactCall
-├── Sales/           Deal, Project, Forecast, ForecastProduct, ForecastType, ForecastResult
-├── Activity/        ToDo, FollowUp, Task, KpiTarget, PerformanceTarget
-├── Marketing/       SocialMediaReminder, SocialMediaPackage, PostingCalendarReminder,
-│                    EmailCampaign, AdvertisingProduct, AdvertisingProductBooking
-├── Integration/     WhatsAppMessage, Webhook, RoundRobinState
-├── Admin/           Role, Permission (already here)
-└── (root)           User, Territory, ReminderRead
-```
-
-**Fix (Option B — minimal, just flatten Admin/ back to root):**
-Move `Admin/Role.php` and `Admin/Permission.php` to `app/Models/` root so everything is consistently flat. Update namespaces and imports.
-
-Option B is much less effort and removes the inconsistency without a large refactor.
-
----
-
-### FS-11. Fix tailwind.config.js content scanning
-
-**File:** `tailwind.config.js`
-
-**Problem:** The content array only scans `.blade.php` files, not `.vue` files. If any Tailwind utility classes are added to Vue components in the future, they will be purged from the production build and silently disappear.
-
-**Fix:** Add Vue files to the content array:
 ```js
 content: [
     './vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php',
@@ -499,4 +425,56 @@ content: [
 ],
 ```
 
-**Low priority** — the project currently uses scoped CSS in Vue components, not Tailwind utilities. Only relevant if that changes.
+Low priority — the project uses scoped CSS in Vue components, not Tailwind utilities.
+
+---
+
+## POST-PRODUCTION — Data Quality (Nice to Have)
+
+### DQ-4. Add Timestamps to Tables Missing Them
+
+| Table | Impact |
+|-------|--------|
+| `reminder_reads` | Can't tell when a user read a reminder |
+| `round_robin_state` | Can't track last assignment time |
+| `webhooks` | Can't tell when a webhook was registered |
+
+```php
+Schema::table('reminder_reads', function (Blueprint $table) {
+    $table->timestamps();
+});
+```
+
+### DQ-5. Territory FK Cleanup on Contact Delete
+
+Deleting a territory leaves contacts pointing to a dead `territory_id`. Check whether the FK already uses `nullOnDelete()` — if not, add a model event:
+
+```php
+static::deleting(function (Territory $territory) {
+    Contact::where('territory_id', $territory->id)->update(['territory_id' => null]);
+});
+```
+
+---
+
+## Completed Items
+
+| Item | Done |
+|------|------|
+| Cache LookupController (1h TTL) | 2026-06-04 |
+| per_page cap on all list endpoints | 2026-06-04 |
+| Soft Deletes on Contact, Deal, Project | 2026-06-04 |
+| Cache ReminderController todos + followups (30s TTL) | 2026-06-04 |
+| reminder_reads orphan cleanup | 2026-05-28 |
+| ContactIncharge name required | 2026-05-28 |
+| Lookup table unique constraints | 2026-05-28 |
+| All scalability indexes (contacts, to_dos, follow_ups, deals, system_alerts) | 2026-05-28 |
+| Sentry wired up (Laravel + Vue) | 2026-06-04 |
+| Login rate limiting (throttle:10,1) | 2026-06-04 |
+| Health check endpoint GET /up | 2026-06-04 |
+| Audit trail: created_by/updated_by on contacts, deals, to_dos, follow_ups, projects | 2026-06-15 |
+| useLookups.js composable (singleton, module-level cache) | 2026-06-15 |
+
+---
+
+*Last updated: 2026-06-15*

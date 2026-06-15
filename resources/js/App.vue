@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <!-- Login page renders without sidebar -->
   <template v-if="isLogin">
     <router-view />
@@ -20,9 +20,7 @@
             <rect x="13" y="13" width="9" height="9" rx="2" fill="currentColor" opacity="0.9"/>
           </svg>
         </span>
-        <span class="brand-text nav-text">
-          <span class="brand-text-main">Bluedale</span><span class="brand-text-accent">CRM</span>
-        </span>
+        <img :src="'/images/bluedale-logo.png'" class="brand-logo nav-text" alt="Bluedale Group of Companies" />
       </router-link>
 
       <!-- Main section -->
@@ -150,8 +148,8 @@
           <button
             v-if="!isLogin"
             class="topbar-icon-btn tour-trigger-btn"
-            title="Feature tour"
-            @click="tour.start()"
+            title="Page guide"
+            @click="tour.start(route.name === 'list' ? 'list-' + (route.query.tab || 'contacts') : route.name)"
           >
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
               <circle cx="12" cy="12" r="10"/>
@@ -574,13 +572,13 @@ export default { name: 'App' };
   --topbar-bg:     #ffffff;
   --topbar-border: #eceef3;
 
-  /* Accent (purple, matches swiftCRM image) */
-  --primary:        #7c3aed;
-  --primary-hover:  #6d28d9;
-  --primary-soft:   #ede9fe;
+  /* Accent — Bluedale navy blue */
+  --primary:        #1d4ed8;
+  --primary-hover:  #1e40af;
+  --primary-soft:   #dbeafe;
   --primary-on:     #ffffff;
-  --primary-text:   #4c1d95;
-  --focus-ring:     rgba(124,58,237,0.35);
+  --primary-text:   #0f2456;
+  --focus-ring:     rgba(29,78,216,0.35);
 
   /* Semantic */
   --success:        #16a34a;
@@ -605,16 +603,16 @@ export default { name: 'App' };
   /* Sidebar (swiftCRM-inspired light theme) */
   --sb-bg:             #ffffff;
   --sb-border:         #eceef3;
-  --sb-brand-1:        #1e1b4b;
-  --sb-brand-2:        #7c3aed;
+  --sb-brand-1:        #0f2456;
+  --sb-brand-2:        #1d4ed8;
   --sb-label:          #9ca3af;
   --sb-item:           #4b5563;
   --sb-item-icon:      #6b7280;
   --sb-item-hover-bg:  #f3f4f6;
   --sb-item-hover:     #1f2937;
-  --sb-active-bg:      #ede9fe;
-  --sb-active-text:    #4c1d95;
-  --sb-active-icon:    #7c3aed;
+  --sb-active-bg:      #dbeafe;
+  --sb-active-text:    #0f2456;
+  --sb-active-icon:    #1d4ed8;
   --sb-divider:        #eef0f4;
   --sb-toggle-bg:      #f3f4f6;
   --sb-toggle-border:  #e5e7eb;
@@ -632,12 +630,12 @@ export default { name: 'App' };
   --topbar-bg:     #1e293b;
   --topbar-border: #334155;
 
-  --primary:        #a78bfa;
-  --primary-hover:  #8b5cf6;
-  --primary-soft:   rgba(139,92,246,0.18);
+  --primary:        #60a5fa;
+  --primary-hover:  #3b82f6;
+  --primary-soft:   rgba(59,130,246,0.18);
   --primary-on:     #0f172a;
-  --primary-text:   #c4b5fd;
-  --focus-ring:     rgba(167,139,250,0.45);
+  --primary-text:   #93c5fd;
+  --focus-ring:     rgba(96,165,250,0.45);
 
   --success-soft:   rgba(34,197,94,0.16);
   --danger-soft:    rgba(239,68,68,0.16);
@@ -652,15 +650,15 @@ export default { name: 'App' };
   --sb-bg:             #0f172a;
   --sb-border:         rgba(255,255,255,0.06);
   --sb-brand-1:        #f1f5f9;
-  --sb-brand-2:        #a78bfa;
+  --sb-brand-2:        #60a5fa;
   --sb-label:          #475569;
   --sb-item:           #94a3b8;
   --sb-item-icon:      #94a3b8;
   --sb-item-hover-bg:  rgba(255,255,255,0.05);
   --sb-item-hover:     #e2e8f0;
-  --sb-active-bg:      rgba(139,92,246,0.18);
-  --sb-active-text:    #c4b5fd;
-  --sb-active-icon:    #a78bfa;
+  --sb-active-bg:      rgba(59,130,246,0.18);
+  --sb-active-text:    #93c5fd;
+  --sb-active-icon:    #60a5fa;
   --sb-divider:        rgba(255,255,255,0.06);
   --sb-toggle-bg:      rgba(255,255,255,0.05);
   --sb-toggle-border:  rgba(255,255,255,0.08);
@@ -703,7 +701,7 @@ textarea:focus-visible,
 .layout.collapsed .nav-text,
 .layout.collapsed .sidebar-footer { display: none; }
 .layout.collapsed .sidebar-toggle { right: 23px; top: 12px; }
-.layout.collapsed .sidebar-brand { justify-content: center; padding: 16px 0 14px; margin-right: 0; }
+.layout.collapsed .sidebar-brand { justify-content: center; padding: 18px 0 16px; border-bottom: 1px solid var(--sb-divider); }
 .layout.collapsed .brand-mark { width: 36px; height: 36px; }
 .layout.collapsed .brand-mark svg { width: 22px; height: 22px; }
 .layout.collapsed .nav-group-header { justify-content: center; padding: 10px 0; }
@@ -717,7 +715,7 @@ textarea:focus-visible,
 .layout.collapsed.peeking .sidebar-footer { display: block; }
 .layout.collapsed.peeking .nav-text { display: inline; }
 .layout.collapsed.peeking .sidebar-toggle { right: 12px; top: 16px; }
-.layout.collapsed.peeking .sidebar-brand { justify-content: flex-start; padding: 14px 18px 16px; margin-right: 36px; }
+.layout.collapsed.peeking .sidebar-brand { justify-content: center; padding: 14px 16px 12px; border-bottom: 1px solid var(--sb-divider); }
 .layout.collapsed.peeking .nav-group-header { justify-content: flex-start; padding: 10px 12px; }
 .layout.collapsed.peeking .nav-link { justify-content: flex-start; padding: 9px 12px; }
 .layout.collapsed.peeking .nav-sub { padding-left: 28px; }
@@ -736,14 +734,23 @@ textarea:focus-visible,
   font-size: 14px; z-index: 2; transition: background 0.15s, color 0.15s, border-color 0.15s; }
 .sidebar-toggle:hover { background: var(--sb-active-bg); color: var(--sb-active-icon); border-color: var(--sb-active-bg); }
 
-.sidebar-brand { display: flex; align-items: center; gap: 10px; padding: 14px 18px 16px;
-  text-decoration: none; flex-shrink: 0; margin-right: 36px; }
-.brand-mark { display: inline-flex; width: 28px; height: 28px; align-items: center; justify-content: center;
-  border-radius: 8px; background: var(--sb-active-bg); color: var(--sb-brand-2); flex-shrink: 0; }
-.brand-text { display: inline-flex; align-items: baseline; font-size: 18px; font-weight: 800;
-  letter-spacing: -0.2px; line-height: 1; white-space: nowrap; }
-.brand-text-main { color: var(--sb-brand-1); }
-.brand-text-accent { color: var(--sb-brand-2); }
+.sidebar-brand { display: flex; align-items: center; justify-content: center; padding: 14px 16px 12px;
+  text-decoration: none; flex-shrink: 0;
+  border-bottom: 1px solid var(--sb-divider); }
+.brand-mark { display: none; width: 28px; height: 28px; align-items: center; justify-content: center;
+  border-radius: 8px; color: var(--sb-brand-2); flex-shrink: 0; }
+/* Collapsed-only: show icon mark, hide logo (logo already hidden via .nav-text) */
+.layout.collapsed:not(.peeking) .brand-mark { display: inline-flex; }
+.brand-logo {
+  /* object-fit: cover crops the image's internal whitespace, zooming into just the text */
+  width: 100%; height: 68px; max-width: calc(100% - 44px);
+  object-fit: cover; object-position: center 50%;
+}
+[data-theme="dark"] .brand-logo {
+  /* Dark mode: invert flips white-bg→black, dark-text→light; screen blend removes the black bg */
+  filter: invert(1);
+  mix-blend-mode: screen;
+}
 
 .nav-section { padding: 14px 12px 4px; }
 .nav-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.4px;
@@ -951,7 +958,7 @@ textarea:focus-visible,
   .nav-label, .nav-text, .sidebar-footer, .sidebar-user { display: none !important; }
   .brand-mark { width: 36px; height: 36px; }
   .sidebar-toggle { right: 23px; top: 12px; }
-  .sidebar-brand { justify-content: center; padding: 16px 0 14px; margin-right: 0; }
+  .sidebar-brand { justify-content: center; padding: 18px 0 16px; border-bottom: 1px solid var(--sb-divider); }
   .nav-group-header { justify-content: center; padding: 10px 0; }
   .nav-link { justify-content: center; padding: 10px 0; }
   .nav-icon { width: auto !important; }
@@ -975,7 +982,7 @@ textarea:focus-visible,
   .layout.mobile-open .sidebar-footer,
   .layout.collapsed.mobile-open .sidebar-footer { display: block !important; }
   .layout.mobile-open .sidebar-brand,
-  .layout.collapsed.mobile-open .sidebar-brand { justify-content: flex-start !important; padding: 14px 18px 16px !important; margin-right: 36px !important; }
+  .layout.collapsed.mobile-open .sidebar-brand { justify-content: center !important; padding: 14px 16px 12px !important; }
   .layout.mobile-open .brand-mark,
   .layout.collapsed.mobile-open .brand-mark { width: 28px !important; height: 28px !important; }
   .layout.mobile-open .nav-group-header,

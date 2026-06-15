@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="pi">
 
     <!-- ══ Header ══════════════════════════════════════════════════════════════════ -->
@@ -280,57 +280,6 @@
 
     </div>
 
-    <!-- ══ Lead Conversion Segments ════════════════════════════════════════════════ -->
-    <div class="pi-card">
-      <div class="pi-card-head">
-        <div class="pi-card-title-wrap">
-          <svg class="pi-card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
-          </svg>
-          <span class="pi-card-title">Lead Conversion by Segment</span>
-        </div>
-        <span class="pi-card-meta">Historical win rates by industry and type</span>
-      </div>
-      <div class="pi-card-body">
-        <div v-if="loading.segments" class="pi-skeleton-block"></div>
-        <div v-else-if="!segments.length" class="pi-empty">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-            <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
-          </svg>
-          <p>Not enough historical data to compute conversion rates</p>
-        </div>
-        <div v-else class="pi-table-wrap">
-          <table class="pi-table">
-            <thead>
-              <tr>
-                <th>Segment</th>
-                <th>Dimension</th>
-                <th>Total Contacts</th>
-                <th>Won Deals</th>
-                <th>Conversion Rate</th>
-                <th>Signal</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="s in segments" :key="s.key">
-                <td class="pi-td-bold">{{ s.name }}</td>
-                <td><span class="pi-dim-badge">{{ s.dimension }}</span></td>
-                <td>{{ s.total }}</td>
-                <td>{{ s.won }}</td>
-                <td>
-                  <div class="pi-bar-cell">
-                    <div class="pi-mini-bar"><div class="pi-mini-fill" :style="{ width: s.rate + '%' }"></div></div>
-                    <span>{{ s.rate }}%</span>
-                  </div>
-                </td>
-                <td><span class="pi-signal-badge" :class="signalClass(s.rate)">{{ signalLabel(s.rate) }}</span></td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-
     <!-- ══ Deal Win Probability ═════════════════════════════════════════════════════ -->
     <div class="pi-card">
       <div class="pi-card-head">
@@ -386,30 +335,6 @@
       </div>
     </div>
 
-    <!-- ══ Portfolio Growth Trend ══════════════════════════════════════════════════ -->
-    <div class="pi-card">
-      <div class="pi-card-head">
-        <div class="pi-card-title-wrap">
-          <svg class="pi-card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
-          </svg>
-          <span class="pi-card-title">Portfolio Growth Trend</span>
-        </div>
-        <span class="pi-card-meta">Weekly new contacts added — last 8 weeks + 2-week projection</span>
-      </div>
-      <div class="pi-card-body">
-        <div v-if="loading.trend" class="pi-skeleton-block pi-skeleton-block--tall"></div>
-        <div v-else-if="!trend.length" class="pi-empty">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
-          </svg>
-          <p>Not enough data to build a growth trend</p>
-        </div>
-        <div v-else class="pi-chart-wrap pi-chart-wrap--tall">
-          <canvas ref="trendCanvasRef"></canvas>
-        </div>
-      </div>
-    </div>
 
   </div>
 </template>
@@ -419,7 +344,6 @@ import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue';
 import {
   Chart,
   BarController, BarElement,
-  LineController, LineElement, PointElement,
   CategoryScale, LinearScale,
   Tooltip, Legend,
 } from 'chart.js';
@@ -427,7 +351,6 @@ import api from '../api.js';
 
 Chart.register(
   BarController, BarElement,
-  LineController, LineElement, PointElement,
   CategoryScale, LinearScale,
   Tooltip, Legend,
 );
@@ -504,25 +427,19 @@ const forecast  = ref([]);
 const neglected = ref([]);
 const agentLoad = ref([]);
 const unworked  = ref([]);
-const segments  = ref([]);
 const deals     = ref([]);
-const trend     = ref([]);
 
 const loading = ref({
-  forecast:   false,
-  neglected:  false,
-  agentLoad:  false,
-  unworked:   false,
-  segments:   false,
-  deals:      false,
-  trend:      false,
+  forecast:  false,
+  neglected: false,
+  agentLoad: false,
+  unworked:  false,
+  deals:     false,
 });
 
 // ── Chart canvas refs + instances ─────────────────────────────────────────────
 const forecastCanvasRef = ref(null);
-const trendCanvasRef    = ref(null);
 let   forecastChartInst = null;
-let   trendChartInst    = null;
 
 // ── API calls ─────────────────────────────────────────────────────────────────
 function buildParams() {
@@ -577,15 +494,6 @@ async function loadUnworked() {
   finally { loading.value.unworked = false; }
 }
 
-async function loadSegments() {
-  loading.value.segments = true;
-  try {
-    const { data } = await api.get('/v1/predictive/segments', { params: buildParams() });
-    segments.value = data;
-  } catch (_) { segments.value = []; }
-  finally { loading.value.segments = false; }
-}
-
 async function loadDeals() {
   loading.value.deals = true;
   try {
@@ -595,27 +503,13 @@ async function loadDeals() {
   finally { loading.value.deals = false; }
 }
 
-async function loadTrend() {
-  loading.value.trend = true;
-  trendChartInst?.destroy(); trendChartInst = null;
-  try {
-    const { data } = await api.get('/v1/predictive/trend', { params: buildParams() });
-    trend.value = data;
-  } catch (_) { trend.value = []; }
-  finally { loading.value.trend = false; }
-  await nextTick();
-  buildTrendChart();
-}
-
 function loadAll() {
   loadSummary();
   loadForecast();
   loadNeglected();
   loadAgentLoad();
   loadUnworked();
-  loadSegments();
   loadDeals();
-  loadTrend();
 }
 
 // ── Display helpers ───────────────────────────────────────────────────────────
@@ -634,18 +528,6 @@ function loadBarClass(engagedPct) {
   if (engagedPct >= 20) return 'pi-load-bar--primary';
   if (engagedPct >= 10) return 'pi-load-bar--warning';
   return 'pi-load-bar--muted';
-}
-
-function signalClass(rate) {
-  if (rate >= 30) return 'pi-signal--high';
-  if (rate >= 15) return 'pi-signal--med';
-  return 'pi-signal--low';
-}
-
-function signalLabel(rate) {
-  if (rate >= 30) return 'High';
-  if (rate >= 15) return 'Medium';
-  return 'Low';
 }
 
 function probFillClass(pct) {
@@ -669,7 +551,7 @@ function dealPillLabel(pct) {
 // ── Chart helpers ─────────────────────────────────────────────────────────────
 function tooltipDefaults() {
   return {
-    backgroundColor: '#1e1b4b',
+    backgroundColor: '#0f2456',
     padding: 10,
     titleFont:   { size: 11, weight: '600' },
     bodyFont:    { size: 12 },
@@ -700,8 +582,8 @@ function buildForecastChart() {
         {
           label: 'Expected Value',
           data: rows.map(r => r.expected_value),
-          backgroundColor: 'rgba(124,58,237,0.55)',
-          borderColor: '#7c3aed',
+          backgroundColor: 'rgba(29,78,216,0.55)',
+          borderColor: '#1d4ed8',
           borderWidth: 1,
           borderRadius: 4,
           borderSkipped: false,
@@ -748,54 +630,6 @@ function buildForecastChart() {
   });
 }
 
-function buildTrendChart() {
-  trendChartInst?.destroy(); trendChartInst = null;
-  if (!trendCanvasRef.value || !trend.value.length) return;
-  const rows = trend.value;
-
-  trendChartInst = new Chart(trendCanvasRef.value.getContext('2d'), {
-    type: 'bar',
-    data: {
-      labels: rows.map(r => r.week),
-      datasets: [{
-        label: 'Contacts Added',
-        data:  rows.map(r => r.contacts_added),
-        backgroundColor: rows.map(r => r.projected ? 'rgba(124,58,237,0.22)' : 'rgba(124,58,237,0.6)'),
-        borderColor:     rows.map(r => r.projected ? 'rgba(124,58,237,0.45)' : '#7c3aed'),
-        borderWidth: 1,
-        borderRadius: 4,
-        borderSkipped: false,
-      }],
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          ...tooltipDefaults(),
-          callbacks: {
-            afterLabel: ctx => rows[ctx.dataIndex]?.projected ? '(projected)' : '',
-          },
-        },
-      },
-      scales: {
-        x: {
-          border: { display: false },
-          grid:   { display: false },
-          ticks:  { font: { size: 10 }, color: '#94a3b8' },
-        },
-        y: {
-          beginAtZero: true,
-          border: { display: false },
-          grid: { color: 'rgba(148,163,184,0.12)', drawTicks: false },
-          ticks: { font: { size: 10 }, color: '#94a3b8', padding: 8, stepSize: 1 },
-        },
-      },
-    },
-  });
-}
-
 // ── Lifecycle ─────────────────────────────────────────────────────────────────
 onMounted(() => {
   document.addEventListener('click', closePicker);
@@ -806,7 +640,6 @@ onMounted(() => {
 onBeforeUnmount(() => {
   document.removeEventListener('click', closePicker);
   forecastChartInst?.destroy();
-  trendChartInst?.destroy();
 });
 </script>
 
@@ -1047,11 +880,6 @@ onBeforeUnmount(() => {
 .pi-table tr:last-child td { border-bottom: none; }
 .pi-table tbody tr:hover td { background: var(--surface-2); }
 .pi-td-bold { font-weight: 600; }
-.pi-dim-badge {
-  font-size: 11px; font-weight: 600; padding: 2px 8px;
-  border-radius: 999px; background: var(--primary-soft); color: var(--primary-text);
-}
-
 /* Mini bar (used in table cells and unworked list) */
 .pi-bar-cell  { display: flex; align-items: center; gap: 8px; }
 .pi-mini-bar  { width: 80px; height: 6px; background: var(--border-soft); border-radius: 99px; overflow: hidden; }
@@ -1061,12 +889,6 @@ onBeforeUnmount(() => {
 .pi-prob--warning { background: var(--warning); }
 .pi-prob--danger  { background: var(--danger); }
 
-/* Signal badges */
-.pi-signal-badge { font-size: 11.5px; font-weight: 700; padding: 3px 9px; border-radius: 999px; }
-.pi-signal--high { background: var(--success-soft); color: var(--success); }
-.pi-signal--med  { background: var(--warning-soft); color: var(--warning); }
-.pi-signal--low  { background: var(--border-soft);  color: var(--text-3); }
-
 /* Deal pills */
 .pi-deal-pill { font-size: 11.5px; font-weight: 700; padding: 3px 9px; border-radius: 999px; }
 .pi-deal-pill--on-track  { background: var(--success-soft); color: var(--success); }
@@ -1075,7 +897,6 @@ onBeforeUnmount(() => {
 
 /* ── Chart canvases ───────────────────────────────────────────────────────── */
 .pi-chart-wrap { height: 260px; position: relative; }
-.pi-chart-wrap--tall { height: 280px; }
 .pi-chart-wrap canvas { width: 100% !important; height: 100% !important; }
 
 /* Forecast card body should always have enough room for the chart */

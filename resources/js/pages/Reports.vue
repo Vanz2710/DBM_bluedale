@@ -1,11 +1,11 @@
-<template>
+﻿<template>
   <div class="page">
 
     <!-- ══ Header ══════════════════════════════════════════════════════════════ -->
     <div class="page-head">
       <div class="page-head-left">
         <h1 class="page-title">Reports</h1>
-        <p class="page-subtitle">CRM composition, agent rankings, and 12-month activity trends</p>
+        <p class="page-subtitle">{{ pageSubtitle }}</p>
       </div>
     </div>
 
@@ -39,7 +39,7 @@
             <div class="kpi-body">
               <div class="kpi-value">{{ analytics.total_contacts.toLocaleString() }}</div>
               <div class="kpi-label">Total Contacts</div>
-              <div class="kpi-sub">{{ analytics.unassigned }} unassigned</div>
+              <div class="kpi-sub">{{ isAdmin ? `${analytics.unassigned} unassigned` : 'your contacts' }}</div>
             </div>
           </div>
 
@@ -155,7 +155,7 @@
         </div>
 
         <!-- Agent leaderboard -->
-        <div class="card">
+        <div v-if="isAdmin" class="card">
           <div class="card-head">
             <div>
               <div class="card-title">Agent Contact Ranking</div>
@@ -208,7 +208,7 @@
         <!-- Dimension sub-tabs -->
         <div class="sub-tabs">
           <button
-            v-for="d in DIMS" :key="d.key"
+            v-for="d in visibleDims" :key="d.key"
             :class="['sub-tab', { 'sub-tab-active': activeDim === d.key }]"
             @click="activeDim = d.key"
           >{{ d.label }}</button>
@@ -368,7 +368,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue';
+import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue';
 import {
   Chart,
   BarController, BarElement,
@@ -394,6 +394,23 @@ const loading   = ref(true);
 const analytics = ref(null);
 const tab       = ref('overview');
 const activeDim = ref('by_status');
+
+// ── Role ──────────────────────────────────────────────────────────────────────
+const isAdmin = computed(() => analytics.value?.is_admin ?? false);
+
+const pageSubtitle = computed(() =>
+  isAdmin.value
+    ? 'CRM composition, agent rankings, and 12-month activity trends'
+    : 'Your portfolio composition and 12-month activity trends'
+);
+
+const visibleDims = computed(() =>
+  isAdmin.value ? DIMS : DIMS.filter(d => d.key !== 'by_user')
+);
+
+watch(isAdmin, (admin) => {
+  if (!admin && activeDim.value === 'by_user') activeDim.value = 'by_status';
+});
 
 // ── Computed — Overview ───────────────────────────────────────────────────────
 const monthDelta = computed(() => {
@@ -464,7 +481,7 @@ let   contactsChart    = null;
 let   tasksChart       = null;
 
 const TOOLTIP_DEFAULTS = {
-  backgroundColor: '#1e1b4b',
+  backgroundColor: '#0f2456',
   padding: 10,
   titleFont: { size: 11, weight: '600' },
   bodyFont:  { size: 12 },
@@ -498,8 +515,8 @@ function buildCharts() {
         labels: data.by_month.map(r => r.label),
         datasets: [{
           data: data.by_month.map(r => Number(r.count)),
-          backgroundColor: 'rgba(124,58,237,0.55)',
-          borderColor: '#7c3aed',
+          backgroundColor: 'rgba(29,78,216,0.55)',
+          borderColor: '#1d4ed8',
           borderWidth: 1,
           borderRadius: 4,
           borderSkipped: false,
@@ -586,7 +603,7 @@ onUnmounted(() => {
   transition: color 0.15s, background 0.15s; white-space: nowrap;
 }
 .tab-btn:hover { color: var(--text-1); background: var(--surface-2); }
-.tab-active { color: var(--primary-on) !important; background: var(--primary) !important; box-shadow: 0 4px 12px -4px rgba(124,58,237,0.5); }
+.tab-active { color: var(--primary-on) !important; background: var(--primary) !important; box-shadow: 0 4px 12px -4px rgba(29,78,216,0.5); }
 
 /* ── KPI cards ───────────────────────────────────────────────────────────── */
 .kpi-row {
@@ -602,7 +619,7 @@ onUnmounted(() => {
   display: flex; align-items: center; justify-content: center; flex-shrink: 0;
 }
 .kpi-icon svg { width: 20px; height: 20px; }
-.kpi-icon--purple { background: #ede9fe; color: #7c3aed; }
+.kpi-icon--purple { background: #dbeafe; color: #1d4ed8; }
 .kpi-icon--blue   { background: #dbeafe; color: #2563eb; }
 .kpi-icon--green  { background: #dcfce7; color: #16a34a; }
 .kpi-icon--orange { background: #ffedd5; color: #ea580c; }
@@ -625,7 +642,7 @@ onUnmounted(() => {
   display: flex; align-items: center; justify-content: center; flex-shrink: 0;
 }
 .top-card-icon svg { width: 20px; height: 20px; }
-.top-card-icon--purple { background: #ede9fe; color: #7c3aed; }
+.top-card-icon--purple { background: #dbeafe; color: #1d4ed8; }
 .top-card-icon--blue   { background: #dbeafe; color: #2563eb; }
 .top-card-icon--green  { background: #dcfce7; color: #16a34a; }
 .top-card-label { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-3); margin-bottom: 3px; }
@@ -648,7 +665,7 @@ onUnmounted(() => {
   background: var(--primary-soft); color: var(--primary-text);
   font-size: 11px; font-weight: 700; padding: 4px 12px; border-radius: 999px; white-space: nowrap;
 }
-.count-badge--purple { background: #ede9fe; color: #7c3aed; }
+.count-badge--purple { background: #dbeafe; color: #1d4ed8; }
 .count-badge--teal   { background: #cffafe; color: #0891b2; }
 
 /* ── Distribution bars ───────────────────────────────────────────────────── */
@@ -660,8 +677,8 @@ onUnmounted(() => {
 .dist-row:last-child { border-bottom: none; }
 .dist-label { font-size: 13px; color: var(--text-1); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .dist-bar-wrap { height: 10px; background: var(--border-soft); border-radius: 4px; overflow: hidden; }
-.dist-bar-fill { height: 100%; background: #7c3aed; border-radius: 4px; min-width: 2px; transition: width 0.4s; }
-.dist-bar-fill--status { background: linear-gradient(90deg, #7c3aed, #a78bfa); }
+.dist-bar-fill { height: 100%; background: #1d4ed8; border-radius: 4px; min-width: 2px; transition: width 0.4s; }
+.dist-bar-fill--status { background: linear-gradient(90deg, #1d4ed8, #60a5fa); }
 .dist-pct   { font-size: 11.5px; color: var(--text-3); text-align: right; }
 .dist-count { font-size: 13px; font-weight: 700; color: var(--text-1); text-align: right; }
 
@@ -680,7 +697,7 @@ onUnmounted(() => {
 .rep-table--bordered { }
 .td-num { text-align: center; }
 .tfoot-label { text-align: right; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-3); }
-.tfoot-val { color: #7c3aed; font-size: 14px; }
+.tfoot-val { color: #1d4ed8; font-size: 14px; }
 
 /* ── Agent leaderboard ───────────────────────────────────────────────────── */
 .th-rank { width: 64px; text-align: center; }
@@ -708,7 +725,7 @@ onUnmounted(() => {
 .agent-name { font-weight: 600; color: var(--text-1); }
 
 .inline-bar-wrap { height: 8px; background: var(--border-soft); border-radius: 4px; overflow: hidden; }
-.inline-bar-fill { height: 100%; background: #7c3aed; border-radius: 4px; min-width: 2px; transition: width 0.4s; }
+.inline-bar-fill { height: 100%; background: #1d4ed8; border-radius: 4px; min-width: 2px; transition: width 0.4s; }
 
 /* ── Sub-tabs (Breakdown) ────────────────────────────────────────────────── */
 .sub-tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
@@ -717,8 +734,8 @@ onUnmounted(() => {
   background: var(--surface); color: var(--text-2); font-size: 12.5px; font-weight: 600;
   cursor: pointer; transition: all 0.15s;
 }
-.sub-tab:hover:not(.sub-tab-active) { border-color: #7c3aed; color: #7c3aed; }
-.sub-tab-active { background: #7c3aed; color: #fff; border-color: #7c3aed; }
+.sub-tab:hover:not(.sub-tab-active) { border-color: #1d4ed8; color: #1d4ed8; }
+.sub-tab-active { background: #1d4ed8; color: #fff; border-color: #1d4ed8; }
 
 /* ── Trends summary row ──────────────────────────────────────────────────── */
 .trend-summary-row {

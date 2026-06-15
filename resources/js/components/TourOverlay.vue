@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <Teleport to="body">
     <Transition name="tour-fade">
       <div v-if="active" class="tour-root" @keydown.escape="skip" tabindex="-1">
@@ -23,7 +23,7 @@
             <div class="tour-arrow" :class="'arrow-' + (currentStep.position ?? 'right')"></div>
 
             <div class="tour-header">
-              <span class="tour-step-badge">{{ currentIndex + 1 }} / {{ TOUR_STEPS.length }}</span>
+              <span class="tour-step-badge">{{ currentIndex + 1 }} / {{ activeSteps.length }}</span>
               <button class="tour-close" @click="skip" title="Skip tour">✕</button>
             </div>
 
@@ -33,7 +33,7 @@
             <!-- Progress dots -->
             <div class="tour-dots">
               <span
-                v-for="(_, i) in TOUR_STEPS"
+                v-for="(_, i) in activeSteps"
                 :key="i"
                 :class="['tour-dot', { active: i === currentIndex, done: i < currentIndex }]"
                 @click="jumpTo(i)"
@@ -59,9 +59,9 @@
 
 <script setup>
 import { ref, watch, nextTick } from 'vue';
-import { useTour, TOUR_STEPS } from '../composables/useTour.js';
+import { useTour } from '../composables/useTour.js';
 
-const { active, currentIndex, currentStep, isFirst, isLast, next, prev, skip, finish } = useTour();
+const { active, currentIndex, currentStep, isFirst, isLast, activeSteps, next, prev, skip, finish } = useTour();
 
 const tooltipEl    = ref(null);
 const spotlightStyle = ref(null);
@@ -156,7 +156,7 @@ onUnmounted(() => window.removeEventListener('resize', onResize));
   position: fixed;
   border-radius: 10px;
   background: transparent;
-  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.62), 0 0 0 3px #7c3aed, 0 0 0 5px rgba(124,58,237,0.3);
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.62), 0 0 0 3px #1d4ed8, 0 0 0 5px rgba(29,78,216,0.3);
   pointer-events: none;
   z-index: 9001;
   transition: top 0.35s cubic-bezier(0.4,0,0.2,1),
@@ -195,8 +195,8 @@ onUnmounted(() => window.removeEventListener('resize', onResize));
 }
 
 .tour-step-badge {
-  font-size: 11px; font-weight: 700; color: #7c3aed;
-  background: #ede9fe; padding: 2px 8px; border-radius: 999px;
+  font-size: 11px; font-weight: 700; color: #1d4ed8;
+  background: #dbeafe; padding: 2px 8px; border-radius: 999px;
 }
 
 .tour-close {
@@ -224,8 +224,8 @@ onUnmounted(() => window.removeEventListener('resize', onResize));
   width: 6px; height: 6px; border-radius: 50%;
   background: #e2e8f0; cursor: pointer; transition: all 0.2s;
 }
-.tour-dot.active { background: #7c3aed; width: 18px; border-radius: 3px; }
-.tour-dot.done   { background: #a78bfa; }
+.tour-dot.active { background: #1d4ed8; width: 18px; border-radius: 3px; }
+.tour-dot.done   { background: #60a5fa; }
 
 .tour-actions {
   display: flex; justify-content: space-between; align-items: center; gap: 8px;
@@ -248,11 +248,11 @@ onUnmounted(() => window.removeEventListener('resize', onResize));
 
 .tour-btn-next {
   padding: 7px 16px; border-radius: 8px; font-size: 13px; font-weight: 600;
-  background: #7c3aed; color: #ffffff; border: none; cursor: pointer;
-  box-shadow: 0 4px 12px -4px rgba(124,58,237,0.5);
+  background: #1d4ed8; color: #ffffff; border: none; cursor: pointer;
+  box-shadow: 0 4px 12px -4px rgba(29,78,216,0.5);
   transition: background 0.15s, box-shadow 0.15s;
 }
-.tour-btn-next:hover { background: #6d28d9; }
+.tour-btn-next:hover { background: #1e40af; }
 
 /* Transitions */
 .tour-fade-enter-active, .tour-fade-leave-active { transition: opacity 0.25s; }

@@ -13,6 +13,7 @@ use App\Models\ToDo;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class PerformanceController extends Controller
 {
@@ -213,31 +214,78 @@ class PerformanceController extends Controller
         $toDt   = $to   . ' 23:59:59';
         $today  = now()->toDateString();
 
-        // Load all users' won_deal_value quota targets in one query
+        $users    = User::orderBy('name')->get();
+        $userIds  = $users->pluck('id')->all();
+
+        // One query per metric instead of N queries per user
         $quotaTargets = KpiTarget::where('metric', 'won_deal_value')
-            ->get()
-            ->keyBy('user_id');
+            ->get()->keyBy('user_id');
 
-        $users = User::orderBy('name')->get();
+        $contactsAdded = Contact::selectRaw('user_id, COUNT(*) as cnt')
+            ->whereIn('user_id', $userIds)
+            ->whereBetween('created_at', [$fromDt, $toDt])
+            ->groupBy('user_id')->pluck('cnt', 'user_id');
 
-        $result = $users->map(function ($u) use ($from, $to, $fromDt, $toDt, $today, $quotaTargets) {
-            $uid        = $u->id;
-            $wonValue   = (float) Deal::where('user_id', $uid)->where('status', 'won')->whereBetween('updated_at', [$fromDt, $toDt])->sum('value');
-            $quota      = isset($quotaTargets[$uid]) ? (float) $quotaTargets[$uid]->target_value : null;
-            $quotaPct   = ($quota && $quota > 0) ? min(100, (int) round($wonValue / $quota * 100)) : null;
+        $todosCreated = ToDo::selectRaw('user_id, COUNT(*) as cnt')
+            ->whereIn('user_id', $userIds)
+            ->whereBetween('date_created', [$from, $to])
+            ->groupBy('user_id')->pluck('cnt', 'user_id');
+
+        $todosCompleted = ToDo::selectRaw('user_id, COUNT(*) as cnt')
+            ->whereIn('user_id', $userIds)
+            ->where('completion_status', 'completed')
+            ->whereBetween('completed_at', [$fromDt, $toDt])
+            ->groupBy('user_id')->pluck('cnt', 'user_id');
+
+        $todosOverdue = ToDo::selectRaw('user_id, COUNT(*) as cnt')
+            ->whereIn('user_id', $userIds)
+            ->where('todo_date', '<', $today)
+            ->where('completion_status', 'pending')
+            ->groupBy('user_id')->pluck('cnt', 'user_id');
+
+        $followupsCreated = DB::table('follow_ups')
+            ->join('to_dos', 'follow_ups.todo_id', '=', 'to_dos.id')
+            ->selectRaw('to_dos.user_id as uid, COUNT(*) as cnt')
+            ->whereIn('to_dos.user_id', $userIds)
+            ->whereBetween('follow_ups.created_at', [$fromDt, $toDt])
+            ->groupBy('to_dos.user_id')->pluck('cnt', 'uid');
+
+        $followupsCompleted = DB::table('follow_ups')
+            ->join('to_dos', 'follow_ups.todo_id', '=', 'to_dos.id')
+            ->selectRaw('to_dos.user_id as uid, COUNT(*) as cnt')
+            ->whereIn('to_dos.user_id', $userIds)
+            ->where('follow_ups.completion_status', 'completed')
+            ->whereBetween('follow_ups.completed_at', [$fromDt, $toDt])
+            ->groupBy('to_dos.user_id')->pluck('cnt', 'uid');
+
+        $dealsWon = Deal::selectRaw('user_id, COUNT(*) as cnt, SUM(value) as total')
+            ->whereIn('user_id', $userIds)
+            ->where('status', 'won')
+            ->whereBetween('updated_at', [$fromDt, $toDt])
+            ->groupBy('user_id')
+            ->get()->keyBy('user_id');
+
+        $result = $users->map(function ($u) use (
+            $contactsAdded, $todosCreated, $todosCompleted, $todosOverdue,
+            $followupsCreated, $followupsCompleted, $dealsWon, $quotaTargets
+        ) {
+            $uid      = $u->id;
+            $wonValue = (float) ($dealsWon[$uid]->total ?? 0);
+            $quota    = isset($quotaTargets[$uid]) ? (float) $quotaTargets[$uid]->target_value : null;
+            $quotaPct = ($quota && $quota > 0) ? min(100, (int) round($wonValue / $quota * 100)) : null;
 
             return [
-                'user_id'             => $uid,
-                'user_name'           => $u->name,
-                'contacts_added'      => Contact::where('user_id', $uid)->whereBetween('created_at', [$fromDt, $toDt])->count(),
-                'todos_created'       => ToDo::where('user_id', $uid)->whereBetween('date_created', [$from, $to])->count(),
-                'todos_completed'     => ToDo::where('user_id', $uid)->where('completion_status', 'completed')->whereBetween('completed_at', [$fromDt, $toDt])->count(),
-                'todos_overdue'       => ToDo::where('user_id', $uid)->where('todo_date', '<', $today)->where('completion_status', 'pending')->count(),
-                'followups_created'   => FollowUp::whereHas('todo', fn($q) => $q->where('user_id', $uid))->whereBetween('created_at', [$fromDt, $toDt])->count(),
-                'followups_completed' => FollowUp::whereHas('todo', fn($q) => $q->where('user_id', $uid))->where('completion_status', 'completed')->whereBetween('completed_at', [$fromDt, $toDt])->count(),
-                'deals_won'           => Deal::where('user_id', $uid)->where('status', 'won')->whereBetween('updated_at', [$fromDt, $toDt])->count(),
-                'won_deal_value'      => $wonValue,
-                'revenue_quota'       => $quota,
+                'user_id'              => $uid,
+                'user_name'            => $u->name,
+                'contacts_added'       => (int) ($contactsAdded[$uid]    ?? 0),
+                'todos_created'        => (int) ($todosCreated[$uid]      ?? 0),
+                'todos_completed'      => (int) ($todosCompleted[$uid]    ?? 0),
+                'todos_overdue'        => (int) ($todosOverdue[$uid]      ?? 0),
+                'followups_created'    => (int) ($followupsCreated[$uid]  ?? 0),
+                'followups_completed'  => (int) ($followupsCompleted[$uid]?? 0),
+                'deals_won'            => (int) ($dealsWon[$uid]->cnt     ?? 0),
+                'won_deal_value'       => $wonValue,
+                'revenue_quota'        => $quota,
                 'quota_attainment_pct' => $quotaPct,
             ];
         });

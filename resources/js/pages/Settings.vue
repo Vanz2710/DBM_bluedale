@@ -23,7 +23,7 @@
           <div class="profile-avatar">{{ userInitial }}</div>
           <div class="profile-info">
             <span class="profile-name">{{ currentUser?.name ?? 'My Account' }}</span>
-            <span class="profile-link-hint">View &amp; edit profile →</span>
+            <span class="profile-link-hint">View &amp; edit profile<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle;margin-left:3px"><polyline points="9 18 15 12 9 6"/></svg></span>
           </div>
         </router-link>
 

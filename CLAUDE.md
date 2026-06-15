@@ -14,6 +14,26 @@ Read that file before writing any frontend code. Key rules:
 - Tables always inside `.table-wrap` with `border-radius: var(--radius)`
 - No Tailwind, no hardcoded colours, scoped CSS only
 
+## Common Breakage Patterns & Fixes
+
+### "Unable to locate file in Vite manifest: resources/css/app.css" (500 on page load)
+`app.blade.php` must only reference the JS entry point — never a CSS file:
+```blade
+@vite(['resources/js/app.js'])   ✅
+@vite(['resources/css/app.css', 'resources/js/app.js'])  ❌ — causes 500
+```
+The global CSS (`resources/css/app.css`) is imported by `app.js` line 1 and bundled automatically. It is not a standalone Vite entry point.
+
+### URL shows `/build/` in the path (e.g. `/library_crm_v2/public/build/list`) + page unstyled
+**Root cause:** `VITE_BASE_URL` in `.env` is set to the build output path (e.g. `/library_crm_v2/public/build/`). This value becomes `import.meta.env.BASE_URL` which was (incorrectly) passed to `createWebHistory()` in `app.js`, making Vue Router prefix every route with `/build/`.
+
+**Fix:**
+1. `.env` must have TWO separate vars:
+   - `VITE_BASE_URL=/library_crm_v2/public/build/` — Vite asset base (keeps CSS/JS chunks loading from the right URL)
+   - `VITE_APP_BASE=/library_crm_v2/public/` — router history base (the app's URL root on XAMPP)
+2. `resources/js/app.js` uses `VITE_APP_BASE` for the router: `createWebHistory(import.meta.env.VITE_APP_BASE ?? '/')`
+3. Run `npm run build` after changing `.env`.
+
 ## Development Commands
 
 **Start all services (Laravel + Vite HMR + queue + log tail):**

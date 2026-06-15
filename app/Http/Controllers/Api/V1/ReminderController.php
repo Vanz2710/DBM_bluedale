@@ -33,9 +33,18 @@ class ReminderController extends Controller
         )
             ->join('contacts', 'to_dos.contact_id', '=', 'contacts.id')
             ->where('to_dos.user_id', $targetUserId)
+            ->where('to_dos.completion_status', 'pending')
             ->whereBetween('to_dos.todo_date', [$pastFrom, $futureEnd])
             ->orderBy('to_dos.todo_date')
             ->get()
+            ->map(fn($t) => [
+                'id'           => $t->id,
+                'contact_id'   => $t->contact_id,
+                'todo_date'    => $t->todo_date->format('Y-m-d'),
+                'todo_remark'  => $t->todo_remark,
+                'contact_name' => $t->contact_name,
+            ])
+            ->all()
         );
 
         $followUps = Cache::remember("reminders_followups_{$targetUserId}", 30, fn () => FollowUp::select(
@@ -46,9 +55,18 @@ class ReminderController extends Controller
             ->join('to_dos', 'follow_ups.todo_id', '=', 'to_dos.id')
             ->join('contacts', 'to_dos.contact_id', '=', 'contacts.id')
             ->where('to_dos.user_id', $targetUserId)
+            ->where('follow_ups.completion_status', 'pending')
             ->whereBetween('follow_ups.followup_date', [$pastFrom, $futureEnd])
             ->orderBy('follow_ups.followup_date')
             ->get()
+            ->map(fn($f) => [
+                'id'           => $f->id,
+                'contact_id'   => $f->contact_id,
+                'followup_date' => $f->followup_date->format('Y-m-d'),
+                'action_type'  => $f->action_type,
+                'contact_name' => $f->contact_name,
+            ])
+            ->all()
         );
 
         $readTodoIds = array_flip(
@@ -69,27 +87,27 @@ class ReminderController extends Controller
 
         foreach ($todos as $t) {
             $items->push([
-                'id'           => $t->id,
+                'id'           => $t['id'],
                 'source_type'  => 'todo',
-                'title'        => $t->todo_remark ?: 'To Do',
-                'contact_name' => $t->contact_name,
-                'contact_id'   => $t->contact_id,
-                'due_date'     => $t->todo_date->format('Y-m-d'),
-                'link'         => '/todos/' . $t->id . '/edit',
-                'is_read'      => isset($readTodoIds[$t->id]),
+                'title'        => $t['todo_remark'] ?: 'To Do',
+                'contact_name' => $t['contact_name'],
+                'contact_id'   => $t['contact_id'],
+                'due_date'     => $t['todo_date'],
+                'link'         => '/todos/' . $t['id'] . '/edit',
+                'is_read'      => isset($readTodoIds[$t['id']]),
             ]);
         }
 
         foreach ($followUps as $f) {
             $items->push([
-                'id'           => $f->id,
+                'id'           => $f['id'],
                 'source_type'  => 'followup',
-                'title'        => $f->action_type ?: 'Follow-Up',
-                'contact_name' => $f->contact_name,
-                'contact_id'   => $f->contact_id,
-                'due_date'     => $f->followup_date->format('Y-m-d'),
-                'link'         => '/followups/' . $f->id . '/edit',
-                'is_read'      => isset($readFollowUpIds[$f->id]),
+                'title'        => $f['action_type'] ?: 'Follow-Up',
+                'contact_name' => $f['contact_name'],
+                'contact_id'   => $f['contact_id'],
+                'due_date'     => $f['followup_date'],
+                'link'         => '/followups/' . $f['id'] . '/edit',
+                'is_read'      => isset($readFollowUpIds[$f['id']]),
             ]);
         }
 

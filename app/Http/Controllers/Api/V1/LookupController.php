@@ -20,17 +20,19 @@ class LookupController extends Controller
     {
         $data = Cache::remember('lookups', 3600, function () {
             return [
-                'statuses'    => ContactStatus::orderBy('name')->get(),
-                'industries'  => ContactIndustry::orderBy('name')->get(),
-                'categories'  => ContactCategory::orderBy('name')->get(),
-                'types'       => ContactType::orderBy('name')->get(),
-                'users'       => User::orderBy('name')->get(['id', 'name']),
-                'tasks'       => Task::orderBy('name')->get(),
+                'statuses'          => ContactStatus::orderBy('name')->get(),
+                'industries'        => ContactIndustry::orderBy('name')->get(),
+                'categories'        => ContactCategory::orderBy('name')->get(),
+                'types'             => ContactType::orderBy('name')->get(),
+                'tasks'             => Task::orderBy('name')->get(),
                 'forecast_products' => ForecastProduct::orderBy('name')->get(),
                 'forecast_types'    => ForecastType::orderBy('name')->get(),
                 'forecast_results'  => ForecastResult::orderBy('name')->get(),
             ];
         });
+
+        // Users are fetched outside the cache — they change as accounts are added/removed
+        $data['users'] = User::orderBy('name')->get(['id', 'name']);
 
         return response()->json($data);
     }

@@ -138,7 +138,7 @@ class UserManagementController extends Controller
 
     public function restoreAccess(Request $request, User $user)
     {
-        $user->update(['inactivity_flagged_at' => null]);
+        $user->update(['inactivity_flagged_at' => null, 'last_login_at' => now()]);
 
         $this->audit('restored_access', 'user', $user->id, $user->name,
             ['inactivity_flagged_at' => $user->inactivity_flagged_at], ['inactivity_flagged_at' => null], $request);
