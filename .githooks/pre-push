@@ -1,0 +1,71 @@
+#!/usr/bin/env bash
+# Final safety net before anything reaches GitHub: re-scans every commit
+# about to be pushed for sensitive filenames/content, in case something
+# slipped past pre-commit (made with --no-verify, committed before this
+# hook existed, cherry-picked from elsewhere, etc).
+#
+# Installed automatically by `composer install` (see composer.json
+# post-install-cmd), which runs: git config core.hooksPath .githooks
+#
+# Git calls this with "<local ref> <local sha> <remote ref> <remote sha>"
+# lines on stdin, one per ref being pushed.
+#
+# Bypass (not recommended): git push --no-verify
+
+repo_root="$(git rev-parse --show-toplevel)"
+# shellcheck source=./secret-patterns.sh
+source "$repo_root/.githooks/secret-patterns.sh"
+
+zero="0000000000000000000000000000000000000000"
+problems=0
+
+while read -r local_ref local_sha remote_ref remote_sha; do
+  [ -z "$local_sha" ] && continue
+  [ "$local_sha" = "$zero" ] && continue   # deleting a remote ref — nothing to scan
+
+  if [ "$remote_sha" = "$zero" ]; then
+    # Brand-new branch/tag on the remote — only scan commits not already
+    # known to exist on some other remote-tracking ref, instead of the
+    # whole repo history.
+    range_commits="$(git rev-list "$local_sha" --not --remotes 2>/dev/null)"
+  else
+    range_commits="$(git rev-list "$remote_sha..$local_sha" 2>/dev/null)"
+  fi
+
+  [ -z "$range_commits" ] && continue
+
+  files="$(git diff-tree --no-commit-id --name-only -r $range_commits 2>/dev/null | sort -u)"
+  while IFS= read -r file; do
+    [ -z "$file" ] && continue
+    if is_blocked_filename "$file"; then
+      echo "BLOCKED PUSH: a commit going to '$remote_ref' touches '$file', which looks like a credentials file." >&2
+      problems=1
+    fi
+  done <<< "$files"
+
+  # Scan full file content at each commit (not `git show`'s diff output —
+  # added lines there are prefixed with "+", which breaks the "^KEY="
+  # anchors in SECRET_CONTENT_REGEX).
+  for c in $range_commits; do
+    while IFS= read -r file; do
+      [ -z "$file" ] && continue
+      case "$file" in *.example|*.sample) continue ;; esac
+      hit="$(git show "$c:$file" 2>/dev/null | grep -Eno "$SECRET_CONTENT_REGEX")"
+      if [ -n "$hit" ]; then
+        echo "BLOCKED PUSH: commit $c (going to '$remote_ref') file '$file' appears to add a real credential/secret:" >&2
+        echo "$hit" | sed 's/^/    line /' >&2
+        problems=1
+      fi
+    done < <(git diff-tree --no-commit-id --name-only -r "$c" 2>/dev/null)
+  done
+done
+
+if [ "$problems" -ne 0 ]; then
+  echo "" >&2
+  echo "Push aborted so nothing sensitive reaches GitHub." >&2
+  echo "Remove/relocate the file (or rotate the secret) and re-commit." >&2
+  echo "If this is a false positive: git push --no-verify" >&2
+  exit 1
+fi
+
+exit 0

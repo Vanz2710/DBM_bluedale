@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+# Blocks commits that introduce sensitive files or obvious leaked credentials.
+#
+# Installed automatically by `composer install` (see composer.json
+# post-install-cmd), which runs: git config core.hooksPath .githooks
+#
+# Bypass (not recommended): git commit --no-verify
+
+repo_root="$(git rev-parse --show-toplevel)"
+# shellcheck source=./secret-patterns.sh
+source "$repo_root/.githooks/secret-patterns.sh"
+
+problems=0
+staged_files="$(git diff --cached --name-only --diff-filter=ACMR)"
+
+# 1) Filenames that should never be committed
+while IFS= read -r file; do
+  [ -z "$file" ] && continue
+  if is_blocked_filename "$file"; then
+    echo "BLOCKED: '$file' looks like a credentials/secrets file and should not be committed." >&2
+    echo "         Move it to private/ (gitignored) instead, or unstage it: git restore --staged \"$file\"" >&2
+    problems=1
+  fi
+done <<< "$staged_files"
+
+# 2) Content of staged text files (catches pasted .env blocks, API keys, etc.)
+while IFS= read -r file; do
+  [ -z "$file" ] && continue
+  is_blocked_filename "$file" && continue   # already reported above
+  case "$file" in *.example|*.sample) continue ;; esac
+
+  # skip binary files (numstat reports "-" for binary diffs)
+  if git diff --cached --numstat -- "$file" 2>/dev/null | awk '{print $1}' | grep -q '^-$'; then
+    continue
+  fi
+
+  hit="$(git show ":$file" 2>/dev/null | grep -Eno "$SECRET_CONTENT_REGEX")"
+  if [ -n "$hit" ]; then
+    echo "BLOCKED: '$file' appears to contain a real credential/secret:" >&2
+    echo "$hit" | sed 's/^/    line /' >&2
+    problems=1
+  fi
+done <<< "$staged_files"
+
+if [ "$problems" -ne 0 ]; then
+  echo "" >&2
+  echo "Commit aborted so nothing sensitive gets committed." >&2
+  echo "If this is a false positive: git commit --no-verify" >&2
+  exit 1
+fi
+
+exit 0
