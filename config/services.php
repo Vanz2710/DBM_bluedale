@@ -42,4 +42,19 @@ return [
         'phone_number_id' => env('WHATSAPP_PHONE_NUMBER_ID'),
     ],
 
+    // Sender addresses offered in the Email Campaigns "SMTP Settings" provider
+    // picker. Configurable per-environment so real addresses never need to be
+    // hardcoded in frontend source. Comma-separated list of emails.
+    'email_campaigns' => [
+        'gmail_senders' => array_filter(array_map('trim', explode(',', env('EMAIL_CAMPAIGN_GMAIL_SENDERS', '')))),
+        'outlook_senders' => array_filter(array_map('trim', explode(',', env('EMAIL_CAMPAIGN_OUTLOOK_SENDERS', '')))),
+    ],
+
+    // Local-only dev seeder credentials (DevelopmentSuperAdminSeeder). Never
+    // referenced in production seeding — only set in your local .env.
+    'dev_seeder' => [
+        'super_admin_email'    => env('DEV_SUPER_ADMIN_EMAIL', 'superadmin@example.com'),
+        'super_admin_password' => env('DEV_SUPER_ADMIN_PASSWORD', 'SuperAdmin@123'),
+    ],
+
 ];

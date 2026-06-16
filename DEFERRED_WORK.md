@@ -8,7 +8,7 @@ The core CRM is feature-rich and has a staging deployment on InfinityFree (`http
 
 **Key facts driving priorities:**
 - Features are still being added → component splits and constraint migrations would conflict with active work
-- InfinityFree staging is up but not fully bootstrapped (STAGING_TODO.md steps 2–6 pending)
+- InfinityFree staging is up but not fully bootstrapped (private/STAGING_TODO.md steps 2–6 pending)
 - InfinityFree required non-standard code hacks (`usePublicPath`, IIFE build format) that must be reverted before cPanel
 - `docs/current-code-progress.md` and `docs/upgrade-checklist.md` are pre-rewrite plain PHP artifacts — they no longer describe the codebase
 
@@ -67,12 +67,12 @@ export function useLookups() {
 
 ## BEFORE TESTING — Must complete before TESTING_PHASE.md can run
 
-### BT-1. Finish InfinityFree Staging (STAGING_TODO.md steps 1–6)
+### BT-1. Finish InfinityFree Staging (private/STAGING_TODO.md steps 1–6)
 
-The following are still pending in `STAGING_TODO.md`:
+The following are still pending in `private/STAGING_TODO.md`:
 
 - [ ] Delete the now-empty `public/` folder from `htdocs/` in File Manager
-- [ ] Create `.env` on the server (File Manager → New File, paste the `.env` block from `STAGING_TODO.md`)
+- [ ] Create `.env` on the server (File Manager → New File, paste the `.env` block from `private/STAGING_TODO.md`)
 - [ ] Create `run_setup.php` and visit it to run: migrate, seed, config:cache, route:cache, view:cache, storage:link
 - [ ] **Delete `run_setup.php` immediately after** — it grants anyone full database access
 - [ ] Visit `https://bgoccrm.infinityfreeapp.com` and confirm login page loads
@@ -114,7 +114,7 @@ Minimum email tests to confirm delivery from the live server:
 
 ### BT-4. Note InfinityFree-Specific Code Hacks for cPanel Revert
 
-**These must be reverted when deploying to cPanel.** Documented in `docs/INFINITYFREE_STATUS.md` Part 2.
+**These must be reverted when deploying to cPanel.** Documented in `private/INFINITYFREE_STATUS.md` Part 2.
 
 | File | InfinityFree change | cPanel action |
 |------|--------------------|--------------------|

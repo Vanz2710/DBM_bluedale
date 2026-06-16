@@ -235,6 +235,10 @@ class EmailCampaignController extends Controller
             'configured'   => (bool) config('services.brevo.api_key'),
             'sender_name'  => config('services.brevo.sender_name'),
             'sender_email' => config('services.brevo.sender_email'),
+            'providers'    => [
+                ['id' => 'gmail', 'name' => 'Gmail', 'senders' => config('services.email_campaigns.gmail_senders')],
+                ['id' => 'outlook', 'name' => 'Outlook', 'senders' => config('services.email_campaigns.outlook_senders')],
+            ],
         ]);
     }
 

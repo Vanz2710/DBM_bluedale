@@ -9,7 +9,7 @@ return [
         'tel'     => '+(6)03 - 7886 9219',
         'fax'     => '+(6)03 - 7887 8212',
         'website' => 'www.bluedale.com.my',
-        'email'   => 'enquiry@bluedale.com.my',
+        'email'   => env('PROPOSAL_COMPANY_EMAIL', 'enquiry@bluedale.com.my'),
         'group_label' => 'A Member of Bluedale Group of Companies',
     ],
 

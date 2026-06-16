@@ -8,10 +8,10 @@ All important project docs in one place. Files at the project root are listed he
 
 | File | What it covers |
 |------|---------------|
-| [docs/INFINITYFREE_STATUS.md](INFINITYFREE_STATUS.md) | **START HERE** — Live InfinityFree setup, what changed, and exact migration steps to real cPanel |
-| [docs/INFINITYFREE_TEST_CASES.md](INFINITYFREE_TEST_CASES.md) | All test cases to run against the live InfinityFree staging site |
+| [private/INFINITYFREE_STATUS.md](../private/INFINITYFREE_STATUS.md) | **START HERE** — Live InfinityFree setup, what changed, and exact migration steps to real cPanel. ⚠️ Contains live credentials — not tracked by git, local only. |
+| [private/INFINITYFREE_TEST_CASES.md](../private/INFINITYFREE_TEST_CASES.md) | All test cases to run against the live InfinityFree staging site. ⚠️ Contains live login credentials — not tracked by git, local only. |
 | [INFINITYFREE_DEPLOYMENT_GUIDE.md](../INFINITYFREE_DEPLOYMENT_GUIDE.md) | Generic framework-agnostic guide for any site on InfinityFree (good to send to others) |
-| [STAGING_TODO.md](../STAGING_TODO.md) | InfinityFree account/DB credentials and original staging to-do list |
+| [private/STAGING_TODO.md](../private/STAGING_TODO.md) | InfinityFree account/DB credentials and original staging to-do list. ⚠️ Contains live credentials — not tracked by git, local only. |
 | [DEPLOY_CPANEL.md](../DEPLOY_CPANEL.md) | Step-by-step cPanel deployment checklist (phases 1–7) |
 | [TESTING_PHASE.md](../TESTING_PHASE.md) | Full pre-deployment testing tracker — local + live, all feature modules, go/no-go sign-off |
 | [PRODUCTION_READINESS.md](../PRODUCTION_READINESS.md) | Infrastructure checklist — Redis, indexes, Sentry, rate limiting, health check, backups |
@@ -40,9 +40,9 @@ All important project docs in one place. Files at the project root are listed he
 
 ```
 InfinityFree (current staging)
-  → Run test cases from INFINITYFREE_TEST_CASES.md
+  → Run test cases from private/INFINITYFREE_TEST_CASES.md
   → Fix any Critical/High bugs found
-  → Review INFINITYFREE_STATUS.md "Migration to cPanel" section
+  → Review private/INFINITYFREE_STATUS.md "Migration to cPanel" section
   → Follow DEPLOY_CPANEL.md
 
 cPanel (production)

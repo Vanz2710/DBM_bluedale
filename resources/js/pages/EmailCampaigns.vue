@@ -465,11 +465,14 @@ const wizardSteps = [
   { id: 'review', number: '4', label: 'Review', description: 'Confirm audience, sender, and schedule before sending.' },
 ];
 
-const providers = [
+// Sender addresses are environment-configured (EMAIL_CAMPAIGN_*_SENDERS in
+// .env) and loaded from GET /v1/email-campaigns/settings on mount — never
+// hardcode real addresses here.
+const providers = ref([
   {
     id: 'gmail',
     name: 'Gmail',
-    senders: ['ammar@bluedale.com.my', 'sales@bluedale.com.my'],
+    senders: [],
     openRate: '42%',
     limit: '500/day',
     bestFor: 'Warm leads',
@@ -478,13 +481,13 @@ const providers = [
   {
     id: 'outlook',
     name: 'Outlook',
-    senders: ['marketing@bluedale.com.my', 'support@bluedale.com.my'],
+    senders: [],
     openRate: '38%',
     limit: '1,000/day',
     bestFor: 'Existing clients',
     replies: 'Outlook inbox',
   },
-];
+]);
 
 const templates = ref([
   {
@@ -527,7 +530,7 @@ const campaign = ref({
   provider: 'gmail',
   contactId: '',
   picIds: [],
-  sender: 'ammar@bluedale.com.my',
+  sender: '',
   schedule: '2026-05-26T10:00',
   subject: 'Quick follow-up from Bluedale',
   previewText: 'A short note about the package options we discussed.',
@@ -554,7 +557,7 @@ const unsubscribed = [
 
 const mergeTags = ['{{first_name}}', '{{company_name}}', '{{phone}}'];
 
-const selectedProvider = computed(() => providers.find((provider) => provider.id === campaign.value.provider) ?? providers[0]);
+const selectedProvider = computed(() => providers.value.find((provider) => provider.id === campaign.value.provider) ?? providers.value[0]);
 const selectedCompany = computed(() => companies.value.find((company) => company.id === Number(campaign.value.contactId)) ?? null);
 const emailOptions = computed(() => incharges.value.filter((pic) => pic.email));
 const selectedEmails = computed(() => emailOptions.value.filter((pic) => campaign.value.picIds.includes(pic.id)));
@@ -611,7 +614,24 @@ watch(industryFilter, () => {
 onMounted(async () => {
   await loadCompanies();
   await loadCampaigns();
+  await loadProviderSettings();
 });
+
+async function loadProviderSettings() {
+  try {
+    const res = await api.get('/v1/email-campaigns/settings');
+    const fetched = res.data?.providers ?? [];
+    fetched.forEach((p) => {
+      const match = providers.value.find((provider) => provider.id === p.id);
+      if (match) match.senders = p.senders ?? [];
+    });
+    if (!campaign.value.sender) {
+      campaign.value.sender = selectedProvider.value?.senders?.[0] ?? '';
+    }
+  } catch (_) {
+    // settings endpoint unavailable — leave sender lists empty
+  }
+}
 
 async function loadCampaigns() {
   try {

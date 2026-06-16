@@ -9,10 +9,10 @@ class DevelopmentSuperAdminSeeder extends Seeder
 {
     public function run(): void
     {
-        $user = User::firstOrNew(['email' => 'superadmin@example.com']);
+        $user = User::firstOrNew(['email' => config('services.dev_seeder.super_admin_email')]);
 
         $user->name = 'Super Admin';
-        $user->password = 'SuperAdmin@123';
+        $user->password = config('services.dev_seeder.super_admin_password');
         $user->email_verified_at = now();
         $user->save();
 
