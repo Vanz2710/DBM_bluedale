@@ -53,8 +53,8 @@ return [
     // Local-only dev seeder credentials (DevelopmentSuperAdminSeeder). Never
     // referenced in production seeding — only set in your local .env.
     'dev_seeder' => [
-        'super_admin_email'    => env('DEV_SUPER_ADMIN_EMAIL', 'superadmin@example.com'),
-        'super_admin_password' => env('DEV_SUPER_ADMIN_PASSWORD', 'SuperAdmin@123'),
+        'super_admin_email'    => env('DEV_SUPER_ADMIN_EMAIL'),
+        'super_admin_password' => env('DEV_SUPER_ADMIN_PASSWORD'),
     ],
 
 ];

@@ -4,7 +4,7 @@
 
 **Phase: Late Active Development → Pre-Staging**
 
-The core CRM is feature-rich and has a staging deployment on InfinityFree (`https://bgoccrm.infinityfreeapp.com`). Feature additions are still in progress (most recently: CalendarPicker with todo date indicators, Reports user scoping, UI tokenization pass). `TESTING_PHASE.md` exists but is 0% complete — formal testing has not started. The production target is cPanel.
+The core CRM is feature-rich and has a staging deployment on InfinityFree (`<staging-url>`). Feature additions are still in progress (most recently: CalendarPicker with todo date indicators, Reports user scoping, UI tokenization pass). `TESTING_PHASE.md` exists but is 0% complete — formal testing has not started. The production target is cPanel.
 
 **Key facts driving priorities:**
 - Features are still being added → component splits and constraint migrations would conflict with active work
@@ -75,7 +75,7 @@ The following are still pending in `private/STAGING_TODO.md`:
 - [ ] Create `.env` on the server (File Manager → New File, paste the `.env` block from `private/STAGING_TODO.md`)
 - [ ] Create `run_setup.php` and visit it to run: migrate, seed, config:cache, route:cache, view:cache, storage:link
 - [ ] **Delete `run_setup.php` immediately after** — it grants anyone full database access
-- [ ] Visit `https://bgoccrm.infinityfreeapp.com` and confirm login page loads
+- [ ] Visit `<staging-url>` and confirm login page loads
 - [ ] Log in as super-admin, check a few pages, verify no 500 errors
 
 Until staging is bootstrapped end-to-end, `TESTING_PHASE.md` cannot be formally checked off.

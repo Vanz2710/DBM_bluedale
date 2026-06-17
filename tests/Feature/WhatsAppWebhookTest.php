@@ -17,12 +17,14 @@ class WhatsAppWebhookTest extends TestCase
 {
     use RefreshDatabase;
 
-    private string $secret  = 'test_secret';
-    private string $verifyToken = 'test_verify_token';
+    private string $secret  = '';
+    private string $verifyToken = '';
 
     protected function setUp(): void
     {
         parent::setUp();
+        $this->secret      = \Illuminate\Support\Str::random(32);
+        $this->verifyToken = \Illuminate\Support\Str::random(32);
         config([
             'services.whatsapp.app_secret'   => $this->secret,
             'services.whatsapp.verify_token' => $this->verifyToken,
