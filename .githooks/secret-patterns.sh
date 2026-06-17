@@ -14,6 +14,8 @@ is_blocked_filename() {
     private|private/*|*/private/*) return 0 ;;
     *.pem|*.key|*.pfx|*.p12|*.pgpass|.npmrc|*/.npmrc|.netrc|*/.netrc) return 0 ;;
     *id_rsa*|*id_dsa*|*id_ecdsa*|*id_ed25519*) return 0 ;;
+    database/sql/*|*/database/sql/*) return 0 ;;  # SQL dumps — use migrations (.php) instead
+    *.sql) return 0 ;;
   esac
   return 1
 }
