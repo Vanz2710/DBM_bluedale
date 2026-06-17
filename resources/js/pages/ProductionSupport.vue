@@ -121,7 +121,7 @@
             <table v-else>
               <thead>
                 <tr>
-                  <th>Job #</th><th>Client</th><th>Type</th><th>Stage</th><th>Due Date</th>
+                  <th>Job #</th><th>Client</th><th>Type</th><th>Stage</th><th>Submission Date</th><th>Due Date</th><th>Payment Due Date</th><th>Installation Date</th><th>Dismantle Completion</th>
                 </tr>
               </thead>
               <tbody>
@@ -130,10 +130,14 @@
                   <td class="ps-client">{{ job.client_name }}</td>
                   <td><span class="ps-type-badge">{{ job.product_type }}</span></td>
                   <td><span class="ps-stage-chip" :style="stageChipStyle(job.current_stage)">{{ stageLabel(job.current_stage) }}</span></td>
+                  <td>{{ formatDate(job.submission_date) || '–' }}</td>
                   <td :class="{ 'ps-overdue': job.is_overdue }">{{ formatDate(job.due_date) }}</td>
+                  <td>{{ formatDate(job.payment_due_date) || '–' }}</td>
+                  <td>{{ formatDate(job.install_date) || '–' }}</td>
+                  <td>{{ formatDate(job.dismantle_completion_date) || '–' }}</td>
                 </tr>
                 <tr v-if="!recentJobs.length">
-                  <td colspan="5" class="ps-empty">No jobs yet. Create one to get started.</td>
+                  <td colspan="9" class="ps-empty">No jobs yet. Create one to get started.</td>
                 </tr>
               </tbody>
             </table>
@@ -1182,6 +1186,11 @@ function initials(name) {
 
 /* ── Shared Table ─────────────────────────────────────────────────────────── */
 .ps-recent-table { overflow-x: auto; }
+.ps-recent-table table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.ps-recent-table th { padding: 10px 22px; color: #64748b; font-weight: 600; font-size: 12px; text-align: left; white-space: nowrap; border-bottom: 1px solid #e2e8f0; }
+.ps-recent-table td { padding: 11px 22px; white-space: nowrap; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+.ps-recent-table th:first-child, .ps-recent-table td:first-child { padding-left: 6px; }
+.ps-recent-table th:last-child, .ps-recent-table td:last-child { padding-right: 6px; }
 .ps-notion-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .ps-notion-table th { padding: 10px 12px; background: #f8fafc; color: #64748b; font-weight: 600; text-align: left; border-bottom: 1px solid #e2e8f0; font-size: 12px; white-space: nowrap; }
 .ps-notion-table td { padding: 11px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }

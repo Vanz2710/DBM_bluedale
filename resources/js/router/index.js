@@ -21,7 +21,7 @@ import SocialMediaReminder from '../pages/SocialMediaReminder.vue';
 import PostingCalendar from '../pages/PostingCalendar.vue';
 import AiWorkflowDemo from '../pages/AiWorkflowDemo.vue';
 import MarketingAiDemo from '../pages/MarketingAiDemo.vue';
-import MarketingEmailDemo from '../pages/MarketingEmailDemo.vue';
+import EmailMarketing from '../pages/EmailMarketing.vue';
 import ProductAvailability from '../pages/ProductAvailability.vue';
 import DeptTaskManager from '../pages/DeptTaskManager.vue';
 import ProductionSupport from '../pages/ProductionSupport.vue';
@@ -50,7 +50,7 @@ const routes = [
     { path: '/posting-calendar',           component: PostingCalendar, name: 'posting-calendar' },
     { path: '/ai-workflow-demo',           component: AiWorkflowDemo, name: 'ai-workflow-demo' },
     { path: '/marketing-ai-demo',          component: MarketingAiDemo, name: 'marketing-ai-demo' },
-    { path: '/marketing-email',            component: MarketingEmailDemo, name: 'marketing-email' },
+    { path: '/marketing-email',            component: EmailMarketing, name: 'marketing-email' },
     { path: '/product-availability',       component: ProductAvailability, name: 'product-availability' },
     { path: '/dept-tasks',                 component: DeptTaskManager,     name: 'dept-tasks' },
     { path: '/production-support',         component: ProductionSupport,   name: 'production-support' },

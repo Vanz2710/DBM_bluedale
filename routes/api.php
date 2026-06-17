@@ -17,6 +17,11 @@ use App\Http\Controllers\Api\V1\SummaryController;
 use App\Http\Controllers\Api\V1\SocialMediaReminderController;
 use App\Http\Controllers\Api\V1\ToDoController;
 use App\Http\Controllers\Api\V1\EmailCampaignController;
+use App\Http\Controllers\Api\V1\EmailContactController;
+use App\Http\Controllers\Api\V1\EmailTagController;
+use App\Http\Controllers\Api\V1\EmailAudienceGroupController;
+use App\Http\Controllers\Api\V1\EmailAnalyticsController;
+use App\Http\Controllers\Api\V1\EmailSettingsController;
 use App\Http\Controllers\Api\V1\TravelController;
 use App\Http\Controllers\Api\V1\DeptTaskController;
 use App\Http\Controllers\Api\V1\ProductionSupportController;
@@ -75,14 +80,46 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('email-campaigns', [EmailCampaignController::class, 'store']);
         Route::put('email-campaigns/{campaign}', [EmailCampaignController::class, 'update']);
         Route::delete('email-campaigns/{campaign}', [EmailCampaignController::class, 'destroy']);
+        Route::post('email-campaigns/{campaign}/duplicate', [EmailCampaignController::class, 'duplicate']);
+        Route::post('email-campaigns/{campaign}/send', [EmailCampaignController::class, 'send']);
         Route::post('email-campaigns/{campaign}/schedule', [EmailCampaignController::class, 'schedule']);
         Route::post('email-campaigns/{campaign}/send-test', [EmailCampaignController::class, 'sendTest']);
-        Route::post('email-campaigns/{campaign}/sync-stats', [EmailCampaignController::class, 'syncStats']);
+        Route::get('email-campaigns/{campaign}/recipients', [EmailCampaignController::class, 'recipients']);
         Route::get('email-templates', [EmailCampaignController::class, 'templateIndex']);
         Route::post('email-templates', [EmailCampaignController::class, 'templateStore']);
         Route::put('email-templates/{template}', [EmailCampaignController::class, 'templateUpdate']);
         Route::delete('email-templates/{template}', [EmailCampaignController::class, 'templateDestroy']);
-        Route::get('email-settings', [EmailCampaignController::class, 'settings']);
+        Route::get('email-settings', [EmailSettingsController::class, 'show']);
+        Route::put('email-settings', [EmailSettingsController::class, 'update']);
+        Route::post('email-settings/test', [EmailSettingsController::class, 'test']);
+
+        // Email contacts (literal routes before the {email_contact} wildcard)
+        Route::get('email-contacts', [EmailContactController::class, 'index']);
+        Route::post('email-contacts', [EmailContactController::class, 'store']);
+        Route::post('email-contacts/bulk', [EmailContactController::class, 'bulk']);
+        Route::post('email-contacts/import', [EmailContactController::class, 'import']);
+        Route::get('email-contacts/export', [EmailContactController::class, 'export']);
+        Route::post('email-contacts/sync-crm', [EmailContactController::class, 'syncFromCrm']);
+        Route::put('email-contacts/{email_contact}', [EmailContactController::class, 'update']);
+        Route::delete('email-contacts/{email_contact}', [EmailContactController::class, 'destroy']);
+
+        // Email tags
+        Route::get('email-tags', [EmailTagController::class, 'index']);
+        Route::post('email-tags', [EmailTagController::class, 'store']);
+        Route::put('email-tags/{email_tag}', [EmailTagController::class, 'update']);
+        Route::delete('email-tags/{email_tag}', [EmailTagController::class, 'destroy']);
+
+        // Email analytics
+        Route::get('email-analytics/dashboard', [EmailAnalyticsController::class, 'dashboard']);
+        Route::get('email-analytics', [EmailAnalyticsController::class, 'analytics']);
+
+        // Email audience groups
+        Route::get('email-groups', [EmailAudienceGroupController::class, 'index']);
+        Route::post('email-groups', [EmailAudienceGroupController::class, 'store']);
+        Route::post('email-groups/preview', [EmailAudienceGroupController::class, 'preview']);
+        Route::get('email-groups/{email_audience_group}/members', [EmailAudienceGroupController::class, 'members']);
+        Route::put('email-groups/{email_audience_group}', [EmailAudienceGroupController::class, 'update']);
+        Route::delete('email-groups/{email_audience_group}', [EmailAudienceGroupController::class, 'destroy']);
 
         // Admin lookup CRUD
         Route::get('admin/{entity}', [AdminController::class, 'index']);

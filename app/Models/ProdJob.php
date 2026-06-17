@@ -18,9 +18,9 @@ class ProdJob extends Model
     ];
 
     protected $casts = [
-        'request_date'     => 'date',
-        'due_date'         => 'date',
-        'installation_date'=> 'date',
+        'request_date'     => 'date:Y-m-d',
+        'due_date'         => 'date:Y-m-d',
+        'installation_date'=> 'date:Y-m-d',
     ];
 
     public function creator(): BelongsTo

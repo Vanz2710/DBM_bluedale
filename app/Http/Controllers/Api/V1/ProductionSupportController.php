@@ -32,7 +32,7 @@ class ProductionSupportController extends Controller
             ->whereBetween('updated_at', [$monthStart, $now])
             ->count();
 
-        $recentJobs = ProdJob::with('creator')
+        $recentJobs = ProdJob::with('creator', 'application', 'artworkPayment', 'installation', 'dismantle')
             ->orderByDesc('created_at')
             ->limit(8)
             ->get()
@@ -61,7 +61,7 @@ class ProductionSupportController extends Controller
 
     public function index(Request $request): \Illuminate\Http\JsonResponse
     {
-        $q = ProdJob::with('creator');
+        $q = ProdJob::with('creator', 'application', 'artworkPayment', 'installation', 'dismantle');
 
         if ($search = $request->search) {
             $q->where(function ($sub) use ($search) {
@@ -420,6 +420,10 @@ class ProductionSupportController extends Controller
             'overall_status'   => $job->overall_status,
             'due_date'         => $job->due_date?->toDateString(),
             'installation_date'=> $job->installation_date?->toDateString(),
+            'submission_date'  => $job->application?->submission_date?->toDateString(),
+            'payment_due_date' => $job->artworkPayment?->payment_due_date?->toDateString(),
+            'install_date'     => $job->installation?->installation_date?->toDateString(),
+            'dismantle_completion_date' => $job->dismantle?->completion_date?->toDateString(),
             'notes'            => $job->notes,
             'created_by'       => $job->creator ? ['id' => $job->creator->id, 'name' => $job->creator->name] : null,
             'created_at'       => $job->created_at?->toISOString(),

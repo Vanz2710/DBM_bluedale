@@ -15,7 +15,7 @@ class ProdInstallation extends Model
     ];
 
     protected $casts = [
-        'installation_date' => 'date',
+        'installation_date' => 'date:Y-m-d',
     ];
 
     public function job(): BelongsTo

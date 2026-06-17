@@ -14,8 +14,8 @@ class ProdDismantle extends Model
     ];
 
     protected $casts = [
-        'scheduled_date'  => 'date',
-        'completion_date' => 'date',
+        'scheduled_date'  => 'date:Y-m-d',
+        'completion_date' => 'date:Y-m-d',
     ];
 
     public function job(): BelongsTo

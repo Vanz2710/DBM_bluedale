@@ -15,7 +15,7 @@ class ProdApplication extends Model
     ];
 
     protected $casts = [
-        'submission_date' => 'date',
+        'submission_date' => 'date:Y-m-d',
     ];
 
     public function job(): BelongsTo

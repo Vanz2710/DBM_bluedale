@@ -15,7 +15,7 @@ class ProdComplaint extends Model
     ];
 
     protected $casts = [
-        'complaint_date' => 'date',
+        'complaint_date' => 'date:Y-m-d',
     ];
 
     public function job(): BelongsTo

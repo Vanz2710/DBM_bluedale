@@ -16,7 +16,7 @@ class ProdArtworkPayment extends Model
     ];
 
     protected $casts = [
-        'payment_due_date' => 'date',
+        'payment_due_date' => 'date:Y-m-d',
         'payment_amount'   => 'decimal:2',
     ];
 
