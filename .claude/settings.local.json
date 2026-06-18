@@ -4,7 +4,9 @@
       "PowerShell(& \"C:\\\\xampp\\\\apache\\\\bin\\\\httpd.exe\" -t 2>&1)",
       "PowerShell(& \"C:\\\\xampp\\\\apache\\\\bin\\\\httpd.exe\" -k restart 2>&1)",
       "Bash(npm run *)",
-      "Bash(php artisan *)"
+      "Bash(php artisan *)",
+      "Bash(git -C c:/xampp2/htdocs/library_crm_v2 remote -v)",
+      "Bash(git -C c:/xampp2/htdocs/library_crm_v2 branch -vv)"
     ]
   }
 }
