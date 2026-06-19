@@ -25,10 +25,11 @@ class EmailAudienceGroupController extends Controller
         $data = $this->validateGroup($request);
 
         $group = EmailAudienceGroup::create([
-            'name'        => $data['name'],
-            'description' => $data['description'] ?? null,
-            'type'        => $data['type'],
-            'filters'     => $data['type'] === 'dynamic' ? ($data['filters'] ?? []) : null,
+            'name'         => $data['name'],
+            'description'  => $data['description'] ?? null,
+            'type'         => $data['type'],
+            'filters'      => $data['type'] === 'dynamic' ? ($data['filters'] ?? []) : null,
+            'max_contacts' => $data['max_contacts'] ?? 200,
         ]);
 
         if ($group->type === 'static' && !empty($data['contact_ids'])) {
@@ -43,10 +44,11 @@ class EmailAudienceGroupController extends Controller
         $data = $this->validateGroup($request);
 
         $emailAudienceGroup->update([
-            'name'        => $data['name'],
-            'description' => $data['description'] ?? null,
-            'type'        => $data['type'],
-            'filters'     => $data['type'] === 'dynamic' ? ($data['filters'] ?? []) : null,
+            'name'         => $data['name'],
+            'description'  => $data['description'] ?? null,
+            'type'         => $data['type'],
+            'filters'      => $data['type'] === 'dynamic' ? ($data['filters'] ?? []) : null,
+            'max_contacts' => $data['max_contacts'] ?? $emailAudienceGroup->max_contacts ?? 200,
         ]);
 
         if ($emailAudienceGroup->type === 'static' && array_key_exists('contact_ids', $data)) {
@@ -121,20 +123,28 @@ class EmailAudienceGroupController extends Controller
             'filters'       => 'nullable|array',
             'contact_ids'   => 'nullable|array',
             'contact_ids.*' => 'integer|exists:email_contacts,id',
+            'max_contacts'  => 'nullable|integer|min:1|max:10000',
         ]);
     }
 
     private function present(EmailAudienceGroup $group): array
     {
+        $count       = $this->resolver->query($group)->count();
+        $maxContacts = $group->max_contacts ?? 200;
+
         return [
-            'id'          => $group->id,
-            'name'        => $group->name,
-            'description' => $group->description,
-            'type'        => $group->type,
-            'filters'     => $group->filters,
-            'is_system'   => $group->is_system,
-            'count'       => $this->resolver->query($group)->count(),
-            'created_at'  => $group->created_at?->toISOString(),
+            'id'              => $group->id,
+            'name'            => $group->name,
+            'description'     => $group->description,
+            'type'            => $group->type,
+            'filters'         => $group->filters,
+            'is_system'       => $group->is_system,
+            'max_contacts'    => $maxContacts,
+            'count'           => $count,
+            'slots_remaining' => max(0, $maxContacts - $count),
+            'is_full'         => $count >= $maxContacts,
+            'created_at'      => $group->created_at?->toISOString(),
+            'updated_at'      => $group->updated_at?->toISOString(),
         ];
     }
 }

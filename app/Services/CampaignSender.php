@@ -194,7 +194,7 @@ class CampaignSender
     private function wrap(EmailCampaign $campaign, string $body, EmailSetting $settings, ?EmailCampaignRecipient $recipient): string
     {
         $isHtml = $body !== strip_tags($body);
-        $content = $isHtml ? $body : nl2br(e($body));
+        $content = $isHtml ? nl2br($this->inlineImages($body)) : nl2br(e($body));
 
         $base = rtrim(config('app.url'), '/');
         $trackingOn = $settings->tracking_enabled && $recipient;
@@ -259,6 +259,32 @@ class CampaignSender
 
             return 'href="' . $tracked . '"';
         }, $html);
+    }
+
+    /**
+     * Replace local storage image URLs with base64 data URIs so images
+     * render in email clients that cannot reach localhost.
+     */
+    private function inlineImages(string $html): string
+    {
+        return preg_replace_callback('/<img([^>]*?)src="([^"]+)"([^>]*?)>/i', function ($m) {
+            $src  = $m[2];
+            $path = $this->storageUrlToPath($src);
+            if ($path && file_exists($path)) {
+                $mime = mime_content_type($path);
+                $src  = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($path));
+            }
+            return '<img' . $m[1] . 'src="' . $src . '"' . $m[3] . '>';
+        }, $html);
+    }
+
+    private function storageUrlToPath(string $url): ?string
+    {
+        if (!str_contains($url, '/storage/email-images/')) {
+            return null;
+        }
+        $filename = basename(parse_url($url, PHP_URL_PATH));
+        return storage_path('app/public/email-images/' . $filename);
     }
 
     private function log(EmailCampaign $campaign, EmailCampaignRecipient $recipient, string $event): void

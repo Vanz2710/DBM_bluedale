@@ -278,6 +278,145 @@ class EmailContactController extends Controller
         return response()->json(['message' => "Synced {$imported} new contact(s) from CRM, skipped {$skipped} existing."]);
     }
 
+    /**
+     * Bulk-import contacts from a JSON payload with full settings control.
+     */
+    public function bulkImport(Request $request)
+    {
+        $data = $request->validate([
+            'contacts'                    => 'required|array|min:1|max:5000',
+            'contacts.*.email'            => 'required|email|max:255',
+            'contacts.*.full_name'        => 'nullable|string|max:255',
+            'contacts.*.phone'            => 'nullable|string|max:50',
+            'contacts.*.company'          => 'nullable|string|max:255',
+            'contacts.*.status'           => 'nullable|in:subscribed,unsubscribed,bounced,pending',
+            'settings'                    => 'nullable|array',
+            'settings.skip_duplicates'    => 'nullable|boolean',
+            'settings.update_existing'    => 'nullable|boolean',
+            'settings.default_status'     => 'nullable|in:subscribed,unsubscribed,bounced,pending',
+            'settings.assign_group_id'    => 'nullable|integer|exists:email_audience_groups,id',
+            'settings.tag_ids'            => 'nullable|array',
+            'settings.tag_ids.*'          => 'integer|exists:email_tags,id',
+        ]);
+
+        $settings      = $data['settings'] ?? [];
+        $skipDups      = $settings['skip_duplicates'] ?? true;
+        $updateExist   = $settings['update_existing'] ?? false;
+        $defaultStatus = $settings['default_status'] ?? 'subscribed';
+        $groupId       = $settings['assign_group_id'] ?? null;
+        $tagIds        = $settings['tag_ids'] ?? [];
+
+        $imported = 0;
+        $updated  = 0;
+        $skipped  = 0;
+        $failed   = 0;
+        $errors   = [];
+
+        foreach ($data['contacts'] as $i => $row) {
+            $email = strtolower(trim($row['email']));
+
+            $existing = EmailContact::where('email', $email)->first();
+
+            if ($existing) {
+                if (!$updateExist) {
+                    $skipped++;
+                    continue;
+                }
+
+                $existing->update(array_filter([
+                    'full_name' => $row['full_name'] ?: $existing->full_name,
+                    'phone'     => $row['phone'] ?: $existing->phone,
+                    'company'   => $row['company'] ?: $existing->company,
+                    'status'    => $row['status'] ?: $existing->status,
+                ], fn($v) => $v !== null && $v !== ''));
+
+                if ($tagIds) $existing->tags()->syncWithoutDetaching($tagIds);
+                if ($groupId) $existing->groups()->syncWithoutDetaching([$groupId]);
+
+                $updated++;
+                continue;
+            }
+
+            $contact = EmailContact::create([
+                'full_name' => $row['full_name'] ?? null,
+                'email'     => $email,
+                'phone'     => $row['phone'] ?? null,
+                'company'   => $row['company'] ?? null,
+                'status'    => $row['status'] ?: $defaultStatus,
+                'source'    => 'bulk-import',
+            ]);
+
+            if ($tagIds) $contact->tags()->sync($tagIds);
+            if ($groupId) $contact->groups()->syncWithoutDetaching([$groupId]);
+
+            $imported++;
+        }
+
+        return response()->json([
+            'imported' => $imported,
+            'updated'  => $updated,
+            'skipped'  => $skipped,
+            'failed'   => $failed,
+            'errors'   => $errors,
+            'total'    => count($data['contacts']),
+        ]);
+    }
+
+    /**
+     * OCR extract stub — returns extracted contacts if Tesseract is available,
+     * otherwise returns a configuration hint.
+     */
+    public function ocrExtract(Request $request)
+    {
+        $request->validate(['image' => 'required|file|mimes:jpg,jpeg,png,pdf|max:10240']);
+
+        $path = $request->file('image')->getPathname();
+
+        // Try system Tesseract if available
+        if (function_exists('exec')) {
+            $output = [];
+            $code   = 0;
+            exec("tesseract --version 2>&1", $output, $code);
+
+            if ($code === 0) {
+                $outTxt = sys_get_temp_dir() . '/ocr_' . uniqid();
+                exec("tesseract " . escapeshellarg($path) . " " . escapeshellarg($outTxt) . " 2>/dev/null");
+                $text = @file_get_contents($outTxt . '.txt');
+                @unlink($outTxt . '.txt');
+
+                if ($text) {
+                    $rows = $this->extractContactsFromText($text);
+                    if ($rows) {
+                        return response()->json([
+                            'headers' => ['Full Name', 'Email', 'Phone', 'Company'],
+                            'rows'    => $rows,
+                        ]);
+                    }
+                }
+            }
+        }
+
+        return response()->json([
+            'message' => 'OCR is not configured on this server. Install Tesseract OCR or paste/upload CSV data instead.',
+        ], 422);
+    }
+
+    private function extractContactsFromText(string $text): array
+    {
+        $rows   = [];
+        $emails = [];
+        preg_match_all('/[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/', $text, $emailMatches);
+
+        foreach ($emailMatches[0] as $email) {
+            if (!in_array($email, $emails, true)) {
+                $emails[] = $email;
+                $rows[]   = ['', $email, '', ''];
+            }
+        }
+
+        return $rows;
+    }
+
     // --- Helpers ---------------------------------------------------------
 
     private function validateContact(Request $request, ?int $ignoreId = null): array

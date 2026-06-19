@@ -89,6 +89,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('email-templates', [EmailCampaignController::class, 'templateStore']);
         Route::put('email-templates/{template}', [EmailCampaignController::class, 'templateUpdate']);
         Route::delete('email-templates/{template}', [EmailCampaignController::class, 'templateDestroy']);
+        Route::post('email-images', [\App\Http\Controllers\Api\V1\EmailImageController::class, 'store']);
         Route::get('email-settings', [EmailSettingsController::class, 'show']);
         Route::put('email-settings', [EmailSettingsController::class, 'update']);
         Route::post('email-settings/test', [EmailSettingsController::class, 'test']);
@@ -100,6 +101,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('email-contacts/import', [EmailContactController::class, 'import']);
         Route::get('email-contacts/export', [EmailContactController::class, 'export']);
         Route::post('email-contacts/sync-crm', [EmailContactController::class, 'syncFromCrm']);
+        Route::post('email-contacts/bulk-import', [EmailContactController::class, 'bulkImport']);
+        Route::post('email-contacts/ocr-extract', [EmailContactController::class, 'ocrExtract']);
         Route::put('email-contacts/{email_contact}', [EmailContactController::class, 'update']);
         Route::delete('email-contacts/{email_contact}', [EmailContactController::class, 'destroy']);
 

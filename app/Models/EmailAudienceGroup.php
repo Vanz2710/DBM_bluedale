@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class EmailAudienceGroup extends Model
 {
-    protected $fillable = ['name', 'description', 'type', 'filters', 'is_system'];
+    protected $fillable = ['name', 'description', 'type', 'filters', 'is_system', 'max_contacts'];
 
     protected $casts = [
         'filters'   => 'array',
