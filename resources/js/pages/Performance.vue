@@ -7,9 +7,6 @@
         <p class="page-subtitle">KPI dashboard — track activity, targets, and team progress</p>
       </div>
       <div class="page-header-actions">
-        <button v-if="activeTab === 'activity'" class="btn-export" @click="exportActivityCSV">
-          <span class="btn-icon" v-html="ICONS.download"></span> Export CSV
-        </button>
         <button v-if="activeTab === 'team' && isAdmin" class="btn-export" @click="exportTeamCSV">
           <span class="btn-icon" v-html="ICONS.download"></span> Export CSV
         </button>
@@ -45,7 +42,6 @@
     <!-- Tab Navigation -->
     <div class="tab-nav">
       <button :class="['tab-btn', { active: activeTab === 'overview' }]" @click="activeTab = 'overview'">Overview</button>
-      <button :class="['tab-btn', { active: activeTab === 'activity' }]" @click="switchActivity">Activity</button>
       <button v-if="isAdmin" :class="['tab-btn', { active: activeTab === 'team' }]" @click="switchTeam">Team</button>
       <button :class="['tab-btn', { active: activeTab === 'targets' }]" @click="switchTargets">Targets</button>
     </div>
@@ -183,93 +179,6 @@
 
       </template>
       <div v-else class="empty-state">No data for this period.</div>
-    </div>
-
-    <!-- ═══════════════════════════════ ACTIVITY TAB ══════════════════════════ -->
-    <div v-if="activeTab === 'activity'">
-      <!-- Date Navigator -->
-      <div class="date-nav">
-        <button class="nav-btn" @click="prevPeriod">‹ Prev</button>
-        <span class="period-label">{{ periodLabel }}</span>
-        <button class="nav-btn" @click="nextPeriod">Next ›</button>
-      </div>
-
-      <div class="table-wrap">
-        <LoadingSpinner v-if="loadingActivity" />
-        <div v-else-if="tasks.length === 0" class="loading-msg">
-          No tasks found. Add tasks in the Admin Panel first.
-        </div>
-        <div v-else class="table-scroll">
-          <table>
-            <thead>
-              <tr class="header-tasks">
-                <th class="col-period" :colspan="viewType === 'year' ? 2 : 1">
-                  {{ viewType === 'week' ? 'Date / Day' : viewType === 'month' ? 'Week Range' : 'Month / Week' }}
-                </th>
-                <th v-for="task in tasks" :key="task.id" class="col-task">{{ task.name }}</th>
-              </tr>
-              <tr class="header-targets">
-                <td :colspan="viewType === 'year' ? 2 : 1" class="target-label">
-                  {{ viewType === 'month' ? 'Monthly Target (×5)' : 'Weekly Target' }}
-                </td>
-                <td v-for="task in tasks" :key="task.id" class="target-val">
-                  {{ getTaskTarget(task.name, viewType === 'week' ? 1 : 5) ?? '—' }}
-                </td>
-              </tr>
-            </thead>
-            <tbody v-if="viewType === 'week'">
-              <tr v-for="(date, idx) in datesInWeek" :key="date" :class="{ 'weekend-row': idx >= 5 }">
-                <td class="col-period">
-                  {{ fmtDate(date) }}
-                  <span class="weekday-tag">{{ WEEKDAYS[idx] }}</span>
-                </td>
-                <td v-for="task in tasks" :key="task.id" class="col-count"
-                    :class="{ 'has-data': getActual(date, task.name) > 0 }">
-                  {{ getActual(date, task.name) || '—' }}
-                </td>
-              </tr>
-              <tr class="total-row">
-                <td>Total</td>
-                <td v-for="task in tasks" :key="task.id" class="col-count total"
-                    :class="{ 'over-target': isOverTarget(task.name), 'under-target': isUnderTarget(task.name) }">
-                  {{ getWeekTotal(task.name) }}
-                </td>
-              </tr>
-            </tbody>
-            <tbody v-else-if="viewType === 'month'">
-              <tr v-for="week in weeksInMonth" :key="week.isoWeek">
-                <td class="col-period">{{ fmtDate(week.start) }} — {{ fmtDate(week.end) }}</td>
-                <td v-for="task in tasks" :key="task.id" class="col-count"
-                    :class="{ 'has-data': getActual(week.isoWeek, task.name) > 0 }">
-                  {{ getActual(week.isoWeek, task.name) || '—' }}
-                </td>
-              </tr>
-              <tr class="total-row">
-                <td>Total</td>
-                <td v-for="task in tasks" :key="task.id" class="col-count total">
-                  {{ getPeriodTotal(task.name, weeksInMonth.map(w => w.isoWeek)) }}
-                </td>
-              </tr>
-            </tbody>
-            <tbody v-else>
-              <tr v-for="week in weeksInYear" :key="week.isoWeek">
-                <td class="col-period month-label">{{ week.monthLabel }}</td>
-                <td class="col-period small">{{ fmtDate(week.start) }} — {{ fmtDate(week.end) }}</td>
-                <td v-for="task in tasks" :key="task.id" class="col-count"
-                    :class="{ 'has-data': getActual(week.isoWeek, task.name) > 0 }">
-                  {{ getActual(week.isoWeek, task.name) || '—' }}
-                </td>
-              </tr>
-              <tr class="total-row">
-                <td colspan="2">Total</td>
-                <td v-for="task in tasks" :key="task.id" class="col-count total">
-                  {{ getPeriodTotal(task.name, weeksInYear.map(w => w.isoWeek)) }}
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
     </div>
 
     <!-- ═══════════════════════════════ TEAM TAB ══════════════════════════════ -->
@@ -448,34 +357,6 @@
           <span v-if="targetsSaved" class="save-success">Saved!</span>
         </div>
       </div>
-
-      <!-- Task Activity Targets -->
-      <div class="section-card" style="margin-top:16px">
-        <div class="section-title">Task Activity Targets (Weekly)</div>
-        <p class="targets-hint">
-          These control the weekly targets shown in the Activity tab.
-          Edit them via Admin → Performance Targets.
-        </p>
-        <div class="table-scroll" v-if="taskTargetRows.length > 0">
-          <table>
-            <thead>
-              <tr>
-                <th>Task</th>
-                <th>Weekly Target</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="t in taskTargetRows" :key="t.id">
-                <td>{{ t.task_name }}</td>
-                <td class="num-cell">{{ t.weekly_target }}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-        <div v-else class="empty-state" style="padding:20px">
-          No task targets set. Go to Admin → Performance Targets.
-        </div>
-      </div>
     </div>
 
   </div>
@@ -484,7 +365,6 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import api from '../api.js';
-import LoadingSpinner from '../components/LoadingSpinner.vue';
 
 // ─── SVG Icons ────────────────────────────────────────────────────────────────
 const ICONS = {
@@ -506,8 +386,7 @@ const ICONS = {
 };
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-const MONTHS   = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
 const KPI_METRICS = [
   { key: 'contacts_added',      label: 'New Contacts',        icon: 'users'        },
@@ -519,7 +398,6 @@ const KPI_METRICS = [
   { key: 'won_deal_value',      label: 'Won Deal Value (RM)', icon: 'currency'     },
 ];
 
-
 // ─── Date helpers ─────────────────────────────────────────────────────────────
 function toYMD(d) {
   const dt = new Date(d);
@@ -529,13 +407,6 @@ function fmtDate(dateStr) {
   if (!dateStr) return '—';
   const [y, m, d] = dateStr.split('-');
   return `${d}-${m}-${String(y).slice(2)}`;
-}
-function getISOWeek(dateStr) {
-  const d = new Date(dateStr);
-  d.setHours(0, 0, 0, 0);
-  d.setDate(d.getDate() + 3 - ((d.getDay() + 6) % 7));
-  const jan4 = new Date(d.getFullYear(), 0, 4);
-  return String(1 + Math.round(((d - jan4) / 86400000 - 3 + ((jan4.getDay() + 6) % 7)) / 7)).padStart(2, '0');
 }
 function getMondayOfWeek(dateStr) {
   const d = new Date(dateStr);
@@ -548,42 +419,6 @@ function buildWeekDates(mondayStr) {
     const d = new Date(mondayStr); d.setDate(d.getDate() + i); return toYMD(d);
   });
 }
-function buildWeeksInMonth(yearMonth) {
-  const [year, month] = yearMonth.split('-').map(Number);
-  const firstDay = new Date(year, month - 1, 1);
-  const lastDay  = new Date(year, month, 0);
-  const weeks    = [];
-  const day0     = firstDay.getDay() || 7;
-  const monday   = new Date(firstDay);
-  monday.setDate(firstDay.getDate() - (day0 - 1));
-  let current = new Date(monday);
-  while (current <= lastDay) {
-    const weekEnd    = new Date(current); weekEnd.setDate(weekEnd.getDate() + 6);
-    const clampedEnd = weekEnd > lastDay ? lastDay : weekEnd;
-    weeks.push({ isoWeek: getISOWeek(toYMD(current)), start: toYMD(current), end: toYMD(clampedEnd) });
-    current.setDate(current.getDate() + 7);
-  }
-  return weeks;
-}
-function buildWeeksInYear(year) {
-  const jan4      = new Date(year, 0, 4);
-  const dayOfJan4 = jan4.getDay() || 7;
-  const week1Mon  = new Date(jan4); week1Mon.setDate(jan4.getDate() - (dayOfJan4 - 1));
-  const yearEnd   = new Date(year, 11, 31);
-  const weeks     = [];
-  let current     = new Date(week1Mon);
-  while (current <= yearEnd) {
-    const weekStart = new Date(current);
-    const weekEnd   = new Date(current); weekEnd.setDate(weekEnd.getDate() + 6);
-    const thu       = new Date(weekStart); thu.setDate(thu.getDate() + 3);
-    if (thu.getFullYear() === year) {
-      weeks.push({ isoWeek: getISOWeek(toYMD(weekStart)), start: toYMD(weekStart), end: toYMD(weekEnd), monthLabel: MONTHS[thu.getMonth()] });
-    }
-    current.setDate(current.getDate() + 7);
-    if (weeks.length > 55) break;
-  }
-  return weeks;
-}
 function formatCurrency(val) {
   if (!val) return '—';
   return 'RM ' + Number(val).toLocaleString('en-MY', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
@@ -594,9 +429,9 @@ const currentUser = JSON.parse(localStorage.getItem('crm_user') || 'null');
 const isAdmin     = (currentUser?.roles ?? []).some(r => ['admin', 'super-admin'].includes(r));
 
 // ─── State ───────────────────────────────────────────────────────────────────
-const today        = toYMD(new Date());
-const thisMonth    = today.slice(0, 7);
-const thisYear     = parseInt(today.slice(0, 4));
+const today       = toYMD(new Date());
+const thisMonth   = today.slice(0, 7);
+const thisYear    = parseInt(today.slice(0, 4));
 
 const activeTab      = ref('overview');
 const viewType       = ref('month');
@@ -606,37 +441,26 @@ const currentMonday  = ref(getMondayOfWeek(today));
 const selectedUserId = ref(null);
 const targetUserId   = ref(null);
 
-// Overview
 const overview        = ref(null);
 const loadingOverview = ref(false);
 
-// Activity (task breakdown)
-const tasks           = ref([]);
-const taskTargets     = ref({});
-const taskTargetRows  = ref([]);
-const report          = ref({});
-const loadingActivity = ref(false);
-const activityLoaded  = ref(false);
-
-// Team
 const teamData    = ref([]);
 const loadingTeam = ref(false);
 const teamSortKey = ref('user_name');
 const teamSortDir = ref('asc');
 
-// Deal forecast
 const dealSummary = ref(null);
 
-// KPI Targets
 const editableTargets = ref({});
 const loadingTargets  = ref(false);
 const savingTargets   = ref(false);
 const targetsSaved    = ref(false);
 
-// Lookups
 const users = ref([]);
 
 // ─── Computed ────────────────────────────────────────────────────────────────
+const datesInWeek = computed(() => buildWeekDates(currentMonday.value));
+
 const periodLabel = computed(() => {
   if (viewType.value === 'week') {
     const dates = datesInWeek.value;
@@ -648,10 +472,6 @@ const periodLabel = computed(() => {
   }
   return String(selectedYear.value);
 });
-
-const datesInWeek  = computed(() => buildWeekDates(currentMonday.value));
-const weeksInMonth = computed(() => buildWeeksInMonth(selectedMonth.value));
-const weeksInYear  = computed(() => buildWeeksInYear(selectedYear.value));
 
 const targetUserName = computed(() => {
   if (!targetUserId.value) return '';
@@ -719,7 +539,6 @@ function sortTeam(key) {
     teamSortDir.value = key === 'user_name' ? 'asc' : 'desc';
   }
 }
-
 function sortIconFor(key) {
   if (teamSortKey.value !== key) return ICONS['sort-neutral'];
   return teamSortDir.value === 'asc' ? ICONS['arrow-up'] : ICONS['arrow-down'];
@@ -739,59 +558,15 @@ function periodParams() {
   return p;
 }
 
-// ─── Navigation (activity tab) ───────────────────────────────────────────────
-function prevPeriod() {
-  if (viewType.value === 'week') {
-    const d = new Date(currentMonday.value); d.setDate(d.getDate() - 7); currentMonday.value = toYMD(d);
-  } else if (viewType.value === 'month') {
-    const [y, m] = selectedMonth.value.split('-').map(Number);
-    const prev = new Date(y, m - 2, 1);
-    selectedMonth.value = `${prev.getFullYear()}-${String(prev.getMonth()+1).padStart(2,'0')}`;
-  } else {
-    selectedYear.value--;
-  }
-  loadActivity();
-}
-function nextPeriod() {
-  if (viewType.value === 'week') {
-    const d = new Date(currentMonday.value); d.setDate(d.getDate() + 7); currentMonday.value = toYMD(d);
-  } else if (viewType.value === 'month') {
-    const [y, m] = selectedMonth.value.split('-').map(Number);
-    const next = new Date(y, m, 1);
-    selectedMonth.value = `${next.getFullYear()}-${String(next.getMonth()+1).padStart(2,'0')}`;
-  } else {
-    selectedYear.value++;
-  }
-  loadActivity();
-}
-
-// ─── Activity helpers ─────────────────────────────────────────────────────────
-function getTaskTarget(taskName, multiplier = 1) {
-  const t = taskTargets.value[taskName];
-  return t != null ? t * multiplier : null;
-}
-function getActual(key, taskName) { return report.value?.[key]?.[taskName] ?? 0; }
-function getWeekTotal(taskName) { return datesInWeek.value.reduce((s, d) => s + getActual(d, taskName), 0); }
-function getPeriodTotal(taskName, keys) { return keys.reduce((s, k) => s + getActual(k, taskName), 0); }
-function isOverTarget(taskName) { const t = getTaskTarget(taskName, 1); return t != null && getWeekTotal(taskName) >= t; }
-function isUnderTarget(taskName) { const t = getTaskTarget(taskName, 1); return t != null && t > 0 && getWeekTotal(taskName) < t; }
-
 // ─── Event handlers ──────────────────────────────────────────────────────────
 function onViewChange() {
   if (activeTab.value === 'overview') { loadOverview(); loadDealSummary(); }
-  else if (activeTab.value === 'activity') loadActivity();
   else if (activeTab.value === 'team') loadTeam();
 }
 function onUserChange() {
   targetUserId.value = selectedUserId.value;
   loadOverview();
   loadDealSummary();
-  loadTaskTargets();
-  loadActivity();
-}
-function switchActivity() {
-  activeTab.value = 'activity';
-  if (!activityLoaded.value) loadActivity();
 }
 function switchTeam() {
   activeTab.value = 'team';
@@ -805,7 +580,6 @@ function switchTargets() {
 // ─── API calls ───────────────────────────────────────────────────────────────
 async function loadLookups() {
   const res = await api.get('/v1/lookups');
-  tasks.value = res.data.tasks ?? [];
   users.value = res.data.users ?? [];
   if (!selectedUserId.value) {
     const me = users.value.find(u => u.id === currentUser?.id);
@@ -848,29 +622,6 @@ async function loadDealSummary() {
   delete params.view;
   const res = await api.get('/v1/deals/summary', { params });
   dealSummary.value = res.data.data;
-}
-
-async function loadTaskTargets() {
-  if (!selectedUserId.value) return;
-  const res = await api.get(`/v1/performance/targets/${selectedUserId.value}`);
-  const map = {};
-  taskTargetRows.value = res.data.data ?? [];
-  for (const t of taskTargetRows.value) map[t.task_name] = t.weekly_target;
-  taskTargets.value = map;
-}
-
-async function loadActivity() {
-  if (!selectedUserId.value) return;
-  activityLoaded.value = true;
-  loadingActivity.value = true;
-  try {
-    const res = await api.get('/v1/performance/report', {
-      params: { ...periodParams(), user_id: selectedUserId.value },
-    });
-    report.value = res.data.data ?? {};
-  } finally {
-    loadingActivity.value = false;
-  }
 }
 
 async function loadTeam() {
@@ -940,38 +691,10 @@ function exportTeamCSV() {
   a.click();
 }
 
-function exportActivityCSV() {
-  const headers = ['Period', ...tasks.value.map(t => t.name)];
-  const rows = [headers];
-
-  if (viewType.value === 'week') {
-    datesInWeek.value.forEach((date, i) => {
-      rows.push([`${fmtDate(date)} (${WEEKDAYS[i]})`, ...tasks.value.map(t => getActual(date, t.name) || 0)]);
-    });
-    rows.push(['Total', ...tasks.value.map(t => getWeekTotal(t.name))]);
-  } else if (viewType.value === 'month') {
-    weeksInMonth.value.forEach(week => {
-      rows.push([`${fmtDate(week.start)}–${fmtDate(week.end)}`, ...tasks.value.map(t => getActual(week.isoWeek, t.name) || 0)]);
-    });
-    rows.push(['Total', ...tasks.value.map(t => getPeriodTotal(t.name, weeksInMonth.value.map(w => w.isoWeek)))]);
-  } else {
-    weeksInYear.value.forEach(week => {
-      rows.push([`${week.monthLabel} ${fmtDate(week.start)}–${fmtDate(week.end)}`, ...tasks.value.map(t => getActual(week.isoWeek, t.name) || 0)]);
-    });
-    rows.push(['Total', ...tasks.value.map(t => getPeriodTotal(t.name, weeksInYear.value.map(w => w.isoWeek)))]);
-  }
-
-  const csv = '﻿' + rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
-  const a = document.createElement('a');
-  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
-  a.download = `Activity_${periodLabel.value.replace(/[^a-zA-Z0-9]/g, '-')}.csv`;
-  a.click();
-}
-
 // ─── Mount ───────────────────────────────────────────────────────────────────
 onMounted(async () => {
   await loadLookups();
-  await Promise.all([loadOverview(), loadDealSummary(), loadTaskTargets()]);
+  await Promise.all([loadOverview(), loadDealSummary()]);
 });
 </script>
 
@@ -1071,14 +794,12 @@ onMounted(async () => {
 .sk-body { flex: 1; display: flex; flex-direction: column; gap: 6px; }
 .sk-val { height: 22px; width: 55%; border-radius: 4px; }
 .sk-lbl { height: 11px; width: 75%; border-radius: 4px; }
-/* Team skeleton */
 .sk-table-hdr { height: 42px; border-radius: 0; border-bottom: 1px solid var(--border); }
 .sk-th  { height: 10px; width: 70%; border-radius: 3px; }
 .sk-td  { height: 12px; width: 60%; border-radius: 3px; }
 .sk-quota-user { height: 13px; width: 55%; margin-bottom: 10px; }
 .sk-quota-bar  { height: 8px; border-radius: 99px; margin-bottom: 8px; }
 .sk-quota-nums { height: 11px; width: 80%; }
-/* Targets skeleton */
 .sk-section-title    { height: 14px; width: 120px; }
 .sk-target-label     { height: 13px; width: 45%; }
 .sk-target-input-sk  { height: 34px; width: 110px; border-radius: var(--radius-sm); }
@@ -1180,22 +901,7 @@ onMounted(async () => {
 .no-att-icon { width: 20px; height: 20px; display: flex; align-items: center; flex-shrink: 0; }
 .no-att-icon svg { width: 18px; height: 18px; }
 
-/* ── Date nav (activity tab) ──────────────────────────────────────────────── */
-.date-nav {
-  background: var(--surface); border-radius: var(--radius); padding: 12px 18px;
-  margin-bottom: 14px; box-shadow: var(--shadow-sm);
-  display: flex; align-items: center; justify-content: space-between;
-  border: 1px solid var(--border);
-}
-.nav-btn {
-  height: 36px; padding: 0 18px; background: var(--primary); color: var(--primary-on);
-  border: none; border-radius: var(--radius-sm); cursor: pointer;
-  font-size: 13px; font-weight: 700; transition: background 0.15s;
-}
-.nav-btn:hover { background: var(--primary-hover); }
-.period-label { font-size: 15px; font-weight: 700; color: var(--text-1); }
-
-/* ── Tables (shared) ──────────────────────────────────────────────────────── */
+/* ── Tables (Team tab) ────────────────────────────────────────────────────── */
 .table-wrap {
   background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow-sm);
   overflow: hidden; margin-bottom: 16px; border: 1px solid var(--border);
@@ -1205,45 +911,9 @@ onMounted(async () => {
   font-size: 13px; font-weight: 700; color: var(--text-1);
   border-bottom: 1px solid var(--border);
 }
-.loading-msg { text-align: center; padding: 48px; color: var(--text-3); font-size: 14px; }
 .table-scroll { overflow-x: auto; overflow-y: auto; max-height: 560px; }
 table { width: 100%; border-collapse: collapse; font-size: 12px; }
 
-/* ── Activity table header ────────────────────────────────────────────────── */
-.header-tasks th {
-  background: var(--surface-2); color: var(--text-2);
-  font-size: 11px; font-weight: 700;
-  text-transform: uppercase; letter-spacing: 0.7px; padding: 10px 14px;
-  text-align: left; white-space: nowrap;
-  border-bottom: 1px solid var(--border);
-}
-.header-tasks .col-period { min-width: 160px; }
-.header-tasks .col-task   { min-width: 90px; text-align: center; }
-.header-targets { background: var(--app-bg); }
-.header-targets td { padding: 6px 14px; font-size: 11px; color: var(--text-2); border-bottom: 1px solid var(--border-soft); }
-.target-label { font-weight: 700; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-3); }
-.target-val   { text-align: center; font-weight: 700; color: var(--primary); }
-
-tbody tr { border-bottom: 1px solid var(--border-soft); }
-tbody tr:last-child { border-bottom: none; }
-tbody tr:hover:not(.total-row) { background: var(--primary-soft); }
-.weekend-row { background: var(--surface-2); }
-.col-period { padding: 9px 14px; color: var(--text-1); white-space: nowrap; font-weight: 600; min-width: 130px; }
-.col-period.month-label { color: var(--primary); font-weight: 700; font-size: 11px; min-width: 50px; }
-.col-period.small { font-size: 11px; color: var(--text-2); font-weight: 400; }
-.weekday-tag {
-  display: inline-block; margin-left: 6px;
-  background: var(--surface-2); color: var(--text-2);
-  font-size: 10px; padding: 1px 6px; border-radius: 4px; font-weight: 600;
-}
-.col-count { padding: 9px 14px; text-align: center; color: var(--text-2); }
-.col-count.has-data { color: var(--text-1); font-weight: 700; background: var(--primary-soft); }
-.total-row { background: var(--success-soft); }
-.total-row td { padding: 10px 14px; color: var(--success); font-weight: 700; }
-.total-row .over-target  { color: var(--success); background: var(--success-soft); }
-.total-row .under-target { color: var(--danger);  background: var(--danger-soft); }
-
-/* ── Team table ───────────────────────────────────────────────────────────── */
 thead th {
   background: var(--surface-2); color: var(--text-2);
   font-size: 11px; font-weight: 700;
@@ -1262,6 +932,9 @@ thead th:last-child { border-right: none; }
 .sort-icon.sort-active { opacity: 1; color: var(--primary); }
 .sortable-th:hover .sort-icon { opacity: 0.6; }
 
+tbody tr { border-bottom: 1px solid var(--border-soft); }
+tbody tr:last-child { border-bottom: none; }
+tbody tr:hover { background: var(--primary-soft); }
 tbody td { padding: 11px 14px; border-bottom: 1px solid var(--border-soft); border-right: 1px solid var(--border-soft); color: var(--text-1); vertical-align: middle; font-size: 13.5px; }
 tbody td:last-child { border-right: none; }
 .user-cell  { font-weight: 600; color: var(--text-1); }
@@ -1277,7 +950,6 @@ tbody td:last-child { border-right: none; }
   background: var(--surface); outline: none; cursor: pointer;
 }
 .targets-select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--focus-ring); }
-.targets-hint { font-size: 12px; color: var(--text-3); margin: 0 0 12px; }
 .kpi-targets-grid { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
 .kpi-target-row {
   display: flex; align-items: center; justify-content: space-between;
@@ -1353,7 +1025,6 @@ tbody td:last-child { border-right: none; }
 .quota-low  .quota-bar-fill { background: var(--danger); }
 .quota-numbers { font-size: 11px; color: var(--text-2); display: flex; justify-content: space-between; align-items: center; }
 .quota-pct  { font-size: 12px; font-weight: 700; color: var(--primary); }
-.pct-done   { color: var(--success); }
 .quota-hint { font-size: 12px; color: var(--text-3); padding: 16px 0; grid-column: 1 / -1; }
 
 /* ── Responsive ───────────────────────────────────────────────────────────── */

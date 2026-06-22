@@ -25,7 +25,7 @@ export const TOUR_STEPS = [
   {
     target: '[data-tour="nav-marketing"]',
     title: 'Marketing & Media',
-    body: 'Plan social media posts, manage email campaigns, track product availability, and maintain your posting calendar — all in one place.',
+    body: 'Plan social media posts, manage email campaigns, track site availability, and maintain your posting calendar — all in one place.',
     position: 'right',
   },
   {
@@ -273,19 +273,19 @@ export const PAGE_TOURS = {
     {
       target: '.tab-nav',
       title: 'Performance Tabs',
-      body: 'Switch between Overview (your KPI summary), Activity (task report), Team (admin cross-user comparison), and Targets (set your KPI goals).',
+      body: 'Switch between Overview (KPI summary + overdue items), Team (admin cross-user comparison), and Targets (set your monthly KPI goals).',
       position: 'bottom',
     },
     {
       target: '[data-tour="perf-period"]',
       title: 'Period Selector',
-      body: 'Choose Week, Month, or Year to see performance data for that period. The KPI cards and target progress update instantly.',
+      body: 'Choose Week, Month, or Year to see performance data for that period. The KPI cards, pipeline forecast, and target progress all update instantly.',
       position: 'bottom',
     },
     {
       target: '[data-tour="perf-kpi-cards"]',
       title: 'KPI Summary',
-      body: 'Each card shows your count for that metric in the selected period alongside your target. Cards turn green when you hit the target.',
+      body: 'Each card shows your count for that metric in the selected period. Red cards flag overdue items that need attention — click through to the Needs Attention section below.',
       position: 'bottom',
     },
   ],
@@ -331,6 +331,203 @@ export const PAGE_TOURS = {
       target: '.table-wrap',
       title: 'Reminder Items',
       body: 'Each item links back to the contact it belongs to. Click the company name to jump straight to the contact record and take action.',
+      position: 'bottom',
+    },
+  ],
+
+  // Admin tour — all steps target always-visible elements (tab buttons, not tab content)
+  'dept-tasks-admin': [
+    {
+      target: '.tab-bar',
+      title: 'Task Manager — Five Views',
+      body: 'You have five views: Board (kanban drag-and-drop), Dashboard (stats & charts), Table (searchable list), This Week (weekly report), and History (completed log). Click any tab to switch.',
+      position: 'bottom',
+    },
+    {
+      target: '.page-header-actions',
+      title: 'Create a New Task',
+      body: 'Click New Task to assign work. Set the title, department, assignee, priority (Low / Medium / High / Critical), due date, and whether the task requires approval before it can be marked complete.',
+      position: 'bottom-left',
+    },
+    {
+      target: '[data-tour="deptask-tab-board"]',
+      title: 'Board — Kanban View',
+      body: 'The Board tab shows tasks as draggable cards across five columns: Pending → In Progress → Waiting Approval → Completed → Cancelled. Drag a card to change its status. Overdue cards are flagged in red. Click any card to view details, add comments, or attach files.',
+      position: 'bottom',
+    },
+    {
+      target: '[data-tour="deptask-tab-table"]',
+      title: 'Table — Search & Filter',
+      body: 'The Table tab shows a searchable, paginated list of every task. Filter by department, status, priority, or assignee simultaneously and click any column header to sort. Hit Print to export a formatted A4 report of the current filtered results.',
+      position: 'bottom',
+    },
+    {
+      target: '[data-tour="deptask-tab-dashboard"]',
+      title: 'Dashboard — Stats at a Glance',
+      body: 'The Dashboard tab shows live counts: total, overdue, in progress, completed, waiting approval, and cancelled. Click any stat card to jump to a filtered board showing those tasks. Charts below break down by department, status, and weekly completion rate.',
+      position: 'bottom',
+    },
+    {
+      target: '[data-tour="deptask-tab-weekly"]',
+      title: 'This Week — Outstanding Report',
+      body: 'This Week generates a printable report of all outstanding tasks grouped by department. Use the week arrows to move between weeks and filter by assignee for individual workload reviews. Click Print A4 to export for team meetings.',
+      position: 'bottom',
+    },
+    {
+      target: '[data-tour="deptask-tab-reports"]',
+      title: 'History — Completed Task Log',
+      body: 'The History tab lists all completed and cancelled tasks with their resolution dates. Filter by department or date range to audit past work and track team output over time.',
+      position: 'bottom',
+    },
+  ],
+
+  // User tour — steps 2–4 target mywork content (default tab); step 5 targets the board tab button
+  'dept-tasks-user': [
+    {
+      target: '.tab-bar',
+      title: 'Your Task Manager',
+      body: 'You have two views: List (your personal tasks sorted by urgency) and Board (the team kanban for reference). The List view is your day-to-day working surface.',
+      position: 'bottom',
+    },
+    {
+      target: '.mw-summary',
+      title: 'Urgency Summary',
+      body: 'The strip at the top shows how many of your tasks are overdue, due today, and due this week. Overdue counts appear in red as a prompt to action them first.',
+      position: 'bottom',
+    },
+    {
+      target: '.mw-bucket',
+      title: 'Tasks by Urgency',
+      body: 'Tasks are grouped into four buckets: Overdue (action immediately), Due Today, This Week, and Upcoming. A Done section at the bottom collects completed tasks. Click any task row to open the full detail view.',
+      position: 'bottom',
+    },
+    {
+      target: '.mw-action',
+      title: 'Advance a Task',
+      body: 'Each task row has a quick action button. Hit Start to begin a Pending task. When done, hit Complete — or Submit if the task requires approval first. It then moves to Awaiting Approval until an admin reviews it.',
+      position: 'bottom',
+    },
+    {
+      target: '[data-tour="deptask-tab-board"]',
+      title: 'Board View',
+      body: 'Switch to the Board tab to see all team tasks organised across status columns. You can view task details here, but task creation and status changes are managed by your admin.',
+      position: 'bottom',
+    },
+  ],
+
+  'site-availability': [
+    {
+      target: '.action-bar',
+      title: 'Search & Actions',
+      body: 'Filter the grid by product type (Billboard, Temp Board, Lamp Post Bunting) or search by place name or company. Use Add Booking to reserve a site for a client, Register Product to add a new advertising site to the system, or Map View to see all sites plotted on an interactive map.',
+      position: 'bottom',
+    },
+    {
+      target: '.table-card',
+      title: 'Site Availability Grid',
+      body: 'The grid shows every confirmed advertising site as a row with 12 months across the top. A coloured bar in a month cell means that site is booked for that period. A grey dot means it\'s available. Click any cell to view or manage the booking for that month.',
+      position: 'bottom',
+    },
+    {
+      target: '.view-toggle',
+      title: 'Month / Week View',
+      body: 'Toggle between Month view (12 columns, one per month — good for a full-year overview) and Week view (52 columns, one per week — precise for checking exact availability windows). Week view auto-scrolls to the current week.',
+      position: 'bottom-left',
+    },
+    {
+      target: '.booking-bar',
+      title: 'Booking Bars',
+      body: 'Each bar shows the client company name and how many days the booking spans. Blue bars are active bookings; orange bars are for alternating rows to make scanning easier. Faded grey bars are completed (past end date). Hover for the exact date range. Click to edit or delete the booking.',
+      position: 'bottom',
+    },
+    {
+      target: '.btn-proposal',
+      title: 'Generate Proposal',
+      body: 'Tick the checkbox on one or more site rows, then click Generate Proposal. A 3-step wizard lets you fill in client details, pricing, and signatory info before generating a branded PDF proposal you can send directly to the client.',
+      position: 'bottom-left',
+    },
+    {
+      target: '.staged-section',
+      title: 'Staged for Client Review',
+      body: 'When you use Save as Draft + Print PDF during product registration, the site is held here as a draft. Once the client approves, click Confirm to add it to the active availability list. Click Discard to remove it without saving.',
+      position: 'bottom',
+    },
+  ],
+
+  'contact-analysis': [
+    {
+      target: '.ca-header',
+      title: 'Contact Analysis',
+      body: 'A health check on your contact base — see who needs attention, how your pipeline is distributed, and where your new contacts are coming from.',
+      position: 'bottom',
+    },
+    {
+      target: '.ca-date-wrap',
+      title: 'Date Range',
+      body: 'Pick a preset (Today, Last 30 days, This year…) or set a custom range. Lead Source and acquisition figures update to reflect contacts added in this window.',
+      position: 'bottom-left',
+    },
+    {
+      target: '.ca-filter-bar',
+      title: 'Filters',
+      body: 'Narrow everything down by agent, status, or industry. Admins also get an Agent filter to drill into a specific team member. Use Clear All Filters to reset.',
+      position: 'bottom',
+    },
+    {
+      target: '.ca-attention-row',
+      title: 'Needs Attention',
+      body: 'Four signals worth acting on: overdue tasks, dormant contacts (silent 60+ days), at-risk contacts (30–60 days quiet), and ones never contacted. Click any card to jump to that group in the table below.',
+      position: 'bottom',
+    },
+    {
+      target: '.ca-row-asym',
+      title: 'Pipeline & Lead Source',
+      body: 'On the left, your contacts broken down by current status. On the right, where new contacts came from this period — referral, walk-in, social media, and more.',
+      position: 'bottom',
+    },
+    {
+      target: '.ca-card--eng',
+      title: 'Engagement Health',
+      body: 'Every contact ranked by inactivity. Filter by health band, search by name, and sort by last task or days inactive. Click a contact to open its full record and take action.',
+      position: 'bottom',
+    },
+  ],
+
+  'predictive-insights': [
+    {
+      target: '.pi-header',
+      title: 'Predictive Insights',
+      body: 'Forward-looking analysis of your pipeline — expected revenue, neglected contacts, agent workload, and which open deals are most likely to close.',
+      position: 'bottom',
+    },
+    {
+      target: '.pi-date-wrap',
+      title: 'Date Range',
+      body: 'Choose the period the insights are calculated over — Last 30/60/90 days, This Year, or a custom range. Every card recalculates instantly.',
+      position: 'bottom-left',
+    },
+    {
+      target: '.pi-kpi-row',
+      title: 'Headline Numbers',
+      body: 'Four at-a-glance metrics: neglected contacts, expected pipeline value (open deals weighted by probability), overloaded agents, and unworked opportunities.',
+      position: 'bottom',
+    },
+    {
+      target: '.pi-row-asym',
+      title: 'Forecast & Neglected Contacts',
+      body: 'The chart projects revenue from open deals weighted by win probability. Beside it, the contacts that have gone 60+ days without a touch — your highest-priority follow-ups.',
+      position: 'bottom',
+    },
+    {
+      target: '.pi-row-2col',
+      title: 'Workload & Opportunities',
+      body: 'Agent Coverage Load shows how contacts are distributed across the team and how much of each portfolio is actively worked. Unworked Opportunities highlights industries with active contacts left untouched for 30+ days.',
+      position: 'bottom',
+    },
+    {
+      target: '[data-tour="pi-deals"]',
+      title: 'Deal Win Probability',
+      body: 'Open deals auto-scored on activity and urgency. Each row shows the value, close date, and a win-probability bar tagged On Track, At Risk, or High Risk — so you know where to focus.',
       position: 'bottom',
     },
   ],

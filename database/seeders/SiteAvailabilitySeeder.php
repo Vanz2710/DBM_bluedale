@@ -6,7 +6,7 @@ use App\Models\AdvertisingProduct;
 use App\Models\AdvertisingProductBooking;
 use Illuminate\Database\Seeder;
 
-class ProductAvailabilitySeeder extends Seeder
+class SiteAvailabilitySeeder extends Seeder
 {
     public function run(): void
     {

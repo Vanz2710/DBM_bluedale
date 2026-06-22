@@ -1,3 +1,9 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* ── Global layout safety ────────────────────────────────────────────────
+   Prevents horizontal scroll at any browser zoom level or viewport size.
+   All component-level overflow (tables, dropdowns, modals) is handled within
+   each component; this is the catch-all at the document root.
+──────────────────────────────────────────────────────────────────────── */
+html, body { overflow-x: hidden; }
+
+/* Media elements never burst their container */
+img, video, iframe, canvas { max-width: 100%; height: auto; }

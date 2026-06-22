@@ -88,8 +88,7 @@ class UserActivityController extends Controller
 
     public function securityEvents(Request $request)
     {
-        $passwordChanges = SystemAlert::where('for_user_id', $request->user()->id)
-            ->where('type', 'password_change')
+        $passwordChanges = SystemAlert::where('type', 'password_change')
             ->orderByDesc('created_at')
             ->limit(100)
             ->get()

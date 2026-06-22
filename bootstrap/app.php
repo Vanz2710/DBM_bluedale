@@ -18,10 +18,6 @@ return Application::configure(basePath: dirname(__DIR__))
         // generates http:// links and secure session cookies silently break.
         $middleware->trustProxies(at: '*');
 
-        $middleware->preventRequestForgery(except: [
-            'webhooks/whatsapp',
-        ]);
-
         $middleware->alias([
             'role'       => \Spatie\Permission\Middleware\RoleMiddleware::class,
             'permission' => \Spatie\Permission\Middleware\PermissionMiddleware::class,

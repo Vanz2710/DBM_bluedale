@@ -4,7 +4,14 @@
 <meta charset="UTF-8">
 <title>Proposal</title>
 <style>
-    @page { margin: 28px 28px 28px 28px; }
+    {{-- IMPORTANT: do NOT set `size` here. dompdf lets a CSS `@page { size }`
+         declaration OVERRIDE the programmatic ->setPaper() call, and named @page
+         rules (@page sheet / `page: sheet`) are ignored entirely. The controller
+         renders the cover and the site sheets as SEPARATE PDFs with the correct
+         ->setPaper('A4','portrait'|'landscape') each, then merges them with FPDI.
+         Setting size here forces every page to one orientation and breaks the
+         landscape site sheets. Only the page margin belongs here. --}}
+    @page { margin: 28px; }
     * { box-sizing: border-box; font-family: DejaVu Sans, sans-serif; }
     body { margin: 0; padding: 0; color: #000; font-size: 10px; line-height: 1.35; }
     .page { page-break-after: always; }
@@ -13,6 +20,7 @@
 </head>
 <body>
 
+@if($include_cover)
 @include('pdf.proposal.cover', [
     'company'        => $company,
     'signatory'      => $signatory,
@@ -33,10 +41,12 @@
     'sst_total'      => $sst_total,
     'terms'          => $terms,
 ])
+@endif
 
 @foreach ($products as $product)
     @include('pdf.proposal.site_sheet', [
-        'product' => $product,
+        'product'   => $product,
+        'logo_data' => $logo_data ?? null,
     ])
 @endforeach
 

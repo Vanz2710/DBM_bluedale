@@ -581,6 +581,10 @@
               <label>Address</label>
               <textarea v-model="addForm.address" placeholder="Enter address" rows="2"></textarea>
             </div>
+            <div class="add-form-group">
+              <label>Remarks</label>
+              <textarea v-model="addForm.remark" placeholder="Internal notes about this company…" rows="2"></textarea>
+            </div>
             <div class="add-modal-actions">
               <button type="button" class="btn btn-clear" @click="closeAddModal">Cancel</button>
               <button type="submit" class="btn btn-primary" :disabled="!!addDupError">Next <span v-html="CI.chevronRight" style="display:inline-flex;align-items:center"></span></button>
@@ -831,9 +835,29 @@
                 </select>
               </div>
             </div>
+            <div class="add-form-row">
+              <div class="add-form-group">
+                <label>Lead Source</label>
+                <select v-model="editContactForm.lead_source">
+                  <option value="">— Not specified —</option>
+                  <option value="manual">Manual Entry</option>
+                  <option value="phone_call">Phone Call</option>
+                  <option value="referral">Referral</option>
+                  <option value="walk_in">Walk-in</option>
+                  <option value="social_media">Social Media</option>
+                  <option value="email_campaign">Email Campaign</option>
+                  <option value="web_form">Web Form</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+              <div class="add-form-group" style="flex:1">
+                <label>Address</label>
+                <textarea v-model="editContactForm.address" rows="3" placeholder="Enter address"></textarea>
+              </div>
+            </div>
             <div class="add-form-group">
-              <label>Address</label>
-              <textarea v-model="editContactForm.address" rows="3" placeholder="Enter address"></textarea>
+              <label>Remarks</label>
+              <textarea v-model="editContactForm.remark" rows="3" placeholder="Internal notes about this company…"></textarea>
             </div>
             <div class="add-modal-actions">
               <button type="button" class="btn btn-clear" @click="closeEditContactModal">Cancel</button>
@@ -1531,7 +1555,7 @@ const addTaskModalForm = ref({ task_id: '', todo_date: '', todo_remark: '' });
 
 // ── Quick Edit Contact modal (from row action) ──
 const editContactModal = ref({ open: false, contactId: null, contactName: '', loading: false, saving: false, error: '', dupError: '' });
-const editContactForm  = ref({ name: '', status_id: '', type_id: '', industry_id: '', category_id: '', address: '' });
+const editContactForm  = ref({ name: '', status_id: '', type_id: '', industry_id: '', category_id: '', address: '', lead_source: '', remark: '' });
 let editDupTimer = null;
 
 // ── Add Contact modal ──
@@ -2159,6 +2183,8 @@ async function openEditContactModal(c) {
       industry_id: contact.industry_id ?? '',
       category_id: contact.category_id ?? '',
       address:     contact.address     ?? '',
+      lead_source: contact.lead_source ?? '',
+      remark:      contact.remark      ?? '',
     };
   } finally {
     editContactModal.value.loading = false;
@@ -2243,7 +2269,7 @@ async function confirmTodoDelete() {
   todoDeleteModal.value.loading = true;
   const todo = todoDeleteModal.value.todo;
   try {
-    await api.delete(`/v1/todos/${todo.id}`);
+    await api.delete(`/v1/contacts/${drawer.value.contact.id}/todos/${todo.id}`);
     closeTodoDeleteModal();
     const res = await api.get(`/v1/contacts/${drawer.value.contact.id}`);
     drawer.value.contact = res.data.data;
@@ -2284,7 +2310,7 @@ function openAddModal() {
   addSaving.value = false;
   addSubmitError.value = '';
   addDupError.value = '';
-  addForm.value = { name: '', status_id: '', industry_id: '', type_id: '', category_id: '', address: '', created_at: new Date().toISOString().slice(0, 10), lead_source: 'manual' };
+  addForm.value = { name: '', status_id: '', industry_id: '', type_id: '', category_id: '', address: '', remark: '', created_at: new Date().toISOString().slice(0, 10), lead_source: 'manual' };
   addPic.value  = { name: '', phone: '', email: '', office: '' };
   addModal.value.open = true;
 }

@@ -13,7 +13,6 @@ const ProjectList         = () => import('../pages/ProjectList.vue');
 const ProjectAdd          = () => import('../pages/ProjectAdd.vue');
 const ProjectEdit         = () => import('../pages/ProjectEdit.vue');
 const Performance         = () => import('../pages/Performance.vue');
-const PerformanceTargets  = () => import('../pages/PerformanceTargets.vue');
 const ContactList         = () => import('../pages/ContactList.vue');
 const ContactView         = () => import('../pages/ContactView.vue');
 const ContactAdd          = () => import('../pages/ContactAdd.vue');
@@ -29,19 +28,19 @@ const Import              = () => import('../pages/Import.vue');
 const Reminders           = () => import('../pages/Reminders.vue');
 const MyProfile           = () => import('../pages/MyProfile.vue');
 const Reports             = () => import('../pages/Reports.vue');
-const Webhooks            = () => import('../pages/Webhooks.vue');
 const LeadForm            = () => import('../pages/LeadForm.vue');
 const Settings                = () => import('../pages/Settings.vue');
 const SocialMediaReminder     = () => import('../pages/SocialMediaReminder.vue');
 const PostingCalendar         = () => import('../pages/PostingCalendar.vue');
 const MarketingEmail          = () => import('../pages/EmailCampaigns.vue');
-const MarketingAI             = () => import('../pages/MarketingAI.vue');
-const ProductAvailability     = () => import('../pages/ProductAvailability.vue');
+const SiteAvailability        = () => import('../pages/SiteAvailability.vue');
 const ContactAnalysis         = () => import('../pages/ContactAnalysis.vue');
 const PredictiveInsights      = () => import('../pages/PredictiveInsights.vue');
 const SystemSettings          = () => import('../pages/SystemSettings.vue');
 const UserActivity            = () => import('../pages/UserActivity.vue');
 const Forbidden               = () => import('../pages/Forbidden.vue');
+const AuditLog                = () => import('../pages/AuditLog.vue');
+const DeptTaskManager         = () => import('../pages/DeptTaskManager.vue');
 
 const routes = [
     { path: '/login',        component: Login,       name: 'login',        meta: { public: true } },
@@ -70,7 +69,6 @@ const routes = [
     { path: '/forecasts',                  component: ForecastList,        name: 'forecasts' },
     { path: '/forecasts/summary',          component: ForecastSummary,     name: 'forecast-summary' },
     { path: '/performance',                component: Performance,        name: 'performance' },
-    { path: '/admin/performance-targets',  component: PerformanceTargets, name: 'perf-targets', meta: { adminOnly: true } },
     { path: '/admin',                      component: AdminPanel,       name: 'admin',        meta: { adminOnly: true } },
     { path: '/admin/rbac',                 component: RbacPanel,        name: 'rbac',         meta: { adminOnly: true } },
 { path: '/data-health',                component: DataHealth,   name: 'data-health' },
@@ -78,15 +76,15 @@ const routes = [
     { path: '/reminders',                  component: Reminders,    name: 'reminders' },
     { path: '/profile',                    component: MyProfile,    name: 'profile' },
     { path: '/reports',                    component: Reports,      name: 'reports' },
-    { path: '/admin/webhooks',             component: Webhooks,        name: 'webhooks',        meta: { adminOnly: true } },
     { path: '/admin/system-settings',     component: SystemSettings,  name: 'system-settings', meta: { adminOnly: true } },
     { path: '/admin/user-activity',       component: UserActivity,    name: 'user-activity',   meta: { adminOnly: true } },
+    { path: '/admin/audit-log',           component: AuditLog,        name: 'audit-log',       meta: { adminOnly: true } },
     { path: '/settings',                   component: Settings,          name: 'settings' },
     { path: '/social-media',               component: SocialMediaReminder, name: 'social-media',          meta: { permission: 'manage social-media' } },
     { path: '/posting-calendar',           component: PostingCalendar,     name: 'posting-calendar',      meta: { permission: 'manage posting-calendar' } },
     { path: '/marketing-email',            component: MarketingEmail,      name: 'marketing-email',       meta: { permission: 'manage email-campaigns' } },
-    { path: '/marketing-ai',               component: MarketingAI,         name: 'marketing-ai' },
-    { path: '/product-availability',       component: ProductAvailability, name: 'product-availability',  meta: { permission: 'manage product-availability' } },
+    { path: '/site-availability',          component: SiteAvailability,    name: 'site-availability',     meta: { permission: 'manage site-availability' } },
+    { path: '/dept-tasks',                 component: DeptTaskManager,     name: 'dept-tasks',            meta: { permission: 'manage dept-tasks' } },
     { path: '/forbidden',                  component: Forbidden,           name: 'forbidden' },
 ];
 

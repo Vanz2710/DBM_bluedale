@@ -85,10 +85,41 @@
       "Bash(where convert *)",
       "Bash(where magick *)",
       "Bash(xargs ls -la)",
-      "Bash(git check-ignore *)"
+      "Bash(git check-ignore *)",
+      "PowerShell(gh repo view Vanz2710/BIT306_Project --json name,branches 2>&1)",
+      "PowerShell(git ls-remote https://github.com/Vanz2710/BIT306_Project.git 2>&1)",
+      "Bash(cd /c/temp/BIT306_clone && ls -la)",
+      "Read(//c/temp/BIT306_clone/**)",
+      "PowerShell(git fetch origin 2>&1)",
+      "Read(//c/Users/paula/.claude/**)",
+      "Bash(rm \"C:/Users/paula/.claude/tiktok_open.ps1\" \"C:/Users/paula/.claude/tiktok_close.ps1\")",
+      "Bash(python scripts/search.py \"task management dashboard kanban admin supervisor workflow\" --design-system -f markdown)",
+      "Bash(python scripts/search.py \"kanban board workflow status drag drop interaction clarity\" --domain ux -n 8)",
+      "Bash(python .claude/skills/ui-ux-pro-max/scripts/search.py \"internal dashboard data table report history filter\" --design-system -p \"TaskManager\" -f markdown)",
+      "Bash(python .claude/skills/ui-ux-pro-max/scripts/search.py \"data table filter toolbar minimal\" --domain ux -n 4)",
+      "Bash(python .claude/skills/ui-ux-pro-max/scripts/search.py \"weekly planner report outstanding tasks internal tool\" --domain ux -n 4)",
+      "Bash(composer run *)",
+      "Bash(npx --version)",
+      "Bash(npx concurrently *)",
+      "Bash(timeout 8 bash -c \"composer run dev 2>&1 | head -40\")",
+      "PowerShell(\\(Get-Command npm -ErrorAction SilentlyContinue\\).Source)",
+      "Read(//c/Program Files/nodejs/**)",
+      "PowerShell(netstat -ano)",
+      "Bash(php -l app/Http/Controllers/Api/V1/DeptTaskController.php)",
+      "PowerShell(New-Item -ItemType Directory -Force \"c:\\\\xampp\\\\htdocs\\\\library_crm_v2\\\\public\\\\videos\"; Copy-Item \"C:\\\\Users\\\\paula\\\\Downloads\\\\A_soft_solid_background_in_a.mp4\" \"c:\\\\xampp\\\\htdocs\\\\library_crm_v2\\\\public\\\\videos\\\\login-bg.mp4\"; Write-Output \"Done. Size: $\\(\\(Get-Item 'c:\\\\xampp\\\\htdocs\\\\library_crm_v2\\\\public\\\\videos\\\\login-bg.mp4'\\).Length / 1MB\\) MB\")",
+      "PowerShell(\\(Get-Item \"c:\\\\xampp\\\\htdocs\\\\library_crm_v2\\\\public\\\\images\\\\bluedale-logo.png\"\\).Length)",
+      "PowerShell($bytes = [System.IO.File]::ReadAllBytes\\(\"c:\\\\xampp\\\\htdocs\\\\library_crm_v2\\\\public\\\\images\\\\bluedale-logo.png\"\\); Write-Output \"First 8 bytes \\(hex\\): $\\($bytes[0..7] | ForEach-Object { $_.ToString\\('X2'\\) } | Join-String -Separator ' '\\)\")",
+      "PowerShell($bytes = [System.IO.File]::ReadAllBytes\\(\"c:\\\\xampp\\\\htdocs\\\\library_crm_v2\\\\public\\\\images\\\\bluedale-logo.png\"\\); \\($bytes[0..7] | ForEach-Object { $_.ToString\\('X2'\\) }\\) -join ' ')",
+      "Bash(magick -version)",
+      "Bash(python -c \"import PIL; print\\('PIL', PIL.__version__\\)\")",
+      "Bash(python -m pip install Pillow --quiet)",
+      "Bash(echo \"EXIT: $?\")",
+      "Bash(python -c ' *)",
+      "Bash(python -c \"print\\(open\\(r'C:\\\\Users\\\\paula\\\\Downloads\\\\Business team.lottie','rb'\\).read\\(4\\)\\)\")"
     ],
     "additionalDirectories": [
-      "\\tmp\\ammar_crm\\app\\Http\\Controllers\\Api\\V1"
+      "\\tmp\\ammar_crm\\app\\Http\\Controllers\\Api\\V1",
+      "C:\\Users\\paula\\.claude"
     ]
   }
 }

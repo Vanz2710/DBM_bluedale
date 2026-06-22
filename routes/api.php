@@ -22,7 +22,6 @@ use App\Http\Controllers\Api\V1\ReminderController;
 use App\Http\Controllers\Api\V1\ToDoController;
 use App\Http\Controllers\Api\V1\ContactEmailController;
 use App\Http\Controllers\Api\V1\ContactCallController;
-use App\Http\Controllers\Api\V1\WebhookController;
 use App\Http\Controllers\Api\V1\ProfileController;
 use App\Http\Controllers\Api\V1\UserSettingsController;
 use App\Http\Controllers\Api\V1\UserManagementController;
@@ -31,7 +30,7 @@ use App\Http\Controllers\Api\V1\EmailVerificationController;
 use App\Http\Controllers\Api\V1\PublicLeadController;
 use App\Http\Controllers\Api\V1\UserDashboardController;
 use App\Http\Controllers\Api\V1\SocialMediaReminderController;
-use App\Http\Controllers\Api\V1\ProductAvailabilityController;
+use App\Http\Controllers\Api\V1\SiteAvailabilityController;
 use App\Http\Controllers\Api\V1\PostingCalendarController;
 use App\Http\Controllers\Api\V1\ContactAnalysisController;
 use App\Http\Controllers\Api\V1\EmailCampaignController;
@@ -39,6 +38,8 @@ use App\Http\Controllers\Api\V1\PredictiveController;
 use App\Http\Controllers\Api\V1\ContactEditGrantController;
 use App\Http\Controllers\Api\V1\SystemSettingsController;
 use App\Http\Controllers\Api\V1\UserActivityController;
+use App\Http\Controllers\Api\V1\SessionController;
+use App\Http\Controllers\Api\V1\DeptTaskController;
 
 // Auth (public)
 Route::post('auth/login', [AuthController::class, 'login'])->middleware('throttle:10,1');
@@ -57,6 +58,11 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('profile', [ProfileController::class, 'show']);
         Route::put('profile', [ProfileController::class, 'update']);
         Route::put('profile/password', [ProfileController::class, 'changePassword']);
+
+        // Sessions — own tokens only
+        Route::get('sessions', [SessionController::class, 'index']);
+        Route::delete('sessions/all', [SessionController::class, 'destroyAll']);
+        Route::delete('sessions/{id}', [SessionController::class, 'destroy']);
 
         // User settings/preferences — no special permission (own data only)
         Route::get('me/settings', [UserSettingsController::class, 'show']);
@@ -88,7 +94,10 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::get('predictive/at-risk',      [PredictiveController::class, 'atRisk']);
             Route::get('predictive/pace',         [PredictiveController::class, 'pace']);
             Route::get('predictive/overdue-risk', [PredictiveController::class, 'overdueRisk']);
-            Route::get('predictive/deals',        [PredictiveController::class, 'deals']);
+            Route::get('predictive/deals',             [PredictiveController::class, 'deals']);
+            Route::get('predictive/win-rates',         [PredictiveController::class, 'winRates']);
+            Route::get('predictive/deal-velocity',     [PredictiveController::class, 'dealVelocity']);
+            Route::get('predictive/pipeline-coverage', [PredictiveController::class, 'pipelineCoverage']);
         });
 
         // Analytics & reporting
@@ -202,30 +211,25 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::post('import/process', [ImportController::class, 'process']);
         });
 
-        // Webhooks
-        Route::middleware('can:manage webhooks')->group(function () {
-            Route::get('webhooks/events', [WebhookController::class, 'events']);
-            Route::post('webhooks/{webhook}/test', [WebhookController::class, 'test']);
-            Route::apiResource('webhooks', WebhookController::class)->only(['index', 'store', 'update', 'destroy']);
-        });
-
         // Social Media Reminders
         Route::middleware('can:manage social-media')->group(function () {
             Route::apiResource('social-media-reminders', SocialMediaReminderController::class)->only(['index', 'store', 'update', 'destroy']);
         });
 
-        // Product Availability
-        Route::middleware('can:manage product-availability')->group(function () {
-            Route::get('product-availability', [ProductAvailabilityController::class, 'index']);
-            Route::post('product-availability', [ProductAvailabilityController::class, 'store']);
-            Route::post('product-availability/proposal', [ProductAvailabilityController::class, 'proposal']);
-            Route::post('product-availability/products', [ProductAvailabilityController::class, 'createProduct']);
-            Route::post('product-availability/resolve-maps-url', [ProductAvailabilityController::class, 'resolveMapsUrl']);
-            Route::put('product-availability/products/{product}', [ProductAvailabilityController::class, 'updateProduct']);
-            Route::post('product-availability/products/{product}/photo', [ProductAvailabilityController::class, 'uploadPhoto']);
-            Route::delete('product-availability/products/{product}/photo', [ProductAvailabilityController::class, 'deletePhoto']);
-            Route::put('product-availability/bookings/{booking}', [ProductAvailabilityController::class, 'updateBooking']);
-            Route::delete('product-availability/bookings/{booking}', [ProductAvailabilityController::class, 'destroyBooking']);
+        // Site Availability
+        Route::middleware('can:manage site-availability')->group(function () {
+            Route::get('site-availability', [SiteAvailabilityController::class, 'index']);
+            Route::post('site-availability', [SiteAvailabilityController::class, 'store']);
+            Route::post('site-availability/proposal', [SiteAvailabilityController::class, 'proposal']);
+            Route::post('site-availability/products', [SiteAvailabilityController::class, 'createProduct']);
+            Route::post('site-availability/resolve-maps-url', [SiteAvailabilityController::class, 'resolveMapsUrl']);
+            Route::put('site-availability/products/{product}', [SiteAvailabilityController::class, 'updateProduct']);
+            Route::post('site-availability/products/{product}/photo', [SiteAvailabilityController::class, 'uploadPhoto']);
+            Route::delete('site-availability/products/{product}/photo', [SiteAvailabilityController::class, 'deletePhoto']);
+            Route::post('site-availability/products/{product}/confirm', [SiteAvailabilityController::class, 'confirmProduct']);
+            Route::delete('site-availability/products/{product}', [SiteAvailabilityController::class, 'discardProduct']);
+            Route::put('site-availability/bookings/{booking}', [SiteAvailabilityController::class, 'updateBooking']);
+            Route::delete('site-availability/bookings/{booking}', [SiteAvailabilityController::class, 'destroyBooking']);
         });
 
         // Posting Calendar
@@ -252,6 +256,10 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::put('email-templates/{template}', [EmailCampaignController::class, 'templateUpdate']);
             Route::delete('email-templates/{template}', [EmailCampaignController::class, 'templateDestroy']);
         });
+
+        // Admin audit log — must be registered before the admin/{entity} wildcard
+        Route::get('admin/audit-log', [AdminAuditLogController::class, 'index'])
+            ->middleware('can:manage users');
 
         // Admin lookup CRUD
         Route::middleware('can:manage lookups')->group(function () {
@@ -297,10 +305,28 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::put('rbac/users/{user}/roles', [UserManagementController::class, 'syncRoles']);
             Route::put('rbac/users/{user}/approve', [UserManagementController::class, 'approve']);
             Route::put('rbac/users/{user}/restore-access', [UserManagementController::class, 'restoreAccess']);
+            Route::put('rbac/users/{user}/unlock', [UserManagementController::class, 'unlockUser']);
         });
 
-        // Admin audit log
-        Route::get('admin/audit-log', [AdminAuditLogController::class, 'index'])
-            ->middleware('can:manage users');
+        // Department Task Manager
+        Route::middleware('can:manage dept-tasks')->prefix('dept')->group(function () {
+            Route::get('dashboard',                                          [DeptTaskController::class, 'dashboard']);
+            Route::get('departments',                                        [DeptTaskController::class, 'departments']);
+            Route::get('users',                                              [DeptTaskController::class, 'users']);
+            Route::get('weekly',                                             [DeptTaskController::class, 'weekly']);
+            Route::get('report',                                             [DeptTaskController::class, 'report']);
+            Route::get('notifications',                                      [DeptTaskController::class, 'notifications']);
+            Route::post('notifications/read',                                [DeptTaskController::class, 'markNotificationsRead']);
+            Route::get('tasks',                                              [DeptTaskController::class, 'index']);
+            Route::post('tasks',                                             [DeptTaskController::class, 'store']);
+            Route::get('tasks/{id}',                                         [DeptTaskController::class, 'show']);
+            Route::put('tasks/{id}',                                         [DeptTaskController::class, 'update']);
+            Route::delete('tasks/{id}',                                      [DeptTaskController::class, 'destroy']);
+            Route::put('tasks/{id}/status',                                  [DeptTaskController::class, 'updateStatus']);
+            Route::post('tasks/{taskId}/comments',                           [DeptTaskController::class, 'addComment']);
+            Route::delete('tasks/{taskId}/comments/{commentId}',             [DeptTaskController::class, 'deleteComment']);
+            Route::post('tasks/{taskId}/attachments',                          [DeptTaskController::class, 'storeAttachment']);
+            Route::delete('tasks/{taskId}/attachments/{attachmentId}',         [DeptTaskController::class, 'deleteAttachment']);
+        });
     });
 });

@@ -194,7 +194,7 @@ class GlobalTodoController extends Controller
             $query->whereDate('todo_date', $date);
         }
 
-        $todos = $query->orderByDesc('todo_date')->orderByDesc('id')->get();
+        $todos = $query->orderByDesc('todo_date')->orderByDesc('id')->limit(10000)->get();
 
         $filename = 'ToDo_Export_' . now()->format('Y-m-d') . '.csv';
 

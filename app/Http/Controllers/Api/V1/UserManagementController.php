@@ -4,6 +4,10 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Models\AdminAuditLog;
+use App\Models\Contact;
+use App\Models\Deal;
+use App\Models\Project;
+use App\Models\ToDo;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -20,10 +24,20 @@ class UserManagementController extends Controller
             $query->withTrashed();
         }
 
-        $users = $query->get([
+        if ($q = $request->input('q')) {
+            $term = "%{$q}%";
+            $query->where(function ($sq) use ($term) {
+                $sq->where('name', 'like', $term)
+                   ->orWhere('username', 'like', $term)
+                   ->orWhere('email', 'like', $term);
+            });
+        }
+
+        $users = $query->withCount('contacts')->orderBy('name')->get([
             'id', 'name', 'username', 'email', 'is_approved', 'approved_at',
             'access_requested_at', 'login_count', 'last_login_at',
             'inactivity_flagged_at', 'created_at', 'deleted_at',
+            'failed_login_attempts', 'locked_until', 'lockout_level', 'permanently_locked',
         ]);
 
         return response()->json(['data' => $users]);
@@ -116,9 +130,23 @@ class UserManagementController extends Controller
             return response()->json(['message' => 'You cannot delete your own account.'], 422);
         }
 
+        $reassignTo = null;
+        if ($request->filled('reassign_to')) {
+            $request->validate(['reassign_to' => 'integer|exists:users,id']);
+            $reassignTo = (int) $request->reassign_to;
+            if ($reassignTo === $user->id) {
+                return response()->json(['message' => 'Cannot reassign to the same user being deleted.'], 422);
+            }
+            Contact::where('user_id', $user->id)->update(['user_id' => $reassignTo]);
+            Deal::where('user_id', $user->id)->update(['user_id' => $reassignTo]);
+            Project::where('user_id', $user->id)->update(['user_id' => $reassignTo]);
+            ToDo::where('user_id', $user->id)->update(['user_id' => $reassignTo]);
+        }
+
         Cache::forget('lookups');
         $this->audit('deleted', 'user', $user->id, $user->name,
-            ['name' => $user->name, 'username' => $user->username], null, $request);
+            ['name' => $user->name, 'username' => $user->username],
+            ['reassigned_to' => $reassignTo], $request);
 
         $user->delete();
 
@@ -156,6 +184,21 @@ class UserManagementController extends Controller
 
         $this->audit('approved', 'user', $user->id, $user->name,
             ['is_approved' => false], ['is_approved' => true], $request);
+
+        return response()->json(['status' => 'success', 'data' => $user->load('roles:id,name')]);
+    }
+
+    public function unlockUser(Request $request, User $user)
+    {
+        $user->update([
+            'permanently_locked'    => false,
+            'failed_login_attempts' => 0,
+            'locked_until'          => null,
+            'lockout_level'         => 0,
+        ]);
+
+        $this->audit('unlocked', 'user', $user->id, $user->name,
+            ['permanently_locked' => true], ['permanently_locked' => false], $request);
 
         return response()->json(['status' => 'success', 'data' => $user->load('roles:id,name')]);
     }

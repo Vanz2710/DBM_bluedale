@@ -70,6 +70,12 @@ const tooltipStyle   = ref(null);
 const PAD = 10;  // padding around highlighted element
 const GAP = 18;  // gap between spotlight and tooltip
 
+// Wait for two animation frames — first lets the browser process a scroll,
+// second lets layout recalculate so getBoundingClientRect is accurate.
+function rafDouble() {
+  return new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+}
+
 async function recalculate() {
   if (!active.value || !currentStep.value) return;
 
@@ -77,15 +83,28 @@ async function recalculate() {
 
   const step = currentStep.value;
   const el   = document.querySelector(step.target);
-  if (!el) return;
-
-  // Bring element into view
-  el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-  await nextTick();
-
-  const rect = el.getBoundingClientRect();
   const vw   = window.innerWidth;
   const vh   = window.innerHeight;
+
+  if (el) {
+    // Instant scroll so getBoundingClientRect reflects the final position immediately.
+    // (smooth scroll is async with no completion callback, causing spotlight misalignment)
+    el.scrollIntoView({ block: 'center', behavior: 'instant' });
+    await rafDouble();
+  } else {
+    // Target not in DOM for this view — clear spotlight and center the tooltip
+    spotlightStyle.value = null;
+    await nextTick();
+    const tipW = tooltipEl.value?.offsetWidth  ?? 300;
+    const tipH = tooltipEl.value?.offsetHeight ?? 200;
+    tooltipStyle.value = {
+      top:  (vh / 2 - tipH / 2) + 'px',
+      left: (vw / 2 - tipW / 2) + 'px',
+    };
+    return;
+  }
+
+  const rect = el.getBoundingClientRect();
 
   // Spotlight
   spotlightStyle.value = {
@@ -95,14 +114,14 @@ async function recalculate() {
     height: (rect.height + PAD * 2) + 'px',
   };
 
-  // Tooltip position — wait one tick for the tooltip to render so we can read its size
+  // Wait for tooltip to render so we can read its size
   await nextTick();
   const tipW = tooltipEl.value?.offsetWidth  ?? 300;
   const tipH = tooltipEl.value?.offsetHeight ?? 200;
 
-  const pos  = step.position ?? 'right';
-  let   top  = 0;
-  let   left = 0;
+  const pos   = step.position ?? 'right';
+  let   top   = 0;
+  let   left  = 0;
   let   right = null;
 
   if (pos === 'right') {
@@ -120,11 +139,11 @@ async function recalculate() {
   }
 
   // Clamp to viewport
-  top  = Math.max(12, Math.min(top,  vh - tipH - 12));
+  top = Math.max(12, Math.min(top, vh - tipH - 12));
   if (right !== null) {
     right = Math.max(8, Math.min(right, vw - tipW - 8));
   } else {
-    left  = Math.max(12, Math.min(left, vw - tipW - 12));
+    left = Math.max(12, Math.min(left, vw - tipW - 12));
   }
 
   tooltipStyle.value = right !== null
@@ -138,17 +157,25 @@ function jumpTo(i) {
 
 watch([active, currentIndex], recalculate, { immediate: true });
 
+// Lock body scroll while tour is open so the page can't be scrolled behind the overlay
+watch(active, (val) => {
+  document.body.style.overflow = val ? 'hidden' : '';
+});
+
 // Recalculate on window resize
 function onResize() { recalculate(); }
 window.addEventListener('resize', onResize);
 import { onUnmounted } from 'vue';
-onUnmounted(() => window.removeEventListener('resize', onResize));
+onUnmounted(() => {
+  window.removeEventListener('resize', onResize);
+  document.body.style.overflow = '';
+});
 </script>
 
 <style scoped>
 .tour-root {
   position: fixed; inset: 0; z-index: 9000;
-  pointer-events: none;
+  pointer-events: all;
 }
 
 /* Spotlight — box-shadow IS the dark overlay */

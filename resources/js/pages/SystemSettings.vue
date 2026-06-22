@@ -152,4 +152,7 @@ async function save() {
 }
 .btn-save:hover:not(:disabled) { background: var(--primary-hover); }
 .btn-save:disabled { opacity: 0.5; cursor: not-allowed; }
+
+@media (max-width: 768px) { .page { padding: 20px 16px; } }
+@media (max-width: 640px) { .page { padding: 16px 12px; } }
 </style>

@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Models\Contact;
 use App\Models\ContactEditGrant;
-use App\Services\WebhookDispatcher;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -266,14 +265,6 @@ class ContactController extends Controller
         }
 
         $contact->load(['status', 'type', 'industry', 'category', 'user', 'incharges']);
-
-        WebhookDispatcher::dispatch('contact.created', [
-            'id'      => $contact->id,
-            'name'    => $contact->name,
-            'user_id' => $contact->user_id,
-            'user'    => $contact->user?->only('id', 'name'),
-            'status'  => $contact->status?->only('id', 'name'),
-        ]);
 
         return response()->json(['status' => 'success', 'data' => $contact], 201);
     }

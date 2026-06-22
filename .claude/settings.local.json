@@ -18,7 +18,22 @@
       "PowerShell(Add-Type -AssemblyName System.IO.Compression.FileSystem; $zip = [System.IO.Compression.ZipFile]::OpenRead\\(\"c:\\\\xampp\\\\htdocs\\\\library_crm_v2\\\\public\\\\build_new.zip\"\\); $zip.Entries | Select-Object -First 10 FullName; $zip.Dispose\\(\\))",
       "PowerShell(ls \"c:\\\\xampp\\\\htdocs\\\\library_crm_v2\\\\public\\\\build\\\\assets\" | Where-Object { $_.Extension -eq '.css' } | Select-Object Name, Length)",
       "Bash(Get-ChildItem -Path \"c:\\\\xampp\\\\htdocs\\\\library_crm_v2\" -MaxDepth 1 -Filter \"*.md\")",
-      "Bash(Select-Object Name, LastWriteTime)"
+      "Bash(Select-Object Name, LastWriteTime)",
+      "Bash(grep -v \"//\")",
+      "Bash(findstr \":3307\")",
+      "Bash(php -d memory_limit=512M artisan tinker verify_pdf_pages.php)",
+      "Bash(grep -v \"//\\\\|class\\\\|min-\\\\|max-\")",
+      "Bash(php -r \"echo 'GD: '.\\(extension_loaded\\('gd'\\)?'yes':'no'\\).PHP_EOL; echo 'dompdf: '.\\(class_exists\\('Dompdf\\\\\\\\Dompdf'\\)?'yes':'no'\\).PHP_EOL;\")",
+      "Bash(php -r \"echo '297mm landscape width, 210mm height -> 210mm = '.\\(210/25.4*72\\).'pt; usable h \\(minus 28px*2 margins @96dpi = '.\\(28*72/96\\).'pt each\\) = '.\\(\\(210/25.4*72\\) - 2*\\(28*72/96\\)\\).'pt'.PHP_EOL;\")",
+      "Bash(grep -nE '_frame->set_position|public \\\\$_frame|protected \\\\$_frame|->_frame =' vendor/dompdf/dompdf/src/FrameDecorator/AbstractFrameDecorator.php)",
+      "PowerShell(winget install --id oschwartz10612.Poppler --scope user --accept-source-agreements --accept-package-agreements --disable-interactivity 2>&1)",
+      "Bash(/c/Users/paula/AppData/Local/Microsoft/WinGet/Packages/oschwartz10612.Poppler_Microsoft.Winget.Source_8wekyb3d8bbwe/poppler-25.07.0/Library/bin/pdftoppm.exe -png -r 110 storage/app/_diag_sheet.pdf storage/app/_diag)",
+      "Bash(cd /c/xampp/htdocs/library_crm_v2 *)",
+      "Bash(php -r ' *)",
+      "Bash(Remove-Item \"c:\\\\xampp\\\\htdocs\\\\library_crm_v2\\\\resources\\\\js\\\\pages\\\\MarketingAI.vue\")"
+    ],
+    "additionalDirectories": [
+      "C:\\xampp\\htdocs\\library_crm_v2\\storage\\app"
     ]
   }
 }

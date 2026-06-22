@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\SystemSetting;
 use App\Models\User;
+use App\Notifications\BruteForceAccountLocked;
 use App\Notifications\FirstLoginAlert;
 use App\Notifications\InactivityLoginAlert;
 use App\Notifications\UserPendingApproval;
@@ -16,6 +17,7 @@ use Illuminate\Validation\ValidationException;
 class AuthController extends Controller
 {
     private const INACTIVITY_DAYS = 14;
+    private const MAX_ATTEMPTS    = 3;
 
     public function login(Request $request)
     {
@@ -26,9 +28,45 @@ class AuthController extends Controller
 
         $user = User::where('username', $request->username)->first();
 
-        if (!$user || !Hash::check($request->password, $user->password)) {
+        // Timing-safe: always run bcrypt even when user not found to prevent username enumeration.
+        if (!$user) {
+            Hash::check($request->password, '$2y$12$abcdefghijklmnopqrstuuABCDEFGHIJKLMNOPQRSTUVWXYZ012345');
             throw ValidationException::withMessages([
                 'username' => ['The provided credentials are incorrect.'],
+            ]);
+        }
+
+        // Permanent brute-force lock — only an admin can clear this.
+        if ($user->permanently_locked) {
+            return response()->json([
+                'message' => 'This account has been permanently locked after too many failed login attempts. Please contact your administrator.',
+                'status'  => 'permanently_locked',
+            ], 403);
+        }
+
+        // Temporary lockout — check if it is still active.
+        if ($user->locked_until && $user->locked_until->isFuture()) {
+            $minutesLeft = (int) now()->diffInMinutes($user->locked_until, false);
+            return response()->json([
+                'message' => "Too many failed login attempts. Your account is locked for {$minutesLeft} more minute(s).",
+                'status'  => 'temporarily_locked',
+            ], 429);
+        }
+
+        // Password check — wrong credentials, then track the failure.
+        if (!Hash::check($request->password, $user->password)) {
+            $this->handleFailedLogin($user);
+            throw ValidationException::withMessages([
+                'username' => ['The provided credentials are incorrect.'],
+            ]);
+        }
+
+        // Successful auth — reset any lockout counters.
+        if ($user->failed_login_attempts > 0 || $user->locked_until) {
+            $user->update([
+                'failed_login_attempts' => 0,
+                'locked_until'          => null,
+                'lockout_level'         => 0,
             ]);
         }
 
@@ -92,6 +130,24 @@ class AuthController extends Controller
     public function me(Request $request)
     {
         return response()->json(['user' => $this->userPayload($request->user())]);
+    }
+
+    private function handleFailedLogin(User $user): void
+    {
+        $user->increment('failed_login_attempts');
+        $user->refresh();
+
+        $attempts = $user->failed_login_attempts;
+        $level    = $user->lockout_level;
+
+        if ($attempts >= self::MAX_ATTEMPTS * 3 && $level < 3) {
+            $user->update(['permanently_locked' => true, 'lockout_level' => 3]);
+            $this->notifyAdmins(new BruteForceAccountLocked($user));
+        } elseif ($attempts >= self::MAX_ATTEMPTS * 2 && $level < 2) {
+            $user->update(['locked_until' => now()->addHour(), 'lockout_level' => 2]);
+        } elseif ($attempts >= self::MAX_ATTEMPTS && $level < 1) {
+            $user->update(['locked_until' => now()->addMinutes(15), 'lockout_level' => 1]);
+        }
     }
 
     private function notifyAdmins($notification): void

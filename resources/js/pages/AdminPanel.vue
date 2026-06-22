@@ -21,7 +21,7 @@
       </div>
     </div>
 
-    <div class="table-wrap" v-if="activeTab !== 'audit-log'">
+    <div class="table-wrap">
       <LoadingSpinner v-if="loading" />
       <div v-else-if="loadError" class="error-banner">{{ loadError }}</div>
       <template v-else>
@@ -64,40 +64,6 @@
                       :title="item.usage_count > 0 ? 'In use by ' + item.usage_count + ' record(s) — remove references first' : 'Delete ' + item.name"
                     >Delete</button>
                   </template>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </template>
-    </div>
-
-    <!-- AUDIT LOG -->
-    <div class="table-wrap" v-if="activeTab === 'audit-log'">
-      <LoadingSpinner v-if="auditLoading" />
-      <div v-else-if="auditError" class="error-banner">{{ auditError }}</div>
-      <template v-else>
-        <div class="table-scroll">
-          <table>
-            <thead>
-              <tr><th>#</th><th>When</th><th>By</th><th>Action</th><th>Entity</th><th>Details</th></tr>
-            </thead>
-            <tbody>
-              <tr v-if="auditLogs.length === 0"><td colspan="6" class="empty-state">No audit entries yet.</td></tr>
-              <tr v-for="(log, idx) in auditLogs" :key="log.id">
-                <td class="num">{{ idx + 1 }}</td>
-                <td class="muted date-cell">{{ formatDatetime(log.created_at) }}</td>
-                <td class="actor-cell">
-                  <span v-if="log.actor">{{ log.actor.name }}</span>
-                  <span v-else class="muted">—</span>
-                </td>
-                <td><span :class="['audit-badge', 'audit-' + log.action]">{{ log.action }}</span></td>
-                <td>
-                  <span class="entity-name">{{ log.entity_name || log.entity_id }}</span>
-                  <span class="entity-type">{{ log.entity_type }}</span>
-                </td>
-                <td class="detail-cell">
-                  <span v-if="log.new_values" class="detail-snippet">{{ summarise(log.new_values) }}</span>
                 </td>
               </tr>
             </tbody>
@@ -165,12 +131,6 @@ const TAB_GROUPS = [
       { key: 'forecast-results',  label: 'Results' },
     ],
   },
-  {
-    label: 'System',
-    tabs: [
-      { key: 'audit-log', label: 'Audit Log' },
-    ],
-  },
 ];
 
 const tabs = TAB_GROUPS.flatMap(g => g.tabs);
@@ -188,34 +148,7 @@ const deleteModal = reactive({ open: false, item: null, loading: false });
 function openDeleteModal(item) { deleteModal.item = item; deleteModal.open = true; }
 function closeDeleteModal() { deleteModal.open = false; deleteModal.item = null; deleteModal.loading = false; }
 
-const auditLogs    = ref([]);
-const auditLoading = ref(false);
-const auditError   = ref('');
-
 const currentTab = computed(() => tabs.find(t => t.key === activeTab.value));
-
-function formatDatetime(iso) {
-  if (!iso) return '—';
-  return new Date(iso).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-}
-
-function summarise(obj) {
-  if (!obj) return '';
-  return Object.entries(obj).filter(([k]) => k !== 'password').map(([k, v]) => `${k}: ${v}`).join(', ').slice(0, 80);
-}
-
-async function loadAuditLog() {
-  auditLoading.value = true;
-  auditError.value   = '';
-  try {
-    const res = await api.get('/v1/admin/audit-log');
-    auditLogs.value = res.data.data ?? [];
-  } catch (e) {
-    auditError.value = e.response?.data?.message ?? 'Failed to load audit log.';
-  } finally {
-    auditLoading.value = false;
-  }
-}
 
 async function loadItems() {
   loading.value   = true;
@@ -236,11 +169,7 @@ async function loadItems() {
 function switchTab(key) {
   activeTab.value = key;
   newName.value   = '';
-  if (key === 'audit-log') {
-    loadAuditLog();
-  } else {
-    loadItems();
-  }
+  loadItems();
 }
 
 async function addItem() {

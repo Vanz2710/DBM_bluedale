@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Contact;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
@@ -17,6 +18,7 @@ use Spatie\Permission\Traits\HasRoles;
     'settings', 'dashboard_layout',
     'is_approved', 'approved_at', 'approved_by_id', 'access_requested_at',
     'login_count', 'last_login_at', 'inactivity_flagged_at',
+    'failed_login_attempts', 'locked_until', 'lockout_level', 'permanently_locked',
 ])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
@@ -37,7 +39,16 @@ class User extends Authenticatable
             'is_approved'         => 'boolean',
             'login_count'            => 'integer',
             'inactivity_flagged_at'  => 'datetime',
+            'locked_until'           => 'datetime',
+            'failed_login_attempts'  => 'integer',
+            'lockout_level'          => 'integer',
+            'permanently_locked'     => 'boolean',
         ];
+    }
+
+    public function contacts()
+    {
+        return $this->hasMany(Contact::class);
     }
 
     public function forecasts()
@@ -48,5 +59,10 @@ class User extends Authenticatable
     public function approvedBy()
     {
         return $this->belongsTo(User::class, 'approved_by_id')->withTrashed();
+    }
+
+    public function department()
+    {
+        return $this->belongsTo(Department::class);
     }
 }

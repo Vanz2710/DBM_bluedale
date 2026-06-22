@@ -101,24 +101,27 @@ class AdminController extends Controller
     public function destroy(Request $request, string $entity, string $id)
     {
         [$model] = $this->resolve($entity);
-        $item = $model::findOrFail($id);
 
-        $count = 0;
-        foreach (self::$usageMap[$entity] as [$table, $col]) {
-            $count += DB::table($table)->where($col, $id)->count();
-        }
+        return DB::transaction(function () use ($model, $entity, $id, $request) {
+            $item = $model::lockForUpdate()->findOrFail($id);
 
-        if ($count > 0) {
-            return response()->json([
-                'message' => "Cannot delete \"{$item->name}\" — it is referenced by {$count} record(s). Remove those references first.",
-            ], 409);
-        }
+            $count = 0;
+            foreach (self::$usageMap[$entity] as [$table, $col]) {
+                $count += DB::table($table)->where($col, $id)->count();
+            }
 
-        Cache::forget('lookups');
-        $this->audit('deleted', $entity, $item->id, $item->name, ['name' => $item->name], null, $request);
+            if ($count > 0) {
+                return response()->json([
+                    'message' => "Cannot delete \"{$item->name}\" — it is referenced by {$count} record(s). Remove those references first.",
+                ], 409);
+            }
 
-        $item->delete();
-        return response()->json(['status' => 'success']);
+            Cache::forget('lookups');
+            $this->audit('deleted', $entity, $item->id, $item->name, ['name' => $item->name], null, $request);
+
+            $item->delete();
+            return response()->json(['status' => 'success']);
+        });
     }
 
     private function resolve(string $entity): array

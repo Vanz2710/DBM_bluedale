@@ -50,7 +50,7 @@ class Contact extends Model
 
     public function user()
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(User::class)->withTrashed();
     }
 
     public function status()
@@ -91,11 +91,6 @@ class Contact extends Model
     public function calls()
     {
         return $this->hasMany(ContactCall::class)->orderByDesc('called_at');
-    }
-
-    public function whatsappMessages()
-    {
-        return $this->hasMany(WhatsAppMessage::class)->orderByDesc('timestamp');
     }
 
     public function forecasts()

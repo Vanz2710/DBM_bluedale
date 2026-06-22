@@ -17,13 +17,17 @@ class AdvertisingProduct extends Model
         'size',
         'state_city',
         'coordinate',
+        'illumination',
+        'facing',
         'nearest_landmarks',
         'site_photo',
         'site_map_photo',
+        'is_pending',
     ];
 
     protected $casts = [
         'nearest_landmarks' => 'array',
+        'is_pending'        => 'boolean',
     ];
 
     protected $appends = ['site_photo_url', 'site_map_photo_url'];

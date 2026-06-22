@@ -1,57 +1,33 @@
-﻿<template>
+<template>
   <div class="login-root">
 
-    <!-- ── Left: brand showcase ──────────────────────────────── -->
-    <aside class="login-left">
-      <div class="left-glow" aria-hidden="true"></div>
+    <!-- ── Split card ────────────────────────────────────────────── -->
+    <div class="login-card" role="main">
 
-      <header class="left-brand">
-        <img :src="'/images/bluedale-logo.png'" class="left-logo-img" alt="Bluedale Group of Companies" />
-      </header>
-
-      <div class="left-hero">
-        <h2 class="hero-title">Every client relationship,<br>in one place.</h2>
-        <p class="hero-sub">The all-in-one CRM for Bluedale Group of Companies — contacts, deals, forecasts and follow-ups, beautifully organised.</p>
-
-        <ul class="hero-features">
-          <li>
-            <span class="feat-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
-            Track contacts, deals &amp; forecasts
-          </li>
-          <li>
-            <span class="feat-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
-            Smart reminders &amp; follow-ups
-          </li>
-          <li>
-            <span class="feat-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
-            Real-time team performance insights
-          </li>
-        </ul>
-      </div>
-
-      <div class="left-product">
-        <img class="product-thumb" :src="img1" alt="The KL Guide cover" draggable="false" />
-        <div class="product-info">
-          <span class="product-pill">Now available</span>
-          <span class="product-title">The KL Guide</span>
-          <span class="product-sub">Malaysia's leading business &amp; travel directory</span>
-        </div>
-      </div>
-    </aside>
-
-    <!-- ── Right: sign-in form ───────────────────────────────── -->
-    <main class="login-right">
-      <div class="login-form-wrap">
-
-        <!-- Brand (mobile only) -->
-        <div class="mobile-brand">
-          <img :src="'/images/bluedale-logo.png'" class="mobile-brand-img" alt="Bluedale Group of Companies" />
+      <!-- ── Left: visual panel ──────────────────────────────────── -->
+      <div class="card-left">
+        <div class="left-art">
+          <div ref="lottieBox" class="lottie-box" :class="{ 'art-hidden': !artVisible }" aria-hidden="true"></div>
         </div>
 
-        <h1 class="form-heading">Welcome back</h1>
-        <p class="form-sub">Sign in to your workspace to continue.</p>
+        <div class="left-bottom">
+          <h2 class="left-heading">Bluedale CRM System</h2>
+          <p class="left-sub">Your complete CRM workspace — built for the Bluedale team.</p>
+        </div>
 
-        <!-- Error -->
+        <!-- Wave decoration SVG -->
+        <svg class="wave-deco" viewBox="0 0 400 180" preserveAspectRatio="none" aria-hidden="true">
+          <path d="M0,90 C80,140 160,40 240,90 C320,140 380,60 400,80 L400,180 L0,180 Z" fill="rgba(255,255,255,0.07)"/>
+          <path d="M0,120 C60,80 140,160 220,110 C300,60 360,140 400,100 L400,180 L0,180 Z" fill="rgba(255,255,255,0.05)"/>
+        </svg>
+      </div>
+
+      <!-- ── Right: form panel ────────────────────────────────────── -->
+      <div class="card-right">
+        <h1 class="form-heading">Welcome Back</h1>
+        <p class="form-sub">Enter your credentials to access your workspace.</p>
+
+        <!-- Error banner -->
         <div v-if="error" class="error-banner">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
           {{ error }}
@@ -107,24 +83,75 @@
 
         <p class="form-footer">Bluedale Group of Companies &copy; {{ year }}</p>
       </div>
-    </main>
 
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, onMounted, onBeforeUnmount } from 'vue';
 import { useRouter } from 'vue-router';
 import api from '../api.js';
 
 const router       = useRouter();
-const img1         = '/kl-guide-1.jpg';
-const img2         = '/kl-guide-2.jpg';
 const form         = ref({ username: '', password: '' });
 const error        = ref('');
 const loading      = ref(false);
 const showPassword = ref(false);
 const year         = new Date().getFullYear();
+
+const lottieBox = ref(null);
+const artVisible = ref(true);
+let lottie = null;
+let anim = null;
+let artData = [];
+let artIndex = 0;
+let cycleTimer = null;
+let fadeTimer = null;
+
+const ART_HOLD = 6000;   // ms each animation is shown
+const ART_FADE = 500;    // ms crossfade duration
+
+function loadArt(i) {
+  if (!lottieBox.value || !lottie) return;
+  anim?.destroy();
+  anim = lottie.loadAnimation({
+    container: lottieBox.value,
+    renderer: 'svg',
+    loop: true,
+    autoplay: true,
+    animationData: artData[i],
+  });
+}
+
+onMounted(async () => {
+  const [{ default: lottieLib }, team, rocket, goals] = await Promise.all([
+    import('lottie-web/build/player/lottie_light'),
+    import('../assets/business-team.json'),
+    import('../assets/businessman-rocket.json'),
+    import('../assets/sales-goals.json'),
+  ]);
+  lottie = lottieLib;
+  artData = [team.default, rocket.default, goals.default];
+  if (!lottieBox.value) return;
+
+  loadArt(artIndex);
+
+  cycleTimer = setInterval(() => {
+    artVisible.value = false;                 // fade out
+    fadeTimer = setTimeout(() => {
+      artIndex = (artIndex + 1) % artData.length;
+      loadArt(artIndex);
+      artVisible.value = true;                // fade in
+    }, ART_FADE);
+  }, ART_HOLD);
+});
+
+onBeforeUnmount(() => {
+  anim?.destroy();
+  clearInterval(cycleTimer);
+  clearTimeout(fadeTimer);
+});
 
 async function handleLogin() {
   error.value   = '';
@@ -145,178 +172,228 @@ async function handleLogin() {
 </script>
 
 <style scoped>
-/* ── Layout ──────────────────────────────────────────────────── */
+/* ── Page ───────────────────────────────────────────────────── */
 .login-root {
   min-height: 100vh;
-  display: grid;
-  grid-template-columns: 53% 47%;
-  background: var(--surface);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 28px 20px;
+  box-sizing: border-box;
+  background:
+    radial-gradient(ellipse 80% 60% at 15% 50%, rgba(29, 78, 216, 0.18), transparent),
+    radial-gradient(ellipse 60% 50% at 85% 50%, rgba(14, 44, 120, 0.22), transparent),
+    linear-gradient(135deg, #07101f 0%, #0b1a38 50%, #070e1c 100%);
 }
 
-/* ── Left: premium brand panel (intentional dark splash) ──────── */
-.login-left {
-  position: relative;
+/* ── Card ───────────────────────────────────────────────────── */
+.login-card {
+  display: flex;
+  width: 100%;
+  max-width: 900px;
+  min-height: 560px;
+  border-radius: 22px;
   overflow: hidden;
+  box-shadow:
+    0 40px 80px rgba(0, 0, 0, 0.55),
+    0 0 0 1px rgba(255, 255, 255, 0.06);
+  animation: card-rise 0.52s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes card-rise {
+  from { opacity: 0; transform: translateY(22px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* ── Left: blue wave panel ──────────────────────────────────── */
+.card-left {
+  width: 46%;
+  flex-shrink: 0;
+  position: relative;
   display: flex;
   flex-direction: column;
-  padding: 44px 52px;
-  color: #fff;
-  background: #07122a;
-}
-.left-glow {
-  position: absolute; inset: 0; z-index: 0; pointer-events: none;
+  justify-content: space-between;
+  padding: 36px 40px 48px;
+  box-sizing: border-box;
+  overflow: hidden;
   background:
-    radial-gradient(55% 45% at 78% 12%, rgba(59, 130, 246, 0.45), transparent 70%),
-    radial-gradient(50% 50% at 8% 92%, rgba(15, 36, 86, 0.55), transparent 72%),
-    linear-gradient(158deg, #0d1e4a 0%, #071534 52%, #050e26 100%);
+    radial-gradient(ellipse 180% 45% at -5% 105%, rgba(13, 110, 253, 0.85) 0%, rgba(30, 170, 255, 0.35) 40%, transparent 65%),
+    radial-gradient(ellipse 120% 40% at 110% 65%, rgba(56, 189, 248, 0.55) 0%, transparent 55%),
+    radial-gradient(ellipse 90% 35% at 45% 35%, rgba(147, 210, 255, 0.25) 0%, transparent 60%),
+    linear-gradient(168deg,
+      #cce8ff 0%,
+      #7ec8f8 12%,
+      #3aaff5 25%,
+      #1a8ae0 40%,
+      #0f67c8 55%,
+      #0b4aaa 70%,
+      #072f82 85%,
+      #041d60 100%
+    );
+  color: #ffffff;
 }
 
-.left-brand,
-.left-hero,
-.left-product { position: relative; z-index: 1; }
-
-.left-brand { display: flex; align-items: center; }
-.left-logo-img { height: 38px; width: auto; filter: brightness(0) invert(1); }
-
-/* Hero — vertically centred */
-.left-hero { margin: auto 0; max-width: 440px; }
-.hero-title {
-  font-size: 34px; line-height: 1.16; font-weight: 800;
-  letter-spacing: -0.8px; margin: 0 0 16px;
-}
-.hero-sub {
-  font-size: 14.5px; line-height: 1.65; color: rgba(255, 255, 255, 0.62);
-  margin: 0 0 30px; max-width: 390px;
-}
-.hero-features {
-  list-style: none; padding: 0; margin: 0;
-  display: flex; flex-direction: column; gap: 15px;
-}
-.hero-features li {
-  display: flex; align-items: center; gap: 13px;
-  font-size: 14px; font-weight: 500; color: rgba(255, 255, 255, 0.9);
-}
-.feat-ico {
-  width: 27px; height: 27px; border-radius: 50%; flex-shrink: 0;
-  background: rgba(96, 165, 250, 0.18); color: #93c5fd;
-  border: 1px solid rgba(96, 165, 250, 0.3);
-  display: flex; align-items: center; justify-content: center;
-}
-.feat-ico svg { width: 13px; height: 13px; }
-
-/* Product card */
-.left-product {
-  display: flex; align-items: center; gap: 14px; max-width: 440px;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 16px; padding: 13px 15px;
-}
-.product-thumb {
-  width: 52px; height: 66px; border-radius: 9px; object-fit: cover; flex-shrink: 0;
-  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.45);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  pointer-events: none; user-select: none;
-}
-.product-info { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
-.product-pill {
-  align-self: flex-start; font-size: 9px; font-weight: 800;
-  letter-spacing: 1px; text-transform: uppercase; color: #93c5fd;
-  background: rgba(96, 165, 250, 0.18); border-radius: 999px; padding: 2px 9px;
-}
-.product-title { font-size: 14.5px; font-weight: 800; }
-.product-sub {
-  font-size: 11.5px; color: rgba(255, 255, 255, 0.55);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+/* Wave SVG decorations at the bottom */
+.wave-deco {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 180px;
+  pointer-events: none;
 }
 
-/* ── Right: form ──────────────────────────────────────────────── */
-.login-right {
-  background: var(--surface);
-  display: flex; align-items: center; justify-content: center;
-  padding: 48px 56px;
+/* Top: lottie animation (where the logo used to be) */
+.left-art {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  justify-content: center;
+  flex: 1;
+  align-items: center;
+  min-height: 0;
 }
-.login-form-wrap {
-  width: 100%; max-width: 384px;
-  animation: form-rise 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+.lottie-box {
+  width: 100%;
+  max-width: 320px;
+  aspect-ratio: 1 / 1;
+  filter: drop-shadow(0 16px 32px rgba(0, 0, 0, 0.22));
+  opacity: 1;
+  transform: scale(1);
+  transition: opacity 0.5s ease, transform 0.5s ease;
 }
-@keyframes form-rise {
-  from { opacity: 0; transform: translateY(16px); }
-  to   { opacity: 1; transform: translateY(0); }
+.lottie-box.art-hidden {
+  opacity: 0;
+  transform: scale(0.92);
 }
 
-.mobile-brand { display: none; }
-.mobile-brand-img { height: 28px; width: auto; }
+/* Bottom: big heading + sub */
+.left-bottom {
+  position: relative;
+  z-index: 1;
+}
+.left-heading {
+  font-size: 32px;
+  font-weight: 800;
+  line-height: 1.14;
+  letter-spacing: -0.8px;
+  margin: 0 0 14px;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.25);
+}
+.left-sub {
+  font-size: 13px;
+  line-height: 1.65;
+  color: rgba(255, 255, 255, 0.65);
+  margin: 0;
+  max-width: 280px;
+}
+
+/* ── Right: form panel ──────────────────────────────────────── */
+.card-right {
+  flex: 1;
+  background: #ffffff;
+  padding: 52px 52px 52px 48px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  box-sizing: border-box;
+}
 
 .form-heading {
-  font-size: 30px; font-weight: 800; color: var(--text-1);
-  letter-spacing: -0.6px; margin: 0 0 8px;
+  font-size: 28px;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: -0.5px;
+  margin: 0 0 8px;
 }
-.form-sub { font-size: 14px; color: var(--text-2); margin: 0 0 32px; }
+.form-sub {
+  font-size: 14px;
+  color: #64748b;
+  margin: 0 0 30px;
+  line-height: 1.5;
+}
 
 /* Error */
 .error-banner {
-  display: flex; align-items: flex-start; gap: 8px;
-  background: var(--danger-soft); color: var(--danger);
-  border: 1px solid var(--danger-soft);
-  border-radius: var(--radius); padding: 11px 14px;
-  font-size: 13px; margin-bottom: 22px; line-height: 1.5;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+  border-radius: 10px;
+  padding: 11px 14px;
+  font-size: 13px;
+  margin-bottom: 22px;
+  line-height: 1.5;
 }
 .error-banner svg { flex-shrink: 0; margin-top: 1px; }
 
 /* Fields */
 .field { margin-bottom: 18px; }
 .field label {
-  display: block; font-size: 11px; font-weight: 700;
-  text-transform: uppercase; letter-spacing: 0.7px;
-  color: var(--text-2); margin-bottom: 8px;
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.7px;
+  color: #64748b;
+  margin-bottom: 8px;
 }
 .input-wrap { position: relative; display: flex; align-items: center; }
 .input-icon {
-  position: absolute; left: 14px; color: var(--text-3);
-  display: flex; align-items: center; pointer-events: none;
+  position: absolute; left: 14px;
+  color: #94a3b8;
+  display: flex; align-items: center;
+  pointer-events: none;
   transition: color 0.15s;
 }
 .input-wrap input {
-  width: 100%; height: 50px; padding: 0 44px 0 44px;
-  border: 1.5px solid var(--border); border-radius: var(--radius);
-  font-size: 14px; color: var(--text-1); background: var(--surface-2);
+  width: 100%; height: 50px;
+  padding: 0 44px 0 44px;
+  background: #f8faff;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  font-size: 14px; color: #0f172a;
   outline: none; box-sizing: border-box;
   transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
 }
-.input-wrap input::placeholder { color: var(--text-3); }
+.input-wrap input::placeholder { color: #b0bac6; }
 .input-wrap input:focus {
-  border-color: var(--primary); background: var(--surface);
-  box-shadow: 0 0 0 4px var(--primary-soft);
+  border-color: #3b82f6;
+  background: #ffffff;
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.12);
 }
-.input-wrap input:focus + .input-toggle,
-.input-wrap:focus-within .input-icon { color: var(--primary); }
-.input-wrap input:disabled { opacity: 0.6; cursor: not-allowed; }
+.input-wrap:focus-within .input-icon { color: #3b82f6; }
+.input-wrap input:disabled { opacity: 0.55; cursor: not-allowed; }
 
 .input-toggle {
-  position: absolute; right: 12px; background: none; border: none;
-  cursor: pointer; color: var(--text-3);
-  display: flex; align-items: center; padding: 5px; border-radius: var(--radius-sm);
+  position: absolute; right: 12px;
+  background: none; border: none; cursor: pointer;
+  color: #94a3b8;
+  display: flex; align-items: center;
+  padding: 5px; border-radius: 6px;
   transition: color 0.15s;
 }
-.input-toggle:hover { color: var(--text-2); }
+.input-toggle:hover { color: #64748b; }
 
 /* Button */
 .btn-login {
   width: 100%; height: 50px; margin-top: 10px;
-  background: linear-gradient(135deg, var(--primary), var(--primary-hover));
-  color: var(--primary-on); border: none; border-radius: var(--radius-lg);
+  background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 100%);
+  color: #ffffff; border: none; border-radius: 14px;
   font-size: 15px; font-weight: 700; cursor: pointer;
   display: flex; align-items: center; justify-content: center; gap: 9px;
-  box-shadow: 0 10px 26px -8px var(--focus-ring);
+  box-shadow: 0 10px 28px -8px rgba(37, 99, 235, 0.55);
   transition: transform 0.15s, box-shadow 0.15s, opacity 0.2s;
 }
 .btn-login:hover:not(:disabled) {
   transform: translateY(-1px);
-  box-shadow: 0 14px 30px -8px var(--focus-ring);
+  box-shadow: 0 14px 32px -8px rgba(37, 99, 235, 0.65);
 }
 .btn-login:hover:not(:disabled) .btn-arrow { transform: translateX(3px); }
 .btn-login:active:not(:disabled) { transform: translateY(0); }
-.btn-login:disabled { opacity: 0.6; cursor: not-allowed; box-shadow: none; }
+.btn-login:disabled { opacity: 0.50; cursor: not-allowed; box-shadow: none; }
 .btn-arrow { transition: transform 0.18s ease; }
 
 .btn-spinner {
@@ -329,37 +406,26 @@ async function handleLogin() {
 
 /* Footer */
 .form-footer {
-  text-align: center; font-size: 11.5px; color: var(--text-3); margin: 32px 0 0;
+  text-align: center;
+  font-size: 11.5px;
+  color: #94a3b8;
+  margin: 28px 0 0;
 }
 
-/* ── Mobile ───────────────────────────────────────────────────── */
-@media (max-width: 860px) {
-  .login-root { grid-template-columns: 1fr; }
-  .login-left { display: none; }
-  .login-right {
-    padding: 40px 26px;
-    background:
-      radial-gradient(60% 40% at 80% 8%, rgba(29, 78, 216, 0.12), transparent 70%),
-      var(--surface);
-  }
-  .login-form-wrap { max-width: 400px; }
-  .mobile-brand {
-    display: flex; align-items: center; gap: 11px;
-    justify-content: center; margin-bottom: 28px;
-  }
-  .brand-logo {
-    width: 42px; height: 42px; border-radius: 12px;
-    background: linear-gradient(135deg, var(--primary), var(--primary-hover));
-    display: flex; align-items: center; justify-content: center; color: #fff;
-    box-shadow: 0 8px 22px -6px var(--focus-ring);
-  }
-  .mobile-brand-text { font-size: 21px; font-weight: 800; color: var(--text-1); }
-  .mobile-brand-accent { color: var(--primary); }
+/* ── Mobile ─────────────────────────────────────────────────── */
+@media (max-width: 700px) {
+  .login-root { padding: 16px; align-items: flex-start; }
+  .login-card { flex-direction: column; min-height: unset; }
+  .card-left { width: 100%; min-height: unset; padding: 28px 28px 32px; }
+  .left-art { display: none; }
+  .left-heading { font-size: 24px; }
+  .left-sub { display: none; }
+  .card-right { padding: 36px 28px 40px; }
 }
 
-/* Respect reduced-motion preferences */
+/* ── Reduced motion ─────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
-  .login-form-wrap { animation: none; }
+  .login-card { animation: none; }
   .btn-login, .btn-arrow { transition: none; }
 }
 </style>

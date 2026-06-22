@@ -152,7 +152,7 @@ class FollowUpController extends Controller
             }
         }
 
-        $followUps = $query->orderByDesc('followup_date')->orderByDesc('id')->get();
+        $followUps = $query->orderByDesc('followup_date')->orderByDesc('id')->limit(10000)->get();
 
         $filename = 'FollowUp_Export_' . now()->format('Y-m-d') . '.csv';
         $headers  = [

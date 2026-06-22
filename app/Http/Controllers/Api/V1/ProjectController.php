@@ -148,7 +148,7 @@ class ProjectController extends Controller
             })
             ->orderByDesc('project_startdate');
 
-        $projects = $query->get();
+        $projects = $query->limit(10000)->get();
 
         $filename = 'Projects_Export_' . now()->format('Y-m-d') . '.csv';
         $headers  = [

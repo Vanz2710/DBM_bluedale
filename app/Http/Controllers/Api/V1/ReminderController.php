@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Models\AdvertisingProductBooking;
+use App\Models\DeptNotification;
 use App\Models\FollowUp;
 use App\Models\ReminderRead;
 use App\Models\SystemAlert;
@@ -115,6 +117,25 @@ class ReminderController extends Controller
         $dueToday = $items->filter(fn($i) => $i['due_date'] === $today)->sortBy('source_type')->values();
         $upcoming = $items->filter(fn($i) => $i['due_date'] > $today)->sortBy('due_date')->values();
 
+        // Expiring site bookings — end within the next 30 days (visible to all users)
+        $expiringSites = Cache::remember('reminders_expiring_sites', 30, fn () =>
+            AdvertisingProductBooking::with('product:id,site_name,product_type')
+                ->where('end_date', '>=', now()->toDateString())
+                ->where('end_date', '<=', now()->addDays(30)->toDateString())
+                ->orderBy('end_date')
+                ->get()
+                ->map(fn ($b) => [
+                    'id'           => $b->id,
+                    'source_type'  => 'site_expiry',
+                    'company_name' => $b->company_name,
+                    'site_name'    => $b->product->site_name ?? 'Unknown Site',
+                    'product_type' => $b->product->product_type ?? '',
+                    'end_date'     => $b->end_date->format('Y-m-d'),
+                    'days_left'    => (int) now()->diffInDays($b->end_date, false),
+                ])
+                ->all()
+        );
+
         $alerts = [];
         if ($isAdmin) {
             $alerts = SystemAlert::where('for_user_id', $user->id)
@@ -136,12 +157,33 @@ class ReminderController extends Controller
                 ->all();
         }
 
+        $taskNotifs = DeptNotification::where('user_id', $user->id)
+            ->whereNull('read_at')
+            ->with('task:id,title')
+            ->latest()
+            ->limit(10)
+            ->get()
+            ->map(fn($n) => [
+                'id'          => $n->id,
+                'source_type' => 'task_notification',
+                'type'        => $n->type,
+                'message'     => $n->message,
+                'task_id'     => $n->task_id,
+                'task_title'  => $n->task?->title,
+                'is_read'     => false,
+                'created_at'  => $n->created_at->format('d M Y, H:i'),
+            ])
+            ->values()
+            ->all();
+
         return response()->json([
-            'overdue'      => $overdue,
-            'today'        => $dueToday,
-            'upcoming'     => $upcoming,
-            'alerts'       => $alerts,
-            'unread_count' => $items->where('is_read', false)->count() + count($alerts),
+            'overdue'             => $overdue,
+            'today'               => $dueToday,
+            'upcoming'            => $upcoming,
+            'alerts'              => $alerts,
+            'expiring_sites'      => $expiringSites,
+            'task_notifications'  => $taskNotifs,
+            'unread_count'        => $items->where('is_read', false)->count() + count($alerts) + count($expiringSites) + count($taskNotifs),
         ]);
     }
 
@@ -158,6 +200,14 @@ class ReminderController extends Controller
             if ($type === 'alert') {
                 SystemAlert::where('id', $id)
                     ->where('for_user_id', $userId)
+                    ->whereNull('read_at')
+                    ->update(['read_at' => now()]);
+                continue;
+            }
+
+            if ($type === 'task_notification') {
+                DeptNotification::where('id', $id)
+                    ->where('user_id', $userId)
                     ->whereNull('read_at')
                     ->update(['read_at' => now()]);
                 continue;

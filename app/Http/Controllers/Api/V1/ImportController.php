@@ -263,7 +263,7 @@ class ImportController extends Controller
                                 $val  = $this->normalize($raw, 'status');
                                 $lval = strtolower($val);
                                 if (!isset($statusMap[$lval])) {
-                                    $statusMap[$lval] = ContactStatus::create(['name' => $val])->id;
+                                    $statusMap[$lval] = ContactStatus::firstOrCreate(['name' => $val])->id;
                                 }
                                 $data['status_id'] = $statusMap[$lval];
                                 break;
@@ -271,7 +271,7 @@ class ImportController extends Controller
                                 $val  = $this->normalize($raw, 'client_type');
                                 $lval = strtolower($val);
                                 if (!isset($typeMap[$lval])) {
-                                    $typeMap[$lval] = ContactType::create(['name' => $val])->id;
+                                    $typeMap[$lval] = ContactType::firstOrCreate(['name' => $val])->id;
                                 }
                                 $data['type_id'] = $typeMap[$lval];
                                 break;
@@ -279,14 +279,14 @@ class ImportController extends Controller
                                 $val  = $this->normalize($raw, 'industry');
                                 $lval = strtolower($val);
                                 if (!isset($industryMap[$lval])) {
-                                    $industryMap[$lval] = ContactIndustry::create(['name' => $val])->id;
+                                    $industryMap[$lval] = ContactIndustry::firstOrCreate(['name' => $val])->id;
                                 }
                                 $data['industry_id'] = $industryMap[$lval];
                                 break;
                             case 'category':
                                 $lval = strtolower($raw);
                                 if (!isset($categoryMap[$lval])) {
-                                    $categoryMap[$lval] = ContactCategory::create(['name' => $raw])->id;
+                                    $categoryMap[$lval] = ContactCategory::firstOrCreate(['name' => $raw])->id;
                                 }
                                 $data['category_id'] = $categoryMap[$lval];
                                 break;

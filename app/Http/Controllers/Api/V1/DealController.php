@@ -229,7 +229,7 @@ class DealController extends Controller
             })
             ->orderByDesc('created_at');
 
-        $deals    = $query->get();
+        $deals    = $query->limit(10000)->get();
         $filename = 'Deals_Export_' . now()->format('Y-m-d') . '.csv';
         $headers  = [
             'Content-Type'        => 'text/csv; charset=utf-8',

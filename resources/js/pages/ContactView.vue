@@ -563,7 +563,7 @@ async function confirmDeleteTask() {
   if (!deleteTaskModal.todo) return;
   deleteTaskModal.loading = true;
   try {
-    await api.delete(`/v1/todos/${deleteTaskModal.todo.id}`);
+    await api.delete(`/v1/contacts/${id}/todos/${deleteTaskModal.todo.id}`);
     const res = await api.get(`/v1/contacts/${id}`);
     contact.value = res.data.data;
     closeDeleteTaskModal();

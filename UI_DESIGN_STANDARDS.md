@@ -22,12 +22,12 @@ This document defines the design system for all new pages and components.
 --text-2:       #64748b   /* secondary text, labels */
 --text-3:       #94a3b8   /* muted text, placeholders */
 
-/* Primary (purple) */
---primary:        #7c3aed
---primary-hover:  #6d28d9
---primary-soft:   #ede9fe
+/* Primary (Bluedale navy blue) */
+--primary:        #1d4ed8
+--primary-hover:  #1e40af
+--primary-soft:   #dbeafe
 --primary-on:     #ffffff
---primary-text:   #4c1d95
+--primary-text:   #0f2456
 
 /* Radii */
 --radius-sm:  6px
@@ -54,6 +54,13 @@ Every page uses this exact shell:
 .page-title  { font-size: 28px; font-weight: 800; color: var(--text-1);
                letter-spacing: -0.5px; margin: 0 0 4px; }
 .page-subtitle { font-size: 13.5px; color: var(--text-3); margin: 0; }
+```
+
+**Responsive padding is required** — every new page must include these breakpoints so it looks clean at all zoom levels and screen sizes:
+
+```css
+@media (max-width: 768px) { .page { padding: 20px 16px; } }
+@media (max-width: 640px) { .page { padding: 16px 12px; } }
 ```
 
 ---

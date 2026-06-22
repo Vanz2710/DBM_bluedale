@@ -81,8 +81,6 @@ All API requests go through `routes/api.php`. All feature routes live under the 
 
 The SPA catch-all in `routes/web.php` serves `resources/views/app.blade.php`, which bootstraps Vue. The Vue app lives in `resources/js/app.js` and mounts `App.vue`.
 
-A WhatsApp webhook lives at `GET|POST /webhooks/whatsapp` (CSRF-exempt, no auth) — GET verifies the token, POST enqueues a `ProcessWhatsAppWebhook` job. Configure with `WHATSAPP_VERIFY_TOKEN`, `WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_APP_SECRET`.
-
 ### Auth Pattern
 - Token stored in `localStorage` as `crm_token`; user object stored as `crm_user` (JSON with `roles[]` array)
 - `resources/js/api.js` — Axios instance that auto-attaches Bearer token, strips Content-Type for FormData uploads, and redirects to `/login` on 401 (deduplicated across concurrent requests via `_redirecting` flag). Router must be registered via `setRouter()` before the first 401.
@@ -132,7 +130,7 @@ Model domains (all flat in `app/Models/`):
 - **Lookup/config:** ContactStatus, ContactType, ContactCategory, ContactIndustry, ContactArea, Task
 - **Forecast:** ForecastProduct, ForecastResult, ForecastType
 - **Marketing:** SocialMediaReminder, PostingCalendarReminder, AdvertisingProduct, AdvertisingProductBooking, EmailCampaign
-- **Tracking/settings:** KpiTarget, PerformanceTarget, ReminderRead, RoundRobinState, Webhook, WhatsAppMessage
+- **Tracking/settings:** KpiTarget, PerformanceTarget, ReminderRead, RoundRobinState
 - **System:** SystemSetting (global key-value config), SystemAlert (in-app admin notifications)
 
 ### Frontend Structure
@@ -241,13 +239,8 @@ Use `.env.production.example` as the production `.env` template. Every item belo
 
 ### Queue Worker
 
-- [ ] Set up a persistent queue worker process — `php artisan queue:work --daemon` must run continuously or WhatsApp webhook jobs and any other queued jobs will pile up unprocessed. Use Supervisor (Linux) or a Windows service to keep it alive across reboots.
-- [ ] Alternatively, if WhatsApp integration is not active, confirm `QUEUE_CONNECTION=sync` is acceptable for the load level
-
-### WhatsApp (if using)
-
-- [ ] Fill in all four `WHATSAPP_*` env vars — the webhook endpoint is live but will silently fail without them
-- [ ] Verify the webhook URL with Meta Business Suite after deployment
+- [ ] Set up a persistent queue worker process — `php artisan queue:work --daemon` must run continuously or any queued jobs will pile up unprocessed. Use Supervisor (Linux) or a Windows service to keep it alive across reboots.
+- [ ] Alternatively, if no background jobs are in use, confirm `QUEUE_CONNECTION=sync` is acceptable for the load level
 
 ### Laravel Caches (run after all config is set)
 
@@ -317,9 +310,9 @@ SESSION_DRIVER=file
 CACHE_STORE=file
 QUEUE_CONNECTION=sync      # or 'database' if queue jobs matter
 ```
-Spatie permission cache will use file cache — still fast enough for most loads. If WhatsApp integration is not active, `QUEUE_CONNECTION=sync` is fine.
+Spatie permission cache will use file cache — still fast enough for most loads. If no background jobs are in use, `QUEUE_CONNECTION=sync` is fine.
 
-**Option B — External Redis (if WhatsApp queue is needed):** Use [Upstash](https://upstash.com) free tier Redis. Set `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD` from Upstash dashboard, keep `REDIS_CLIENT=predis`.
+**Option B — External Redis (if a queue is needed):** Use [Upstash](https://upstash.com) free tier Redis. Set `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD` from Upstash dashboard, keep `REDIS_CLIENT=predis`.
 
 ### 4. Queue Worker — No Daemons on Shared Hosting
 

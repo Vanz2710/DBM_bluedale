@@ -11,7 +11,6 @@ const DEFAULTS = {
     first_day_of_week: 'monday',
     notifications: {
         crm_reminders:   true,
-        whatsapp_alerts: true,
         deal_updates:    true,
         task_reminders:  true,
     },

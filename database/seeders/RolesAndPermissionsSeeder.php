@@ -55,13 +55,14 @@ class RolesAndPermissionsSeeder extends Seeder
             ['name' => 'view performance', 'description' => 'View individual and team performance KPIs and targets.'],
             // Admin-managed entities
             ['name' => 'manage lookups',     'description' => 'Add, edit, and delete lookup values (statuses, types, categories, industries, areas).'],
-            ['name' => 'manage webhooks',    'description' => 'Configure outbound webhook endpoints for external integrations.'],
             ['name' => 'manage territories', 'description' => 'Manage territory definitions. (Currently unused — reserved for future use.)'],
             // Marketing & media features
             ['name' => 'manage social-media',       'description' => 'View and manage social media reminder entries.'],
             ['name' => 'manage posting-calendar',   'description' => 'View and manage the social media posting calendar.'],
             ['name' => 'manage email-campaigns',    'description' => 'Create, schedule, and send email marketing campaigns.'],
-            ['name' => 'manage product-availability', 'description' => 'View and manage product availability listings and bookings.'],
+            ['name' => 'manage site-availability', 'description' => 'View and manage site availability listings and bookings.'],
+            // Department Task Manager
+            ['name' => 'manage dept-tasks', 'description' => 'Create, assign, and manage department tasks; view team task boards.'],
             // RBAC (super-admin only)
             ['name' => 'manage roles',       'description' => 'Create, edit, and delete roles; assign permissions to roles.'],
             ['name' => 'manage permissions', 'description' => 'View system permissions. Permissions are defined in code by a developer — this is a read-only reference.'],
@@ -96,7 +97,8 @@ class RolesAndPermissionsSeeder extends Seeder
             'view followups', 'create followups', 'edit followups', 'delete followups',
             // 'import contacts' and 'view data-health' are admin-grantable only — not in user defaults
             'view analytics', 'view summary', 'view performance',
-            'manage social-media', 'manage posting-calendar', 'manage product-availability',
+            'manage social-media', 'manage posting-calendar', 'manage site-availability',
+            'manage dept-tasks',
             // Note: 'manage email-campaigns' is intentionally admin-only by default
         ]);
 
@@ -111,8 +113,8 @@ class RolesAndPermissionsSeeder extends Seeder
             'view followups', 'create followups', 'edit followups', 'delete followups',
             'import contacts',
             'view analytics', 'view summary', 'view performance', 'view data-health',
-            'manage social-media', 'manage posting-calendar', 'manage product-availability',
-            'manage email-campaigns',
+            'manage social-media', 'manage posting-calendar', 'manage site-availability',
+            'manage email-campaigns', 'manage dept-tasks',
         ]);
 
         // internal support: view + create/edit across CRM resources, no delete, no admin/marketing tools

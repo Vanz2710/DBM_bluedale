@@ -16,6 +16,24 @@
 
       <div v-if="loading" class="panel-placeholder">Loading…</div>
       <div v-else class="panel-body">
+        <div v-if="taskNotifs.length > 0">
+          <div class="sec-head task-head">Task Alerts <span class="sec-cnt">{{ taskNotifs.length }}</span></div>
+          <div
+            v-for="item in taskNotifs"
+            :key="'tn' + item.id"
+            class="r-item"
+          >
+            <router-link to="/dept-tasks" class="r-body" @click="handleTaskNotif(item)">
+              <span class="r-tag tag-task">{{ taskTypeLabel(item.type) }}</span>
+              <div class="r-text">
+                <div class="r-title">{{ clip(item.message) }}</div>
+                <div class="r-sub">{{ item.task_title ? clip(item.task_title, 30) + ' · ' : '' }}{{ item.created_at }}</div>
+              </div>
+            </router-link>
+            <button class="btn-dismiss" @click.stop="dismissOne(item)" title="Dismiss">×</button>
+          </div>
+        </div>
+
         <div v-if="alerts.length > 0">
           <div class="sec-head alert-head">System Alerts <span class="sec-cnt">{{ alerts.length }}</span></div>
           <div
@@ -104,7 +122,20 @@
           </div>
         </div>
 
-        <div v-if="!overdue.length && !today.length && !upcoming.length" class="panel-empty">
+        <div v-if="expiringSites.length > 0">
+          <div class="sec-head sites-head">Site Contracts Ending <span class="sec-cnt">{{ expiringSites.length }}</span></div>
+          <div v-for="item in expiringSites" :key="'site' + item.id" class="r-item">
+            <router-link to="/site-availability" class="r-body" @click="open = false">
+              <span class="r-tag tag-site">SITE</span>
+              <div class="r-text">
+                <div class="r-title">{{ clip(item.site_name) }}</div>
+                <div class="r-sub">{{ item.company_name }} · ends {{ fmtDate(item.end_date) }} <span class="date-red">({{ item.days_left }}d left)</span></div>
+              </div>
+            </router-link>
+          </div>
+        </div>
+
+        <div v-if="!taskNotifs.length && !overdue.length && !today.length && !upcoming.length && !expiringSites.length" class="panel-empty">
           All caught up
         </div>
       </div>
@@ -120,19 +151,21 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import api from '../api.js';
 
-const wrapRef     = ref(null);
-const open        = ref(false);
-const loading     = ref(false);
-const overdue     = ref([]);
-const today       = ref([]);
-const upcoming    = ref([]);
-const alerts      = ref([]);
-const unreadCount = ref(0);
+const wrapRef       = ref(null);
+const open          = ref(false);
+const loading       = ref(false);
+const overdue       = ref([]);
+const today         = ref([]);
+const upcoming      = ref([]);
+const alerts        = ref([]);
+const expiringSites = ref([]);
+const taskNotifs    = ref([]);
+const unreadCount   = ref(0);
 
 let pollTimer = null;
 
 const allUnread = computed(() =>
-  [...alerts.value, ...overdue.value, ...today.value, ...upcoming.value].filter(i => !i.is_read)
+  [...taskNotifs.value, ...alerts.value, ...overdue.value, ...today.value, ...upcoming.value].filter(i => !i.is_read)
 );
 
 async function load() {
@@ -142,8 +175,10 @@ async function load() {
     overdue.value     = res.data.overdue;
     today.value       = res.data.today;
     upcoming.value    = res.data.upcoming;
-    alerts.value      = res.data.alerts ?? [];
-    unreadCount.value = res.data.unread_count;
+    alerts.value        = res.data.alerts ?? [];
+    expiringSites.value = res.data.expiring_sites ?? [];
+    taskNotifs.value    = res.data.task_notifications ?? [];
+    unreadCount.value   = res.data.unread_count;
   } catch (_) { /* ignore */ }
   finally { loading.value = false; }
 }
@@ -162,17 +197,31 @@ function dismissOne(item) {
   sendRead([item]);
   if (item.source_type === 'alert') {
     alerts.value = alerts.value.filter(a => a.id !== item.id);
+  } else if (item.source_type === 'task_notification') {
+    taskNotifs.value = taskNotifs.value.filter(n => n.id !== item.id);
   } else {
     item.is_read = true;
   }
   unreadCount.value = Math.max(0, unreadCount.value - 1);
 }
 
+function handleTaskNotif(item) {
+  sendRead([item]);
+  taskNotifs.value = taskNotifs.value.filter(n => n.id !== item.id);
+  unreadCount.value = Math.max(0, unreadCount.value - 1);
+  open.value = false;
+}
+
+function taskTypeLabel(type) {
+  return { assigned: 'ASSIGNED', approval_needed: 'NEEDS APPROVAL', completed: 'COMPLETED', rejected: 'CHANGES REQUESTED' }[type] ?? 'TASK';
+}
+
 async function markAllRead() {
   const unread = allUnread.value.slice();
   await sendRead(unread);
   [...alerts.value, ...overdue.value, ...today.value, ...upcoming.value].forEach(i => { i.is_read = true; });
-  alerts.value = [];
+  alerts.value    = [];
+  taskNotifs.value = [];
   unreadCount.value = 0;
 }
 
@@ -263,10 +312,13 @@ onUnmounted(() => {
   padding: 6px 14px 5px;
   font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px;
 }
+.task-head     { color: #1d4ed8; background: #eff6ff; }
 .alert-head    { color: #92400e; background: #fffbeb; }
 .overdue-head  { color: #dc2626; background: #fff1f2; }
 .today-head    { color: #d97706; background: #fffbeb; }
 .upcoming-head { color: #0284c7; background: #f0f9ff; }
+.sites-head    { color: #065f46; background: #ecfdf5; }
+.tag-site      { background: #d1fae5; color: #065f46; }
 .sec-cnt {
   background: currentColor; color: white;
   border-radius: 10px; padding: 1px 5px; font-size: 10px; opacity: 0.85;
@@ -292,6 +344,7 @@ onUnmounted(() => {
 .tag-todo  { background: #fce7f3; color: #9d174d; }
 .tag-fu    { background: #e0f2fe; color: #0369a1; }
 .tag-alert { background: #fef3c7; color: #92400e; }
+.tag-task  { background: #dbeafe; color: #1d4ed8; }
 
 .r-text { flex: 1; min-width: 0; }
 .r-title { font-size: 12px; font-weight: 600; color: #1e293b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

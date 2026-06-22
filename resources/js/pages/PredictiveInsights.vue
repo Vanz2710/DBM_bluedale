@@ -1,11 +1,11 @@
-﻿<template>
+<template>
   <div class="pi">
 
     <!-- ══ Header ══════════════════════════════════════════════════════════════════ -->
     <div class="pi-header">
       <div class="pi-header-left">
         <h1>Predictive Insights</h1>
-        <p class="pi-subtitle">Forward-looking analysis of pipeline health, contact risks, and agent performance.</p>
+        <p class="pi-subtitle">Pipeline health, contact risks, and agent performance — grounded in your actual data.</p>
       </div>
       <div class="pi-header-actions">
         <div class="pi-date-wrap" ref="pickerRef">
@@ -55,51 +55,69 @@
       </div>
     </div>
 
+    <!-- ══ Summary error banner ════════════════════════════════════════════════════ -->
+    <div v-if="errors.summary" class="pi-error-banner">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+        <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+      </svg>
+      <span>Failed to load summary stats.</span>
+      <button class="pi-retry-btn" @click="loadSummary">Retry</button>
+    </div>
+
     <!-- ══ KPI Summary Row ══════════════════════════════════════════════════════════ -->
     <div class="pi-kpi-row">
 
       <!-- Neglected Contacts -->
       <div class="pi-kpi-card">
         <div class="pi-kpi-icon pi-kpi-icon--danger">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
             <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
             <circle cx="9" cy="7" r="4"/>
             <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
           </svg>
         </div>
         <div class="pi-kpi-body">
-          <div class="pi-kpi-value">{{ summary.neglected ?? '—' }}</div>
+          <div class="pi-kpi-value">
+            <div v-if="loading.summary" class="pi-kpi-skel"></div>
+            <template v-else>{{ summary.neglected ?? '—' }}</template>
+          </div>
           <div class="pi-kpi-label">Neglected Contacts</div>
-          <div class="pi-kpi-sub">Potential/Existing, 60+ days untouched</div>
+          <div class="pi-kpi-sub">Potential/Existing, 60+ days since last interaction</div>
         </div>
       </div>
 
       <!-- Expected Pipeline -->
       <div class="pi-kpi-card">
         <div class="pi-kpi-icon pi-kpi-icon--success">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
             <line x1="12" y1="1" x2="12" y2="23"/>
             <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
           </svg>
         </div>
         <div class="pi-kpi-body">
-          <div class="pi-kpi-value">{{ summary.pipeline_value != null ? formatCurrency(summary.pipeline_value) : '—' }}</div>
+          <div class="pi-kpi-value">
+            <div v-if="loading.summary" class="pi-kpi-skel"></div>
+            <template v-else>{{ summary.pipeline_value != null ? formatCurrency(summary.pipeline_value) : '—' }}</template>
+          </div>
           <div class="pi-kpi-label">Expected Pipeline</div>
-          <div class="pi-kpi-sub">Open deals × probability</div>
+          <div class="pi-kpi-sub">Open deals × agent-set probability</div>
         </div>
       </div>
 
       <!-- Coverage Imbalance -->
       <div class="pi-kpi-card">
         <div class="pi-kpi-icon pi-kpi-icon--warning">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
             <circle cx="12" cy="12" r="10"/>
             <circle cx="12" cy="12" r="6"/>
             <circle cx="12" cy="12" r="2"/>
           </svg>
         </div>
         <div class="pi-kpi-body">
-          <div class="pi-kpi-value">{{ summary.overloaded_agents ?? '—' }}</div>
+          <div class="pi-kpi-value">
+            <div v-if="loading.summary" class="pi-kpi-skel"></div>
+            <template v-else>{{ summary.overloaded_agents ?? '—' }}</template>
+          </div>
           <div class="pi-kpi-label">Overloaded Agents</div>
           <div class="pi-kpi-sub">Carrying 1.5× average portfolio</div>
         </div>
@@ -108,44 +126,52 @@
       <!-- Unworked Opportunities -->
       <div class="pi-kpi-card">
         <div class="pi-kpi-icon pi-kpi-icon--info">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
             <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
           </svg>
         </div>
         <div class="pi-kpi-body">
-          <div class="pi-kpi-value">{{ summary.unworked_opps ?? '—' }}</div>
+          <div class="pi-kpi-value">
+            <div v-if="loading.summary" class="pi-kpi-skel"></div>
+            <template v-else>{{ summary.unworked_opps ?? '—' }}</template>
+          </div>
           <div class="pi-kpi-label">Unworked Opportunities</div>
-          <div class="pi-kpi-sub">Active contacts, 30+ days untouched</div>
+          <div class="pi-kpi-sub">Active contacts, 30+ days since last interaction</div>
         </div>
       </div>
 
     </div>
 
-    <!-- ══ Revenue Forecast + Neglected Contacts ══════════════════════════════════ -->
+    <!-- ══ Pipeline by Close Month + Neglected Contacts ═══════════════════════════ -->
     <div class="pi-row-asym">
 
-      <!-- Revenue Pipeline Forecast -->
+      <!-- Pipeline by Close Month -->
       <div class="pi-card">
         <div class="pi-card-head">
           <div class="pi-card-title-wrap">
-            <svg class="pi-card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <svg class="pi-card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
               <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/>
               <polyline points="17 6 23 6 23 12"/>
             </svg>
-            <span class="pi-card-title">Revenue Pipeline Forecast</span>
+            <span class="pi-card-title">Pipeline by Close Month</span>
           </div>
-          <span class="pi-card-meta">Open deals weighted by probability</span>
+          <span class="pi-card-meta">Open deals grouped by expected close date, weighted by agent probability</span>
         </div>
         <div class="pi-card-body">
           <div v-if="loading.forecast" class="pi-skeleton-block"></div>
+          <div v-else-if="errors.forecast" class="pi-error">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <p>Failed to load pipeline data</p>
+            <button class="pi-retry-btn" @click="loadForecast">Retry</button>
+          </div>
           <div v-else-if="!forecast.length" class="pi-empty">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
               <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/>
               <polyline points="17 6 23 6 23 12"/>
             </svg>
-            <p>No open deals to forecast</p>
+            <p>No open deals with a close date</p>
           </div>
-          <div v-else class="pi-chart-wrap">
+          <div v-else class="pi-chart-wrap" ref="forecastWrapRef">
             <canvas ref="forecastCanvasRef"></canvas>
           </div>
         </div>
@@ -155,21 +181,32 @@
       <div class="pi-card">
         <div class="pi-card-head">
           <div class="pi-card-title-wrap">
-            <svg class="pi-card-icon pi-card-icon--danger" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <svg class="pi-card-icon pi-card-icon--danger" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
               <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
               <line x1="12" y1="9" x2="12" y2="13"/>
               <line x1="12" y1="17" x2="12.01" y2="17"/>
             </svg>
             <span class="pi-card-title">Neglected Contacts</span>
           </div>
-          <span class="pi-card-meta">Potential/Existing, 60+ days untouched</span>
+          <div class="pi-card-head-right">
+            <span class="pi-card-meta">60+ days since last completed interaction</span>
+            <button class="pi-export-btn" @click="exportNeglected" :disabled="!neglected.length">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              CSV
+            </button>
+          </div>
         </div>
         <div class="pi-card-body">
           <div v-if="loading.neglected" class="pi-skeleton-list">
             <div v-for="i in 5" :key="i" class="pi-skeleton-row"></div>
           </div>
+          <div v-else-if="errors.neglected" class="pi-error">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <p>Failed to load neglected contacts</p>
+            <button class="pi-retry-btn" @click="loadNeglected">Retry</button>
+          </div>
           <div v-else-if="!neglected.length" class="pi-empty">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
               <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
               <polyline points="22 4 12 14.01 9 11.01"/>
             </svg>
@@ -189,14 +226,14 @@
 
     </div>
 
-    <!-- ══ Agent Coverage Load + Unworked Segments ══════════════════════════════════ -->
+    <!-- ══ Agent Coverage Load + Unworked Segments ════════════════════════════════ -->
     <div class="pi-row-2col">
 
       <!-- Agent Coverage Load -->
       <div class="pi-card">
         <div class="pi-card-head">
           <div class="pi-card-title-wrap">
-            <svg class="pi-card-icon pi-card-icon--warning" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <svg class="pi-card-icon pi-card-icon--warning" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
               <circle cx="12" cy="12" r="10"/>
               <circle cx="12" cy="12" r="6"/>
               <circle cx="12" cy="12" r="2"/>
@@ -209,8 +246,13 @@
           <div v-if="loading.agentLoad" class="pi-skeleton-list">
             <div v-for="i in 4" :key="i" class="pi-skeleton-row"></div>
           </div>
+          <div v-else-if="errors.agentLoad" class="pi-error">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <p>Failed to load agent data</p>
+            <button class="pi-retry-btn" @click="loadAgentLoad">Retry</button>
+          </div>
           <div v-else-if="!agentLoad.length" class="pi-empty">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
               <circle cx="12" cy="12" r="10"/>
               <circle cx="12" cy="12" r="6"/>
               <circle cx="12" cy="12" r="2"/>
@@ -242,19 +284,24 @@
       <div class="pi-card">
         <div class="pi-card-head">
           <div class="pi-card-title-wrap">
-            <svg class="pi-card-icon pi-card-icon--info" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <svg class="pi-card-icon pi-card-icon--info" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
               <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
             </svg>
             <span class="pi-card-title">Unworked Opportunities</span>
           </div>
-          <span class="pi-card-meta">Active contacts per industry, untouched 30+ days</span>
+          <span class="pi-card-meta">Active contacts per industry, 30+ days since last interaction</span>
         </div>
         <div class="pi-card-body">
           <div v-if="loading.unworked" class="pi-skeleton-list">
             <div v-for="i in 4" :key="i" class="pi-skeleton-row"></div>
           </div>
+          <div v-else-if="errors.unworked" class="pi-error">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <p>Failed to load opportunity data</p>
+            <button class="pi-retry-btn" @click="loadUnworked">Retry</button>
+          </div>
           <div v-else-if="!unworked.length" class="pi-empty">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
               <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
               <polyline points="22 4 12 14.01 9 11.01"/>
             </svg>
@@ -280,61 +327,253 @@
 
     </div>
 
-    <!-- ══ Deal Win Probability ═════════════════════════════════════════════════════ -->
+    <!-- ══ Historical Win Rates ════════════════════════════════════════════════════ -->
     <div class="pi-card">
       <div class="pi-card-head">
         <div class="pi-card-title-wrap">
-          <svg class="pi-card-icon pi-card-icon--success" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <svg class="pi-card-icon pi-card-icon--success" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <polyline points="22 4 12 14.01 9 11.01"/><path d="M22 4H15"/>
+            <path d="M20 7L22 4"/><circle cx="5" cy="17" r="3"/><path d="M9 17H5m0 0V9"/>
+          </svg>
+          <span class="pi-card-title">Historical Win Rates</span>
+        </div>
+        <span class="pi-card-meta">From won / lost deals in the selected period</span>
+      </div>
+      <div class="pi-card-body">
+        <div v-if="loading.winRates" class="pi-skeleton-list">
+          <div v-for="i in 4" :key="i" class="pi-skeleton-row"></div>
+        </div>
+        <div v-else-if="errors.winRates" class="pi-error">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <p>Failed to load win rate data</p>
+          <button class="pi-retry-btn" @click="loadWinRates">Retry</button>
+        </div>
+        <div v-else-if="!winRates.by_agent.length && !winRates.by_industry.length" class="pi-empty">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+            <rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/>
+          </svg>
+          <p>No closed deals in this period — win rates require won or lost deals</p>
+        </div>
+        <div v-else class="pi-wr-grid">
+          <!-- By Agent -->
+          <div v-if="winRates.by_agent.length">
+            <div class="pi-wr-subtitle">By Agent</div>
+            <div class="pi-table-wrap">
+              <table class="pi-table">
+                <thead><tr><th>Agent</th><th>Won</th><th>Total</th><th>Win Rate</th></tr></thead>
+                <tbody>
+                  <tr v-for="r in winRates.by_agent" :key="r.user_id">
+                    <td class="pi-td-bold">{{ r.name }}</td>
+                    <td>{{ r.won }}</td>
+                    <td>{{ r.total }}</td>
+                    <td><span class="pi-deal-pill" :class="winRatePillClass(r.win_rate)">{{ r.win_rate }}%</span></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <!-- By Industry -->
+          <div v-if="winRates.by_industry.length">
+            <div class="pi-wr-subtitle">By Industry</div>
+            <div class="pi-table-wrap">
+              <table class="pi-table">
+                <thead><tr><th>Industry</th><th>Won</th><th>Total</th><th>Win Rate</th></tr></thead>
+                <tbody>
+                  <tr v-for="r in winRates.by_industry" :key="r.industry_id">
+                    <td class="pi-td-bold">{{ r.industry_name }}</td>
+                    <td>{{ r.won }}</td>
+                    <td>{{ r.total }}</td>
+                    <td><span class="pi-deal-pill" :class="winRatePillClass(r.win_rate)">{{ r.win_rate }}%</span></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ Deal Velocity ═══════════════════════════════════════════════════════════ -->
+    <div class="pi-card">
+      <div class="pi-card-head">
+        <div class="pi-card-title-wrap">
+          <svg class="pi-card-icon pi-card-icon--warning" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+          </svg>
+          <span class="pi-card-title">Deal Velocity</span>
+        </div>
+        <span class="pi-card-meta">
+          <template v-if="velocity.benchmark_days">
+            Won deals close in <strong>{{ velocity.benchmark_days }}d</strong> on average ({{ velocity.sample_size }} deals) · {{ velocity.stalling_count }} stalling
+          </template>
+          <template v-else>Open deals vs historical close-time benchmark</template>
+        </span>
+      </div>
+      <div class="pi-card-body">
+        <div v-if="loading.velocity" class="pi-skeleton-list">
+          <div v-for="i in 5" :key="i" class="pi-skeleton-row"></div>
+        </div>
+        <div v-else-if="errors.velocity" class="pi-error">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <p>Failed to load velocity data</p>
+          <button class="pi-retry-btn" @click="loadVelocity">Retry</button>
+        </div>
+        <div v-else-if="!velocity.deals?.length" class="pi-empty">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+            <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+          </svg>
+          <p>No open deals</p>
+        </div>
+        <div v-else-if="!velocity.benchmark_days" class="pi-empty">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+            <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+          </svg>
+          <p>No won deals in this period — close some deals to establish a benchmark</p>
+        </div>
+        <div v-else>
+          <ul class="pi-vel-list">
+            <li v-for="d in velocity.deals" :key="d.id" class="pi-vel-item">
+              <div class="pi-vel-left">
+                <span class="pi-vel-title">{{ d.title }}</span>
+                <span class="pi-vel-contact">{{ d.contact_name }}</span>
+              </div>
+              <div class="pi-vel-mid">
+                <span class="pi-vel-days">{{ d.days_open }}d open</span>
+                <span class="pi-vel-vs" :class="d.vs_benchmark > 0 ? 'pi-vel-vs--over' : 'pi-vel-vs--under'">
+                  {{ d.vs_benchmark > 0 ? '+' : '' }}{{ d.vs_benchmark }}d vs avg
+                </span>
+              </div>
+              <div class="pi-vel-right">
+                <span class="pi-vel-value">{{ formatCurrency(d.value) }}</span>
+                <span v-if="d.is_stalling" class="pi-deal-pill pi-deal-pill--high-risk">Stalling</span>
+              </div>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ Pipeline Coverage vs Targets ═══════════════════════════════════════════ -->
+    <div class="pi-card">
+      <div class="pi-card-head">
+        <div class="pi-card-title-wrap">
+          <svg class="pi-card-icon pi-card-icon--info" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/>
+            <line x1="6" y1="20" x2="6" y2="14"/><line x1="2" y1="20" x2="22" y2="20"/>
+          </svg>
+          <span class="pi-card-title">Pipeline Coverage</span>
+        </div>
+        <span class="pi-card-meta">Weighted open pipeline vs won_deal_value KPI target</span>
+      </div>
+      <div class="pi-card-body">
+        <div v-if="loading.coverage" class="pi-skeleton-list">
+          <div v-for="i in 3" :key="i" class="pi-skeleton-row"></div>
+        </div>
+        <div v-else-if="errors.coverage" class="pi-error">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <p>Failed to load coverage data</p>
+          <button class="pi-retry-btn" @click="loadCoverage">Retry</button>
+        </div>
+        <div v-else-if="!coverage.length" class="pi-empty">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+            <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/>
+            <line x1="6" y1="20" x2="6" y2="14"/><line x1="2" y1="20" x2="22" y2="20"/>
+          </svg>
+          <p>No open pipeline found. Set KPI targets in Performance → Targets to see coverage.</p>
+        </div>
+        <ul v-else class="pi-cov-list">
+          <li v-for="r in coverage" :key="r.user_id" class="pi-cov-item">
+            <div class="pi-cov-header">
+              <span class="pi-cov-name">{{ r.name }}</span>
+              <span class="pi-cov-pct" :class="coveragePillClass(r.coverage_pct)">
+                {{ r.coverage_pct !== null ? r.coverage_pct + '%' : 'No target' }}
+              </span>
+            </div>
+            <div v-if="r.coverage_pct !== null" class="pi-load-track">
+              <div
+                class="pi-cov-bar"
+                :class="coverageBarClass(r.coverage_pct)"
+                :style="{ width: Math.min(r.coverage_pct, 100) + '%' }"
+              ></div>
+            </div>
+            <div class="pi-cov-detail">
+              {{ formatCurrency(r.weighted_pipeline) }} pipeline
+              <template v-if="r.target > 0">
+                · target {{ formatCurrency(r.target) }}
+                <span v-if="r.gap > 0" class="pi-cov-gap">· gap {{ formatCurrency(r.gap) }}</span>
+              </template>
+            </div>
+          </li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- ══ Open Deals ══════════════════════════════════════════════════════════════ -->
+    <div class="pi-card">
+      <div class="pi-card-head">
+        <div class="pi-card-title-wrap">
+          <svg class="pi-card-icon pi-card-icon--success" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
             <rect x="2" y="7" width="20" height="14" rx="2"/>
             <path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/>
           </svg>
-          <span class="pi-card-title">Deal Win Probability</span>
+          <span class="pi-card-title">Open Deals</span>
         </div>
-        <span class="pi-card-meta">Auto-scored open deals based on activity and urgency</span>
+        <div class="pi-card-head-right">
+          <span class="pi-card-meta">Activity = completed todos in last 30 days</span>
+          <button class="pi-export-btn" @click="exportDeals" :disabled="!deals.length">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            CSV
+          </button>
+        </div>
       </div>
       <div class="pi-card-body">
         <div v-if="loading.deals" class="pi-skeleton-block"></div>
+        <div v-else-if="errors.deals" class="pi-error">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <p>Failed to load deal data</p>
+          <button class="pi-retry-btn" @click="loadDeals">Retry</button>
+        </div>
         <div v-else-if="!deals.length" class="pi-empty">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
             <rect x="2" y="7" width="20" height="14" rx="2"/>
             <path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/>
           </svg>
           <p>No open deals found</p>
         </div>
         <div v-else class="pi-table-wrap">
-          <table class="pi-table">
+          <table class="pi-table" aria-label="Open Deals">
             <thead>
               <tr>
-                <th>Deal</th>
-                <th>Contact</th>
-                <th>Value</th>
-                <th>Close Date</th>
-                <th>Win Probability</th>
-                <th>Status</th>
+                <th class="pi-th-sort" @click="toggleSort('title')">Deal <span v-if="sortKey === 'title'" class="pi-sort-ind">{{ sortDir === 'asc' ? '▲' : '▼' }}</span></th>
+                <th class="pi-th-sort" @click="toggleSort('contact_name')">Contact <span v-if="sortKey === 'contact_name'" class="pi-sort-ind">{{ sortDir === 'asc' ? '▲' : '▼' }}</span></th>
+                <th class="pi-th-sort" @click="toggleSort('value')">Value <span v-if="sortKey === 'value'" class="pi-sort-ind">{{ sortDir === 'asc' ? '▲' : '▼' }}</span></th>
+                <th class="pi-th-sort" @click="toggleSort('expected_close_date')">Close Date <span v-if="sortKey === 'expected_close_date'" class="pi-sort-ind">{{ sortDir === 'asc' ? '▲' : '▼' }}</span></th>
+                <th class="pi-th-sort" @click="toggleSort('recent_activity')">Activity (30d) <span v-if="sortKey === 'recent_activity'" class="pi-sort-ind">{{ sortDir === 'asc' ? '▲' : '▼' }}</span></th>
+                <th class="pi-th-sort" @click="toggleSort('days_to_close')">Days to Close <span v-if="sortKey === 'days_to_close'" class="pi-sort-ind">{{ sortDir === 'asc' ? '▲' : '▼' }}</span></th>
+                <th>Health</th>
               </tr>
             </thead>
             <tbody>
-              <tr v-for="d in deals" :key="d.id">
+              <tr v-for="d in sortedDeals" :key="d.id">
                 <td class="pi-td-bold">{{ d.title }}</td>
                 <td>{{ d.contact_name }}</td>
                 <td>{{ formatCurrency(d.value) }}</td>
-                <td>{{ d.expected_close_date }}</td>
+                <td>{{ formatDate(d.expected_close_date) }}</td>
                 <td>
-                  <div class="pi-bar-cell">
-                    <div class="pi-mini-bar">
-                      <div class="pi-mini-fill" :class="probFillClass(d.probability)" :style="{ width: d.probability + '%' }"></div>
-                    </div>
-                    <span>{{ d.probability }}%</span>
-                  </div>
+                  <span :class="activityClass(d.recent_activity)">
+                    {{ d.recent_activity > 0 ? d.recent_activity + ' done' : '—' }}
+                  </span>
                 </td>
-                <td><span class="pi-deal-pill" :class="dealPillClass(d.probability)">{{ dealPillLabel(d.probability) }}</span></td>
+                <td>
+                  <span :class="daysToCloseClass(d.days_to_close)">{{ formatDaysToClose(d.days_to_close) }}</span>
+                </td>
+                <td><span class="pi-deal-pill" :class="dealHealthClass(d)">{{ dealHealthLabel(d) }}</span></td>
               </tr>
             </tbody>
           </table>
         </div>
       </div>
     </div>
-
 
   </div>
 </template>
@@ -349,11 +588,7 @@ import {
 } from 'chart.js';
 import api from '../api.js';
 
-Chart.register(
-  BarController, BarElement,
-  CategoryScale, LinearScale,
-  Tooltip, Legend,
-);
+Chart.register(BarController, BarElement, CategoryScale, LinearScale, Tooltip, Legend);
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
 const currentUser = JSON.parse(localStorage.getItem('crm_user') || 'null');
@@ -411,6 +646,10 @@ function closePicker(e) {
   if (pickerRef.value && !pickerRef.value.contains(e.target)) pickerOpen.value = false;
 }
 
+function handleKey(e) {
+  if (e.key === 'Escape') pickerOpen.value = false;
+}
+
 // ── Users (admin agent filter) ────────────────────────────────────────────────
 const users = ref([]);
 
@@ -428,94 +667,162 @@ const neglected = ref([]);
 const agentLoad = ref([]);
 const unworked  = ref([]);
 const deals     = ref([]);
+const winRates  = ref({ by_agent: [], by_industry: [] });
+const velocity  = ref({ benchmark_days: null, sample_size: 0, stalling_count: 0, deals: [] });
+const coverage  = ref([]);
 
 const loading = ref({
-  forecast:  false,
-  neglected: false,
-  agentLoad: false,
-  unworked:  false,
-  deals:     false,
+  summary: false, forecast: false, neglected: false, agentLoad: false,
+  unworked: false, deals: false, winRates: false, velocity: false, coverage: false,
 });
 
-// ── Chart canvas refs + instances ─────────────────────────────────────────────
-const forecastCanvasRef = ref(null);
-let   forecastChartInst = null;
+const errors = ref({
+  summary: false, forecast: false, neglected: false, agentLoad: false,
+  unworked: false, deals: false, winRates: false, velocity: false, coverage: false,
+});
 
-// ── API calls ─────────────────────────────────────────────────────────────────
+// ── Sort (deals table) ────────────────────────────────────────────────────────
+const sortKey = ref('expected_close_date');
+const sortDir = ref('asc');
+
+const sortedDeals = computed(() => {
+  if (!deals.value.length) return [];
+  return [...deals.value].sort((a, b) => {
+    const av = a[sortKey.value] ?? '';
+    const bv = b[sortKey.value] ?? '';
+    const cmp = typeof av === 'number' ? av - bv : String(av).localeCompare(String(bv));
+    return sortDir.value === 'asc' ? cmp : -cmp;
+  });
+});
+
+function toggleSort(key) {
+  if (sortKey.value === key) {
+    sortDir.value = sortDir.value === 'asc' ? 'desc' : 'asc';
+  } else {
+    sortKey.value = key;
+    sortDir.value = key === 'expected_close_date' ? 'asc' : 'desc';
+  }
+}
+
+// ── Chart canvas refs ─────────────────────────────────────────────────────────
+const forecastCanvasRef = ref(null);
+const forecastWrapRef   = ref(null);
+let   forecastChartInst = null;
+let   forecastResizeObs = null;
+
+// ── Params builder ────────────────────────────────────────────────────────────
 function buildParams() {
   const p = { from: filters.value.from, to: filters.value.to };
   if (filters.value.user_id) p.user_id = filters.value.user_id;
   return p;
 }
 
+// ── API calls ─────────────────────────────────────────────────────────────────
 async function loadSummary() {
+  loading.value.summary = true; errors.value.summary = false;
   try {
     const { data } = await api.get('/v1/predictive/summary', { params: buildParams() });
     summary.value = data;
-  } catch (_) { /* noop */ }
+  } catch (_) { errors.value.summary = true; }
+  finally { loading.value.summary = false; }
 }
 
 async function loadForecast() {
-  loading.value.forecast = true;
+  loading.value.forecast = true; errors.value.forecast = false;
   forecastChartInst?.destroy(); forecastChartInst = null;
   try {
     const { data } = await api.get('/v1/predictive/forecast', { params: buildParams() });
     forecast.value = data;
-  } catch (_) { forecast.value = []; }
+  } catch (_) { forecast.value = []; errors.value.forecast = true; }
   finally { loading.value.forecast = false; }
   await nextTick();
   buildForecastChart();
 }
 
 async function loadNeglected() {
-  loading.value.neglected = true;
+  loading.value.neglected = true; errors.value.neglected = false;
   try {
     const { data } = await api.get('/v1/predictive/at-risk', { params: buildParams() });
     neglected.value = data;
-  } catch (_) { neglected.value = []; }
+  } catch (_) { neglected.value = []; errors.value.neglected = true; }
   finally { loading.value.neglected = false; }
 }
 
 async function loadAgentLoad() {
-  loading.value.agentLoad = true;
+  loading.value.agentLoad = true; errors.value.agentLoad = false;
   try {
     const { data } = await api.get('/v1/predictive/pace', { params: buildParams() });
     agentLoad.value = data;
-  } catch (_) { agentLoad.value = []; }
+  } catch (_) { agentLoad.value = []; errors.value.agentLoad = true; }
   finally { loading.value.agentLoad = false; }
 }
 
 async function loadUnworked() {
-  loading.value.unworked = true;
+  loading.value.unworked = true; errors.value.unworked = false;
   try {
     const { data } = await api.get('/v1/predictive/overdue-risk', { params: buildParams() });
     unworked.value = data;
-  } catch (_) { unworked.value = []; }
+  } catch (_) { unworked.value = []; errors.value.unworked = true; }
   finally { loading.value.unworked = false; }
 }
 
 async function loadDeals() {
-  loading.value.deals = true;
+  loading.value.deals = true; errors.value.deals = false;
   try {
     const { data } = await api.get('/v1/predictive/deals', { params: buildParams() });
     deals.value = data;
-  } catch (_) { deals.value = []; }
+  } catch (_) { deals.value = []; errors.value.deals = true; }
   finally { loading.value.deals = false; }
 }
 
+async function loadWinRates() {
+  loading.value.winRates = true; errors.value.winRates = false;
+  try {
+    const { data } = await api.get('/v1/predictive/win-rates', { params: buildParams() });
+    winRates.value = data;
+  } catch (_) { winRates.value = { by_agent: [], by_industry: [] }; errors.value.winRates = true; }
+  finally { loading.value.winRates = false; }
+}
+
+async function loadVelocity() {
+  loading.value.velocity = true; errors.value.velocity = false;
+  try {
+    const { data } = await api.get('/v1/predictive/deal-velocity', { params: buildParams() });
+    velocity.value = data;
+  } catch (_) { velocity.value = { benchmark_days: null, sample_size: 0, stalling_count: 0, deals: [] }; errors.value.velocity = true; }
+  finally { loading.value.velocity = false; }
+}
+
+async function loadCoverage() {
+  loading.value.coverage = true; errors.value.coverage = false;
+  try {
+    const { data } = await api.get('/v1/predictive/pipeline-coverage', { params: buildParams() });
+    coverage.value = data;
+  } catch (_) { coverage.value = []; errors.value.coverage = true; }
+  finally { loading.value.coverage = false; }
+}
+
 function loadAll() {
-  loadSummary();
-  loadForecast();
-  loadNeglected();
-  loadAgentLoad();
-  loadUnworked();
-  loadDeals();
+  loadSummary(); loadForecast(); loadNeglected(); loadAgentLoad();
+  loadUnworked(); loadDeals(); loadWinRates(); loadVelocity(); loadCoverage();
 }
 
 // ── Display helpers ───────────────────────────────────────────────────────────
 function formatCurrency(val) {
   if (val == null) return '—';
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(val);
+}
+
+function formatDate(str) {
+  if (!str) return '—';
+  return new Date(str + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function formatDaysToClose(days) {
+  if (days === null || days === undefined) return '—';
+  if (days < 0)  return `${Math.abs(days)}d overdue`;
+  if (days === 0) return 'Today';
+  return `${days}d`;
 }
 
 function neglectedBadgeClass(days) {
@@ -530,25 +837,84 @@ function loadBarClass(engagedPct) {
   return 'pi-load-bar--muted';
 }
 
-function probFillClass(pct) {
-  if (pct >= 70) return 'pi-prob--success';
-  if (pct >= 40) return 'pi-prob--warning';
-  return 'pi-prob--danger';
+// Deal health — based on observable facts, not made-up adjustments
+function dealHealthClass(d) {
+  if (d.days_to_close !== null && d.days_to_close < 0) return 'pi-deal-pill--high-risk';
+  if (d.recent_activity === 0 && d.days_to_close !== null && d.days_to_close <= 30) return 'pi-deal-pill--at-risk';
+  if (d.days_to_close !== null && d.days_to_close <= 14 && d.recent_activity < 2) return 'pi-deal-pill--at-risk';
+  return 'pi-deal-pill--on-track';
 }
 
-function dealPillClass(pct) {
-  if (pct >= 70) return 'pi-deal-pill--on-track';
-  if (pct >= 40) return 'pi-deal-pill--at-risk';
+function dealHealthLabel(d) {
+  if (d.days_to_close !== null && d.days_to_close < 0) return 'Overdue';
+  if (d.recent_activity === 0 && d.days_to_close !== null && d.days_to_close <= 30) return 'At Risk';
+  if (d.days_to_close !== null && d.days_to_close <= 14 && d.recent_activity < 2) return 'At Risk';
+  return 'On Track';
+}
+
+function daysToCloseClass(days) {
+  if (days === null || days === undefined) return '';
+  if (days < 0)  return 'pi-days--overdue';
+  if (days <= 14) return 'pi-days--soon';
+  return '';
+}
+
+function activityClass(count) {
+  if (count >= 3) return 'pi-activity--high';
+  if (count >= 1) return 'pi-activity--mid';
+  return 'pi-activity--none';
+}
+
+function winRatePillClass(rate) {
+  if (rate >= 60) return 'pi-deal-pill--on-track';
+  if (rate >= 35) return 'pi-deal-pill--at-risk';
   return 'pi-deal-pill--high-risk';
 }
 
-function dealPillLabel(pct) {
-  if (pct >= 70) return 'On Track';
-  if (pct >= 40) return 'At Risk';
-  return 'High Risk';
+function coveragePillClass(pct) {
+  if (pct === null) return 'pi-deal-pill--at-risk';
+  if (pct >= 80)   return 'pi-deal-pill--on-track';
+  if (pct >= 50)   return 'pi-deal-pill--at-risk';
+  return 'pi-deal-pill--high-risk';
 }
 
-// ── Chart helpers ─────────────────────────────────────────────────────────────
+function coverageBarClass(pct) {
+  if (pct >= 80) return 'pi-load-bar--primary';
+  if (pct >= 50) return 'pi-load-bar--warning';
+  return 'pi-cov-bar--danger';
+}
+
+// ── CSV export ────────────────────────────────────────────────────────────────
+function downloadCsv(rows, headers, filename) {
+  const esc = v => {
+    const s = String(v ?? '');
+    return /[,"\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  const csv = [headers, ...rows].map(r => r.map(esc).join(',')).join('\r\n');
+  const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
+
+function exportDeals() {
+  downloadCsv(
+    deals.value.map(d => [d.title, d.contact_name, d.value, d.expected_close_date, d.recent_activity, d.days_to_close, d.probability, dealHealthLabel(d)]),
+    ['Deal', 'Contact', 'Value', 'Close Date', 'Activity (30d)', 'Days to Close', 'Agent Probability (%)', 'Health'],
+    'open-deals.csv',
+  );
+}
+
+function exportNeglected() {
+  downloadCsv(
+    neglected.value.map(c => [c.name, c.owner_name, c.status_name, c.days_since_update]),
+    ['Contact', 'Owner', 'Status', 'Days Since Last Interaction'],
+    'neglected-contacts.csv',
+  );
+}
+
+// ── Chart ─────────────────────────────────────────────────────────────────────
 function tooltipDefaults() {
   return {
     backgroundColor: '#0f2456',
@@ -561,7 +927,6 @@ function tooltipDefaults() {
 }
 
 function buildForecastChart() {
-  forecastChartInst?.destroy(); forecastChartInst = null;
   if (!forecastCanvasRef.value || !forecast.value.length) return;
   const rows = forecast.value;
   forecastChartInst = new Chart(forecastCanvasRef.value.getContext('2d'), {
@@ -574,20 +939,14 @@ function buildForecastChart() {
           data: rows.map(r => r.total_value),
           backgroundColor: 'rgba(148,163,184,0.2)',
           borderColor: 'rgba(148,163,184,0.5)',
-          borderWidth: 1,
-          borderRadius: 4,
-          borderSkipped: false,
-          order: 2,
+          borderWidth: 1, borderRadius: 4, borderSkipped: false, order: 2,
         },
         {
           label: 'Expected Value',
           data: rows.map(r => r.expected_value),
           backgroundColor: 'rgba(29,78,216,0.55)',
           borderColor: '#1d4ed8',
-          borderWidth: 1,
-          borderRadius: 4,
-          borderSkipped: false,
-          order: 1,
+          borderWidth: 1, borderRadius: 4, borderSkipped: false, order: 1,
         },
       ],
     },
@@ -602,9 +961,9 @@ function buildForecastChart() {
         tooltip: {
           ...tooltipDefaults(),
           callbacks: {
+            label: (item) => ` ${item.dataset.label}: ${formatCurrency(item.raw)}`,
             afterBody: (items) => {
-              const idx = items[0]?.dataIndex;
-              const row = rows[idx];
+              const row = rows[items[0]?.dataIndex];
               return row ? [`Deals: ${row.deal_count}`] : [];
             },
           },
@@ -628,17 +987,23 @@ function buildForecastChart() {
       },
     },
   });
+  forecastResizeObs?.disconnect();
+  forecastResizeObs = new ResizeObserver(() => forecastChartInst?.resize());
+  if (forecastWrapRef.value) forecastResizeObs.observe(forecastWrapRef.value);
 }
 
 // ── Lifecycle ─────────────────────────────────────────────────────────────────
 onMounted(() => {
   document.addEventListener('click', closePicker);
+  document.addEventListener('keydown', handleKey);
   loadLookups();
   loadAll();
 });
 
 onBeforeUnmount(() => {
   document.removeEventListener('click', closePicker);
+  document.removeEventListener('keydown', handleKey);
+  forecastResizeObs?.disconnect();
   forecastChartInst?.destroy();
 });
 </script>
@@ -709,7 +1074,6 @@ onBeforeUnmount(() => {
 }
 .pi-preset:hover { background: var(--primary-soft); border-color: var(--primary); color: var(--primary-text); }
 .pi-preset--on  { background: var(--primary-soft); border-color: var(--primary); color: var(--primary-text); font-weight: 600; }
-.pi-custom { }
 .pi-custom-inline { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .pi-custom-inline input {
   padding: 6px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm);
@@ -772,6 +1136,11 @@ onBeforeUnmount(() => {
 .pi-kpi-value { font-size: 26px; font-weight: 800; color: var(--text-1); line-height: 1.1; }
 .pi-kpi-label { font-size: 13px; font-weight: 600; color: var(--text-1); margin-top: 2px; }
 .pi-kpi-sub   { font-size: 11.5px; color: var(--text-3); margin-top: 2px; }
+.pi-kpi-skel  {
+  height: 30px; width: 72px;
+  background: var(--border-soft); border-radius: var(--radius-sm);
+  animation: pi-pulse 1.4s ease-in-out infinite;
+}
 
 /* ── Layout grids ─────────────────────────────────────────────────────────── */
 .pi-row-asym { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; align-items: start; }
@@ -800,6 +1169,7 @@ onBeforeUnmount(() => {
 .pi-card-title { font-size: 14px; font-weight: 700; color: var(--text-1); }
 .pi-card-meta  { font-size: 12px; color: var(--text-3); }
 .pi-card-body  { padding: 16px 20px; flex: 1; }
+.pi-card-head-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 
 /* ── Empty state ──────────────────────────────────────────────────────────── */
 .pi-empty {
@@ -814,13 +1184,48 @@ onBeforeUnmount(() => {
   height: 200px; background: var(--border-soft); border-radius: var(--radius);
   animation: pi-pulse 1.4s ease-in-out infinite;
 }
-.pi-skeleton-block--tall { height: 260px; }
 .pi-skeleton-list { display: flex; flex-direction: column; gap: 10px; }
 .pi-skeleton-row {
   height: 36px; background: var(--border-soft); border-radius: var(--radius-sm);
   animation: pi-pulse 1.4s ease-in-out infinite;
 }
 @keyframes pi-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+/* ── Error states ─────────────────────────────────────────────────────────── */
+.pi-error-banner {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 16px; background: var(--danger-soft);
+  border: 1px solid var(--danger); border-radius: var(--radius);
+  font-size: 13px; color: var(--danger);
+}
+.pi-error-banner svg { width: 16px; height: 16px; flex-shrink: 0; }
+.pi-error-banner span { flex: 1; }
+.pi-error {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 10px; padding: 32px 16px; color: var(--danger); text-align: center;
+}
+.pi-error svg { width: 36px; height: 36px; opacity: 0.6; }
+.pi-error p   { font-size: 13px; margin: 0; }
+.pi-retry-btn {
+  padding: 5px 14px; border-radius: var(--radius-sm);
+  border: 1px solid currentColor; background: transparent;
+  font-size: 12.5px; font-weight: 600; cursor: pointer;
+  color: inherit; transition: background 0.15s;
+}
+.pi-retry-btn:hover { background: rgba(0, 0, 0, 0.06); }
+
+/* ── Export button ────────────────────────────────────────────────────────── */
+.pi-export-btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 4px 10px; border-radius: var(--radius-sm);
+  border: 1px solid var(--border); background: var(--surface-2);
+  font-size: 12px; font-weight: 600; color: var(--text-2);
+  cursor: pointer; transition: border-color 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+.pi-export-btn svg { width: 13px; height: 13px; flex-shrink: 0; }
+.pi-export-btn:hover:not(:disabled) { border-color: var(--primary); color: var(--primary); }
+.pi-export-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
 /* ── Neglected contacts list ──────────────────────────────────────────────── */
 .pi-risk-list {
@@ -867,6 +1272,42 @@ onBeforeUnmount(() => {
 .pi-unworked-pct { font-size: 12px; font-weight: 700; color: var(--text-2); min-width: 36px; }
 .pi-unworked-of  { font-size: 11.5px; color: var(--text-3); }
 
+/* ── Win rates ────────────────────────────────────────────────────────────── */
+.pi-wr-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: start; }
+.pi-wr-subtitle {
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 1px; color: var(--text-3); margin-bottom: 10px;
+}
+
+/* ── Deal velocity ────────────────────────────────────────────────────────── */
+.pi-vel-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.pi-vel-item {
+  display: flex; align-items: center; gap: 16px;
+  padding: 10px 0; border-bottom: 1px solid var(--border-soft);
+}
+.pi-vel-item:last-child { border-bottom: none; }
+.pi-vel-left  { flex: 1; min-width: 0; }
+.pi-vel-title { display: block; font-size: 13.5px; font-weight: 600; color: var(--text-1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pi-vel-contact { font-size: 11.5px; color: var(--text-3); }
+.pi-vel-mid   { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; min-width: 90px; }
+.pi-vel-days  { font-size: 12px; color: var(--text-2); }
+.pi-vel-vs    { font-size: 11.5px; font-weight: 700; }
+.pi-vel-vs--over  { color: var(--danger); }
+.pi-vel-vs--under { color: var(--success); }
+.pi-vel-right { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+.pi-vel-value { font-size: 13px; font-weight: 600; color: var(--text-1); white-space: nowrap; }
+
+/* ── Pipeline coverage ────────────────────────────────────────────────────── */
+.pi-cov-list  { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 18px; }
+.pi-cov-item  { display: flex; flex-direction: column; gap: 6px; }
+.pi-cov-header { display: flex; align-items: center; justify-content: space-between; }
+.pi-cov-name   { font-size: 13px; font-weight: 600; color: var(--text-1); }
+.pi-cov-pct    { font-size: 11.5px; font-weight: 700; padding: 2px 9px; border-radius: 999px; }
+.pi-cov-detail { font-size: 12px; color: var(--text-3); }
+.pi-cov-gap    { color: var(--danger); font-weight: 600; }
+.pi-cov-bar    { height: 100%; border-radius: 99px; transition: width 0.4s ease; }
+.pi-cov-bar--danger { background: var(--danger); }
+
 /* ── Tables ───────────────────────────────────────────────────────────────── */
 .pi-table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius); }
 .pi-table { width: 100%; border-collapse: collapse; font-size: 13px; }
@@ -880,32 +1321,41 @@ onBeforeUnmount(() => {
 .pi-table tr:last-child td { border-bottom: none; }
 .pi-table tbody tr:hover td { background: var(--surface-2); }
 .pi-td-bold { font-weight: 600; }
-/* Mini bar (used in table cells and unworked list) */
-.pi-bar-cell  { display: flex; align-items: center; gap: 8px; }
+.pi-th-sort { cursor: pointer; user-select: none; transition: color 0.15s; }
+.pi-th-sort:hover { color: var(--primary); }
+.pi-sort-ind { font-size: 9px; margin-left: 4px; color: var(--primary); }
+
+/* Mini bar */
 .pi-mini-bar  { width: 80px; height: 6px; background: var(--border-soft); border-radius: 99px; overflow: hidden; }
 .pi-mini-bar--wide { width: 100%; flex: 1; }
 .pi-mini-fill { height: 100%; border-radius: 99px; background: var(--primary); }
-.pi-prob--success { background: var(--success); }
 .pi-prob--warning { background: var(--warning); }
-.pi-prob--danger  { background: var(--danger); }
 
-/* Deal pills */
-.pi-deal-pill { font-size: 11.5px; font-weight: 700; padding: 3px 9px; border-radius: 999px; }
+/* Deal / win-rate pills */
+.pi-deal-pill { font-size: 11.5px; font-weight: 700; padding: 3px 9px; border-radius: 999px; white-space: nowrap; }
 .pi-deal-pill--on-track  { background: var(--success-soft); color: var(--success); }
 .pi-deal-pill--at-risk   { background: var(--warning-soft); color: var(--warning); }
 .pi-deal-pill--high-risk { background: var(--danger-soft);  color: var(--danger); }
 
+/* Days to close cell */
+.pi-days--overdue { color: var(--danger); font-weight: 600; }
+.pi-days--soon    { color: var(--warning); font-weight: 600; }
+
+/* Activity cell */
+.pi-activity--high { color: var(--success); font-weight: 600; }
+.pi-activity--mid  { color: var(--text-2); }
+.pi-activity--none { color: var(--text-3); }
+
 /* ── Chart canvases ───────────────────────────────────────────────────────── */
 .pi-chart-wrap { height: 260px; position: relative; }
 .pi-chart-wrap canvas { width: 100% !important; height: 100% !important; }
-
-/* Forecast card body should always have enough room for the chart */
 .pi-row-asym .pi-card:first-child .pi-card-body { min-height: 300px; }
 
 /* ── Responsive ───────────────────────────────────────────────────────────── */
 @media (max-width: 1100px) {
   .pi-kpi-row  { grid-template-columns: repeat(2, 1fr); }
   .pi-row-asym { grid-template-columns: 1fr; }
+  .pi-wr-grid  { grid-template-columns: 1fr; }
 }
 @media (max-width: 700px) {
   .pi               { padding: 18px 14px; }
@@ -913,6 +1363,7 @@ onBeforeUnmount(() => {
   .pi-row-2col      { grid-template-columns: 1fr; }
   .pi-date-panel    { min-width: 0; right: -10px; }
   .pi-header-actions { width: 100%; }
+  .pi-vel-item      { flex-wrap: wrap; }
 }
 @media (max-width: 480px) {
   .pi         { padding: 14px 10px; }

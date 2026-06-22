@@ -387,7 +387,6 @@ const themeOptions = [
 
 const notifOptions = [
   { key: 'crm_reminders',   label: 'CRM Reminders',             desc: 'Alerts from your scheduled CRM reminders' },
-  { key: 'whatsapp_alerts', label: 'WhatsApp Lead Alerts',       desc: 'Notifications when new leads arrive via WhatsApp' },
   { key: 'deal_updates',    label: 'Deal Updates',               desc: 'Alerts when deal status or value changes' },
   { key: 'task_reminders',  label: 'Task & Follow-up Reminders', desc: 'Due-date reminders for to-dos and follow-ups' },
 ];
@@ -427,12 +426,6 @@ const adminLinks = [
     desc:  'Manage dropdown options — statuses, types, categories, industries',
   },
   {
-    to:    '/admin/webhooks',
-    icon:  _s('<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>'),
-    title: 'Webhooks',
-    desc:  'Configure outbound webhook integrations for CRM events',
-  },
-  {
     to:    '/admin/system-settings',
     icon:  _s('<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13.6a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 3h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 10.59a16 16 0 0 0 6 6l.95-.95a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 21.73 18z"/>'),
     title: 'System Settings',
@@ -440,21 +433,21 @@ const adminLinks = [
   },
   {
     to:    '/admin/user-activity',
-    icon:  _s('<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>'),
+    icon:  _s('<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>'),
     title: 'User Activity',
     desc:  'Monitor login history, CRM activity counts, and security events per user',
+  },
+  {
+    to:    '/admin/audit-log',
+    icon:  _s('<line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>'),
+    title: 'Audit Log',
+    desc:  'View every admin action — user changes, role edits, approvals, and unlocks',
   },
   {
     to:    '/data-health',
     icon:  _s('<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>'),
     title: 'Data Health',
     desc:  'Review CRM data quality, missing fields, and coverage reports',
-  },
-  {
-    to:    '/admin/performance-targets',
-    icon:  _s('<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>'),
-    title: 'Performance Targets',
-    desc:  'Set team-wide KPI targets and goals',
   },
 ];
 </script>
@@ -467,18 +460,19 @@ const adminLinks = [
 }
 
 .page-header {
-  margin-bottom: 24px;
+  margin-bottom: 28px;
 }
 .page-title {
   margin: 0 0 4px;
-  font-size: 22px;
-  font-weight: 700;
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
   color: var(--text-1);
 }
 .page-subtitle {
   margin: 0;
-  font-size: 13px;
-  color: var(--text-2);
+  font-size: 13.5px;
+  color: var(--text-3);
 }
 
 /* ─── Status message ──────────────────────────────────────────────────────── */
@@ -525,15 +519,15 @@ const adminLinks = [
   margin-bottom: 4px;
 }
 .profile-card:hover {
-  border-color: #3b82f6;
-  background: rgba(59,130,246,0.04);
+  border-color: var(--primary);
+  background: var(--primary-soft);
 }
 .profile-avatar {
   width: 34px;
   height: 34px;
   border-radius: 50%;
-  background: rgba(59,130,246,0.15);
-  color: #3b82f6;
+  background: var(--primary-soft);
+  color: var(--primary);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -557,7 +551,7 @@ const adminLinks = [
 }
 .profile-link-hint {
   font-size: 11px;
-  color: #3b82f6;
+  color: var(--primary);
 }
 
 .nav-list {
@@ -591,8 +585,8 @@ const adminLinks = [
   color: var(--text-1);
 }
 .nav-item.active {
-  background: rgba(59,130,246,0.1);
-  color: #3b82f6;
+  background: var(--primary-soft);
+  color: var(--primary);
   font-weight: 600;
 }
 .nav-item-icon {
@@ -665,12 +659,12 @@ const adminLinks = [
   gap: 7px;
 }
 .theme-card:hover {
-  border-color: #93c5fd;
-  background: rgba(59,130,246,0.05);
+  border-color: var(--primary);
+  background: var(--primary-soft);
 }
 .theme-card.selected {
-  border-color: #3b82f6;
-  background: rgba(59,130,246,0.08);
+  border-color: var(--primary);
+  background: var(--primary-soft);
 }
 .theme-icon {
   color: var(--text-1);
@@ -683,8 +677,8 @@ const adminLinks = [
   background: var(--app-bg);
 }
 .theme-card.selected .theme-icon {
-  color: #3b82f6;
-  background: rgba(59,130,246,0.12);
+  color: var(--primary);
+  background: var(--primary-soft);
 }
 .theme-label { font-size: 13px; font-weight: 600; color: var(--text-1); }
 .theme-hint  { font-size: 11px; color: var(--text-2); }
@@ -729,7 +723,7 @@ const adminLinks = [
   min-width: 180px;
   flex-shrink: 0;
 }
-.setting-select:focus { border-color: #3b82f6; }
+.setting-select:focus { border-color: var(--primary); }
 .setting-select option {
   background: var(--surface);
   color: var(--text-1);
@@ -751,7 +745,7 @@ const adminLinks = [
   color: var(--text-1);
 }
 .radio-opt input[type="radio"] {
-  accent-color: #3b82f6;
+  accent-color: var(--primary);
   width: 15px;
   height: 15px;
   cursor: pointer;
@@ -802,7 +796,7 @@ const adminLinks = [
   transition: transform 0.2s;
   box-shadow: 0 1px 4px rgba(0,0,0,0.25);
 }
-.toggle-switch input:checked + .toggle-slider { background: #3b82f6; }
+.toggle-switch input:checked + .toggle-slider { background: var(--primary); }
 .toggle-switch input:checked + .toggle-slider::before { transform: translateX(20px); }
 
 /* ─── Admin links ─────────────────────────────────────────────────────────── */
@@ -818,14 +812,14 @@ const adminLinks = [
 .admin-link-row:last-child { border-bottom: none; }
 .admin-link-row:first-child { border-radius: 12px 12px 0 0; }
 .admin-link-row:last-child  { border-radius: 0 0 12px 12px; }
-.admin-link-row:hover { background: rgba(59,130,246,0.05); }
+.admin-link-row:hover { background: var(--primary-soft); }
 
 .admin-link-icon {
   width: 38px;
   height: 38px;
-  border-radius: 9px;
-  background: rgba(99,102,241,0.12);
-  color: #818cf8;
+  border-radius: var(--radius-sm);
+  background: var(--primary-soft);
+  color: var(--primary-text);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -847,8 +841,8 @@ const adminLinks = [
   cursor: pointer;
   border: none;
 }
-.btn-save { background: #3b82f6; color: white; }
-.btn-save:hover:not(:disabled) { background: #2563eb; }
+.btn-save { background: var(--primary); color: white; }
+.btn-save:hover:not(:disabled) { background: var(--primary-hover); }
 .btn-save:disabled { opacity: 0.55; cursor: not-allowed; }
 
 /* ─── Responsive ──────────────────────────────────────────────────────────── */

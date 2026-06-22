@@ -213,7 +213,8 @@
       <div class="table-wrap">
         <div class="table-header-bar">
           <span class="table-header-title">Users</span>
-          <span class="count-badge">{{ activeUsers.length }}</span>
+          <span class="count-badge">{{ displayedUsers.length }}</span>
+          <input v-model="userSearch" class="user-search" placeholder="Search name, username, email…" autocomplete="off">
           <label class="toggle-deleted">
             <input type="checkbox" v-model="showDeleted" @change="loadUsers">
             <span>Show deleted</span>
@@ -225,8 +226,8 @@
             <tr><th>#</th><th>Name</th><th>Username</th><th>Roles</th><th>Status</th><th>Logins</th><th>Last Login</th><th>Joined</th><th>Actions</th></tr>
           </thead>
           <tbody>
-            <tr v-if="users.length === 0"><td colspan="9" class="empty-state">No users yet.</td></tr>
-            <tr v-for="(user, idx) in users" :key="user.id" :class="{ 'row-deleted': user.deleted_at }">
+            <tr v-if="displayedUsers.length === 0"><td colspan="9" class="empty-state">{{ userSearch ? 'No users match your search.' : 'No users yet.' }}</td></tr>
+            <tr v-for="(user, idx) in displayedUsers" :key="user.id" :class="{ 'row-deleted': user.deleted_at }">
               <td class="num">{{ idx + 1 }}</td>
               <td class="user-name-cell">{{ user.name }}</td>
               <td><code class="username-code">{{ user.username }}</code></td>
@@ -238,6 +239,8 @@
               </td>
               <td>
                 <span v-if="user.deleted_at" class="tag tag-gray">Deleted</span>
+                <span v-else-if="user.permanently_locked" class="tag tag-red">Locked — Brute Force</span>
+                <span v-else-if="user.locked_until && isTempLocked(user)" class="tag tag-orange">Temp Locked</span>
                 <span v-else-if="user.inactivity_flagged_at" class="tag tag-red">Locked — Inactive</span>
                 <span v-else-if="user.is_approved" class="tag tag-green">Approved</span>
                 <span v-else-if="user.access_requested_at" class="tag tag-orange">Pending</span>
@@ -250,13 +253,21 @@
                 <template v-if="user.deleted_at">
                   <button class="act-btn act-green" @click="restoreUser(user)">Restore</button>
                 </template>
+                <template v-else-if="user.permanently_locked">
+                  <button class="act-btn act-green" @click="openUnlockModal(user)">Unlock</button>
+                  <button class="act-btn act-key" @click="openResetPwModal(user)">Set Pwd</button>
+                  <button class="act-btn act-edit" @click="openEditUserModal(user)">Edit</button>
+                  <button class="act-btn act-red" @click="deleteUser(user)">Delete</button>
+                </template>
                 <template v-else-if="user.inactivity_flagged_at">
                   <button class="act-btn act-green" @click="restoreAccess(user)">Restore Access</button>
+                  <button class="act-btn act-key" @click="openResetPwModal(user)">Set Pwd</button>
                   <button class="act-btn act-red" @click="deleteUser(user)">Delete</button>
                 </template>
                 <template v-else>
                   <button v-if="!user.is_approved && user.access_requested_at" class="act-btn act-green" @click="approveUser(user)">Approve</button>
                   <button class="act-btn act-edit" @click="openEditUserModal(user)">Edit</button>
+                  <button class="act-btn act-key" @click="openResetPwModal(user)">Set Pwd</button>
                   <button class="act-btn act-purple" @click="openRoleModal(user)">Roles</button>
                   <button class="act-btn act-red" @click="deleteUser(user)">Delete</button>
                 </template>
@@ -572,6 +583,90 @@
     </div>
   </Teleport>
 
+  <!-- Unlock brute-force locked account modal -->
+  <Teleport to="body">
+    <div v-if="unlockModal.open" class="overlay" @click.self="closeUnlockModal">
+      <div class="modal">
+        <div class="modal-head">
+          <div>
+            <div class="modal-title">Unlock Account</div>
+            <div class="modal-sub">Clears brute-force lock — user can log in again.</div>
+          </div>
+          <button class="modal-close" @click="closeUnlockModal"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+        </div>
+        <div class="modal-body">
+          <svg class="modal-warn-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+            <line x1="12" y1="9" x2="12" y2="13"/><circle cx="12" cy="17" r="1" fill="#f59e0b" stroke="none"/>
+          </svg>
+          <p class="modal-confirm-text">
+            Unlock <strong>{{ unlockModal.user?.name }}</strong>?<br>
+            Their failed-attempt counter will be reset.
+          </p>
+        </div>
+        <div class="modal-foot">
+          <button class="btn btn-ghost" @click="closeUnlockModal">Cancel</button>
+          <button class="btn btn-primary" @click="confirmUnlock" :disabled="unlockModal.loading">
+            {{ unlockModal.loading ? 'Unlocking…' : 'Unlock Account' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </Teleport>
+
+  <!-- Reset Password modal -->
+  <Teleport to="body">
+    <div v-if="resetPwModal.open" class="overlay" @click.self="closeResetPwModal">
+      <div class="modal">
+        <div class="modal-head">
+          <div>
+            <div class="modal-title">Set Password</div>
+            <div class="modal-sub">Admin override for <strong>{{ resetPwModal.user?.name }}</strong></div>
+          </div>
+          <button class="modal-close" @click="closeResetPwModal"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+        </div>
+        <div class="modal-body modal-form">
+          <div v-if="resetPwModal.error" class="form-error" style="margin-bottom:12px">{{ resetPwModal.error }}</div>
+          <div class="edit-grid">
+            <div class="form-field">
+              <label>New Password</label>
+              <div class="pw-wrap">
+                <input v-model="resetPwForm.password" :type="showResetPw ? 'text' : 'password'" class="edit-input" placeholder="New password…" autofocus>
+                <button type="button" class="pw-toggle" @click="showResetPw = !showResetPw" tabindex="-1">
+                  <svg v-if="showResetPw" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" /></svg>
+                  <svg v-else xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                </button>
+              </div>
+              <div v-if="resetPwForm.password" class="pw-hints">
+                <span :class="['hint', pwCheck(resetPwForm.password).upper  ? 'ok' : 'fail']">A–Z</span>
+                <span :class="['hint', pwCheck(resetPwForm.password).num    ? 'ok' : 'fail']">0–9</span>
+                <span :class="['hint', pwCheck(resetPwForm.password).sym    ? 'ok' : 'fail']">!@#</span>
+                <span :class="['hint', pwCheck(resetPwForm.password).length ? 'ok' : 'fail']">8+ chars</span>
+              </div>
+            </div>
+            <div class="form-field">
+              <label>Confirm Password</label>
+              <div class="pw-wrap">
+                <input v-model="resetPwForm.password_confirmation" :type="showResetConfPw ? 'text' : 'password'" class="edit-input" placeholder="Confirm password…">
+                <button type="button" class="pw-toggle" @click="showResetConfPw = !showResetConfPw" tabindex="-1">
+                  <svg v-if="showResetConfPw" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" /></svg>
+                  <svg v-else xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-foot">
+          <button class="btn btn-ghost" @click="closeResetPwModal">Cancel</button>
+          <button class="btn btn-primary" @click="confirmResetPw"
+            :disabled="!pwStrong(resetPwForm.password) || resetPwForm.password !== resetPwForm.password_confirmation || resetPwModal.loading">
+            {{ resetPwModal.loading ? 'Saving…' : 'Set Password' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </Teleport>
+
   <!-- Delete User confirm modal -->
   <Teleport to="body">
     <div v-if="deleteUserModal.open" class="overlay" @click.self="closeDeleteUserModal">
@@ -583,12 +678,23 @@
           </div>
           <button class="modal-close" @click="closeDeleteUserModal"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
         </div>
-        <div class="modal-body">
+        <div class="modal-body" style="gap: 14px; align-items: center;">
           <svg class="modal-warn-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
             <line x1="12" y1="9" x2="12" y2="13"/><circle cx="12" cy="17" r="1" fill="#f59e0b" stroke="none"/>
           </svg>
-          <p class="modal-confirm-text">Delete user <strong>{{ deleteUserModal.user?.name }}</strong>?</p>
+          <p class="modal-confirm-text">Delete <strong>{{ deleteUserModal.user?.name }}</strong>? Their account will be deactivated but can be restored.</p>
+
+          <div v-if="deleteUserModal.user?.contacts_count > 0" class="reassign-block">
+            <div class="reassign-info">
+              <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" class="reassign-info-icon"><circle cx="12" cy="12" r="10"/><path stroke-linecap="round" d="M12 8v4m0 4h.01"/></svg>
+              <span>This user owns <strong>{{ deleteUserModal.user.contacts_count }}</strong> contact{{ deleteUserModal.user.contacts_count !== 1 ? 's' : '' }}. Reassign them to:</span>
+            </div>
+            <select v-model="deleteUserModal.reassignTo" class="reassign-select">
+              <option value="">Leave unassigned</option>
+              <option v-for="u in reassignTargets" :key="u.id" :value="u.id">{{ u.name }}</option>
+            </select>
+          </div>
         </div>
         <div class="modal-foot">
           <button class="btn btn-ghost" @click="closeDeleteUserModal">Cancel</button>
@@ -626,7 +732,17 @@ const users       = ref([]);
 const pending     = ref([]);
 const showDeleted = ref(false);
 
-const activeUsers = computed(() => users.value.filter(u => !u.deleted_at));
+const activeUsers   = computed(() => users.value.filter(u => !u.deleted_at))
+const userSearch    = ref('')
+const displayedUsers = computed(() => {
+  const q = userSearch.value.trim().toLowerCase()
+  if (!q) return users.value
+  return users.value.filter(u =>
+    u.name.toLowerCase().includes(q) ||
+    u.username.toLowerCase().includes(q) ||
+    (u.email && u.email.toLowerCase().includes(q))
+  )
+});
 
 const roleForm     = reactive({ name: '', description: '' });
 const userForm     = reactive({ name: '', username: '', email: '', password: '', password_confirmation: '', role: '' });
@@ -777,6 +893,27 @@ async function restoreUser(user) {
   } catch (e) { handleError(e); }
 }
 
+function isTempLocked(user) {
+  return user.locked_until && new Date(user.locked_until) > new Date();
+}
+
+// --- Unlock brute-force locked account ---
+const unlockModal = reactive({ open: false, user: null, loading: false });
+function openUnlockModal(user) { unlockModal.user = user; unlockModal.open = true; }
+function closeUnlockModal() { unlockModal.open = false; unlockModal.user = null; unlockModal.loading = false; }
+
+async function confirmUnlock() {
+  if (!unlockModal.user) return;
+  unlockModal.loading = true;
+  try {
+    const res = await api.put(`/v1/rbac/users/${unlockModal.user.id}/unlock`);
+    const idx = users.value.findIndex(u => u.id === unlockModal.user.id);
+    if (idx !== -1) users.value[idx] = { ...users.value[idx], ...res.data.data, permanently_locked: false, failed_login_attempts: 0, locked_until: null, lockout_level: 0 };
+    closeUnlockModal();
+  } catch (e) { handleError(e); closeUnlockModal(); }
+  finally { unlockModal.loading = false; }
+}
+
 // --- Restore access for inactivity-flagged user ---
 const restoreAccessModal = reactive({ open: false, user: null, loading: false });
 function openRestoreAccessModal(user) { restoreAccessModal.user = user; restoreAccessModal.open = true; }
@@ -867,15 +1004,17 @@ async function createUser() {
     userCreatedMsg.value = res.data.message ?? 'User created. They must log in once for admin approval.';
   } catch (e) { handleError(e); }
 }
-const deleteUserModal = reactive({ open: false, user: null, loading: false });
-function openDeleteUserModal(user) { deleteUserModal.user = user; deleteUserModal.open = true; }
-function closeDeleteUserModal() { deleteUserModal.open = false; deleteUserModal.user = null; deleteUserModal.loading = false; }
+const deleteUserModal = reactive({ open: false, user: null, loading: false, reassignTo: '' });
+const reassignTargets = computed(() => activeUsers.value.filter(u => u.id !== deleteUserModal.user?.id));
+function openDeleteUserModal(user) { deleteUserModal.user = user; deleteUserModal.reassignTo = ''; deleteUserModal.open = true; }
+function closeDeleteUserModal() { deleteUserModal.open = false; deleteUserModal.user = null; deleteUserModal.loading = false; deleteUserModal.reassignTo = ''; }
 
 async function confirmDeleteUser() {
   if (!deleteUserModal.user) return;
   deleteUserModal.loading = true;
   try {
-    await api.delete(`/v1/rbac/users/${deleteUserModal.user.id}`);
+    const payload = deleteUserModal.reassignTo ? { reassign_to: deleteUserModal.reassignTo } : {};
+    await api.delete(`/v1/rbac/users/${deleteUserModal.user.id}`, { data: payload });
     if (showDeleted.value) {
       const idx = users.value.findIndex(u => u.id === deleteUserModal.user.id);
       if (idx !== -1) users.value[idx] = { ...users.value[idx], deleted_at: new Date().toISOString() };
@@ -1000,6 +1139,48 @@ async function confirmRemoveGrant() {
   }
 }
 
+// ── Reset Password (admin force-set) ──
+const resetPwModal  = reactive({ open: false, user: null, loading: false, error: '' });
+const resetPwForm   = reactive({ password: '', password_confirmation: '' });
+const showResetPw     = ref(false);
+const showResetConfPw = ref(false);
+
+function openResetPwModal(user) {
+  resetPwModal.user    = user;
+  resetPwModal.error   = '';
+  resetPwModal.loading = false;
+  resetPwForm.password              = '';
+  resetPwForm.password_confirmation = '';
+  showResetPw.value     = false;
+  showResetConfPw.value = false;
+  resetPwModal.open    = true;
+}
+function closeResetPwModal() {
+  resetPwModal.open = false;
+  resetPwModal.user = null;
+}
+async function confirmResetPw() {
+  if (!resetPwModal.user) return;
+  resetPwModal.loading = true;
+  resetPwModal.error   = '';
+  try {
+    await api.put(`/v1/rbac/users/${resetPwModal.user.id}`, {
+      name:                  resetPwModal.user.name,
+      username:              resetPwModal.user.username,
+      password:              resetPwForm.password,
+      password_confirmation: resetPwForm.password_confirmation,
+    });
+    closeResetPwModal();
+  } catch (e) {
+    const errors = e.response?.data?.errors;
+    resetPwModal.error = errors
+      ? Object.values(errors).flat().join(' ')
+      : (e.response?.data?.message ?? 'An error occurred.');
+  } finally {
+    resetPwModal.loading = false;
+  }
+}
+
 onMounted(() => switchTab('pending'));
 </script>
 
@@ -1036,7 +1217,14 @@ onMounted(() => switchTab('pending'));
 }
 .table-header-title { font-size: 14px; font-weight: 700; color: var(--text-1); }
 .count-badge  { background: var(--surface-2); color: var(--text-2); font-size: 11px; font-weight: 700; padding: 2px 9px; border-radius: 999px; }
-.toggle-deleted { margin-left: auto; display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-3); cursor: pointer; }
+.user-search {
+  margin-left: auto; height: 32px; padding: 0 10px 0 30px; border: 1.5px solid var(--border);
+  border-radius: 8px; font-size: 13px; color: var(--text-1); outline: none; width: 220px;
+  background: var(--surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='13' height='13' fill='none' viewBox='0 0 24 24' stroke='%2394a3b8' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath stroke-linecap='round' d='M21 21l-4.35-4.35'/%3E%3C/svg%3E") no-repeat 9px center;
+  transition: border-color 0.15s;
+}
+.user-search:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--focus-ring); }
+.toggle-deleted { margin-left: 12px; display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-3); cursor: pointer; }
 .toggle-deleted input { accent-color: var(--primary); }
 
 /* ── Forms ── */
@@ -1120,6 +1308,8 @@ tbody tr:hover { background: var(--app-bg); }
 .act-red    { background: #fee2e2; color: #991b1b; }
 .act-red:hover    { background: #fecaca; }
 .act-green  { background: #dcfce7; color: #15803d; }
+.act-key    { background: #f0f9ff; color: #0369a1; }
+.act-key:hover { background: #e0f2fe; }
 .act-green:hover  { background: #bbf7d0; }
 
 .form-field-action { justify-content: flex-end; display: flex; flex-direction: column; }
@@ -1251,4 +1441,23 @@ tbody tr:hover { background: var(--app-bg); }
 .perm-action-chip-on { border-color: #6366f1; background: #eef2ff; color: #4338ca; }
 .modal-warn-icon { width: 44px; height: 44px; color: #f59e0b; flex-shrink: 0; }
 .modal-confirm-text { font-size: 14px; color: var(--text-1); margin: 0; line-height: 1.5; text-align: center; }
+
+/* ── Delete user: reassign block ── */
+.reassign-block {
+  width: 100%; background: var(--app-bg); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 12px 14px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.reassign-info {
+  display: flex; align-items: flex-start; gap: 8px;
+  font-size: 13px; color: var(--text-1); line-height: 1.5;
+}
+.reassign-info-icon { flex-shrink: 0; color: var(--primary); margin-top: 1px; }
+.reassign-select {
+  height: 36px; padding: 0 12px; border: 1.5px solid var(--border);
+  border-radius: 8px; font-size: 13px; color: var(--text-1);
+  width: 100%; outline: none; background: var(--surface);
+  transition: border-color 0.15s;
+}
+.reassign-select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--focus-ring); }
 </style>

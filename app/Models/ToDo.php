@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class ToDo extends Model
 {
@@ -11,6 +12,14 @@ class ToDo extends Model
     {
         static::creating(fn($m) => $m->created_by = Auth::id());
         static::updating(fn($m) => $m->updated_by  = Auth::id());
+
+        static::saved(function (ToDo $todo) {
+            if ($todo->completion_status === 'completed' && $todo->contact_id) {
+                DB::table('contacts')
+                    ->where('id', $todo->contact_id)
+                    ->update(['last_contacted_at' => $todo->completed_at ?? now()]);
+            }
+        });
 
         // Handles explicit ToDo deletes (not cascade from Contact, which is covered in Contact::deleting)
         static::deleting(function (ToDo $todo) {

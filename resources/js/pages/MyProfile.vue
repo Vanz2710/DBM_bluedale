@@ -189,6 +189,37 @@
             </div>
           </div>
 
+          <!-- Active Sessions -->
+          <div class="card">
+            <h3 class="card-heading">
+              <svg class="h-icon h-icon--secondary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="2" y="3" width="20" height="14" rx="2"/>
+                <path d="M8 21h8M12 17v4"/>
+              </svg>
+              Active Sessions
+            </h3>
+
+            <div v-if="sessionsLoading" class="perm-empty">Loading…</div>
+            <div v-else-if="!sessions.length" class="perm-empty">No other sessions found.</div>
+            <div v-else class="session-list">
+              <div v-for="s in sessions" :key="s.id" class="session-row">
+                <div class="session-info">
+                  <span class="session-name">{{ s.name }}</span>
+                  <span v-if="s.is_current" class="session-current-badge">current</span>
+                  <span class="session-meta">Last used {{ s.last_used_at ? formatSessionDate(s.last_used_at) : 'never' }}</span>
+                </div>
+                <button v-if="!s.is_current" class="btn-revoke" @click="revokeSession(s.id)" :disabled="revokingId === s.id">
+                  {{ revokingId === s.id ? '…' : 'Revoke' }}
+                </button>
+              </div>
+            </div>
+            <div v-if="sessions.filter(s => !s.is_current).length > 0" class="session-footer">
+              <button class="btn-outline btn-sm" @click="revokeAllSessions" :disabled="revokingAll">
+                {{ revokingAll ? 'Revoking…' : 'Revoke all other sessions' }}
+              </button>
+            </div>
+          </div>
+
           <!-- Your Permissions -->
           <div class="card">
             <h3 class="card-heading">
@@ -239,6 +270,52 @@ const profileMsg    = ref(null);
 const pwMsg         = ref(null);
 const showPwForm    = ref(false);
 
+const sessions    = ref([]);
+const sessionsLoading = ref(false);
+const revokingId  = ref(null);
+const revokingAll = ref(false);
+
+async function loadSessions() {
+  sessionsLoading.value = true;
+  try {
+    const res = await api.get('/v1/sessions');
+    sessions.value = res.data.data;
+  } finally {
+    sessionsLoading.value = false;
+  }
+}
+
+async function revokeSession(id) {
+  revokingId.value = id;
+  try {
+    await api.delete(`/v1/sessions/${id}`);
+    sessions.value = sessions.value.filter(s => s.id !== id);
+  } finally {
+    revokingId.value = null;
+  }
+}
+
+async function revokeAllSessions() {
+  revokingAll.value = true;
+  try {
+    await api.delete('/v1/sessions/all');
+    sessions.value = sessions.value.filter(s => s.is_current);
+  } finally {
+    revokingAll.value = false;
+  }
+}
+
+function formatSessionDate(iso) {
+  const d = new Date(iso);
+  const diff = Date.now() - d.getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+}
+
 const profile = ref({ name: '', email: '', phone: '', job_title: '', roles: [], permissions: [], created_at: null, updated_at: null });
 const pw      = ref({ current: '', password: '', password_confirmation: '' });
 
@@ -250,8 +327,8 @@ const PERM_GROUPS = [
   { label: 'Projects',   perms: ['view projects','create projects','edit projects','delete projects'] },
   { label: 'Follow-Ups', perms: ['view followups','create followups','edit followups','delete followups'] },
   { label: 'Analytics',  perms: ['view analytics','view summary','view data-health','view performance'] },
-  { label: 'Marketing',  perms: ['manage social-media','manage posting-calendar','manage email-campaigns','manage product-availability'] },
-  { label: 'Admin Tools', perms: ['manage lookups','manage webhooks','manage territories'] },
+  { label: 'Marketing',  perms: ['manage social-media','manage posting-calendar','manage email-campaigns','manage site-availability'] },
+  { label: 'Admin Tools', perms: ['manage lookups','manage territories'] },
 ];
 
 const activePermGroups = computed(() => {
@@ -275,8 +352,11 @@ const initials = computed(() => {
 
 onMounted(async () => {
   try {
-    const res = await api.get('/v1/profile');
-    profile.value = res.data.user;
+    const [profileRes] = await Promise.all([
+      api.get('/v1/profile'),
+      loadSessions(),
+    ]);
+    profile.value = profileRes.data.user;
   } finally {
     loading.value = false;
   }
@@ -807,6 +887,31 @@ async function changePassword() {
   font-size: 11px;
   font-weight: 600;
 }
+
+/* ── Active sessions ─────────────────────────────────────── */
+.session-list { display: flex; flex-direction: column; gap: 2px; }
+.session-row {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 10px; padding: 9px 10px; border-radius: var(--radius-sm);
+  transition: background 0.12s;
+}
+.session-row:hover { background: var(--surface-2); }
+.session-info { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+.session-name { font-size: 13px; font-weight: 600; color: var(--text-1); }
+.session-meta { font-size: 11.5px; color: var(--text-3); }
+.session-current-badge {
+  display: inline-block; font-size: 10px; font-weight: 700; padding: 1px 7px;
+  border-radius: 999px; background: var(--primary-soft); color: var(--primary);
+  margin-left: 6px; vertical-align: middle;
+}
+.btn-revoke {
+  flex-shrink: 0; height: 26px; padding: 0 10px; border-radius: 6px;
+  font-size: 11.5px; font-weight: 600; border: 1.5px solid var(--border);
+  background: transparent; color: var(--danger); cursor: pointer; transition: all 0.12s;
+}
+.btn-revoke:hover:not(:disabled) { background: var(--danger-soft); border-color: var(--danger); }
+.btn-revoke:disabled { opacity: 0.45; cursor: not-allowed; }
+.session-footer { margin-top: 12px; display: flex; justify-content: flex-end; }
 
 /* ── Responsive ──────────────────────────────────────────── */
 @media (max-width: 960px) {

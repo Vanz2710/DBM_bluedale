@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Models\Contact;
 use App\Models\Deal;
+use App\Models\KpiTarget;
 use App\Models\ToDo;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -23,18 +24,27 @@ class PredictiveController extends Controller
         return $u->id;
     }
 
+    // COALESCE(last_contacted_at, updated_at) — handles contacts that predate the
+    // last_contacted_at column, falling back to updated_at for those rows.
+    private function lastTouchedExpr(string $alias = 'c'): string
+    {
+        return "COALESCE({$alias}.last_contacted_at, {$alias}.updated_at)";
+    }
+
     // ── 1. Summary KPI cards ──────────────────────────────────────────────────
 
     public function summary(Request $request)
     {
         $uid     = $this->resolveUserId($request);
         $isAdmin = $request->user()->hasAnyRole(['admin', 'super-admin']);
+        $touched = $this->lastTouchedExpr();
 
-        // Non-raw contacts not updated in 60+ days
+        // Non-raw contacts with no genuine interaction in 60+ days
         $neglected = DB::table('contacts as c')
             ->join('contact_statuses as s', 'c.status_id', '=', 's.id')
             ->where('s.name', 'not like', '%Raw%')
-            ->whereRaw('DATEDIFF(NOW(), c.updated_at) >= 60')
+            ->whereNull('c.deleted_at')
+            ->whereRaw("DATEDIFF(NOW(), {$touched}) >= 60")
             ->when($uid, fn ($q) => $q->where('c.user_id', $uid))
             ->count();
 
@@ -44,7 +54,7 @@ class PredictiveController extends Controller
             ->selectRaw('SUM(value * COALESCE(probability, 50) / 100) as weighted')
             ->value('weighted');
 
-        // Agents carrying more than 1.5× the average contact load (admin-only)
+        // Agents carrying more than 1.5× the average contact load (admin-only, all-agents view)
         $overloadedAgents = null;
         if ($isAdmin && ! $uid) {
             $counts           = Contact::selectRaw('user_id, COUNT(*) as cnt')->groupBy('user_id')->pluck('cnt');
@@ -52,11 +62,12 @@ class PredictiveController extends Controller
             $overloadedAgents = $counts->filter(fn ($c) => $c > $avg * 1.5)->count();
         }
 
-        // Non-raw contacts not updated in 30+ days
+        // Non-raw contacts with no genuine interaction in 30+ days
         $unworkedOpps = DB::table('contacts as c')
             ->join('contact_statuses as s', 'c.status_id', '=', 's.id')
             ->where('s.name', 'not like', '%Raw%')
-            ->whereRaw('DATEDIFF(NOW(), c.updated_at) >= 30')
+            ->whereNull('c.deleted_at')
+            ->whereRaw("DATEDIFF(NOW(), {$touched}) >= 30")
             ->when($uid, fn ($q) => $q->where('c.user_id', $uid))
             ->count();
 
@@ -68,7 +79,9 @@ class PredictiveController extends Controller
         ]);
     }
 
-    // ── 2. Revenue pipeline forecast (unchanged) ──────────────────────────────
+    // ── 2. Pipeline by close month ────────────────────────────────────────────
+    //    Groups open deals by expected close month. This is a weighted bucket
+    //    summary — not a statistical forecast.
 
     public function forecast(Request $request)
     {
@@ -107,26 +120,28 @@ class PredictiveController extends Controller
     }
 
     // ── 3. Neglected contacts ─────────────────────────────────────────────────
-    //    Non-raw contacts (Potential, Existing Client, etc.) that have not been
-    //    updated in 60+ days — contacts that were qualified but then forgotten.
+    //    Non-raw contacts with no completed todo or follow-up in threshold days.
+    //    Uses last_contacted_at (falls back to updated_at for legacy rows).
 
     public function atRisk(Request $request)
     {
         $uid       = $this->resolveUserId($request);
         $threshold = max(1, (int) $request->input('threshold', 60));
+        $touched   = $this->lastTouchedExpr();
 
         $contacts = DB::table('contacts as c')
             ->join('contact_statuses as s', 'c.status_id', '=', 's.id')
             ->join('users as u', 'c.user_id', '=', 'u.id')
             ->where('s.name', 'not like', '%Raw%')
-            ->whereRaw('DATEDIFF(NOW(), c.updated_at) >= ?', [$threshold])
+            ->whereNull('c.deleted_at')
+            ->whereRaw("DATEDIFF(NOW(), {$touched}) >= ?", [$threshold])
             ->when($uid, fn ($q) => $q->where('c.user_id', $uid))
             ->select([
                 'c.id',
                 'c.name',
                 's.name as status_name',
                 'u.name as owner_name',
-                DB::raw('DATEDIFF(NOW(), c.updated_at) as days_since_update'),
+                DB::raw("DATEDIFF(NOW(), {$touched}) as days_since_update"),
             ])
             ->orderByDesc('days_since_update')
             ->limit(30)
@@ -136,7 +151,6 @@ class PredictiveController extends Controller
     }
 
     // ── 4. Agent coverage load ────────────────────────────────────────────────
-    //    Total contacts per agent, split into raw vs actionable (engaged).
 
     public function pace(Request $request)
     {
@@ -147,6 +161,7 @@ class PredictiveController extends Controller
         $rows = DB::table('contacts as c')
             ->join('contact_statuses as s', 'c.status_id', '=', 's.id')
             ->join('users as u', 'c.user_id', '=', 'u.id')
+            ->whereNull('c.deleted_at')
             ->when($uid, fn ($q) => $q->where('c.user_id', $uid))
             ->when(! $isAdmin && ! $uid, fn ($q) => $q->where('c.user_id', $user->id))
             ->groupBy('c.user_id', 'u.name')
@@ -176,24 +191,26 @@ class PredictiveController extends Controller
     }
 
     // ── 5. Unworked segment opportunities ────────────────────────────────────
-    //    By industry: how many actionable contacts haven't been touched in 30+ days.
+    //    By industry: engaged contacts with no interaction in 30+ days.
+    //    Uses last_contacted_at (falls back to updated_at for legacy rows).
 
     public function overdueRisk(Request $request)
     {
-        $uid       = $this->resolveUserId($request);
-        $threshold = 30;
+        $uid     = $this->resolveUserId($request);
+        $touched = $this->lastTouchedExpr();
 
         $rows = DB::table('contacts as c')
             ->join('contact_statuses as s', 'c.status_id', '=', 's.id')
             ->leftJoin('contact_industries as i', 'c.industry_id', '=', 'i.id')
             ->where('s.name', 'not like', '%Raw%')
+            ->whereNull('c.deleted_at')
             ->when($uid, fn ($q) => $q->where('c.user_id', $uid))
             ->groupBy('c.industry_id', 'i.name')
             ->selectRaw("
                 c.industry_id,
                 COALESCE(i.name, 'Unassigned') as industry_name,
                 COUNT(*) as total,
-                SUM(CASE WHEN DATEDIFF(NOW(), c.updated_at) >= {$threshold} THEN 1 ELSE 0 END) as unworked
+                SUM(CASE WHEN DATEDIFF(NOW(), {$touched}) >= 30 THEN 1 ELSE 0 END) as unworked
             ")
             ->having('total', '>=', 1)
             ->orderByDesc('unworked')
@@ -210,7 +227,10 @@ class PredictiveController extends Controller
         return response()->json($rows);
     }
 
-    // ── 6. Deal win probability ───────────────────────────────────────────────
+    // ── 6. Open deals with honest signals ────────────────────────────────────
+    //    Returns the agent-set probability unchanged plus observable signals
+    //    (days to close, completed activity) so the UI can present facts rather
+    //    than a fake adjusted score.
 
     public function deals(Request $request)
     {
@@ -225,23 +245,18 @@ class PredictiveController extends Controller
             ->get();
 
         $result = $deals->map(function ($d) use ($today) {
-            $base = (float) ($d->probability ?? 50);
-
-            $urgencyBonus = 0;
-            $daysToClose  = null;
+            $daysToClose = null;
             if ($d->expected_close_date) {
-                $daysToClose  = $today->diffInDays($d->expected_close_date, false);
-                $urgencyBonus = $daysToClose < 0 ? -20 : ($daysToClose <= 14 ? 5 : 0);
+                $daysToClose = (int) $today->diffInDays($d->expected_close_date, false);
             }
 
+            // Only count completed todos — created-but-not-done todos are noise
             $recentActivity = $d->contact_id
                 ? ToDo::where('contact_id', $d->contact_id)
-                    ->where('todo_date', '>=', $today->copy()->subDays(30)->toDateString())
+                    ->where('completion_status', 'completed')
+                    ->where('completed_at', '>=', $today->copy()->subDays(30))
                     ->count()
                 : 0;
-            $activityBonus = $recentActivity >= 3 ? 10 : ($recentActivity >= 1 ? 5 : -10);
-
-            $adjusted = min(100, max(0, $base + $urgencyBonus + $activityBonus));
 
             return [
                 'id'                  => $d->id,
@@ -250,8 +265,7 @@ class PredictiveController extends Controller
                 'contact_id'          => $d->contact_id,
                 'value'               => (float) $d->value,
                 'expected_close_date' => $d->expected_close_date?->format('Y-m-d'),
-                'probability'         => (int) round($adjusted),
-                'base_probability'    => (int) $base,
+                'probability'         => (int) ($d->probability ?? 50),
                 'recent_activity'     => $recentActivity,
                 'days_to_close'       => $daysToClose,
             ];
@@ -260,4 +274,147 @@ class PredictiveController extends Controller
         return response()->json($result);
     }
 
+    // ── 7. Historical win rates ───────────────────────────────────────────────
+    //    Actual closed-deal win rates from the selected period, by agent and
+    //    by industry. Requires won/lost deals — empty if none exist yet.
+
+    public function winRates(Request $request)
+    {
+        $uid  = $this->resolveUserId($request);
+        $from = $request->input('from', Carbon::now()->subYear()->toDateString());
+        $to   = $request->input('to',   Carbon::now()->toDateString());
+
+        $base = DB::table('deals as d')
+            ->whereIn('d.status', ['won', 'lost'])
+            ->whereBetween('d.updated_at', ["{$from} 00:00:00", "{$to} 23:59:59"])
+            ->when($uid, fn ($q) => $q->where('d.user_id', $uid));
+
+        $byAgent = (clone $base)
+            ->join('users as u', 'd.user_id', '=', 'u.id')
+            ->groupBy('d.user_id', 'u.name')
+            ->selectRaw("
+                d.user_id,
+                u.name,
+                COUNT(*) as total,
+                SUM(CASE WHEN d.status = 'won' THEN 1 ELSE 0 END) as won,
+                ROUND(SUM(CASE WHEN d.status = 'won' THEN 1 ELSE 0 END) / COUNT(*) * 100, 1) as win_rate
+            ")
+            ->orderByDesc('total')
+            ->get();
+
+        $byIndustry = (clone $base)
+            ->join('contacts as c', 'd.contact_id', '=', 'c.id')
+            ->leftJoin('contact_industries as i', 'c.industry_id', '=', 'i.id')
+            ->groupBy('c.industry_id', 'i.name')
+            ->selectRaw("
+                c.industry_id,
+                COALESCE(i.name, 'Unassigned') as industry_name,
+                COUNT(*) as total,
+                SUM(CASE WHEN d.status = 'won' THEN 1 ELSE 0 END) as won,
+                ROUND(SUM(CASE WHEN d.status = 'won' THEN 1 ELSE 0 END) / COUNT(*) * 100, 1) as win_rate
+            ")
+            ->having('total', '>=', 2)
+            ->orderByDesc('total')
+            ->limit(10)
+            ->get();
+
+        return response()->json([
+            'by_agent'    => $byAgent,
+            'by_industry' => $byIndustry,
+        ]);
+    }
+
+    // ── 8. Deal velocity ──────────────────────────────────────────────────────
+    //    Average days-to-close from historical won deals, then flags open deals
+    //    that are aging beyond that benchmark.
+
+    public function dealVelocity(Request $request)
+    {
+        $uid  = $this->resolveUserId($request);
+        $from = $request->input('from', Carbon::now()->subYear()->toDateString());
+        $to   = $request->input('to',   Carbon::now()->toDateString());
+
+        $avgDays = DB::table('deals')
+            ->where('status', 'won')
+            ->whereBetween('updated_at', ["{$from} 00:00:00", "{$to} 23:59:59"])
+            ->when($uid, fn ($q) => $q->where('user_id', $uid))
+            ->selectRaw('AVG(DATEDIFF(updated_at, created_at)) as avg_days, COUNT(*) as sample_size')
+            ->first();
+
+        $benchmark  = $avgDays?->avg_days ? (int) round($avgDays->avg_days) : null;
+        $sampleSize = (int) ($avgDays?->sample_size ?? 0);
+
+        $today     = Carbon::today();
+        $openDeals = Deal::with(['contact:id,name'])
+            ->where('status', 'open')
+            ->when($uid, fn ($q) => $q->where('user_id', $uid))
+            ->orderBy('created_at')
+            ->limit(50)
+            ->get()
+            ->map(function ($d) use ($today, $benchmark) {
+                $daysOpen     = (int) Carbon::parse($d->created_at)->diffInDays($today);
+                $vsBenchmark  = $benchmark !== null ? $daysOpen - $benchmark : null;
+                $isStalling   = $benchmark !== null && $daysOpen > $benchmark * 1.5;
+
+                return [
+                    'id'           => $d->id,
+                    'title'        => $d->title,
+                    'contact_name' => $d->contact?->name ?? '—',
+                    'value'        => (float) $d->value,
+                    'days_open'    => $daysOpen,
+                    'vs_benchmark' => $vsBenchmark,
+                    'is_stalling'  => $isStalling,
+                ];
+            });
+
+        return response()->json([
+            'benchmark_days' => $benchmark,
+            'sample_size'    => $sampleSize,
+            'stalling_count' => $openDeals->where('is_stalling', true)->count(),
+            'deals'          => $openDeals->values(),
+        ]);
+    }
+
+    // ── 9. Pipeline coverage vs KPI targets ──────────────────────────────────
+    //    Compares each agent's weighted open pipeline to their won_deal_value
+    //    KPI target. Agents without a target show pipeline only.
+
+    public function pipelineCoverage(Request $request)
+    {
+        $uid  = $this->resolveUserId($request);
+        $user = $request->user();
+
+        // Weighted pipeline per agent
+        $pipeline = Deal::where('status', 'open')
+            ->when($uid, fn ($q) => $q->where('user_id', $uid))
+            ->when(! $user->hasAnyRole(['admin', 'super-admin']) && ! $uid, fn ($q) => $q->where('user_id', $user->id))
+            ->selectRaw('user_id, SUM(value * COALESCE(probability, 50) / 100) as weighted_value')
+            ->groupBy('user_id')
+            ->pluck('weighted_value', 'user_id');
+
+        // KPI targets for won_deal_value
+        $targets = KpiTarget::where('metric', 'won_deal_value')
+            ->when($uid, fn ($q) => $q->where('user_id', $uid))
+            ->when(! $user->hasAnyRole(['admin', 'super-admin']) && ! $uid, fn ($q) => $q->where('user_id', $user->id))
+            ->pluck('target_value', 'user_id');
+
+        $userIds = $pipeline->keys()->merge($targets->keys())->unique();
+        $names   = DB::table('users')->whereIn('id', $userIds)->pluck('name', 'id');
+
+        $result = $userIds->map(function ($userId) use ($pipeline, $targets, $names) {
+            $weighted = (float) ($pipeline[$userId] ?? 0);
+            $target   = (float) ($targets[$userId] ?? 0);
+
+            return [
+                'user_id'           => $userId,
+                'name'              => $names[$userId] ?? 'Unknown',
+                'weighted_pipeline' => round($weighted, 2),
+                'target'            => round($target, 2),
+                'coverage_pct'      => $target > 0 ? round($weighted / $target * 100, 1) : null,
+                'gap'               => $target > 0 ? round(max(0, $target - $weighted), 2) : null,
+            ];
+        })->sortByDesc('weighted_pipeline')->values();
+
+        return response()->json($result);
+    }
 }

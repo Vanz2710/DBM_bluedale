@@ -15,6 +15,6 @@ class SystemSetting extends Model
 
     public static function set(string $key, mixed $value): void
     {
-        static::where('key', $key)->update(['value' => $value]);
+        static::updateOrCreate(['key' => $key], ['value' => $value]);
     }
 }

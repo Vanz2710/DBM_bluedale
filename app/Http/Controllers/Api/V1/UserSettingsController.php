@@ -17,7 +17,6 @@ class UserSettingsController extends Controller
             'first_day_of_week' => 'monday',
             'notifications'     => [
                 'crm_reminders'   => true,
-                'whatsapp_alerts' => true,
                 'deal_updates'    => true,
                 'task_reminders'  => true,
             ],
@@ -49,7 +48,6 @@ class UserSettingsController extends Controller
             'first_day_of_week'             => 'sometimes|string|in:monday,sunday,saturday',
             'notifications'                 => 'sometimes|array',
             'notifications.crm_reminders'   => 'sometimes|boolean',
-            'notifications.whatsapp_alerts' => 'sometimes|boolean',
             'notifications.deal_updates'    => 'sometimes|boolean',
             'notifications.task_reminders'  => 'sometimes|boolean',
             'crm'                           => 'sometimes|array',

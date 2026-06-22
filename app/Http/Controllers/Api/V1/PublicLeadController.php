@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Models\Contact;
 use App\Services\RoundRobinAssigner;
-use App\Services\WebhookDispatcher;
 use Illuminate\Http\Request;
 
 class PublicLeadController extends Controller
@@ -36,13 +35,6 @@ class PublicLeadController extends Controller
                 'email'        => $validated['pic_email'] ?? null,
             ]);
         }
-
-        WebhookDispatcher::dispatch('contact.created', [
-            'id'      => $contact->id,
-            'name'    => $contact->name,
-            'user_id' => $contact->user_id,
-            'source'  => 'web_form',
-        ]);
 
         return response()->json(['status' => 'success', 'message' => 'Your enquiry has been received. We will be in touch shortly.'], 201);
     }

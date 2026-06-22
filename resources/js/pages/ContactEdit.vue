@@ -46,8 +46,26 @@
           </div>
         </div>
         <div class="form-group">
+          <label>Lead Source</label>
+          <select v-model="form.lead_source">
+            <option value="">— Not specified —</option>
+            <option value="manual">Manual Entry</option>
+            <option value="phone_call">Phone Call</option>
+            <option value="referral">Referral</option>
+            <option value="walk_in">Walk-in</option>
+            <option value="social_media">Social Media</option>
+            <option value="email_campaign">Email Campaign</option>
+            <option value="web_form">Web Form</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <div class="form-group">
           <label>Address</label>
           <textarea v-model="form.address" rows="3" placeholder="Enter address"></textarea>
+        </div>
+        <div class="form-group">
+          <label>Remarks</label>
+          <textarea v-model="form.remark" rows="3" placeholder="Internal notes about this company…"></textarea>
         </div>
         <div class="btn-row">
           <router-link :to="`/contacts/${id}`" class="btn btn-cancel">Cancel</router-link>
@@ -78,7 +96,7 @@ let dupTimer = null;
 const lookups = ref({ statuses: [], types: [], industries: [], categories: [] });
 const form = ref({
   name: '', status_id: '', type_id: '', industry_id: '',
-  category_id: '', address: '',
+  category_id: '', address: '', lead_source: '', remark: '',
 });
 
 function checkDuplicate() {
@@ -123,6 +141,8 @@ onMounted(async () => {
     industry_id: c.industry_id ?? '',
     category_id: c.category_id ?? '',
     address:     c.address     ?? '',
+    lead_source: c.lead_source ?? '',
+    remark:      c.remark      ?? '',
   };
   lookups.value = lookupRes.data;
   loading.value = false;
