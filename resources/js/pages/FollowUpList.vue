@@ -66,9 +66,18 @@
           <option v-for="t in ACTION_TYPES" :key="t" :value="t">{{ t }}</option>
         </select>
       </div>
+      <div class="filter-group">
+        <label>Status</label>
+        <select v-model="completionStatus" @change="load">
+          <option value="pending">Pending</option>
+          <option value="completed">Completed</option>
+          <option value="cancelled">Cancelled</option>
+          <option value="">All</option>
+        </select>
+      </div>
       <div class="filter-group wide">
         <label>Search Company</label>
-        <input v-model="search" @keyup.enter="load" placeholder="Company name…">
+        <input type="text" v-model="search" @keyup.enter="load" placeholder="Company name…">
       </div>
       <button class="btn btn-primary" @click="load">Search</button>
       <button class="btn btn-export" @click="exportAll">Export</button>
@@ -103,7 +112,7 @@
             <tr v-if="followUps.length === 0">
               <td colspan="11" class="empty-state">No follow-ups found for this period.</td>
             </tr>
-            <tr v-for="(f, idx) in followUps" :key="f.id">
+            <tr v-for="(f, idx) in followUps" :key="f.id" :class="{ 'row-done': f.completion_status === 'completed', 'row-cancelled': f.completion_status === 'cancelled' }">
               <td><input type="checkbox" :value="f.id" v-model="selectedIds"></td>
               <td><span class="row-num">{{ meta.from ? meta.from + idx : idx + 1 }}</span></td>
               <td><span class="date-text">{{ f.followup_date }}</span></td>
@@ -129,6 +138,16 @@
               </td>
               <td class="note-cell">{{ f.note ?? '—' }}</td>
               <td class="actions-cell">
+                <button v-if="can('edit followups') && f.completion_status === 'pending'"
+                  class="icon-btn btn-complete" title="Mark complete"
+                  :disabled="completing === f.id"
+                  @click="toggleStatus(f)" v-html="CI.check">
+                </button>
+                <button v-if="can('edit followups') && f.completion_status !== 'pending'"
+                  class="icon-btn btn-undo" title="Mark pending"
+                  :disabled="completing === f.id"
+                  @click="toggleStatus(f)" v-html="CI.undo">
+                </button>
                 <router-link v-if="can('edit followups')" :to="`/followups/${f.id}/edit`" class="icon-btn btn-edit" title="Edit" v-html="CI.edit"></router-link>
                 <button v-if="can('delete followups')" class="icon-btn btn-del" title="Delete" @click="confirmDelete(f)" v-html="CI.trash"></button>
               </td>
@@ -243,6 +262,8 @@ const CI = {
   edit:  _si('<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>'),
   trash: _si('<polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>'),
   x:     _si('<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>'),
+  check: _si('<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>'),
+  undo:  _si('<polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.29"/>'),
 };
 
 const ACTION_TYPES = ['Call', 'Email', 'Meeting', 'Site Visit', 'Presentation', 'Proposal', 'Demo', 'Contract', 'Other'];
@@ -256,16 +277,18 @@ const today = new Date().toISOString().slice(0, 10);
 const thisMonth = today.slice(0, 7);
 
 const view       = ref('DateRange');
-const fromDate   = ref(new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10));
+const fromDate   = ref(today);
 const toDate     = ref(today);
 const fromMonth  = ref(thisMonth);
 const toMonth    = ref(thisMonth);
 const PER_PAGE_OPTIONS = [20, 50, 100];
 
-const actionType = ref('');
-const search     = ref('');
-const perPage    = ref(50);
-const page       = ref(1);
+const actionType       = ref('');
+const completionStatus = ref('pending');
+const search           = ref('');
+const perPage          = ref(50);
+const page             = ref(1);
+const completing       = ref(null);
 
 const followUps    = ref([]);
 const meta         = ref({});
@@ -310,9 +333,10 @@ function buildParams() {
     p.from_date = fromDate.value;
     p.to_date   = toDate.value;
   }
-  if (actionType.value) p.action_type = actionType.value;
-  if (search.value)     p.search      = search.value;
-  if (todoFilter.value) p.todo_id     = todoFilter.value;
+  if (actionType.value)       p.action_type        = actionType.value;
+  if (completionStatus.value) p.completion_status  = completionStatus.value;
+  if (search.value)           p.search             = search.value;
+  if (todoFilter.value)       p.todo_id            = todoFilter.value;
   return p;
 }
 
@@ -369,6 +393,22 @@ async function doDelete() {
     load();
   } finally {
     deleting.value = false;
+  }
+}
+
+async function toggleStatus(f) {
+  completing.value = f.id;
+  const next = f.completion_status === 'pending' ? 'completed' : 'pending';
+  try {
+    await api.patch(`/v1/followups/${f.id}/status`, { status: next });
+    f.completion_status = next;
+    // If a specific status is filtered, remove the row — it no longer belongs in this view
+    if (completionStatus.value && completionStatus.value !== next) {
+      followUps.value = followUps.value.filter(x => x.id !== f.id);
+      if (meta.value.total) meta.value.total--;
+    }
+  } finally {
+    completing.value = null;
   }
 }
 
@@ -566,16 +606,26 @@ tbody tr:hover { background: var(--surface-2); }
 .note-cell { max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12.5px; color: var(--text-2); }
 .muted { color: var(--text-3); }
 
+/* Completed / cancelled row dimming */
+.row-done td   { opacity: 0.5; }
+.row-done td .company-link { text-decoration: line-through; }
+.row-cancelled td { opacity: 0.35; }
+
 .icon-btn {
   display: inline-flex; align-items: center; justify-content: center;
   width: 30px; height: 30px; border-radius: var(--radius-sm); text-decoration: none; font-size: 14px;
   cursor: pointer; border: none; transition: background 0.12s, transform 0.06s;
 }
 .icon-btn:active { transform: scale(0.92); }
-.btn-edit { background: #fefce8; }
+.icon-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-edit     { background: #fefce8; }
 .btn-edit:hover { background: #fde68a; }
-.btn-del { background: #fee2e2; }
+.btn-del      { background: #fee2e2; }
 .btn-del:hover { background: #fca5a5; }
+.btn-complete { background: #dcfce7; color: #15803d; }
+.btn-complete:hover:not(:disabled) { background: #bbf7d0; }
+.btn-undo     { background: var(--surface-2); color: var(--text-3); }
+.btn-undo:hover:not(:disabled) { background: var(--border); color: var(--text-2); }
 .actions-cell { display: flex; gap: 4px; }
 .empty-state { text-align: center; padding: 48px; color: var(--text-3); font-size: 14px; }
 

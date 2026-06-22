@@ -2,111 +2,117 @@
 
 namespace App\Services;
 
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 
 class BrevoService
 {
-    private string $apiKey;
     private string $baseUrl = 'https://api.brevo.com/v3';
 
-    public function __construct()
+    private function client()
     {
-        $this->apiKey = config('services.brevo.api_key', '');
+        return Http::withHeaders([
+            'api-key' => config('services.brevo.api_key'),
+            'Accept' => 'application/json',
+            'Content-Type' => 'application/json',
+        ]);
     }
 
     public function createList(string $name): int
     {
-        $res = $this->post('/contacts/lists', [
-            'name'     => $name,
+        $res = $this->client()->post("{$this->baseUrl}/contacts/lists", [
+            'name' => $name,
             'folderId' => 1,
         ]);
 
-        return $res['id'];
+        $this->assertOk($res, 'create contact list');
+
+        return $res->json('id');
     }
 
     public function upsertContacts(array $contacts, int $listId): void
     {
         foreach ($contacts as $contact) {
-            $this->post('/contacts', [
-                'email'          => $contact['email'],
-                'attributes'     => ['FIRSTNAME' => $contact['name'] ?? ''],
-                'listIds'        => [$listId],
-                'updateEnabled'  => true,
+            $this->client()->post("{$this->baseUrl}/contacts", [
+                'email' => $contact['email'],
+                'attributes' => ['FIRSTNAME' => $contact['name'] ?? ''],
+                'listIds' => [$listId],
+                'updateEnabled' => true,
             ]);
         }
     }
 
-    public function createCampaign(array $params): int
+    public function createCampaign(array $data): int
     {
-        $senderEmail = $params['sender_email'] ?? config('services.brevo.sender_email');
-        $senderName  = $params['sender_name']  ?? config('services.brevo.sender_name', 'Bluedale CRM');
-
         $payload = [
-            'name'          => $params['name'],
-            'subject'       => $params['subject'],
-            'htmlContent'   => nl2br(htmlspecialchars($params['body'] ?? '')),
-            'sender'        => ['name' => $senderName, 'email' => $senderEmail],
-            'recipients'    => ['listIds' => [$params['list_id']]],
+            'name' => $data['name'],
+            'subject' => $data['subject'],
+            'sender' => [
+                'name' => $data['sender_name'] ?? config('services.brevo.sender_name'),
+                'email' => $data['sender_email'] ?? config('services.brevo.sender_email'),
+            ],
+            'type' => 'classic',
+            'htmlContent' => $this->toHtml($data['body'] ?? '', $data['preview_text'] ?? ''),
+            'recipients' => ['listIds' => [$data['list_id']]],
         ];
 
-        if (!empty($params['preview_text'])) {
-            $payload['previewText'] = $params['preview_text'];
+        if (!empty($data['scheduled_at'])) {
+            $payload['scheduledAt'] = $data['scheduled_at'];
         }
 
-        if (!empty($params['scheduled_at'])) {
-            $payload['scheduledAt'] = $params['scheduled_at'];
-        }
+        $res = $this->client()->post("{$this->baseUrl}/emailCampaigns", $payload);
+        $this->assertOk($res, 'create campaign');
 
-        $res = $this->post('/emailCampaigns', $payload);
-
-        return $res['id'];
+        return $res->json('id');
     }
 
-    public function sendNow(int $campaignId): void
+    public function sendNow(int $brevoId): void
     {
-        $this->post("/emailCampaigns/{$campaignId}/sendNow", []);
+        $res = $this->client()->post("{$this->baseUrl}/emailCampaigns/{$brevoId}/sendNow");
+        $this->assertOk($res, 'send campaign');
     }
 
-    public function getStats(int $campaignId): array
+    public function getStats(int $brevoId): array
     {
-        $res = $this->get("/emailCampaigns/{$campaignId}");
+        $res = $this->client()->get("{$this->baseUrl}/emailCampaigns/{$brevoId}");
+        $this->assertOk($res, 'get campaign stats');
 
-        $stats = $res['statistics']['globalStats'] ?? [];
+        $data = $res->json();
+        $stats = $data['statistics']['campaignStats'][0] ?? [];
+
+        $sent = $stats['delivered'] ?? 0;
+        $opened = $stats['uniqueViews'] ?? 0;
+        $clicked = $stats['uniqueClicks'] ?? 0;
 
         return [
-            'sent_count' => $stats['sent']     ?? 0,
-            'open_rate'  => $stats['uniqueOpens'] && $stats['sent']
-                ? round($stats['uniqueOpens'] / $stats['sent'] * 100, 1)
-                : 0,
-            'click_rate' => $stats['uniqueClicks'] && $stats['sent']
-                ? round($stats['uniqueClicks'] / $stats['sent'] * 100, 1)
-                : 0,
+            'sent_count' => $sent,
+            'open_rate' => $sent > 0 ? round(($opened / $sent) * 100, 2) : null,
+            'click_rate' => $sent > 0 ? round(($clicked / $sent) * 100, 2) : null,
+            'status' => $data['status'] ?? null,
         ];
     }
 
-    private function post(string $path, array $body): array
+    private function toHtml(string $body, string $preview): string
     {
-        $response = Http::withHeaders([
-            'api-key'      => $this->apiKey,
-            'Content-Type' => 'application/json',
-        ])->post($this->baseUrl . $path, $body);
+        $escaped = nl2br(htmlspecialchars($body, ENT_QUOTES, 'UTF-8'));
+        $previewHtml = $preview ? "<p style=\"color:#888;font-size:12px\">{$preview}</p>" : '';
 
-        if ($response->failed()) {
-            throw new \RuntimeException("Brevo API error ({$response->status()}): " . $response->body());
-        }
-
-        return $response->json() ?? [];
+        return <<<HTML
+        <!DOCTYPE html>
+        <html>
+        <body style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:24px;color:#172033">
+        {$previewHtml}
+        <div style="line-height:1.6">{$escaped}</div>
+        </body>
+        </html>
+        HTML;
     }
 
-    private function get(string $path): array
+    private function assertOk(Response $res, string $action): void
     {
-        $response = Http::withHeaders(['api-key' => $this->apiKey])
-            ->get($this->baseUrl . $path);
-
-        if ($response->failed()) {
-            throw new \RuntimeException("Brevo API error ({$response->status()}): " . $response->body());
+        if ($res->failed()) {
+            $message = $res->json('message') ?? $res->body();
+            throw new \RuntimeException("Brevo API failed to {$action}: {$message}");
         }
-
-        return $response->json() ?? [];
     }
 }

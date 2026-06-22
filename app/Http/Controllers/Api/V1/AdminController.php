@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Models\AdminAuditLog;
+use App\Models\ContactArea;
 use App\Models\ContactCategory;
 use App\Models\ContactIndustry;
 use App\Models\ContactStatus;
@@ -24,6 +25,7 @@ class AdminController extends Controller
         'types'             => [ContactType::class,     'name'],
         'industries'        => [ContactIndustry::class, 'name'],
         'categories'        => [ContactCategory::class, 'name'],
+        'areas'             => [ContactArea::class,     'name'],
         'tasks'             => [Task::class,            'name'],
         'forecast-products' => [ForecastProduct::class, 'name'],
         'forecast-types'    => [ForecastType::class,    'name'],
@@ -35,6 +37,7 @@ class AdminController extends Controller
         'types'             => [['contacts', 'type_id']],
         'industries'        => [['contacts', 'industry_id']],
         'categories'        => [['contacts', 'category_id']],
+        'areas'             => [['contacts', 'area_id']],
         'tasks'             => [['to_dos', 'task_id'], ['performance_targets', 'task_id']],
         'forecast-products' => [['forecasts', 'product_id']],
         'forecast-types'    => [['forecasts', 'forecast_type_id']],

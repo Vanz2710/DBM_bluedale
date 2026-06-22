@@ -563,12 +563,14 @@
               <label>Site Name <span class="req-star">*</span></label>
               <div class="register-site-row">
                 <input v-model="registerForm.site_name" placeholder="e.g. KL - Bangsar: Jalan Maarof">
-                <a v-if="registerForm.coordinate" :href="registerCoordMapUrl" target="_blank" rel="noopener" class="btn-open-gmaps">Open Google Maps</a>
               </div>
             </div>
 
             <div class="field register-full">
-              <label>Find Location <span class="field-hint">Paste a Google Maps link or type a place name</span></label>
+              <div class="field-loc-head">
+                <label style="margin:0;">Find Location <span class="field-hint">Paste a Google Maps link or type a place name</span></label>
+                <a :href="registerCoordMapUrl" target="_blank" rel="noopener" class="btn-open-gmaps">Open Google Maps</a>
+              </div>
               <div class="location-input-wrap">
                 <input
                   v-model="locationInput"
@@ -738,6 +740,10 @@
                 <input v-model="proposalForm.attention" placeholder="e.g. Amira">
               </div>
               <div class="field">
+                <label>Designation <span class="field-hint">printed on acceptance block</span></label>
+                <input v-model="proposalForm.client_designation" placeholder="e.g. Director">
+              </div>
+              <div class="field">
                 <label>Attention Phone</label>
                 <div class="phone-input" :class="{ 'input-error-border': proposalErrors.attention_phone }">
                   <select v-model="proposalForm.attention_phone_code" class="phone-code-select">
@@ -836,9 +842,39 @@
                 </div>
                 <p v-if="proposalErrors.signatory_mobile" class="field-error">{{ proposalErrors.signatory_mobile }}</p>
               </div>
-              <div class="field">
-                <label>Signature Display Name <span class="field-hint">italic name above the line</span></label>
-                <input v-model="proposalForm.signatory_label" placeholder="e.g. Asyiqin">
+
+              <!-- Signature pad — full width -->
+              <div class="field full sig-pad-wrap">
+                <div class="sig-pad-head">
+                  <label style="margin:0;">Signature
+                    <span class="field-hint">draw or upload — saved per user</span>
+                  </label>
+                  <div class="sig-pad-actions">
+                    <button type="button" class="sig-btn" @click="clearSigPad">Clear</button>
+                    <label class="sig-btn">
+                      Upload
+                      <input type="file" accept="image/png,image/jpeg,image/webp" @change="onSigFileUpload">
+                    </label>
+                    <button type="button" class="sig-btn sig-btn-save" :disabled="sigSaving" @click="saveSig">
+                      {{ sigSaving ? 'Saving…' : sigSaved ? 'Saved' : 'Save Signature' }}
+                    </button>
+                  </div>
+                </div>
+                <div class="sig-pad-canvas-wrap">
+                  <canvas
+                    ref="sigPadRef"
+                    width="800" height="160"
+                    class="sig-pad-canvas"
+                    @mousedown="sigStartDraw"
+                    @mousemove="sigDraw"
+                    @mouseup="sigStopDraw"
+                    @mouseleave="sigStopDraw"
+                    @touchstart.prevent="sigStartDraw"
+                    @touchmove.prevent="sigDraw"
+                    @touchend="sigStopDraw"
+                  ></canvas>
+                  <span class="sig-pad-hint">Draw your signature here</span>
+                </div>
               </div>
             </div>
           </div>
@@ -1198,9 +1234,127 @@ function applySignatoryPreset(p) {
   proposalForm.value.signatory_label        = p.signature_label
 }
 
+// ── Signature pad ──────────────────────────────────────────────────────────
+const sigPadRef  = ref(null);
+const sigDrawing = ref(false);
+const sigSaving  = ref(false);
+const sigSaved   = ref(false);
+
+function _sigCtx() {
+  const c = sigPadRef.value;
+  if (!c) return null;
+  const ctx = c.getContext('2d');
+  ctx.strokeStyle = '#111827';
+  ctx.lineWidth   = 2.5;
+  ctx.lineCap     = 'round';
+  ctx.lineJoin    = 'round';
+  return ctx;
+}
+
+function _sigCoords(e) {
+  const c = sigPadRef.value;
+  const r = c.getBoundingClientRect();
+  const sx = c.width  / r.width;
+  const sy = c.height / r.height;
+  const src = e.touches ? e.touches[0] : e;
+  return { x: (src.clientX - r.left) * sx, y: (src.clientY - r.top) * sy };
+}
+
+function sigStartDraw(e) {
+  sigDrawing.value = true;
+  const ctx = _sigCtx();
+  if (!ctx) return;
+  const { x, y } = _sigCoords(e);
+  ctx.beginPath();
+  ctx.moveTo(x, y);
+}
+
+function sigDraw(e) {
+  if (!sigDrawing.value) return;
+  const ctx = _sigCtx();
+  if (!ctx) return;
+  const { x, y } = _sigCoords(e);
+  ctx.lineTo(x, y);
+  ctx.stroke();
+}
+
+function sigStopDraw() {
+  if (!sigDrawing.value) return;
+  sigDrawing.value = false;
+  const c = sigPadRef.value;
+  if (c) proposalForm.value.signatory_signature = c.toDataURL('image/png');
+}
+
+function clearSigPad() {
+  const c = sigPadRef.value;
+  if (!c) return;
+  c.getContext('2d').clearRect(0, 0, c.width, c.height);
+  proposalForm.value.signatory_signature = '';
+  sigSaved.value = false;
+}
+
+function onSigFileUpload(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const img = new Image();
+    img.onload = () => {
+      const c = sigPadRef.value;
+      if (!c) return;
+      const ctx = c.getContext('2d');
+      ctx.clearRect(0, 0, c.width, c.height);
+      const ratio = Math.min(c.width / img.width, c.height / img.height);
+      const w = img.width * ratio;
+      const h = img.height * ratio;
+      ctx.drawImage(img, (c.width - w) / 2, (c.height - h) / 2, w, h);
+      proposalForm.value.signatory_signature = c.toDataURL('image/png');
+    };
+    img.src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
+  e.target.value = '';
+}
+
+async function saveSig() {
+  const c = sigPadRef.value;
+  if (!c) return;
+  const data = c.toDataURL('image/png');
+  sigSaving.value = true;
+  try {
+    await api.put('/v1/my-signature', { signature_data: data });
+    proposalForm.value.signatory_signature = data;
+    sigSaved.value = true;
+    showToast('Signature saved');
+  } catch (_) {
+    // non-fatal
+  } finally {
+    sigSaving.value = false;
+  }
+}
+
+async function loadSavedSig() {
+  try {
+    const res = await api.get('/v1/my-signature');
+    const data = res.data?.signature_data;
+    if (!data) return;
+    proposalForm.value.signatory_signature = data;
+    await nextTick();
+    const c = sigPadRef.value;
+    if (!c) return;
+    const img = new Image();
+    img.onload = () => {
+      c.getContext('2d').clearRect(0, 0, c.width, c.height);
+      c.getContext('2d').drawImage(img, 0, 0);
+    };
+    img.src = data;
+  } catch (_) { /* no saved sig */ }
+}
+
 const proposalForm = ref({
   client_name: '',
   attention: '',
+  client_designation: '',
   attention_phone_code:  '+60',
   attention_phone_local: '',
   reference: '',
@@ -1218,6 +1372,7 @@ const proposalForm = ref({
   signatory_mobile_code:  '+60',
   signatory_mobile_local: '14-907 253',
   signatory_label:        'Asyiqin',
+  signatory_signature:    '',
 });
 const proposalWizardOpen = ref(false);
 const wizardStep = ref('info');
@@ -1804,10 +1959,12 @@ function buildProposalPayload() {
     include_proposal_page: f.print_mode !== 'sheets_only',
     billboard_composites:  Object.keys(billboardComposites.value).length > 0 ? billboardComposites.value : undefined,
     rows,
+    client_designation:    (f.client_designation || '').trim() || null,
     signatory_name:        (f.signatory_name || '').trim() || null,
     signatory_title:       (f.signatory_title || '').trim() || null,
     signatory_mobile:      f.signatory_mobile_local?.trim() ? (f.signatory_mobile_code + f.signatory_mobile_local.trim()) : null,
     signatory_label:       (f.signatory_label || '').trim() || null,
+    signatory_signature:   f.signatory_signature || null,
   };
 }
 
@@ -1911,6 +2068,8 @@ function openProposalWizard() {
   })
   siteQuantities.value = qty
   proposalWizardOpen.value = true;
+  sigSaved.value = false;
+  nextTick(() => loadSavedSig());
 }
 
 function closeProposalWizard() {
@@ -1918,16 +2077,19 @@ function closeProposalWizard() {
   wizardStep.value = 'info';
   pasteTargetId.value = null;
   siteQuantities.value = {};
+  sigSaved.value = false;
   if (previewUrl.value) { window.URL.revokeObjectURL(previewUrl.value); previewUrl.value = null; }
   previewBlob.value = null;
   previewLoading.value = false;
   proposalForm.value = {
-    client_name: '', attention: '', attention_phone_code: '+60', attention_phone_local: '', reference: '',
+    client_name: '', attention: '', client_designation: '',
+    attention_phone_code: '+60', attention_phone_local: '', reference: '',
     duration: 1, duration_label: '', normal_price: null, price_per_unit: null,
     quantity_size: '', sst_rate: 0.08, promo_until: '', re_line: '',
     print_mode: 'both',
     signatory_name: 'NURUL ASYIQIN JAAFAR', signatory_title: 'Assistant Business Manager',
-    signatory_mobile_code: '+60', signatory_mobile_local: '14-907 253', signatory_label: 'Asyiqin',
+    signatory_mobile_code: '+60', signatory_mobile_local: '14-907 253',
+    signatory_label: 'Asyiqin', signatory_signature: '',
   };
 }
 
@@ -3766,6 +3928,30 @@ onMounted(() => {
 .wizard-body { flex: 1; overflow: auto; padding: 20px 24px; }
 .wizard-section { margin-bottom: 22px; }
 .wizard-section:last-child { margin-bottom: 0; }
+/* Signature pad */
+.sig-pad-wrap { border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; background: var(--surface); }
+.sig-pad-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.sig-pad-actions { display: flex; gap: 6px; align-items: center; }
+.sig-btn {
+  height: 28px; padding: 0 12px; font-size: 12px; font-weight: 600; border-radius: var(--radius-sm);
+  border: 1px solid var(--border); background: var(--surface-2, var(--surface)); color: var(--text-2);
+  cursor: pointer; display: inline-flex; align-items: center; white-space: nowrap;
+}
+.sig-btn input[type="file"] { display: none; }
+.sig-btn:hover:not(:disabled) { background: var(--surface-3, var(--border)); }
+.sig-btn-save { background: var(--primary); color: #fff; border-color: var(--primary); }
+.sig-btn-save:hover:not(:disabled) { opacity: 0.88; }
+.sig-btn-save:disabled { opacity: 0.55; cursor: default; }
+.sig-pad-canvas-wrap { position: relative; }
+.sig-pad-canvas {
+  width: 100%; height: 110px; display: block; cursor: crosshair; touch-action: none;
+  border: 1.5px dashed var(--border); border-radius: var(--radius-sm); background: #fff;
+}
+.sig-pad-hint {
+  position: absolute; bottom: 7px; left: 50%; transform: translateX(-50%);
+  font-size: 10px; color: var(--text-3); pointer-events: none; white-space: nowrap;
+}
+
 .wizard-signatory-presets { display: flex; gap: 6px; flex-wrap: wrap; }
 .signatory-preset-btn {
   padding: 4px 12px; font-size: 12px; border-radius: var(--radius-sm);
@@ -3958,6 +4144,7 @@ onMounted(() => {
 .register-full { grid-column: 1 / -1; }
 .register-site-row { display: flex; gap: 8px; align-items: center; }
 .register-site-row input { flex: 1; min-width: 0; }
+.field-loc-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 5px; }
 .btn-open-gmaps {
   flex-shrink: 0; height: 36px; padding: 0 14px; border-radius: var(--radius-sm);
   background: var(--text-1); color: var(--primary-on); font-size: 13px; font-weight: 600;

@@ -1304,7 +1304,7 @@ tbody tr:hover { background: var(--app-bg); }
 .act-edit   { background: #fef9c3; color: #854d0e; }
 .act-edit:hover   { background: #fde68a; }
 .act-purple { background: #dbeafe; color: #1e40af; }
-.act-purple:hover { background: #ddd6fe; }
+.act-purple:hover { background: #bfdbfe; }
 .act-red    { background: #fee2e2; color: #991b1b; }
 .act-red:hover    { background: #fecaca; }
 .act-green  { background: #dcfce7; color: #15803d; }

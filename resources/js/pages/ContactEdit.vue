@@ -129,23 +129,30 @@ async function submit() {
 }
 
 onMounted(async () => {
-  const [contactRes, lookupRes] = await Promise.all([
-    api.get(`/v1/contacts/${id}`),
-    api.get('/v1/lookups'),
-  ]);
-  const c = contactRes.data.data;
-  form.value = {
-    name:        c.name         ?? '',
-    status_id:   c.status_id   ?? '',
-    type_id:     c.type_id     ?? '',
-    industry_id: c.industry_id ?? '',
-    category_id: c.category_id ?? '',
-    address:     c.address     ?? '',
-    lead_source: c.lead_source ?? '',
-    remark:      c.remark      ?? '',
-  };
-  lookups.value = lookupRes.data;
-  loading.value = false;
+  try {
+    const [contactRes, lookupRes] = await Promise.all([
+      api.get(`/v1/contacts/${id}`),
+      api.get('/v1/lookups'),
+    ]);
+    const c = contactRes.data.data;
+    form.value = {
+      name:        c.name         ?? '',
+      status_id:   c.status_id   ?? '',
+      type_id:     c.type_id     ?? '',
+      industry_id: c.industry_id ?? '',
+      category_id: c.category_id ?? '',
+      address:     c.address     ?? '',
+      lead_source: c.lead_source ?? '',
+      remark:      c.remark      ?? '',
+    };
+    lookups.value = lookupRes.data;
+  } catch (e) {
+    error.value = e.response?.status === 404
+      ? 'Contact not found.'
+      : 'Failed to load contact. Please go back and try again.';
+  } finally {
+    loading.value = false;
+  }
 });
 </script>
 

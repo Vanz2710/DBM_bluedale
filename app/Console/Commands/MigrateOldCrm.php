@@ -9,9 +9,10 @@ class MigrateOldCrm extends Command
 {
     protected $signature = 'migrate:old-crm
                             {--force : Skip confirmation prompt}
-                            {--skip-contacts : Skip truncating and re-importing contacts (use if contacts are already correct)}';
+                            {--skip-contacts : Skip truncating and re-importing contacts (use if contacts are already correct)}
+                            {--only-forecasts : Import only forecasts (skips contacts, todos, follow-ups)}';
 
-    protected $description = 'Full migration from bluedale_crmbgoc into the new CRM. Wipes and re-imports contacts, lookup tables, contact_incharges, to_dos, and follow_ups.';
+    protected $description = 'Full migration from bluedale_crmbgoc into the new CRM. Wipes and re-imports contacts, lookup tables, contact_incharges, to_dos, follow_ups, and forecasts.';
 
     private const CHUNK = 500;
 
@@ -20,7 +21,11 @@ class MigrateOldCrm extends Command
         ini_set('memory_limit', '512M');
 
         $this->warn('=== OLD CRM MIGRATION ===');
-        $this->warn('This will WIPE and re-import: contacts, lookup tables, contact_incharges, to_dos, follow_ups.');
+        if ($this->option('only-forecasts')) {
+            $this->warn('Mode: forecasts only — contacts/todos/follow-ups will NOT be touched.');
+        } else {
+            $this->warn('This will WIPE and re-import: contacts, lookup tables, contact_incharges, to_dos, follow_ups, forecasts.');
+        }
 
         if (! $this->option('force') && ! $this->confirm('Are you sure you want to proceed?')) {
             $this->info('Aborted.');
@@ -39,15 +44,20 @@ class MigrateOldCrm extends Command
         DB::statement('SET FOREIGN_KEY_CHECKS=0');
 
         try {
-            if (! $this->option('skip-contacts')) {
-                $this->importLookupTables();
-                $this->importTasks();
-                $this->importContacts();
-            }
+            if ($this->option('only-forecasts')) {
+                $this->importForecasts();
+            } else {
+                if (! $this->option('skip-contacts')) {
+                    $this->importLookupTables();
+                    $this->importTasks();
+                    $this->importContacts();
+                }
 
-            $this->importContactIncharges();
-            $this->importToDos();
-            $this->importFollowUps();
+                $this->importContactIncharges();
+                $this->importToDos();
+                $this->importFollowUps();
+                $this->importForecasts();
+            }
 
         } finally {
             DB::statement('SET FOREIGN_KEY_CHECKS=1');
@@ -311,6 +321,83 @@ class MigrateOldCrm extends Command
             $this->warn("  {$skipped} follow_ups skipped (orphaned todo_id).");
         }
         $this->track('follow_ups', $imported);
+    }
+
+    // ──────────────────────────────────────────────────────────────
+    // Forecasts
+    // ──────────────────────────────────────────────────────────────
+    private function importForecasts(): void
+    {
+        DB::table('forecasts')->truncate();
+
+        $userMap         = $this->buildUserMap();
+        $validContactIds = DB::table('contacts')->pluck('id')->flip()->all();
+        $validProductIds = DB::table('forecast_products')->pluck('id')->flip()->all();
+        $validTypeIds    = DB::table('forecast_types')->pluck('id')->flip()->all();
+
+        // Map old result names → new result IDs
+        $newResultByName = DB::table('forecast_results')
+            ->get()
+            ->mapWithKeys(fn($r) => [strtolower($r->name) => $r->id])
+            ->all();
+        $oldResultNames = DB::connection('old_crm')
+            ->table('forecast_results')
+            ->pluck('name', 'id')
+            ->all();
+
+        $total = DB::connection('old_crm')->table('forecasts')->count();
+        $this->info("Importing {$total} forecasts...");
+        $bar      = $this->output->createProgressBar($total);
+        $imported = 0;
+        $skipped  = 0;
+
+        DB::connection('old_crm')->table('forecasts')->orderBy('id')->chunk(self::CHUNK, function ($rows) use (
+            $userMap, $validContactIds, $validProductIds, $validTypeIds,
+            $newResultByName, $oldResultNames, $bar, &$imported, &$skipped
+        ) {
+            $batch = [];
+            foreach ($rows as $r) {
+                if (! isset($validContactIds[$r->contact_id])) {
+                    $skipped++;
+                    $bar->advance();
+                    continue;
+                }
+
+                $resultId = null;
+                if ($r->result_id) {
+                    $oldName  = strtolower($oldResultNames[$r->result_id] ?? '');
+                    $resultId = $newResultByName[$oldName] ?? null;
+                }
+
+                $batch[] = [
+                    'id'                  => $r->id,
+                    'contact_id'          => $r->contact_id,
+                    'user_id'             => $userMap[$r->user_id] ?? null,
+                    'product_id'          => isset($validProductIds[$r->product_id]) ? $r->product_id : null,
+                    'forecast_type_id'    => isset($validTypeIds[$r->forecast_type_id]) ? $r->forecast_type_id : null,
+                    'result_id'           => $resultId,
+                    'contact_status_id'   => $r->contact_status_id,
+                    'contact_type_id'     => $r->contact_type_id,
+                    'amount'              => $r->amount,
+                    'forecast_date'       => $r->forecast_date,
+                    'forecast_updatedate' => $r->forecast_updatedate,
+                    'created_at'          => $r->created_at,
+                    'updated_at'          => $r->updated_at,
+                ];
+            }
+            if ($batch) {
+                DB::table('forecasts')->insert($batch);
+                $imported += count($batch);
+                $bar->advance(count($batch));
+            }
+        });
+
+        $bar->finish();
+        $this->newLine();
+        if ($skipped) {
+            $this->warn("  {$skipped} forecasts skipped (orphaned contact_id).");
+        }
+        $this->track('forecasts', $imported);
     }
 
     // ──────────────────────────────────────────────────────────────

@@ -1280,6 +1280,28 @@
     </div>
 
     <!-- Task (todo) delete confirmation -->
+    <div v-if="followUpPrompt.open" class="remark-overlay" @click.self="dismissFollowUpPrompt">
+      <div class="remark-modal delete-modal">
+        <div class="remark-modal-header delete-modal-header">
+          <strong>Pending Follow-Ups</strong>
+          <button class="remark-close" @click="dismissFollowUpPrompt" v-html="CI.x"></button>
+        </div>
+        <div class="delete-modal-body">
+          <div class="delete-warning-icon delete-info-icon" v-html="CIL.info"></div>
+          <p class="delete-warning-text">
+            This to-do has <strong>{{ followUpPrompt.count }}</strong> pending follow-up{{ followUpPrompt.count !== 1 ? 's' : '' }}.
+            Mark {{ followUpPrompt.count !== 1 ? 'them' : 'it' }} as complete too?
+          </p>
+          <div class="delete-modal-actions">
+            <button class="btn btn-clear" @click="dismissFollowUpPrompt">Skip</button>
+            <button class="btn btn-primary" :disabled="followUpPrompt.loading" @click="completeFollowUps">
+              {{ followUpPrompt.loading ? 'Completing…' : 'Yes, mark complete' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div v-if="todoDeleteModal.show" class="remark-overlay" @click.self="closeTodoDeleteModal">
       <div class="remark-modal delete-modal">
         <div class="remark-modal-header delete-modal-header">
@@ -1403,6 +1425,7 @@ const ICO = {
   arrowDown:   (sz) => _si('<line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/>', sz),
   check:       (sz) => _si('<polyline points="20 6 9 17 4 12"/>', sz),
   rotateCcw:   (sz) => _si('<polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.63"/>', sz),
+  info:        (sz) => _si('<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>', sz),
   x:           (sz) => _si('<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>', sz),
   phone:       (sz) => _si('<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.72 12 19.79 19.79 0 0 1 1.62 3.4A2 2 0 0 1 3.59 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 8a16 16 0 0 0 6 6l.77-.77a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 21.73 16z"/>', sz),
 };
@@ -1907,10 +1930,38 @@ async function loadTodoMarkedDates(year, month) {
   }
 }
 
+const followUpPrompt = ref({ open: false, todoId: null, count: 0, loading: false });
+
+async function checkAndPromptFollowUps(todoId) {
+  try {
+    const res = await api.get('/v1/followups', {
+      params: { todo_id: todoId, completion_status: 'pending', per_page: 1, view: 'DateRange', from_date: '2000-01-01', to_date: '2099-12-31' },
+    });
+    const count = res.data.meta?.total ?? 0;
+    if (count > 0) {
+      followUpPrompt.value = { open: true, todoId, count, loading: false };
+    }
+  } catch (_) { /* non-critical */ }
+}
+
+async function completeFollowUps() {
+  followUpPrompt.value.loading = true;
+  try {
+    await api.patch(`/v1/todos/${followUpPrompt.value.todoId}/complete-followups`);
+  } finally {
+    followUpPrompt.value = { open: false, todoId: null, count: 0, loading: false };
+  }
+}
+
+function dismissFollowUpPrompt() {
+  followUpPrompt.value = { open: false, todoId: null, count: 0, loading: false };
+}
+
 async function markTodoDone(todo) {
   await api.patch(`/v1/todos/${todo.id}/status`, { status: 'completed' });
   todo.completion_status = 'completed';
   showToast('Task marked complete');
+  checkAndPromptFollowUps(todo.id);
 }
 
 async function markTodoPending(todo) {
@@ -2254,6 +2305,7 @@ async function toggleDrawerTodoDone(todo, status) {
     const t = todos.value.find(x => x.id === todo.id);
     if (t) t.completion_status = status;
   }
+  if (status === 'completed') checkAndPromptFollowUps(todo.id);
 }
 
 function deleteDrawerTodo(todo) {
@@ -2360,15 +2412,19 @@ onMounted(async () => {
     tab.value === 'forecast' ? loadForecasts() :
     load();
   const [y, m] = todoDate.value.split('-').map(Number);
-  const [lu] = await Promise.all([api.get('/v1/lookups'), initialLoad, loadTodoMarkedDates(y, m)]);
-  users.value = lu.data.users ?? [];
-  lookups.value = {
-    statuses:   lu.data.statuses   ?? [],
-    types:      lu.data.types      ?? [],
-    categories: lu.data.categories ?? [],
-    industries: lu.data.industries ?? [],
-    tasks:      lu.data.tasks      ?? [],
-  };
+  try {
+    const [lu] = await Promise.all([api.get('/v1/lookups'), initialLoad, loadTodoMarkedDates(y, m)]);
+    users.value = lu.data.users ?? [];
+    lookups.value = {
+      statuses:   lu.data.statuses   ?? [],
+      types:      lu.data.types      ?? [],
+      categories: lu.data.categories ?? [],
+      industries: lu.data.industries ?? [],
+      tasks:      lu.data.tasks      ?? [],
+    };
+  } catch (_) {
+    // individual load functions handle their own loading states; lookup failure leaves filters empty
+  }
 });
 </script>
 
@@ -3148,6 +3204,7 @@ tbody tr:last-child td { border-bottom: none; }
 }
 .delete-modal-body { padding: 22px 22px; }
 .delete-warning-icon { display: flex; align-items: center; justify-content: center; margin-bottom: 10px; color: var(--warning); }
+.delete-info-icon { color: var(--primary); }
 .delete-warning-text { font-size: 13.5px; color: var(--text-1); line-height: 1.6; margin-bottom: 14px; text-align: center; }
 .delete-confirm-label { font-size: 12.5px; color: var(--text-2); margin-bottom: 6px; }
 .delete-confirm-input {

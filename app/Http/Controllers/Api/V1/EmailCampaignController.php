@@ -4,86 +4,70 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Models\EmailCampaign;
-use App\Models\EmailCampaignContact;
 use App\Models\EmailTemplate;
-use App\Services\BrevoService;
+use App\Services\AudienceResolver;
+use App\Services\CampaignSender;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Str;
 
 class EmailCampaignController extends Controller
 {
+    public function __construct(private AudienceResolver $resolver) {}
+
     public function index()
     {
-        $campaigns = EmailCampaign::with('contacts')
+        $campaigns = EmailCampaign::with('audienceGroup:id,name')
             ->orderByDesc('updated_at')
             ->get()
-            ->map(fn ($c) => $this->formatCampaign($c));
+            ->map(fn($c) => $this->present($c));
 
         return response()->json(['data' => $campaigns]);
     }
 
     public function store(Request $request)
     {
-        $data = $request->validate([
-            'name'         => 'required|string|max:255',
-            'subject'      => 'nullable|string|max:500',
-            'preview_text' => 'nullable|string|max:255',
-            'body'         => 'nullable|string',
-            'sender_name'  => 'nullable|string|max:255',
-            'sender_email' => 'nullable|email|max:255',
-            'scheduled_at' => 'nullable|date',
-            'pic_ids'      => 'nullable|array',
-            'pic_ids.*'    => 'integer',
-        ]);
+        $data = $this->validateCampaign($request);
 
         $campaign = EmailCampaign::create([
-            'name'         => $data['name'],
-            'subject'      => $data['subject'] ?? '',
-            'preview_text' => $data['preview_text'] ?? null,
-            'body'         => $data['body'] ?? null,
-            'sender_name'  => $data['sender_name'] ?? null,
-            'sender_email' => $data['sender_email'] ?? null,
-            'scheduled_at' => isset($data['scheduled_at']) ? Carbon::parse($data['scheduled_at']) : null,
-            'status'       => 'draft',
-            'user_id'      => $request->user()->id,
+            'name'              => $data['name'],
+            'subject'           => $data['subject'] ?? '',
+            'preview_text'      => $data['preview_text'] ?? null,
+            'body'              => $data['body'] ?? null,
+            'sender_name'       => $data['sender_name'] ?? null,
+            'sender_email'      => $data['sender_email'] ?? null,
+            'audience_group_id' => $data['audience_group_id'] ?? null,
+            'scheduled_at'      => isset($data['scheduled_at']) ? Carbon::parse($data['scheduled_at']) : null,
+            'status'            => 'draft',
+            'user_id'           => $request->user()->id,
+            'audience_count'    => $this->audienceCount($data['audience_group_id'] ?? null),
         ]);
 
-        $this->syncContacts($campaign, $data['pic_ids'] ?? []);
-
-        return response()->json(['data' => $this->formatCampaign($campaign->fresh('contacts'))], 201);
+        return response()->json(['data' => $this->present($campaign->fresh('audienceGroup'))], 201);
     }
 
     public function update(Request $request, EmailCampaign $campaign)
     {
-        $data = $request->validate([
-            'name'         => 'sometimes|string|max:255',
-            'subject'      => 'sometimes|string|max:500',
-            'preview_text' => 'nullable|string|max:255',
-            'body'         => 'nullable|string',
-            'sender_name'  => 'nullable|string|max:255',
-            'sender_email' => 'nullable|email|max:255',
-            'scheduled_at' => 'nullable|date',
-            'pic_ids'      => 'nullable|array',
-            'pic_ids.*'    => 'integer',
-        ]);
+        $data = $this->validateCampaign($request, true);
 
         $campaign->fill(array_filter([
-            'name'         => $data['name'] ?? null,
-            'subject'      => $data['subject'] ?? null,
-            'preview_text' => $data['preview_text'] ?? null,
-            'body'         => $data['body'] ?? null,
-            'sender_name'  => $data['sender_name'] ?? null,
-            'sender_email' => $data['sender_email'] ?? null,
-            'scheduled_at' => isset($data['scheduled_at']) ? Carbon::parse($data['scheduled_at']) : null,
-        ], fn ($v) => $v !== null));
+            'name'              => $data['name'] ?? null,
+            'subject'           => $data['subject'] ?? null,
+            'preview_text'      => $data['preview_text'] ?? null,
+            'body'              => $data['body'] ?? null,
+            'sender_name'       => $data['sender_name'] ?? null,
+            'sender_email'      => $data['sender_email'] ?? null,
+            'scheduled_at'      => isset($data['scheduled_at']) ? Carbon::parse($data['scheduled_at']) : null,
+        ], fn($v) => $v !== null));
+
+        if (array_key_exists('audience_group_id', $data)) {
+            $campaign->audience_group_id = $data['audience_group_id'];
+            $campaign->audience_count = $this->audienceCount($data['audience_group_id']);
+        }
 
         $campaign->save();
 
-        if (array_key_exists('pic_ids', $data)) {
-            $this->syncContacts($campaign, $data['pic_ids'] ?? []);
-        }
-
-        return response()->json(['data' => $this->formatCampaign($campaign->fresh('contacts'))]);
+        return response()->json(['data' => $this->present($campaign->fresh('audienceGroup'))]);
     }
 
     public function destroy(EmailCampaign $campaign)
@@ -92,106 +76,102 @@ class EmailCampaignController extends Controller
         return response()->json(['message' => 'Campaign deleted.']);
     }
 
-    public function schedule(Request $request, EmailCampaign $campaign, BrevoService $brevo)
+    public function duplicate(EmailCampaign $campaign)
     {
-        $request->validate(['scheduled_at' => 'nullable|date']);
+        $copy = $campaign->replicate(['sent_at', 'sent_count', 'delivered_count', 'opened_count', 'clicked_count', 'bounced_count', 'unsubscribed_count', 'open_rate', 'click_rate']);
+        $copy->name = $campaign->name . ' (copy)';
+        $copy->status = 'draft';
+        $copy->scheduled_at = null;
+        $copy->save();
 
-        if (!config('services.brevo.api_key')) {
-            return response()->json(['message' => 'Brevo API key not configured. Set BREVO_API_KEY in .env'], 422);
-        }
+        return response()->json(['data' => $this->present($copy->fresh('audienceGroup'))], 201);
+    }
 
-        $contacts = $campaign->contacts->map(fn ($c) => ['email' => $c->email, 'name' => $c->name])->toArray();
-
-        if (empty($contacts)) {
-            return response()->json(['message' => 'No contacts in this campaign.'], 422);
-        }
-
+    /**
+     * Build recipients (if needed) and send the campaign immediately over SMTP.
+     */
+    public function send(EmailCampaign $campaign, CampaignSender $sender)
+    {
         try {
-            $listId = $brevo->createList("CRM – {$campaign->name}");
-            $brevo->upsertContacts($contacts, $listId);
-
-            $scheduledAt = $request->input('scheduled_at')
-                ? Carbon::parse($request->input('scheduled_at'))->toIso8601String()
-                : null;
-
-            $brevoId = $brevo->createCampaign([
-                'name'         => $campaign->name,
-                'subject'      => $campaign->subject,
-                'preview_text' => $campaign->preview_text,
-                'body'         => $campaign->body,
-                'sender_name'  => $campaign->sender_name,
-                'sender_email' => $campaign->sender_email,
-                'list_id'      => $listId,
-                'scheduled_at' => $scheduledAt,
-            ]);
-
-            if (!$scheduledAt) {
-                $brevo->sendNow($brevoId);
+            $built = $this->buildRecipients($campaign);
+            if ($built === 0 && $campaign->recipients()->count() === 0) {
+                return response()->json(['message' => 'No subscribed contacts in this audience.'], 422);
             }
 
-            $campaign->update([
-                'brevo_campaign_id' => $brevoId,
-                'brevo_list_id'     => $listId,
-                'audience_count'    => count($contacts),
-                'status'            => $scheduledAt ? 'scheduled' : 'sent',
-                'scheduled_at'      => $scheduledAt ? Carbon::parse($scheduledAt) : $campaign->scheduled_at,
-                'sent_at'           => $scheduledAt ? null : now(),
-            ]);
+            $result = $sender->send($campaign);
         } catch (\RuntimeException $e) {
             return response()->json(['message' => $e->getMessage()], 422);
         }
 
-        return response()->json(['data' => $this->formatCampaign($campaign->fresh('contacts'))]);
+        return response()->json([
+            'data'    => $this->present($campaign->fresh('audienceGroup')),
+            'message' => "Sent {$result['sent']} email(s)" . ($result['failed'] ? ", {$result['failed']} failed." : '.'),
+        ]);
     }
 
-    public function sendTest(Request $request, EmailCampaign $campaign, BrevoService $brevo)
+    /**
+     * Build recipients and mark the campaign scheduled; the scheduler command
+     * (email:dispatch-scheduled) sends it when the time arrives.
+     */
+    public function schedule(Request $request, EmailCampaign $campaign)
+    {
+        $data = $request->validate(['scheduled_at' => 'required|date|after:now']);
+
+        try {
+            $this->buildRecipients($campaign);
+        } catch (\RuntimeException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
+
+        if ($campaign->recipients()->count() === 0) {
+            return response()->json(['message' => 'No subscribed contacts in this audience.'], 422);
+        }
+
+        $campaign->update([
+            'status'       => 'scheduled',
+            'scheduled_at' => Carbon::parse($data['scheduled_at']),
+        ]);
+
+        return response()->json(['data' => $this->present($campaign->fresh('audienceGroup'))]);
+    }
+
+    public function sendTest(Request $request, EmailCampaign $campaign, CampaignSender $sender)
     {
         $request->validate(['email' => 'required|email']);
 
-        if (!config('services.brevo.api_key')) {
-            return response()->json(['message' => 'Brevo API key not configured.'], 422);
-        }
-
         try {
-            $listId = $brevo->createList("TEST – {$campaign->name} – " . now()->format('His'));
-            $brevo->upsertContacts([['email' => $request->input('email')]], $listId);
-            $brevoId = $brevo->createCampaign([
-                'name'         => "[TEST] {$campaign->name}",
-                'subject'      => "[TEST] {$campaign->subject}",
-                'body'         => $campaign->body,
-                'sender_name'  => $campaign->sender_name,
-                'sender_email' => $campaign->sender_email,
-                'list_id'      => $listId,
-            ]);
-            $brevo->sendNow($brevoId);
+            $sender->sendTest($campaign, $request->input('email'));
         } catch (\RuntimeException $e) {
             return response()->json(['message' => $e->getMessage()], 422);
+        } catch (\Throwable $e) {
+            return response()->json(['message' => 'Send failed: ' . $e->getMessage()], 422);
         }
 
         return response()->json(['message' => "Test email sent to {$request->input('email')}."]);
     }
 
-    public function syncStats(EmailCampaign $campaign, BrevoService $brevo)
+    /**
+     * Per-recipient delivery + tracking status for a sent campaign.
+     */
+    public function recipients(EmailCampaign $campaign)
     {
-        if (!$campaign->brevo_campaign_id) {
-            return response()->json(['message' => 'Campaign not yet sent via Brevo.'], 422);
-        }
-
-        try {
-            $stats = $brevo->getStats($campaign->brevo_campaign_id);
-            $campaign->update([
-                'sent_count' => $stats['sent_count'],
-                'open_rate'  => $stats['open_rate'],
-                'click_rate' => $stats['click_rate'],
+        $rows = $campaign->recipients()
+            ->orderByDesc('opened_at')
+            ->paginate(50)
+            ->through(fn($r) => [
+                'email'      => $r->email,
+                'name'       => $r->name,
+                'status'     => $r->status,
+                'open_count' => $r->open_count,
+                'click_count' => $r->click_count,
+                'sent_at'    => $r->sent_at?->toISOString(),
+                'error'      => $r->error,
             ]);
-        } catch (\RuntimeException $e) {
-            return response()->json(['message' => $e->getMessage()], 422);
-        }
 
-        return response()->json(['data' => $this->formatCampaign($campaign->fresh('contacts'))]);
+        return response()->json($rows);
     }
 
-    // --- Templates ---
+    // --- Templates -------------------------------------------------------
 
     public function templateIndex()
     {
@@ -229,71 +209,102 @@ class EmailCampaignController extends Controller
         return response()->json(['message' => 'Template deleted.']);
     }
 
-    public function settings()
+    // --- Helpers ---------------------------------------------------------
+
+    /**
+     * Materialise one recipient row per subscribed contact in the audience.
+     * No-op if recipients already exist. Returns the number created.
+     */
+    private function buildRecipients(EmailCampaign $campaign): int
     {
-        return response()->json([
-            'configured'   => (bool) config('services.brevo.api_key'),
-            'sender_name'  => config('services.brevo.sender_name'),
-            'sender_email' => config('services.brevo.sender_email'),
-            'providers'    => [
-                ['id' => 'gmail', 'name' => 'Gmail', 'senders' => config('services.email_campaigns.gmail_senders')],
-                ['id' => 'outlook', 'name' => 'Outlook', 'senders' => config('services.email_campaigns.outlook_senders')],
-            ],
+        if ($campaign->recipients()->exists()) {
+            return 0;
+        }
+
+        if (!$campaign->audience_group_id || !$campaign->audienceGroup) {
+            throw new \RuntimeException('Select an audience group before sending.');
+        }
+
+        $contacts = $this->resolver->query($campaign->audienceGroup)
+            ->where('status', 'subscribed')
+            ->get(['email_contacts.id', 'email_contacts.full_name', 'email_contacts.email']);
+
+        $now = now();
+        $rows = $contacts->map(fn($c) => [
+            'email_campaign_id' => $campaign->id,
+            'email_contact_id'  => $c->id,
+            'email'             => $c->email,
+            'name'              => $c->full_name,
+            'status'            => 'pending',
+            'token'             => Str::random(40),
+            'created_at'        => $now,
+            'updated_at'        => $now,
+        ])->all();
+
+        if ($rows) {
+            $campaign->recipients()->insert($rows);
+            $campaign->update(['audience_count' => count($rows)]);
+        }
+
+        return count($rows);
+    }
+
+    private function audienceCount(?int $groupId): int
+    {
+        if (!$groupId) {
+            return 0;
+        }
+
+        $group = \App\Models\EmailAudienceGroup::find($groupId);
+        if (!$group) {
+            return 0;
+        }
+
+        return $this->resolver->query($group)->where('status', 'subscribed')->count();
+    }
+
+    private function validateCampaign(Request $request, bool $partial = false): array
+    {
+        $required = $partial ? 'sometimes' : 'required';
+
+        return $request->validate([
+            'name'              => "{$required}|string|max:255",
+            'subject'           => 'nullable|string|max:500',
+            'preview_text'      => 'nullable|string|max:255',
+            'body'              => 'nullable|string',
+            'sender_name'       => 'nullable|string|max:255',
+            'sender_email'      => 'nullable|email|max:255',
+            'audience_group_id' => 'nullable|integer|exists:email_audience_groups,id',
+            'scheduled_at'      => 'nullable|date',
         ]);
     }
 
-    // --- Helpers ---
-
-    private function syncContacts(EmailCampaign $campaign, array $picIds): void
-    {
-        $campaign->contacts()->delete();
-
-        if (empty($picIds)) {
-            return;
-        }
-
-        $incharges = \App\Models\ContactIncharge::whereIn('id', $picIds)
-            ->whereNotNull('email')
-            ->where('email', '!=', '')
-            ->get();
-
-        $rows = $incharges->map(fn ($pic) => [
-            'email_campaign_id'   => $campaign->id,
-            'contact_incharge_id' => $pic->id,
-            'email'               => $pic->email,
-            'name'                => $pic->name,
-            'created_at'          => now(),
-            'updated_at'          => now(),
-        ])->toArray();
-
-        if ($rows) {
-            EmailCampaignContact::insert($rows);
-        }
-
-        $campaign->update(['audience_count' => count($rows)]);
-    }
-
-    private function formatCampaign(EmailCampaign $campaign): array
+    private function present(EmailCampaign $campaign): array
     {
         return [
-            'id'                => $campaign->id,
-            'name'              => $campaign->name,
-            'subject'           => $campaign->subject,
-            'preview_text'      => $campaign->preview_text,
-            'body'              => $campaign->body,
-            'sender_name'       => $campaign->sender_name,
-            'sender_email'      => $campaign->sender_email,
-            'status'            => $campaign->status,
-            'scheduled_at'      => $campaign->scheduled_at?->toISOString(),
-            'sent_at'           => $campaign->sent_at?->toISOString(),
-            'audience_count'    => $campaign->audience_count,
-            'sent_count'        => $campaign->sent_count,
-            'open_rate'         => $campaign->open_rate,
-            'click_rate'        => $campaign->click_rate,
-            'brevo_campaign_id' => $campaign->brevo_campaign_id,
-            'pic_ids'           => $campaign->contacts->pluck('contact_incharge_id')->filter()->values(),
-            'created_at'        => $campaign->created_at?->toISOString(),
-            'updated_at'        => $campaign->updated_at?->toISOString(),
+            'id'                 => $campaign->id,
+            'name'               => $campaign->name,
+            'subject'            => $campaign->subject,
+            'preview_text'       => $campaign->preview_text,
+            'body'               => $campaign->body,
+            'sender_name'        => $campaign->sender_name,
+            'sender_email'       => $campaign->sender_email,
+            'status'             => $campaign->status,
+            'audience_group_id'  => $campaign->audience_group_id,
+            'audience_group'     => $campaign->audienceGroup?->name,
+            'scheduled_at'       => $campaign->scheduled_at?->toISOString(),
+            'sent_at'            => $campaign->sent_at?->toISOString(),
+            'audience_count'     => $campaign->audience_count,
+            'sent_count'         => $campaign->sent_count,
+            'delivered_count'    => $campaign->delivered_count,
+            'opened_count'       => $campaign->opened_count,
+            'clicked_count'      => $campaign->clicked_count,
+            'bounced_count'      => $campaign->bounced_count,
+            'unsubscribed_count' => $campaign->unsubscribed_count,
+            'open_rate'          => $campaign->open_rate,
+            'click_rate'         => $campaign->click_rate,
+            'created_at'         => $campaign->created_at?->toISOString(),
+            'updated_at'         => $campaign->updated_at?->toISOString(),
         ];
     }
 }

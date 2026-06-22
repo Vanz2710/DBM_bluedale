@@ -183,8 +183,10 @@ async function submit() {
 }
 
 onMounted(async () => {
-  const res = await api.get('/v1/lookups');
-  lookups.value = res.data;
+  try {
+    const res = await api.get('/v1/lookups');
+    lookups.value = res.data;
+  } catch (_) {}
 });
 </script>
 

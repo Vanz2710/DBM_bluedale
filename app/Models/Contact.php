@@ -42,6 +42,7 @@ class Contact extends Model
         'type_id',
         'category_id',
         'industry_id',
+        'area_id',
     ];
 
     protected $casts = [
@@ -71,6 +72,11 @@ class Contact extends Model
     public function industry()
     {
         return $this->belongsTo(ContactIndustry::class);
+    }
+
+    public function area()
+    {
+        return $this->belongsTo(ContactArea::class);
     }
 
     public function incharges()

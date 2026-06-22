@@ -360,6 +360,8 @@ class SiteAvailabilityController extends Controller
             'signatory_title'        => ['nullable', 'string', 'max:255'],
             'signatory_mobile'       => ['nullable', 'string', 'max:50'],
             'signatory_label'        => ['nullable', 'string', 'max:100'],
+            'signatory_signature'    => ['nullable', 'string', 'max:600000'],
+            'client_designation'     => ['nullable', 'string', 'max:255'],
         ]);
 
         $products = AdvertisingProduct::whereIn('id', $validated['product_ids'])
@@ -410,10 +412,11 @@ class SiteAvailabilityController extends Controller
 
         $defaultSignatory = config('proposal.signatory');
         $signatory = [
-            'name'            => $validated['signatory_name']   ?? $defaultSignatory['name'],
-            'title'           => $validated['signatory_title']  ?? $defaultSignatory['title'],
-            'mobile'          => $validated['signatory_mobile'] ?? $defaultSignatory['mobile'],
-            'signature_label' => $validated['signatory_label']  ?? $defaultSignatory['signature_label'],
+            'name'            => $validated['signatory_name']      ?? $defaultSignatory['name'],
+            'title'           => $validated['signatory_title']     ?? $defaultSignatory['title'],
+            'mobile'          => $validated['signatory_mobile']    ?? $defaultSignatory['mobile'],
+            'signature_label' => $validated['signatory_label']     ?? $defaultSignatory['signature_label'],
+            'signature_img'   => $validated['signatory_signature'] ?? null,
         ];
 
         $data = [
@@ -423,8 +426,9 @@ class SiteAvailabilityController extends Controller
             'date'            => now()->format('jS F Y'),
             'reference'       => $validated['reference'] ?? ('AEMC/PROPOSAL/' . now()->format('m-y/His')),
             'client_name'     => $validated['client_name'] ?? '',
-            'attention'       => $validated['attention'] ?? '',
-            'attention_phone' => $validated['attention_phone'] ?? '',
+            'attention'          => $validated['attention'] ?? '',
+            'attention_phone'    => $validated['attention_phone'] ?? '',
+            'client_designation' => $validated['client_designation'] ?? '',
             're_line'         => $reLine,
             'normal_price'    => $normalPrice,
             'normal_price_unit' => $perUnitLabel,

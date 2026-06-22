@@ -119,6 +119,20 @@ class FollowUpController extends Controller
         return response()->json(['status' => 'success', 'completion_status' => $followUp->completion_status]);
     }
 
+    public function bulkComplete(string $todoId)
+    {
+        FollowUp::where('todo_id', $todoId)
+            ->where('completion_status', 'pending')
+            ->get()
+            ->each(function ($f) {
+                $f->completion_status = 'completed';
+                $f->completed_at      = now();
+                $f->save(); // fires saved hook → updates contact.last_contacted_at
+            });
+
+        return response()->json(['status' => 'success']);
+    }
+
     public function export(Request $request)
     {
         $view      = $request->input('view', 'DateRange');

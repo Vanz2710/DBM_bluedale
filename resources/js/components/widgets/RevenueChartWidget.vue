@@ -80,7 +80,7 @@ async function buildChart() {
       ? (analyticsData.by_month ?? [])
       : (analyticsData.by_tasks ?? []);
     const color = activeTab.value === 'trend' ? '#1d4ed8' : '#0891b2';
-    const gradientRgb = activeTab.value === 'trend' ? '124,58,237' : '8,145,178';
+    const gradientRgb = activeTab.value === 'trend' ? '29,78,216' : '8,145,178';
     const gradient = ctx.createLinearGradient(0, 0, 0, chartCanvas.value.clientHeight || 200);
     gradient.addColorStop(0, `rgba(${gradientRgb},0.28)`);
     gradient.addColorStop(1, `rgba(${gradientRgb},0.00)`);

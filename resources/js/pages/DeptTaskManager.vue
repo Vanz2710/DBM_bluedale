@@ -475,7 +475,7 @@
             <tr>
               <th>Task</th>
               <th>Department</th>
-              <th>Assigned To</th>
+              <th v-if="isAdmin">Assigned To</th>
               <th>Priority</th>
               <th>Due Date</th>
               <th>Status</th>
@@ -490,7 +490,7 @@
                   {{ t.department?.name }}
                 </span>
               </td>
-              <td class="text-2">{{ t.assignee?.name || '—' }}</td>
+              <td v-if="isAdmin" class="text-2">{{ t.assignee?.name || '—' }}</td>
               <td>
                 <span class="kc-priority" :style="{background: priorityColor(t.priority)+'22', color: priorityColor(t.priority)}">
                   {{ t.priority }}
@@ -838,8 +838,9 @@ const ADMIN_VIEWS = [
   { id: 'reports',   label: 'History',    icon: ICO.trending },
 ];
 const USER_VIEWS = [
-  { id: 'mywork', label: 'List',  icon: ICO.list },
-  { id: 'board',  label: 'Board', icon: ICO.kanban },
+  { id: 'mywork',   label: 'List',    icon: ICO.list },
+  { id: 'board',    label: 'Board',   icon: ICO.kanban },
+  { id: 'reports',  label: 'History', icon: ICO.trending },
 ];
 const views = computed(() => (isAdmin.value ? ADMIN_VIEWS : USER_VIEWS));
 const currentView = ref(_isAdminInit ? 'board' : 'mywork');

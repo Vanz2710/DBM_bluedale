@@ -16,7 +16,7 @@
     <div class="toolbar">
       <div class="filter-group wide">
         <label>Search</label>
-        <input v-model="filters.q" @keyup.enter="applyFilters" placeholder="Company, product, user…">
+        <input type="text" v-model="filters.q" @keyup.enter="applyFilters" placeholder="Company, product, user…">
       </div>
       <div class="filter-group">
         <label>Product</label>
@@ -264,7 +264,7 @@ async function load() {
 }
 
 async function loadSummary() {
-  const res = await api.get('/v1/forecasts/summary', { params: buildParams(false) });
+  const res = await api.get('/v1/forecasts/summary', { params: { ...buildParams(false), totals_only: 1 } });
   summary.value = res.data.data?.totals ?? {};
 }
 

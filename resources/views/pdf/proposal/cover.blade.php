@@ -153,8 +153,12 @@
                 <!-- Company signatory -->
                 <td width="48%" style="vertical-align:top; padding-right:10px; padding-top:8px; border-top:1px solid #dde4ee;">
                     <div style="color:#444; margin-bottom:2px;">Thank you,</div>
-                    <div style="font-weight:bold; margin-bottom:24px; color:#0d4f8a;">For and on behalf of {{ $company['name'] }}</div>
-                    <div style="font-style:italic; color:#1a5ca8; font-size:14px; margin-bottom:3px;">{{ $signatory['signature_label'] }}</div>
+                    <div style="font-weight:bold; margin-bottom:6px; color:#0d4f8a;">For and on behalf of {{ $company['name'] }}</div>
+                    @if(!empty($signatory['signature_img']))
+                        <img src="{{ $signatory['signature_img'] }}" style="max-height:52px; max-width:200px; display:block; margin-bottom:2px;" alt="Signature">
+                    @else
+                        <div style="font-style:italic; color:#1a5ca8; font-size:14px; margin-bottom:3px; margin-top:16px;">{{ $signatory['signature_label'] }}</div>
+                    @endif
                     <div style="border-top:1px solid #333; width:88%; margin-bottom:4px;"></div>
                     <div style="font-weight:bold; color:#0d0d0d;">{{ $signatory['name'] }}</div>
                     <div style="font-style:italic; color:#555;">{{ $signatory['title'] }}</div>
@@ -166,9 +170,19 @@
                 <td width="48%" style="vertical-align:top; padding-left:10px; padding-top:8px; border-top:1px solid #dde4ee;">
                     <div style="color:#444; font-style:italic; margin-bottom:24px;">I, agree and accept the above,</div>
                     <div style="border-top:1px solid #333; width:88%; margin-bottom:4px;"></div>
-                    <div style="color:#1a5ca8;">Name &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:</div>
-                    <div style="color:#1a5ca8; margin-top:2px;">Designation &nbsp;:</div>
-                    <div style="color:#888; font-size:7.5px; margin-top:2px;">(Co. Rubber Stamp)</div>
+                    <table cellpadding="0" cellspacing="0" border="0" style="font-size:9px;">
+                        <tr>
+                            <td style="color:#1a5ca8; white-space:nowrap; padding-bottom:3px;">Name</td>
+                            <td style="color:#1a5ca8; padding:0 6px 3px;">:</td>
+                            <td style="color:#0d0d0d; font-weight:{{ !empty($attention) ? 'bold' : 'normal' }};">{{ $attention ?? '' }}</td>
+                        </tr>
+                        <tr>
+                            <td style="color:#1a5ca8; white-space:nowrap;">Designation</td>
+                            <td style="color:#1a5ca8; padding:0 6px;">:</td>
+                            <td style="color:#0d0d0d;">{{ $client_designation ?? '' }}</td>
+                        </tr>
+                    </table>
+                    <div style="color:#888; font-size:7.5px; margin-top:4px;">(Co. Rubber Stamp)</div>
                 </td>
             </tr>
         </table>

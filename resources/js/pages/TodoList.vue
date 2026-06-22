@@ -286,6 +286,30 @@
   </div>
 
   <Teleport to="body">
+    <div v-if="followUpPrompt.open" class="conf-overlay" @click.self="dismissFollowUpPrompt">
+      <div class="conf-modal">
+        <div class="conf-head">
+          <div>
+            <p class="conf-title">Pending Follow-Ups</p>
+            <p class="conf-sub">This to-do has {{ followUpPrompt.count }} pending follow-up{{ followUpPrompt.count !== 1 ? 's' : '' }}.</p>
+          </div>
+          <button class="conf-close" @click="dismissFollowUpPrompt"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+        </div>
+        <div class="conf-body">
+          <svg class="conf-warn" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#1d4ed8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><circle cx="12" cy="16" r="1" fill="#1d4ed8" stroke="none"/>
+          </svg>
+          <p class="conf-text">Mark all {{ followUpPrompt.count }} pending follow-up{{ followUpPrompt.count !== 1 ? 's' : '' }} as complete too?</p>
+        </div>
+        <div class="conf-foot">
+          <button class="conf-cancel" @click="dismissFollowUpPrompt">Skip</button>
+          <button class="conf-followup-ok" :disabled="followUpPrompt.loading" @click="completeFollowUps">
+            {{ followUpPrompt.loading ? 'Completing…' : 'Yes, mark complete' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
     <div v-if="deleteTodoModal.open" class="conf-overlay" @click.self="closeDeleteTodoModal">
       <div class="conf-modal">
         <div class="conf-head">
@@ -489,14 +513,44 @@ function exportSelected() {
   window.location.href = `/api/v1/todos/export?ids=${ids}&_token=${token}`;
 }
 
+const followUpPrompt = reactive({ open: false, todoId: null, count: 0, loading: false });
+
 async function markDone(todo) {
   await api.patch(`/v1/todos/${todo.id}/status`, { status: 'completed' });
   todo.completion_status = 'completed';
+  // Non-blocking check for pending follow-ups
+  try {
+    const res = await api.get('/v1/followups', {
+      params: { todo_id: todo.id, completion_status: 'pending', per_page: 1, view: 'DateRange', from_date: '2000-01-01', to_date: '2099-12-31' },
+    });
+    const count = res.data.meta?.total ?? 0;
+    if (count > 0) {
+      followUpPrompt.todoId = todo.id;
+      followUpPrompt.count  = count;
+      followUpPrompt.open   = true;
+    }
+  } catch (_) { /* non-critical */ }
 }
 
 async function markPending(todo) {
   await api.patch(`/v1/todos/${todo.id}/status`, { status: 'pending' });
   todo.completion_status = 'pending';
+}
+
+async function completeFollowUps() {
+  followUpPrompt.loading = true;
+  try {
+    await api.patch(`/v1/todos/${followUpPrompt.todoId}/complete-followups`);
+  } finally {
+    followUpPrompt.open    = false;
+    followUpPrompt.todoId  = null;
+    followUpPrompt.loading = false;
+  }
+}
+
+function dismissFollowUpPrompt() {
+  followUpPrompt.open   = false;
+  followUpPrompt.todoId = null;
 }
 
 const deleteTodoModal = reactive({ open: false, todo: null, loading: false });
@@ -866,4 +920,7 @@ tbody tr:hover { background: var(--surface-2); }
 .conf-delete { height: 38px; padding: 0 18px; background: var(--danger); color: #fff; border: none; border-radius: var(--radius-sm); font-size: 13px; font-weight: 700; cursor: pointer; }
 .conf-delete:hover:not(:disabled) { background: #b91c1c; }
 .conf-delete:disabled { opacity: 0.5; cursor: not-allowed; }
+.conf-followup-ok { height: 38px; padding: 0 18px; background: var(--primary); color: #fff; border: none; border-radius: var(--radius-sm); font-size: 13px; font-weight: 700; cursor: pointer; }
+.conf-followup-ok:hover:not(:disabled) { background: var(--primary-hover); }
+.conf-followup-ok:disabled { opacity: 0.5; cursor: not-allowed; }
 </style>

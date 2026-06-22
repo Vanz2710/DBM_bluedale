@@ -408,58 +408,58 @@ const ALL_GROUPS = [
   {
     key: 'overview', label: 'Overview', icon: SVGI.home, color: 'blue', section: 'main', adminOnly: false,
     items: [
-      { key: 'home',    to: '/',         icon: SVGI.home,  label: 'Dashboard', activeRoutes: ['home'] },
-      { key: 'reports', to: '/reports',  icon: SVGI.chart, label: 'Reports',   activeRoutes: ['reports'] },
+      { key: 'home',    to: '/',        icon: SVGI.home,  label: 'Dashboard', activeRoutes: ['home'] },
+      { key: 'reports', to: '/reports', icon: SVGI.chart, label: 'Reports',   activeRoutes: ['reports'] },
     ],
   },
   {
-    key: 'crm-contacts', label: 'Contacts', icon: SVGI.folder, color: 'green', section: 'main', adminOnly: false,
+    key: 'crm-pipeline', label: 'CRM Pipeline', icon: SVGI.folder, color: 'green', section: 'main', adminOnly: false,
     items: [
-      { key: 'list',             to: '/list',             icon: SVGI.list,    label: 'Contacts',         activeRoutes: ['list', 'contact-view', 'contact-add', 'contact-edit', 'task-add'] },
-      { key: 'contact-analysis',    to: '/contact-analysis',    icon: SVGI.chart, label: 'Contact Analysis',    activeRoutes: ['contact-analysis'] },
-      { key: 'predictive-insights', to: '/predictive-insights', icon: SVGI.zap,   label: 'Predictive Insights', activeRoutes: ['predictive-insights'] },
-      { key: 'forecasts', to: '/forecasts', icon: SVGI.trending,  label: 'Forecasts',     activeRoutes: ['forecasts', 'forecast-summary'] },
-      { key: 'todos',       to: '/todos',       icon: SVGI.clipboard, label: 'To Do List',  activeRoutes: ['todos', 'todo-add', 'task-edit'] },
-      { key: 'followups',   to: '/followups',   icon: SVGI.bell,      label: 'Follow-Ups',  activeRoutes: ['followups', 'followup-add', 'followup-edit'] },
+      { key: 'list',      to: '/list',      icon: SVGI.list,      label: 'Contacts',  activeRoutes: ['list', 'contact-view', 'contact-add', 'contact-edit', 'task-add'] },
+      { key: 'forecasts', to: '/forecasts', icon: SVGI.trending,  label: 'Forecasts', activeRoutes: ['forecasts', 'forecast-summary'] },
+      { key: 'projects',  to: '/projects',  icon: SVGI.layers,    label: 'Projects',  activeRoutes: ['projects', 'project-add', 'project-edit'], adminOnly: true },
+      { key: 'deals',     to: '/deals',     icon: SVGI.briefcase, label: 'Deals',     activeRoutes: ['deals', 'deal-add', 'deal-edit'],           adminOnly: true },
     ],
   },
   {
-    key: 'tasks', label: 'Performance', icon: SVGI.trending, color: 'orange', section: 'main', adminOnly: false,
+    key: 'activity', label: 'Activity', icon: SVGI.clipboard, color: 'teal', section: 'main', adminOnly: false,
     items: [
-      { key: 'reminders',   to: '/reminders',   icon: SVGI.bell,      label: 'Reminders',   activeRoutes: ['reminders'] },
-      { key: 'performance', to: '/performance', icon: SVGI.trending,  label: 'Performance', activeRoutes: ['performance'] },
+      { key: 'todos',      to: '/todos',      icon: SVGI.clipboard, label: 'To Do List',   activeRoutes: ['todos', 'todo-add', 'task-edit'] },
+      { key: 'followups',  to: '/followups',  icon: SVGI.bell,      label: 'Follow-Ups',   activeRoutes: ['followups', 'followup-add', 'followup-edit'] },
+      { key: 'reminders',  to: '/reminders',  icon: SVGI.bell,      label: 'Reminders',    activeRoutes: ['reminders'] },
+      { key: 'dept-tasks', to: '/dept-tasks', icon: SVGI.kanban,    label: 'Task Manager', activeRoutes: ['dept-tasks'], permission: 'manage dept-tasks' },
     ],
   },
   {
-    key: 'daily-tasks', label: 'Daily Tasks', icon: SVGI.kanban, color: 'teal', section: 'main', adminOnly: false,
+    key: 'analytics', label: 'Analytics', icon: SVGI.trending, color: 'orange', section: 'main', adminOnly: false,
     items: [
-      { key: 'dept-tasks', to: '/dept-tasks', icon: SVGI.kanban, label: 'Task Manager', activeRoutes: ['dept-tasks'], permission: 'manage dept-tasks' },
+      { key: 'contact-analysis',    to: '/contact-analysis',    icon: SVGI.chart,    label: 'Contact Analysis',    activeRoutes: ['contact-analysis'] },
+      { key: 'predictive-insights', to: '/predictive-insights', icon: SVGI.zap,      label: 'Predictive Insights', activeRoutes: ['predictive-insights'] },
+      { key: 'performance',         to: '/performance',         icon: SVGI.trending, label: 'Performance',         activeRoutes: ['performance'] },
     ],
   },
   {
-    key: 'marketing', label: 'Marketing & Media', icon: SVGI.megaphone, color: 'teal', section: 'main', adminOnly: false,
+    key: 'marketing', label: 'Marketing', icon: SVGI.megaphone, color: 'rose', section: 'main', adminOnly: false,
     items: [
-      { key: 'social-media',         to: '/social-media',         icon: SVGI.megaphone, label: 'Social Media',         activeRoutes: ['social-media'],         permission: 'manage social-media' },
-      { key: 'posting-calendar',     to: '/posting-calendar',     icon: SVGI.calendar,  label: 'Posting Calendar',     activeRoutes: ['posting-calendar'],     permission: 'manage posting-calendar' },
-      { key: 'marketing-email',      to: '/marketing-email',      icon: SVGI.mail,      label: 'Email Marketing',      activeRoutes: ['marketing-email'],      permission: 'manage email-campaigns' },
-      { key: 'site-availability',    to: '/site-availability',    icon: SVGI.grid,      label: 'Site Availability',    activeRoutes: ['site-availability'],    permission: 'manage site-availability' },
+      { key: 'social-media',      to: '/social-media',      icon: SVGI.megaphone, label: 'Social Media',      activeRoutes: ['social-media'],      permission: 'manage social-media' },
+      { key: 'posting-calendar',  to: '/posting-calendar',  icon: SVGI.calendar,  label: 'Posting Calendar',  activeRoutes: ['posting-calendar'],  permission: 'manage posting-calendar' },
+      { key: 'marketing-email',   to: '/marketing-email',   icon: SVGI.mail,      label: 'Email Marketing',   activeRoutes: ['marketing-email'],   permission: 'manage email-campaigns' },
+    ],
+  },
+  {
+    key: 'site-availability', label: 'Site Availability', icon: SVGI.grid, color: 'blue', section: 'main', adminOnly: false,
+    items: [
+      { key: 'site-availability', to: '/site-availability', icon: SVGI.grid, label: 'Site Availability', activeRoutes: ['site-availability'], permission: 'manage site-availability' },
     ],
   },
   {
     key: 'admin', label: 'Administration', icon: SVGI.gear, color: 'purple', section: 'tools', adminOnly: true,
     items: [
-      { key: 'admin-panel',     to: '/admin',                        icon: SVGI.gear,    label: 'Lookup Settings',   activeRoutes: ['admin'] },
-      { key: 'rbac',            to: '/admin/rbac',                   icon: SVGI.shield,  label: 'Access Control',    activeRoutes: ['rbac'] },
-      { key: 'system-settings', to: '/admin/system-settings',        icon: SVGI.mail,    label: 'System Settings',   activeRoutes: ['system-settings'] },
-      { key: 'user-activity',  to: '/admin/user-activity',          icon: SVGI.activity, label: 'User Activity',     activeRoutes: ['user-activity'] },
-      { key: 'audit-log',      to: '/admin/audit-log',             icon: SVGI.list,     label: 'Audit Log',         activeRoutes: ['audit-log'] },
-    ],
-  },
-  {
-    key: 'demo', label: 'Demo / Workshop', icon: SVGI.flask, color: 'rose', section: 'tools', adminOnly: true,
-    items: [
-      { key: 'projects',  to: '/projects',       icon: SVGI.layers,    label: 'Projects', activeRoutes: ['projects', 'project-add', 'project-edit'] },
-      { key: 'deals',     to: '/deals',           icon: SVGI.briefcase, label: 'Deals',    activeRoutes: ['deals', 'deal-add', 'deal-edit'] },
+      { key: 'admin-panel',     to: '/admin',                  icon: SVGI.gear,     label: 'Lookup Settings', activeRoutes: ['admin'] },
+      { key: 'rbac',            to: '/admin/rbac',             icon: SVGI.shield,   label: 'Access Control',  activeRoutes: ['rbac'] },
+      { key: 'system-settings', to: '/admin/system-settings',  icon: SVGI.mail,     label: 'System Settings', activeRoutes: ['system-settings'] },
+      { key: 'user-activity',   to: '/admin/user-activity',   icon: SVGI.activity, label: 'User Activity',   activeRoutes: ['user-activity'] },
+      { key: 'audit-log',       to: '/admin/audit-log',        icon: SVGI.list,     label: 'Audit Log',       activeRoutes: ['audit-log'] },
     ],
   },
   {
@@ -480,6 +480,7 @@ const ALL_GROUPS = [
 ];
 
 function hasItemPermission(item) {
+  if (item.adminOnly && !isAdminOrSuperAdmin.value) return false;
   if (!item.permission) return true;
   const u = currentUser.value;
   if (!u) return false;

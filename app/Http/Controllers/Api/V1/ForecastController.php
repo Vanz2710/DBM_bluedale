@@ -13,7 +13,7 @@ class ForecastController extends Controller
 {
     public function index(Request $request)
     {
-        $perPage = (int) $request->input('per_page', 100);
+        $perPage = (int) $request->input('per_page', 25);
         $query   = $this->baseQuery($request);
 
         $sortField = $request->input('sort_field', 'forecast_date');
@@ -35,30 +35,36 @@ class ForecastController extends Controller
     {
         $base = $this->baseQuery($request);
 
-        // SQL aggregates — always accurate, no row cap
-        $forecastCount = (clone $base)->count();
-        $totalAmount   = (clone $base)->sum('amount');
-
+        // Look up result IDs once (2 queries)
         $resultIds  = ForecastResult::whereIn('name', ['Confirmed', 'Pending', 'Rejected'])->pluck('id', 'name');
-        $noResultId = ForecastResult::where('name', 'No Result')->value('id');
+        $noResultId = ForecastResult::where('name', 'No Result')->value('id') ?? -1;
 
-        $confirmedAmount = $resultIds->has('Confirmed')
-            ? (clone $base)->where('result_id', $resultIds['Confirmed'])->sum('amount')
-            : 0;
-        $pendingAmount = $resultIds->has('Pending')
-            ? (clone $base)->where('result_id', $resultIds['Pending'])->sum('amount')
-            : 0;
-        $rejectedAmount = $resultIds->has('Rejected')
-            ? (clone $base)->where('result_id', $resultIds['Rejected'])->sum('amount')
-            : 0;
-        $noResultAmount = (clone $base)->where(function ($q) use ($noResultId) {
-            $q->whereNull('result_id');
-            if ($noResultId) {
-                $q->orWhere('result_id', $noResultId);
-            }
-        })->sum('amount');
+        // Single conditional-aggregate query replaces 6 separate sum() queries
+        $agg = (clone $base)->toBase()->selectRaw(
+            'COUNT(*) as forecast_count,
+             SUM(amount) as total_amount,
+             SUM(CASE WHEN result_id = ? THEN amount ELSE 0 END) as confirmed_amount,
+             SUM(CASE WHEN result_id = ? THEN amount ELSE 0 END) as pending_amount,
+             SUM(CASE WHEN result_id = ? THEN amount ELSE 0 END) as rejected_amount,
+             SUM(CASE WHEN result_id IS NULL OR result_id = ? THEN amount ELSE 0 END) as no_result_amount',
+            [
+                $resultIds->get('Confirmed'),
+                $resultIds->get('Pending'),
+                $resultIds->get('Rejected'),
+                $noResultId,
+            ]
+        )->first();
 
-        // Monthly breakdown via GROUP BY — no PHP-side loop needed
+        $totals = [
+            'forecast_count'   => (int)   ($agg->forecast_count   ?? 0),
+            'total_amount'     => (float) ($agg->total_amount     ?? 0),
+            'confirmed_amount' => (float) ($agg->confirmed_amount ?? 0),
+            'pending_amount'   => (float) ($agg->pending_amount   ?? 0),
+            'rejected_amount'  => (float) ($agg->rejected_amount  ?? 0),
+            'no_result_amount' => (float) ($agg->no_result_amount ?? 0),
+        ];
+
+        // Monthly breakdown via GROUP BY
         $monthlyRaw = (clone $base)
             ->toBase()
             ->selectRaw('MONTH(forecast_date) as month, COUNT(*) as `count`, SUM(amount) as amount')
@@ -76,17 +82,14 @@ class ForecastController extends Controller
             ];
         }
 
-        // Detail rows for the summary table — no arbitrary cap
-        $rows = (clone $base)->orderBy('forecast_date')->get();
+        // Skip full row load when caller only needs totals (e.g. ForecastList header stats)
+        if ($request->boolean('totals_only')) {
+            return response()->json([
+                'data' => ['totals' => $totals, 'months' => $months, 'rows' => []],
+            ]);
+        }
 
-        $totals = [
-            'forecast_count'   => $forecastCount,
-            'total_amount'     => (float) $totalAmount,
-            'confirmed_amount' => (float) $confirmedAmount,
-            'pending_amount'   => (float) $pendingAmount,
-            'rejected_amount'  => (float) $rejectedAmount,
-            'no_result_amount' => (float) $noResultAmount,
-        ];
+        $rows = (clone $base)->orderBy('forecast_date')->get();
 
         return response()->json([
             'data' => [
@@ -227,9 +230,10 @@ class ForecastController extends Controller
 
     private function relations(): array
     {
+        // contact.status and contact.type dropped — contactStatus/contactType direct
+        // relations on Forecast already cover the same data via denormalized FK columns.
         return [
-            'contact.status',
-            'contact.type',
+            'contact',
             'user',
             'product',
             'forecastType',

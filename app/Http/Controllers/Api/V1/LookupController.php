@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Models\ContactArea;
 use App\Models\ContactCategory;
 use App\Models\ContactIndustry;
 use App\Models\ContactStatus;
@@ -24,6 +25,7 @@ class LookupController extends Controller
                 'industries'        => ContactIndustry::orderBy('name')->get(),
                 'categories'        => ContactCategory::orderBy('name')->get(),
                 'types'             => ContactType::orderBy('name')->get(),
+                'areas'             => ContactArea::orderBy('name')->get(),
                 'tasks'             => Task::orderBy('name')->get(),
                 'forecast_products' => ForecastProduct::orderBy('name')->get(),
                 'forecast_types'    => ForecastType::orderBy('name')->get(),

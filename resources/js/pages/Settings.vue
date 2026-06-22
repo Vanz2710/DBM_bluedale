@@ -18,7 +18,6 @@
 
       <!-- Left sidebar navigation -->
       <aside class="settings-nav">
-        <!-- Profile shortcut -->
         <router-link to="/profile" class="profile-card">
           <div class="profile-avatar">{{ userInitial }}</div>
           <div class="profile-info">
@@ -99,74 +98,90 @@
           </div>
         </template>
 
-        <!-- ══════════════ REGIONAL ══════════════ -->
-        <template v-if="tab === 'regional'">
+        <!-- ══════════════ SECURITY ══════════════ -->
+        <template v-if="tab === 'security'">
           <div class="section-header">
-            <h2 class="section-title">Regional</h2>
-            <p class="section-desc">Set your local timezone and how dates and times are displayed.</p>
+            <h2 class="section-title">Security</h2>
+            <p class="section-desc">Account access details and security information for your profile.</p>
           </div>
+
+          <!-- Account info -->
           <div class="content-card">
+            <div class="sec-card-head">
+              <span class="sec-card-title" v-html="_s('<path d=\'M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2\'/><circle cx=\'12\' cy=\'7\' r=\'4\'/>') + ' Account Details'"></span>
+            </div>
             <div class="settings-list">
-
               <div class="setting-row">
                 <div class="setting-info">
-                  <span class="setting-label">Timezone</span>
-                  <span class="setting-desc">Used when displaying scheduled events and reminders</span>
+                  <span class="setting-label">Full Name</span>
+                  <span class="setting-desc">Your display name across the CRM</span>
                 </div>
-                <select v-model="localSettings.timezone" class="setting-select">
-                  <option value="">— Browser default —</option>
-                  <option v-for="tz in timezones" :key="tz.value" :value="tz.value">{{ tz.label }}</option>
-                </select>
+                <span class="sec-value">{{ currentUser?.name ?? '—' }}</span>
               </div>
-
               <div class="setting-row">
                 <div class="setting-info">
-                  <span class="setting-label">Date Format</span>
-                  <span class="setting-desc">How dates appear across the application</span>
+                  <span class="setting-label">Username</span>
+                  <span class="setting-desc">Used to log in</span>
                 </div>
-                <select v-model="localSettings.date_format" class="setting-select">
-                  <option value="DD/MM/YYYY">DD/MM/YYYY (25/12/2024)</option>
-                  <option value="MM/DD/YYYY">MM/DD/YYYY (12/25/2024)</option>
-                  <option value="YYYY-MM-DD">YYYY-MM-DD (2024-12-25)</option>
-                  <option value="DD-MM-YYYY">DD-MM-YYYY (25-12-2024)</option>
-                </select>
+                <span class="sec-value sec-value--mono">{{ currentUser?.username ?? '—' }}</span>
               </div>
-
               <div class="setting-row">
                 <div class="setting-info">
-                  <span class="setting-label">Time Format</span>
-                  <span class="setting-desc">12-hour (AM/PM) or 24-hour clock</span>
+                  <span class="setting-label">Email Address</span>
+                  <span class="setting-desc">Notifications and account recovery</span>
                 </div>
-                <div class="radio-group">
-                  <label class="radio-opt">
-                    <input type="radio" v-model="localSettings.time_format" value="12h" />
-                    <span>12-hour</span>
-                  </label>
-                  <label class="radio-opt">
-                    <input type="radio" v-model="localSettings.time_format" value="24h" />
-                    <span>24-hour</span>
-                  </label>
-                </div>
+                <span class="sec-value">{{ currentUser?.email ?? '—' }}</span>
               </div>
-
               <div class="setting-row">
                 <div class="setting-info">
-                  <span class="setting-label">First Day of Week</span>
-                  <span class="setting-desc">Start of week in calendar and weekly views</span>
+                  <span class="setting-label">Role</span>
+                  <span class="setting-desc">Your permission level in the system</span>
                 </div>
-                <select v-model="localSettings.first_day_of_week" class="setting-select">
-                  <option value="monday">Monday</option>
-                  <option value="sunday">Sunday</option>
-                  <option value="saturday">Saturday</option>
-                </select>
+                <span
+                  v-for="role in (currentUser?.roles ?? [])"
+                  :key="role"
+                  class="sec-badge"
+                >{{ role }}</span>
               </div>
-
             </div>
           </div>
-          <div class="action-row">
-            <button class="btn btn-save" :disabled="saving" @click="save">
-              {{ saving ? 'Saving…' : 'Save Changes' }}
-            </button>
+
+          <!-- Login activity -->
+          <div class="content-card">
+            <div class="sec-card-head">
+              <span class="sec-card-title" v-html="_s('<polyline points=\'22 12 18 12 15 21 9 3 6 12 2 12\'/>' ) + ' Login Activity'"></span>
+            </div>
+            <div class="settings-list">
+              <div class="setting-row">
+                <div class="setting-info">
+                  <span class="setting-label">Last Login</span>
+                  <span class="setting-desc">Most recent successful sign-in</span>
+                </div>
+                <span class="sec-value">{{ lastLoginDisplay }}</span>
+              </div>
+              <div class="setting-row">
+                <div class="setting-info">
+                  <span class="setting-label">Total Logins</span>
+                  <span class="setting-desc">Cumulative sign-in count</span>
+                </div>
+                <span class="sec-value">{{ currentUser?.login_count != null ? currentUser.login_count.toLocaleString() : '—' }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Password -->
+          <div class="content-card">
+            <div class="sec-card-head">
+              <span class="sec-card-title" v-html="_s('<rect x=\'3\' y=\'11\' width=\'18\' height=\'11\' rx=\'2\' ry=\'2\'/><path d=\'M7 11V7a5 5 0 0 1 10 0v4\'/>' ) + ' Password'"></span>
+            </div>
+            <div class="sec-password-row">
+              <div class="sec-password-info">
+                <p class="sec-password-desc">Your password is managed from your profile page. Use the link below to change it — you'll need to enter your current password to confirm.</p>
+              </div>
+              <router-link to="/profile" class="btn btn-outline">
+                Change Password
+              </router-link>
+            </div>
           </div>
         </template>
 
@@ -187,7 +202,6 @@
                 <select v-model="localSettings.crm.default_landing" class="setting-select">
                   <option value="/">Dashboard</option>
                   <option value="/list">Contacts</option>
-                  <option value="/crm">CRM Dashboard</option>
                   <option value="/todos">To Do List</option>
                   <option value="/followups">Follow-Ups</option>
                   <option value="/performance">Performance</option>
@@ -293,10 +307,11 @@
 import { ref, reactive, computed, onMounted } from 'vue';
 import { useSettings, applyTheme } from '../composables/useSettings.js';
 
-const _s = (p) => `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
+const _s      = (p) => `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
+const _sLarge = (p) => `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
 
-const tab    = ref('appearance');
-const saving = ref(false);
+const tab     = ref('appearance');
+const saving  = ref(false);
 const saveMsg = ref(null);
 
 const { settings, loadFromServer, saveSettings } = useSettings();
@@ -307,13 +322,7 @@ localSettings.crm           = reactive({ ...settings.crm });
 
 onMounted(async () => {
   await loadFromServer();
-  Object.assign(localSettings, {
-    theme:             settings.theme,
-    timezone:          settings.timezone,
-    date_format:       settings.date_format,
-    time_format:       settings.time_format,
-    first_day_of_week: settings.first_day_of_week,
-  });
+  Object.assign(localSettings, { theme: settings.theme });
   Object.assign(localSettings.notifications, settings.notifications);
   Object.assign(localSettings.crm, settings.crm);
 });
@@ -325,6 +334,16 @@ const isAdmin     = computed(() => {
 });
 const userInitial = computed(() => (currentUser.value?.name ?? 'U')[0].toUpperCase());
 
+const lastLoginDisplay = computed(() => {
+  const raw = currentUser.value?.last_login_at;
+  if (!raw) return 'Never';
+  const d = new Date(raw);
+  if (isNaN(d)) return raw;
+  return d.toLocaleDateString('en-MY', { day: '2-digit', month: 'short', year: 'numeric' })
+    + ' · '
+    + d.toLocaleTimeString('en-MY', { hour: '2-digit', minute: '2-digit', hour12: true });
+});
+
 function setTheme(value) {
   localSettings.theme = value;
   applyTheme(value);
@@ -334,11 +353,7 @@ async function save() {
   saving.value  = true;
   saveMsg.value = null;
   try {
-    settings.theme             = localSettings.theme;
-    settings.timezone          = localSettings.timezone;
-    settings.date_format       = localSettings.date_format;
-    settings.time_format       = localSettings.time_format;
-    settings.first_day_of_week = localSettings.first_day_of_week;
+    settings.theme = localSettings.theme;
     Object.assign(settings.notifications, localSettings.notifications);
     Object.assign(settings.crm, localSettings.crm);
 
@@ -359,7 +374,7 @@ const iconError = _s('<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="1
 const navItems = [
   { tab: 'appearance',   label: 'Appearance',      icon: _s('<circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>') },
   { tab: 'notifications', label: 'Notifications',   icon: _s('<path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>') },
-  { tab: 'regional',     label: 'Regional',         icon: _s('<circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>') },
+  { tab: 'security',     label: 'Security',         icon: _s('<rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>') },
   { tab: 'crm',          label: 'CRM Preferences',  icon: _s('<line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/>') },
   { tab: 'admin',        label: 'Admin',            icon: _s('<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/>') },
 ];
@@ -367,19 +382,19 @@ const navItems = [
 const themeOptions = [
   {
     value: 'light',
-    icon:  _s('<circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>'),
+    icon:  _sLarge('<circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>'),
     label: 'Light',
     hint:  'Always light',
   },
   {
     value: 'dark',
-    icon:  _s('<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>'),
+    icon:  _sLarge('<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>'),
     label: 'Dark',
     hint:  'Always dark',
   },
   {
     value: 'system',
-    icon:  _s('<rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>'),
+    icon:  _sLarge('<rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>'),
     label: 'System',
     hint:  'Follow device',
   },
@@ -389,27 +404,6 @@ const notifOptions = [
   { key: 'crm_reminders',   label: 'CRM Reminders',             desc: 'Alerts from your scheduled CRM reminders' },
   { key: 'deal_updates',    label: 'Deal Updates',               desc: 'Alerts when deal status or value changes' },
   { key: 'task_reminders',  label: 'Task & Follow-up Reminders', desc: 'Due-date reminders for to-dos and follow-ups' },
-];
-
-const timezones = [
-  { value: 'UTC',                 label: 'UTC — Coordinated Universal Time' },
-  { value: 'Asia/Kuala_Lumpur',   label: 'UTC+8  — Kuala Lumpur (MYT)' },
-  { value: 'Asia/Singapore',      label: 'UTC+8  — Singapore (SGT)' },
-  { value: 'Asia/Bangkok',        label: 'UTC+7  — Bangkok (ICT)' },
-  { value: 'Asia/Jakarta',        label: 'UTC+7  — Jakarta (WIB)' },
-  { value: 'Asia/Hong_Kong',      label: 'UTC+8  — Hong Kong (HKT)' },
-  { value: 'Asia/Shanghai',       label: 'UTC+8  — Shanghai (CST)' },
-  { value: 'Asia/Tokyo',          label: 'UTC+9  — Tokyo (JST)' },
-  { value: 'Asia/Seoul',          label: 'UTC+9  — Seoul (KST)' },
-  { value: 'Asia/Kolkata',        label: 'UTC+5:30 — India (IST)' },
-  { value: 'Asia/Dubai',          label: 'UTC+4  — Dubai (GST)' },
-  { value: 'Europe/London',       label: 'UTC+0  — London (GMT/BST)' },
-  { value: 'Europe/Paris',        label: 'UTC+1  — Paris (CET/CEST)' },
-  { value: 'America/New_York',    label: 'UTC-5  — New York (EST/EDT)' },
-  { value: 'America/Chicago',     label: 'UTC-6  — Chicago (CST/CDT)' },
-  { value: 'America/Los_Angeles', label: 'UTC-8  — Los Angeles (PST/PDT)' },
-  { value: 'Australia/Sydney',    label: 'UTC+10 — Sydney (AEST/AEDT)' },
-  { value: 'Pacific/Auckland',    label: 'UTC+12 — Auckland (NZST/NZDT)' },
 ];
 
 const adminLinks = [
@@ -456,7 +450,7 @@ const adminLinks = [
 /* ─── Page shell ──────────────────────────────────────────────────────────── */
 .page {
   padding: 28px 32px;
-  max-width: 1080px;
+  max-width: 1260px;
 }
 
 .page-header {
@@ -492,8 +486,8 @@ const adminLinks = [
 /* ─── Two-column layout ───────────────────────────────────────────────────── */
 .settings-layout {
   display: grid;
-  grid-template-columns: 220px 1fr;
-  gap: 28px;
+  grid-template-columns: 250px 1fr;
+  gap: 36px;
   align-items: start;
 }
 
@@ -619,9 +613,9 @@ const adminLinks = [
 .content-card {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 24px;
-  margin-bottom: 16px;
+  border-radius: var(--radius-lg);
+  padding: 28px 30px;
+  margin-bottom: 20px;
 }
 .content-card.no-pad {
   padding: 0;
@@ -645,10 +639,10 @@ const adminLinks = [
 }
 .theme-card {
   flex: 1;
-  min-width: 110px;
+  min-width: 130px;
   border: 2px solid var(--border);
-  border-radius: 10px;
-  padding: 20px 12px 16px;
+  border-radius: 12px;
+  padding: 28px 16px 22px;
   text-align: center;
   cursor: pointer;
   background: var(--surface);
@@ -656,7 +650,7 @@ const adminLinks = [
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 7px;
+  gap: 10px;
 }
 .theme-card:hover {
   border-color: var(--primary);
@@ -671,17 +665,17 @@ const adminLinks = [
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
-  border-radius: 8px;
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
   background: var(--app-bg);
 }
 .theme-card.selected .theme-icon {
   color: var(--primary);
   background: var(--primary-soft);
 }
-.theme-label { font-size: 13px; font-weight: 600; color: var(--text-1); }
-.theme-hint  { font-size: 11px; color: var(--text-2); }
+.theme-label { font-size: 14px; font-weight: 700; color: var(--text-1); }
+.theme-hint  { font-size: 12px; color: var(--text-2); }
 
 /* ─── Settings rows ───────────────────────────────────────────────────────── */
 .settings-list {
@@ -710,17 +704,17 @@ const adminLinks = [
 .setting-desc  { font-size: 12px; color: var(--text-2); }
 
 .setting-select {
-  height: 36px;
+  height: 38px;
   border: 1.5px solid var(--border);
   border-radius: 8px;
-  padding: 0 10px;
+  padding: 0 12px;
   font-size: 13px;
   color: var(--text-1);
   background: var(--surface);
   outline: none;
   cursor: pointer;
   transition: border-color 0.15s;
-  min-width: 180px;
+  min-width: 220px;
   flex-shrink: 0;
 }
 .setting-select:focus { border-color: var(--primary); }
@@ -799,6 +793,65 @@ const adminLinks = [
 .toggle-switch input:checked + .toggle-slider { background: var(--primary); }
 .toggle-switch input:checked + .toggle-slider::before { transform: translateX(20px); }
 
+/* ─── Security tab ────────────────────────────────────────────────────────── */
+.sec-card-head {
+  display: flex;
+  align-items: center;
+  margin-bottom: 20px;
+}
+.sec-card-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-2);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
+
+.sec-value {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-1);
+  text-align: right;
+  flex-shrink: 0;
+}
+.sec-value--mono {
+  font-family: 'Courier New', monospace;
+  font-size: 12.5px;
+  background: var(--surface-2);
+  padding: 3px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border-soft);
+}
+
+.sec-badge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: capitalize;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--primary-soft);
+  color: var(--primary-text);
+  flex-shrink: 0;
+}
+
+.sec-password-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+}
+.sec-password-info { flex: 1; min-width: 0; }
+.sec-password-desc {
+  font-size: 13px;
+  color: var(--text-2);
+  line-height: 1.6;
+  margin: 0;
+}
+
 /* ─── Admin links ─────────────────────────────────────────────────────────── */
 .admin-link-row {
   display: flex;
@@ -844,6 +897,17 @@ const adminLinks = [
 .btn-save { background: var(--primary); color: white; }
 .btn-save:hover:not(:disabled) { background: var(--primary-hover); }
 .btn-save:disabled { opacity: 0.55; cursor: not-allowed; }
+.btn-outline {
+  background: transparent;
+  color: var(--primary);
+  border: 1.5px solid var(--primary) !important;
+  white-space: nowrap;
+  flex-shrink: 0;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+}
+.btn-outline:hover { background: var(--primary-soft); }
 
 /* ─── Responsive ──────────────────────────────────────────────────────────── */
 @media (max-width: 768px) {
@@ -867,5 +931,6 @@ const adminLinks = [
   .setting-select { min-width: 100%; width: 100%; }
   .theme-options { gap: 8px; }
   .theme-card { min-width: 80px; padding: 14px 8px 10px; }
+  .sec-password-row { flex-direction: column; }
 }
 </style>

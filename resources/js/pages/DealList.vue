@@ -34,6 +34,12 @@
       </div>
     </div>
 
+    <!-- WIP notice (admin-only) -->
+    <div v-if="isAdmin" class="wip-notice">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      <span>This page is still a work in progress. Some features may be incomplete or subject to change.</span>
+    </div>
+
     <!-- ── Filter bar ── -->
     <div class="filter-bar">
       <select v-model="filterStage" @change="applyFilters" class="fc" title="Stage">
@@ -468,6 +474,15 @@ onMounted(() => { load(); loadSummary(); loadUsers(); });
   padding: 14px 20px 12px; box-sizing: border-box;
   gap: 10px;
 }
+
+/* WIP notice (admin-only) */
+.wip-notice {
+  display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+  background: var(--warning-soft); color: #92400e;
+  border: 1px solid #fcd34d; border-radius: var(--radius-sm);
+  padding: 10px 14px; font-size: 13px;
+}
+.wip-notice svg { flex-shrink: 0; color: var(--warning); }
 
 /* ── Header ── */
 .header {
