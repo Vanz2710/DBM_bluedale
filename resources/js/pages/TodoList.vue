@@ -158,7 +158,7 @@
       </div>
     </div>
     <!-- Add To-Do Modal -->
-    <div v-if="addModal.open" class="remark-overlay" @click.self="closeAddModal">
+    <div v-if="addModal.open" class="remark-overlay">
       <div class="add-todo-modal">
         <div class="add-modal-header">
           <div class="add-modal-title-block">
@@ -235,7 +235,7 @@
     </div>
 
     <!-- Add Follow-Up Modal -->
-    <div v-if="fuModal.open" class="remark-overlay" @click.self="closeFuModal">
+    <div v-if="fuModal.open" class="remark-overlay">
       <div class="add-todo-modal">
         <div class="add-modal-header">
           <div class="add-modal-title-block">
@@ -286,7 +286,7 @@
   </div>
 
   <Teleport to="body">
-    <div v-if="followUpPrompt.open" class="conf-overlay" @click.self="dismissFollowUpPrompt">
+    <div v-if="followUpPrompt.open" class="conf-overlay">
       <div class="conf-modal">
         <div class="conf-head">
           <div>
@@ -310,7 +310,7 @@
       </div>
     </div>
 
-    <div v-if="deleteTodoModal.open" class="conf-overlay" @click.self="closeDeleteTodoModal">
+    <div v-if="deleteTodoModal.open" class="conf-overlay">
       <div class="conf-modal">
         <div class="conf-head">
           <div>

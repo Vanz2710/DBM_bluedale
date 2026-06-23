@@ -45,6 +45,22 @@
             </select>
           </div>
         </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Area</label>
+            <select v-model="form.area_id">
+              <option value="">— No change —</option>
+              <option v-for="a in lookups.areas" :key="a.id" :value="a.id">{{ a.name }}</option>
+            </select>
+          </div>
+          <div v-if="isAdmin" class="form-group">
+            <label>Assign To</label>
+            <select v-model="form.user_id">
+              <option value="">— No change —</option>
+              <option v-for="u in lookups.users" :key="u.id" :value="u.id">{{ u.name }}</option>
+            </select>
+          </div>
+        </div>
         <div class="form-group">
           <label>Lead Source</label>
           <select v-model="form.lead_source">
@@ -83,9 +99,11 @@ import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import api from '../api.js';
 import LoadingSpinner from '../components/LoadingSpinner.vue';
+import { usePermissions } from '../composables/usePermissions.js';
 
 const route = useRoute();
 const router = useRouter();
+const { isAdmin } = usePermissions();
 const id = route.params.id;
 const loading = ref(true);
 const saving = ref(false);
@@ -93,10 +111,10 @@ const error = ref('');
 const dupError = ref('');
 let dupTimer = null;
 
-const lookups = ref({ statuses: [], types: [], industries: [], categories: [] });
+const lookups = ref({ statuses: [], types: [], industries: [], categories: [], areas: [], users: [] });
 const form = ref({
   name: '', status_id: '', type_id: '', industry_id: '',
-  category_id: '', address: '', lead_source: '', remark: '',
+  category_id: '', area_id: '', address: '', lead_source: '', remark: '', user_id: '',
 });
 
 function checkDuplicate() {
@@ -141,9 +159,11 @@ onMounted(async () => {
       type_id:     c.type_id     ?? '',
       industry_id: c.industry_id ?? '',
       category_id: c.category_id ?? '',
+      area_id:     c.area_id     ?? '',
       address:     c.address     ?? '',
       lead_source: c.lead_source ?? '',
       remark:      c.remark      ?? '',
+      user_id:     c.user_id     ?? '',
     };
     lookups.value = lookupRes.data;
   } catch (e) {

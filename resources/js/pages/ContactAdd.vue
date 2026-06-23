@@ -49,6 +49,22 @@
           </div>
           <div class="form-row">
             <div class="form-group">
+              <label>Area</label>
+              <select v-model="form.area_id">
+                <option value="">Select area</option>
+                <option v-for="a in lookups.areas" :key="a.id" :value="a.id">{{ a.name }}</option>
+              </select>
+            </div>
+            <div v-if="isAdmin" class="form-group">
+              <label>Assign To</label>
+              <select v-model="form.user_id">
+                <option value="">— Assign to me —</option>
+                <option v-for="u in lookups.users" :key="u.id" :value="u.id">{{ u.name }}</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
               <label>Lead Source</label>
               <select v-model="form.lead_source">
                 <option value="manual">Manual Entry</option>
@@ -125,18 +141,21 @@
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import api from '../api.js';
+import { usePermissions } from '../composables/usePermissions.js';
 
 const router = useRouter();
+const { isAdmin } = usePermissions();
 const step = ref(1);
 const saving = ref(false);
 const submitError = ref('');
 const dupError = ref('');
 let dupTimer = null;
 
-const lookups = ref({ statuses: [], industries: [], types: [], categories: [] });
+const lookups = ref({ statuses: [], industries: [], types: [], categories: [], areas: [], users: [] });
 
 const form = ref({
   name: '', status_id: '', industry_id: '', type_id: '', category_id: '',
+  area_id: '', user_id: '',
   address: '', created_at: new Date().toISOString().slice(0, 10),
   lead_source: 'manual',
 });

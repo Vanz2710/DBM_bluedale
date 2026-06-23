@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="page">
     <div class="page-head">
       <div>
@@ -91,7 +91,7 @@
 
     <!-- Diff modal -->
     <Teleport to="body">
-      <div v-if="diffModal.open" class="overlay" @click.self="diffModal.open = false">
+      <div v-if="diffModal.open" class="overlay">
         <div class="modal modal-wide">
           <div class="modal-head">
             <div>

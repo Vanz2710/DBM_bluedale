@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="page">
 
     <!-- Page Header -->
@@ -529,7 +529,7 @@
 
     <!-- ── Task Detail Panel (right slide-in) ──────────────────────────────── -->
     <transition name="slide-panel">
-      <div v-if="selectedTask" class="panel-overlay" @click.self="selectedTask = null">
+      <div v-if="selectedTask" class="panel-overlay">
         <div class="detail-panel">
           <div class="dp-header">
             <div>
@@ -671,7 +671,7 @@
 
     <!-- ── Task Create/Edit Modal ────────────────────────────────────────────── -->
     <transition name="modal-fade">
-      <div v-if="showModal" class="modal-backdrop" @click.self="showModal = false">
+      <div v-if="showModal" class="modal-backdrop">
         <div class="modal-box">
           <div class="modal-header">
             <h3 class="modal-title">{{ editTask ? 'Edit Task' : 'New Task' }}</h3>
@@ -756,7 +756,7 @@
 
     <!-- ── Delete Confirm Modal ──────────────────────────────────────────────── -->
     <transition name="modal-fade">
-      <div v-if="showDeleteConfirm" class="modal-backdrop" @click.self="showDeleteConfirm = false">
+      <div v-if="showDeleteConfirm" class="modal-backdrop">
         <div class="modal-box modal-sm">
           <div class="modal-header">
             <h3 class="modal-title">Delete Task</h3>

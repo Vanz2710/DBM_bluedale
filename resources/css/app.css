@@ -4,6 +4,7 @@
    each component; this is the catch-all at the document root.
 ──────────────────────────────────────────────────────────────────────── */
 html, body { overflow-x: hidden; }
+body.modal-open { overflow: hidden; }
 
 /* Media elements never burst their container */
 img, video, iframe, canvas { max-width: 100%; height: auto; }

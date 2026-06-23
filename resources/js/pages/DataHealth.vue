@@ -133,7 +133,7 @@
       </div>
 
       <!-- Merge Modal -->
-      <div v-if="mergeModal.open" class="modal-backdrop" @click.self="closeMerge">
+      <div v-if="mergeModal.open" class="modal-backdrop">
         <div class="modal-box">
           <div class="modal-header">
             <h2 class="modal-title">Merge Duplicates — {{ mergeModal.name }}</h2>

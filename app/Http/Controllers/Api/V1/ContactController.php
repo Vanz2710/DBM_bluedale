@@ -232,6 +232,8 @@ class ContactController extends Controller
 
     public function store(Request $request)
     {
+        $me = Auth::user();
+
         $validated = $request->validate([
             'name'        => 'required|string|max:500|unique:contacts,name',
             'address'     => 'nullable|string|max:255',
@@ -241,10 +243,15 @@ class ContactController extends Controller
             'type_id'     => 'nullable|exists:contact_types,id',
             'category_id' => 'nullable|exists:contact_categories,id',
             'industry_id' => 'nullable|exists:contact_industries,id',
+            'area_id'     => 'nullable|exists:contact_areas,id',
+            'user_id'     => 'nullable|exists:users,id',
             'created_at'  => 'nullable|date',
         ]);
 
-        $validated['user_id'] = Auth::id();
+        // Admins can assign to any user; regular users always own their own contacts
+        if (!$me->hasAnyRole(['admin', 'super-admin']) || empty($validated['user_id'])) {
+            $validated['user_id'] = $me->id;
+        }
 
         // Allow user-specified created_at date
         $contact = new Contact($validated);
@@ -316,13 +323,20 @@ class ContactController extends Controller
             'type_id'     => 'nullable|exists:contact_types,id',
             'category_id' => 'nullable|exists:contact_categories,id',
             'industry_id' => 'nullable|exists:contact_industries,id',
+            'area_id'     => 'nullable|exists:contact_areas,id',
+            'user_id'     => 'nullable|exists:users,id',
         ]);
+
+        // Only admins can reassign contact ownership
+        if (isset($validated['user_id']) && !$me->hasAnyRole(['admin', 'super-admin'])) {
+            unset($validated['user_id']);
+        }
 
         $contact->update($validated);
 
         return response()->json([
             'status' => 'success',
-            'data'   => $contact->load(['status', 'type', 'industry', 'category', 'user']),
+            'data'   => $contact->load(['status', 'type', 'industry', 'category', 'area', 'user']),
         ]);
     }
 

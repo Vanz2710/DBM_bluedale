@@ -60,8 +60,13 @@
             <td width="60%" style="vertical-align:top; padding-right:15px;">
 
                 @if(!empty($product['site_photo_data']))
-                    <img src="{{ $product['site_photo_data'] }}"
-                         style="display:block; width:100%; height:287px; border:1px solid #c8d4e8; margin-bottom:6px;">
+                    {{-- Explicit width+height attrs force dompdf to respect dimensions even when
+                         CSS height is ignored. The overflow:hidden wrapper clips any excess. --}}
+                    <div style="width:100%; height:287px; overflow:hidden; margin-bottom:6px; border:1px solid #c8d4e8;">
+                        <img src="{{ $product['site_photo_data'] }}"
+                             width="640" height="287"
+                             style="display:block; width:100%; height:287px;">
+                    </div>
                 @else
                     <div style="width:100%; height:287px; background:#f4f6fa; border:1px solid #c8d4e8;
                                 text-align:center; padding-top:134px; color:#bbb; font-size:9px;
@@ -71,8 +76,11 @@
                 @endif
 
                 @if(!empty($product['site_map_photo_data']))
-                    <img src="{{ $product['site_map_photo_data'] }}"
-                         style="display:block; width:100%; height:287px; border:1px solid #c8d4e8;">
+                    <div style="width:100%; height:287px; overflow:hidden; border:1px solid #c8d4e8;">
+                        <img src="{{ $product['site_map_photo_data'] }}"
+                             width="640" height="287"
+                             style="display:block; width:100%; height:287px;">
+                    </div>
                 @else
                     <div style="width:100%; height:287px; background:#f4f6fa; border:1px solid #c8d4e8;
                                 text-align:center; padding-top:134px; color:#bbb; font-size:9px;

@@ -44,6 +44,7 @@ use App\Http\Controllers\Api\V1\PredictiveController;
 use App\Http\Controllers\Api\V1\ContactEditGrantController;
 use App\Http\Controllers\Api\V1\SystemSettingsController;
 use App\Http\Controllers\Api\V1\UserSignatureController;
+use App\Http\Controllers\Api\V1\UserPreparedByController;
 use App\Http\Controllers\Api\V1\UserActivityController;
 use App\Http\Controllers\Api\V1\SessionController;
 use App\Http\Controllers\Api\V1\DeptTaskController;
@@ -238,6 +239,15 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::delete('site-availability/products/{product}', [SiteAvailabilityController::class, 'discardProduct']);
             Route::put('site-availability/bookings/{booking}', [SiteAvailabilityController::class, 'updateBooking']);
             Route::delete('site-availability/bookings/{booking}', [SiteAvailabilityController::class, 'destroyBooking']);
+
+            // Prepared-by profiles
+            Route::get('prepared-by/own',    [UserPreparedByController::class, 'getOwn']);
+            Route::put('prepared-by/own',    [UserPreparedByController::class, 'saveOwn']);
+            Route::get('prepared-by/active', [UserPreparedByController::class, 'getActive']);
+            Route::middleware('role:super-admin')->group(function () {
+                Route::get('prepared-by/profiles',                   [UserPreparedByController::class, 'listAll']);
+                Route::put('prepared-by/profiles/{user}/activate',   [UserPreparedByController::class, 'setActive']);
+            });
         });
 
         // User signatures — each user manages their own

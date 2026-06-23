@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="page">
 
     <!-- ── Header ── -->
@@ -203,7 +203,7 @@
     </div>
 
     <!-- ── Delete modal ── -->
-    <div v-if="deleteTarget" class="modal-backdrop" @click.self="deleteTarget = null">
+    <div v-if="deleteTarget" class="modal-backdrop">
       <div class="modal">
         <h3>Delete Deal?</h3>
         <p>Delete <strong>{{ deleteTarget.title }}</strong>?</p>

@@ -1,6 +1,6 @@
-<template>
+﻿<template>
   <transition name="fm">
-    <div v-if="open" class="fm-overlay" @click.self="$emit('close')">
+    <div v-if="open" class="fm-overlay">
       <div class="fm-modal">
         <div class="fm-header">
           <div class="fm-title-block">

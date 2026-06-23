@@ -53,8 +53,13 @@ class PerformanceController extends Controller
 
     public function report(Request $request)
     {
+        $authUser = Auth::user();
+        $isAdmin  = $authUser->hasAnyRole(['admin', 'super-admin']);
+
         $viewType  = $request->input('view', 'week');
-        $userId    = $request->input('user_id', Auth::id());
+        $userId    = $isAdmin
+            ? ($request->input('user_id') ?: $authUser->id)
+            : $authUser->id;
         $startDate = $request->input('start_date');
         $endDate   = $request->input('end_date');
         $month     = $request->input('month');

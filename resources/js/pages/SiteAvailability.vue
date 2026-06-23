@@ -260,7 +260,7 @@
       </div>
     </div>
 
-    <div v-if="selectedProduct" class="modal-backdrop" @click.self="closeProductDetail">
+    <div v-if="selectedProduct" class="modal-backdrop">
       <section class="product-detail-modal" role="dialog" aria-modal="true">
 
         <!-- Header -->
@@ -419,7 +419,7 @@
     </div>
 
     <!-- Add / Edit Booking Modal -->
-    <div v-if="entryModalOpen" class="modal-backdrop" @click.self="closeEntryModal">
+    <div v-if="entryModalOpen" class="modal-backdrop">
       <section class="entry-modal" role="dialog" aria-modal="true">
         <header class="entry-modal-head">
           <div>
@@ -512,7 +512,7 @@
     </div>
 
     <!-- Cell Menu Modal (view / edit / delete booking, quick-add if empty) -->
-    <div v-if="cellMenu.open" class="modal-backdrop" @click.self="closeCellMenu">
+    <div v-if="cellMenu.open" class="modal-backdrop">
       <section class="cell-menu-modal" role="dialog" aria-modal="true">
         <header class="cell-menu-head">
           <div>
@@ -549,7 +549,7 @@
     </div>
 
     <!-- Register New Product Modal -->
-    <div v-if="showRegisterModal" class="modal-backdrop" @click.self="closeRegisterModal">
+    <div v-if="showRegisterModal" class="modal-backdrop">
       <section class="register-modal" role="dialog" aria-modal="true">
         <div class="register-modal-header">
           <h2>Register New Product</h2>
@@ -701,7 +701,7 @@
     </div>
 
     <!-- Proposal Wizard Modal -->
-    <div v-if="proposalWizardOpen" class="modal-backdrop" @click.self="closeProposalWizard">
+    <div v-if="proposalWizardOpen" class="modal-backdrop">
       <section class="wizard-modal" role="dialog" aria-modal="true">
         <header class="wizard-header">
           <div>
@@ -815,18 +815,24 @@
           <!-- Section: Signatory -->
           <div class="wizard-section">
             <div class="wizard-section-head">Prepared By</div>
-            <div class="wizard-signatory-presets">
-              <button v-for="p in signatoryPresets" :key="p.name" type="button"
+            <div v-if="myPreparedBy || activePreparedBy" class="wizard-signatory-presets">
+              <button v-if="myPreparedBy" type="button"
                 class="signatory-preset-btn"
-                :class="{ active: proposalForm.signatory_name === p.name }"
-                @click="applySignatoryPreset(p)">
-                {{ p.label }}
+                :class="{ active: proposalForm.signatory_name === myPreparedBy.name }"
+                @click="applyPreparedByProfile(myPreparedBy)">
+                My Profile
+              </button>
+              <button v-if="activePreparedBy && activePreparedBy.user_id !== authUserId" type="button"
+                class="signatory-preset-btn"
+                :class="{ active: proposalForm.signatory_name === activePreparedBy.name }"
+                @click="applyPreparedByProfile(activePreparedBy)">
+                {{ activePreparedBy.user_name }}'s Profile
               </button>
             </div>
             <div class="wizard-grid" style="margin-top:8px;">
               <div class="field">
                 <label>Full Name</label>
-                <input v-model="proposalForm.signatory_name" placeholder="e.g. NURUL ASYIQIN JAAFAR">
+                <input v-model="proposalForm.signatory_name" placeholder="e.g. John Doe">
               </div>
               <div class="field">
                 <label>Title / Position</label>
@@ -841,6 +847,16 @@
                   <input v-model="proposalForm.signatory_mobile_local" class="phone-local-input" placeholder="14-907 253">
                 </div>
                 <p v-if="proposalErrors.signatory_mobile" class="field-error">{{ proposalErrors.signatory_mobile }}</p>
+              </div>
+
+              <!-- Save prepared-by details -->
+              <div class="field full">
+                <button type="button" class="btn-save-prep"
+                  :disabled="savingPreparedBy || !proposalForm.signatory_name.trim()"
+                  @click="savePreparedByProfile">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                  {{ savingPreparedBy ? 'Saving…' : preparedBySaved ? 'Saved' : 'Save My Details' }}
+                </button>
               </div>
 
               <!-- Signature pad — full width -->
@@ -877,6 +893,30 @@
                 </div>
               </div>
             </div>
+
+            <!-- Super-admin: manage signatory profiles -->
+            <div v-if="isSuperAdmin" class="profiles-admin-panel">
+              <button type="button" class="profiles-admin-toggle" @click="toggleProfilesPanel">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                Manage Signatory Profiles
+                <svg class="toggle-chevron" :class="{ open: showProfilesPanel }" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+              </button>
+              <div v-if="showProfilesPanel" class="profiles-admin-body">
+                <div v-if="loadingProfiles" class="profiles-loading">Loading…</div>
+                <p v-else-if="preparedByProfiles.length === 0" class="profiles-empty">No profiles saved yet.</p>
+                <div v-else v-for="profile in preparedByProfiles" :key="profile.user_id" class="profile-admin-row">
+                  <div class="profile-admin-info">
+                    <div class="profile-admin-name">{{ profile.name }}</div>
+                    <div class="profile-admin-meta">{{ profile.title || '—' }} · {{ profile.user_email }}</div>
+                  </div>
+                  <div class="profile-admin-actions">
+                    <span v-if="profile.is_active" class="badge-active-pill">Active</span>
+                    <button v-else type="button" class="btn-set-active" @click="setActivePreparedBy(profile.user_id)">Set Active</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
           </div>
 
         </div>
@@ -1035,7 +1075,7 @@
   </div>
 
   <Teleport to="body">
-    <div v-if="removePhotoModal.open" class="conf-overlay" @click.self="closeRemovePhotoModal">
+    <div v-if="removePhotoModal.open" class="conf-overlay">
       <div class="conf-modal">
         <div class="conf-head">
           <div>
@@ -1062,7 +1102,7 @@
   </Teleport>
 
   <Teleport to="body">
-    <div v-if="discardProductModal.open" class="conf-overlay" @click.self="closeDiscardProductModal">
+    <div v-if="discardProductModal.open" class="conf-overlay">
       <div class="conf-modal">
         <div class="conf-head">
           <div>
@@ -1090,7 +1130,7 @@
 
   <!-- Billboard Overlay Editor -->
   <Teleport to="body">
-    <div v-if="overlayEditorOpen" class="overlay-editor-backdrop" @click.self="closeOverlayEditor">
+    <div v-if="overlayEditorOpen" class="overlay-editor-backdrop">
       <div class="overlay-editor-modal">
         <div class="overlay-editor-head">
           <div>
@@ -1128,7 +1168,7 @@
   </Teleport>
 
   <Teleport to="body">
-    <div v-if="removeBookingModal.open" class="conf-overlay" @click.self="closeRemoveBookingModal">
+    <div v-if="removeBookingModal.open" class="conf-overlay">
       <div class="conf-modal">
         <div class="conf-head">
           <div>
@@ -1222,16 +1262,99 @@ const phoneCountries = [
   { code: '+33',  short: 'FR', name: 'France' },
 ]
 
-const signatoryPresets = [
-  { label: 'Nurul Asyiqin', name: 'NURUL ASYIQIN JAAFAR', title: 'Assistant Business Manager', mobile_code: '+60', mobile_local: '14-907 253', signature_label: 'Asyiqin' },
-]
+// ── Prepared-by profiles ───────────────────────────────────────────────────
+const _authUser        = JSON.parse(localStorage.getItem('crm_user') || 'null');
+const authUserId       = _authUser?.id ?? null;
+const isSuperAdmin     = _authUser?.roles?.includes('super-admin') ?? false;
 
-function applySignatoryPreset(p) {
-  proposalForm.value.signatory_name         = p.name
-  proposalForm.value.signatory_title        = p.title
-  proposalForm.value.signatory_mobile_code  = p.mobile_code
-  proposalForm.value.signatory_mobile_local = p.mobile_local
-  proposalForm.value.signatory_label        = p.signature_label
+const myPreparedBy       = ref(null);
+const activePreparedBy   = ref(null);
+const preparedByProfiles = ref([]);
+const savingPreparedBy   = ref(false);
+const preparedBySaved    = ref(false);
+const loadingProfiles    = ref(false);
+const showProfilesPanel  = ref(false);
+
+function applyPreparedByProfile(p) {
+  proposalForm.value.signatory_name         = p.name || '';
+  proposalForm.value.signatory_title        = p.title || '';
+  proposalForm.value.signatory_mobile_code  = p.mobile_code || '+60';
+  proposalForm.value.signatory_mobile_local = p.mobile_local || '';
+  proposalForm.value.signatory_label        = p.signature_label || '';
+}
+
+async function loadPreparedByProfile() {
+  try {
+    const [ownRes, activeRes] = await Promise.all([
+      api.get('/v1/prepared-by/own'),
+      api.get('/v1/prepared-by/active'),
+    ]);
+    myPreparedBy.value     = ownRes.data;
+    activePreparedBy.value = activeRes.data;
+    const profile = ownRes.data || activeRes.data;
+    if (profile) applyPreparedByProfile(profile);
+  } catch (_) {}
+}
+
+async function savePreparedByProfile() {
+  if (!proposalForm.value.signatory_name.trim()) return;
+  savingPreparedBy.value = true;
+  try {
+    const label = proposalForm.value.signatory_label.trim()
+      || proposalForm.value.signatory_name.trim().split(' ')[0];
+    await api.put('/v1/prepared-by/own', {
+      name:            proposalForm.value.signatory_name.trim(),
+      title:           proposalForm.value.signatory_title.trim(),
+      mobile_code:     proposalForm.value.signatory_mobile_code,
+      mobile_local:    proposalForm.value.signatory_mobile_local.trim(),
+      signature_label: label,
+    });
+    myPreparedBy.value = {
+      name:            proposalForm.value.signatory_name.trim(),
+      title:           proposalForm.value.signatory_title.trim(),
+      mobile_code:     proposalForm.value.signatory_mobile_code,
+      mobile_local:    proposalForm.value.signatory_mobile_local.trim(),
+      signature_label: label,
+    };
+    proposalForm.value.signatory_label = label;
+    preparedBySaved.value = true;
+    showToast('Prepared-by details saved');
+    setTimeout(() => { preparedBySaved.value = false; }, 2500);
+  } catch (_) {
+    showToast('Failed to save details');
+  } finally {
+    savingPreparedBy.value = false;
+  }
+}
+
+async function loadProfilesPanel() {
+  if (preparedByProfiles.value.length) return;
+  loadingProfiles.value = true;
+  try {
+    const res = await api.get('/v1/prepared-by/profiles');
+    preparedByProfiles.value = res.data;
+  } catch (_) {} finally {
+    loadingProfiles.value = false;
+  }
+}
+
+function toggleProfilesPanel() {
+  showProfilesPanel.value = !showProfilesPanel.value;
+  if (showProfilesPanel.value) loadProfilesPanel();
+}
+
+async function setActivePreparedBy(userId) {
+  try {
+    await api.put(`/v1/prepared-by/profiles/${userId}/activate`);
+    preparedByProfiles.value = preparedByProfiles.value.map(p => ({
+      ...p, is_active: p.user_id === userId,
+    }));
+    const active = preparedByProfiles.value.find(p => p.user_id === userId);
+    if (active) activePreparedBy.value = active;
+    showToast('Active signatory updated');
+  } catch (_) {
+    showToast('Failed to update');
+  }
 }
 
 // ── Signature pad ──────────────────────────────────────────────────────────
@@ -1239,6 +1362,7 @@ const sigPadRef  = ref(null);
 const sigDrawing = ref(false);
 const sigSaving  = ref(false);
 const sigSaved   = ref(false);
+const sigLoaded  = ref(false); // tracks whether sig was drawn for the current wizard session
 
 function _sigCtx() {
   const c = sigPadRef.value;
@@ -1339,17 +1463,29 @@ async function loadSavedSig() {
     const data = res.data?.signature_data;
     if (!data) return;
     proposalForm.value.signatory_signature = data;
-    await nextTick();
+    // Re-check ref after async gap — user may have navigated away from step 'info'
     const c = sigPadRef.value;
     if (!c) return;
     const img = new Image();
     img.onload = () => {
-      c.getContext('2d').clearRect(0, 0, c.width, c.height);
-      c.getContext('2d').drawImage(img, 0, 0);
+      // Re-fetch ref again in case canvas was replaced between load and paint
+      const canvas = sigPadRef.value;
+      if (!canvas) return;
+      canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+      canvas.getContext('2d').drawImage(img, 0, 0);
     };
     img.src = data;
   } catch (_) { /* no saved sig */ }
 }
+
+// Fire loadSavedSig as soon as the canvas element is in the DOM (sigPadRef becomes non-null).
+// This is more reliable than nextTick because we're reacting to the ref itself being set,
+// meaning the canvas is guaranteed to exist when we try to draw on it.
+watch(sigPadRef, (canvas) => {
+  if (!canvas || sigLoaded.value) return;
+  sigLoaded.value = true;
+  loadSavedSig();
+});
 
 const proposalForm = ref({
   client_name: '',
@@ -1367,11 +1503,11 @@ const proposalForm = ref({
   promo_until: '',
   re_line: '',
   print_mode: 'both',
-  signatory_name:         'NURUL ASYIQIN JAAFAR',
-  signatory_title:        'Assistant Business Manager',
+  signatory_name:         '',
+  signatory_title:        '',
   signatory_mobile_code:  '+60',
-  signatory_mobile_local: '14-907 253',
-  signatory_label:        'Asyiqin',
+  signatory_mobile_local: '',
+  signatory_label:        '',
   signatory_signature:    '',
 });
 const proposalWizardOpen = ref(false);
@@ -2067,9 +2203,10 @@ function openProposalWizard() {
     if (p.product_type === 'Lamp Post Bunting') qty[p.id] = { pcs: 10, poles: 5 }
   })
   siteQuantities.value = qty
+  sigLoaded.value = false; // allow watch to fire loadSavedSig for this session
+  loadPreparedByProfile();
   proposalWizardOpen.value = true;
   sigSaved.value = false;
-  nextTick(() => loadSavedSig());
 }
 
 function closeProposalWizard() {
@@ -2078,6 +2215,7 @@ function closeProposalWizard() {
   pasteTargetId.value = null;
   siteQuantities.value = {};
   sigSaved.value = false;
+  sigLoaded.value = false;
   if (previewUrl.value) { window.URL.revokeObjectURL(previewUrl.value); previewUrl.value = null; }
   previewBlob.value = null;
   previewLoading.value = false;
@@ -2087,9 +2225,9 @@ function closeProposalWizard() {
     duration: 1, duration_label: '', normal_price: null, price_per_unit: null,
     quantity_size: '', sst_rate: 0.08, promo_until: '', re_line: '',
     print_mode: 'both',
-    signatory_name: 'NURUL ASYIQIN JAAFAR', signatory_title: 'Assistant Business Manager',
-    signatory_mobile_code: '+60', signatory_mobile_local: '14-907 253',
-    signatory_label: 'Asyiqin', signatory_signature: '',
+    signatory_name: '', signatory_title: '',
+    signatory_mobile_code: '+60', signatory_mobile_local: '',
+    signatory_label: '', signatory_signature: '',
   };
 }
 
@@ -2917,6 +3055,8 @@ async function submitStagePendingProduct() {
     proposalForm.value.reference = makeDefaultReference();
     proposalForm.value.print_mode = 'both';
     error.value = '';
+    sigLoaded.value = false;
+    loadPreparedByProfile();
     wizardStep.value = 'info';
     proposalWizardOpen.value = true;
   } catch (e) {
@@ -2932,6 +3072,8 @@ function printPdfForStagedProduct(product) {
   proposalForm.value.reference = makeDefaultReference();
   proposalForm.value.include_site_sheets = true;
   error.value = '';
+  sigLoaded.value = false;
+  loadPreparedByProfile();
   wizardStep.value = 'info';
   proposalWizardOpen.value = true;
 }
@@ -3962,6 +4104,40 @@ onMounted(() => {
 .signatory-preset-btn.active {
   background: var(--primary); color: #fff; border-color: var(--primary);
 }
+.btn-save-prep {
+  display: inline-flex; align-items: center; gap: 6px; width: fit-content;
+  padding: 6px 14px; background: var(--surface-2); color: var(--text-2);
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  font-size: 12px; font-weight: 500; cursor: pointer; transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.btn-save-prep:hover:not(:disabled) { background: var(--primary-soft); color: var(--primary); border-color: var(--primary); }
+.btn-save-prep:disabled { opacity: 0.5; cursor: not-allowed; }
+.profiles-admin-panel { margin-top: 16px; border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; }
+.profiles-admin-toggle {
+  display: flex; align-items: center; gap: 8px; width: 100%; padding: 10px 14px;
+  background: var(--surface-2); border: none; font-size: 12px; font-weight: 600;
+  color: var(--text-2); cursor: pointer; text-align: left;
+}
+.profiles-admin-toggle:hover { color: var(--text-1); background: var(--border-soft); }
+.toggle-chevron { transition: transform 0.2s; margin-left: auto; flex-shrink: 0; }
+.toggle-chevron.open { transform: rotate(180deg); }
+.profiles-admin-body { border-top: 1px solid var(--border); }
+.profiles-loading, .profiles-empty { padding: 12px 14px; font-size: 13px; color: var(--text-3); font-style: italic; margin: 0; }
+.profile-admin-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 14px; border-bottom: 1px solid var(--border-soft);
+}
+.profile-admin-row:last-child { border-bottom: none; }
+.profile-admin-name { font-size: 13px; font-weight: 600; color: var(--text-1); }
+.profile-admin-meta { font-size: 11px; color: var(--text-3); margin-top: 2px; }
+.profile-admin-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; margin-left: 12px; }
+.badge-active-pill { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 11px; font-weight: 600; background: #dcfce7; color: #15803d; }
+.btn-set-active {
+  padding: 4px 12px; font-size: 12px; font-weight: 600; border-radius: var(--radius-sm); cursor: pointer;
+  background: var(--primary-soft); color: var(--primary); border: 1px solid var(--primary);
+  transition: background 0.15s, color 0.15s;
+}
+.btn-set-active:hover { background: var(--primary); color: #fff; }
 .wizard-section-head {
   font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.7px;
   color: var(--text-1); margin-bottom: 12px; padding: 0 0 9px 10px;

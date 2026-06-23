@@ -142,7 +142,7 @@
     </div>
 
     <!-- Delete confirmation modal -->
-    <div v-if="deleteTarget" class="modal-backdrop" @click.self="deleteTarget = null">
+    <div v-if="deleteTarget" class="modal-backdrop">
       <div class="modal">
         <h3>Delete Forecast?</h3>
         <p>Delete the forecast for <strong>{{ deleteTarget.contact_name }}</strong>?</p>

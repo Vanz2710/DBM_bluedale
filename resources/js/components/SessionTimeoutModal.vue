@@ -1,6 +1,6 @@
-<template>
+﻿<template>
   <Teleport to="body">
-    <div v-if="show" class="overlay" @click.self="$emit('stay')">
+    <div v-if="show" class="overlay">
       <div class="modal session-modal" role="dialog" aria-modal="true" aria-labelledby="session-title">
         <div class="modal-head">
           <div class="session-icon">

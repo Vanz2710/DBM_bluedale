@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="page">
     <div class="page-banner">
       <div class="banner-text">
@@ -122,7 +122,7 @@
     </div>
 
     <!-- Remark modal -->
-    <div v-if="remarkTarget" class="modal-backdrop" @click.self="remarkTarget = null">
+    <div v-if="remarkTarget" class="modal-backdrop">
       <div class="modal" role="dialog" aria-modal="true" aria-labelledby="remark-modal-title">
         <h3 id="remark-modal-title">Project Remark</h3>
         <p class="modal-company">{{ remarkTarget.contact_name }} — {{ remarkTarget.project_name }}</p>
@@ -135,7 +135,7 @@
     </div>
 
     <!-- Delete confirmation modal -->
-    <div v-if="deleteTarget" class="modal-backdrop" @click.self="deleteTarget = null">
+    <div v-if="deleteTarget" class="modal-backdrop">
       <div class="modal" role="dialog" aria-modal="true" aria-labelledby="delete-modal-title">
         <h3 id="delete-modal-title">Delete Project?</h3>
         <p>Are you sure you want to delete <strong>{{ deleteTarget.project_name }}</strong> for <strong>{{ deleteTarget.contact_name }}</strong>?</p>

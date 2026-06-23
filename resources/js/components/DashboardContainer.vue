@@ -102,7 +102,7 @@
 
     <!-- Widget picker modal -->
     <Teleport to="body">
-      <div v-if="showPicker" class="modal-backdrop" @click.self="showPicker = false">
+      <div v-if="showPicker" class="modal-backdrop">
         <div class="modal-box">
           <div class="modal-head">
             <span class="modal-title">Add Widget</span>

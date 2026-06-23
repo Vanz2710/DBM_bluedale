@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="page">
 
     <!-- Page Header -->
@@ -578,7 +578,7 @@
 
     <!-- Campaign Modal -->
     <Teleport to="body">
-      <div v-if="showCampaignModal" class="modal-backdrop" @click.self="showCampaignModal = false">
+      <div v-if="showCampaignModal" class="modal-backdrop">
         <div class="modal modal-lg">
           <div class="modal-header">
             <h3>{{ campaignForm.id ? 'Edit Campaign' : 'New Campaign' }}</h3>
@@ -632,7 +632,7 @@
 
     <!-- Send / Schedule Modal -->
     <Teleport to="body">
-      <div v-if="showSendModal" class="modal-backdrop" @click.self="showSendModal = false">
+      <div v-if="showSendModal" class="modal-backdrop">
         <div class="modal">
           <div class="modal-header">
             <h3>Send Campaign</h3>
@@ -681,7 +681,7 @@
 
     <!-- Contact Modal -->
     <Teleport to="body">
-      <div v-if="showContactModal" class="modal-backdrop" @click.self="showContactModal = false">
+      <div v-if="showContactModal" class="modal-backdrop">
         <div class="modal">
           <div class="modal-header">
             <h3>{{ contactForm.id ? 'Edit Contact' : 'New Contact' }}</h3>
@@ -727,7 +727,7 @@
 
     <!-- List Modal -->
     <Teleport to="body">
-      <div v-if="showListModal" class="modal-backdrop" @click.self="showListModal = false">
+      <div v-if="showListModal" class="modal-backdrop">
         <div class="modal">
           <div class="modal-header">
             <h3>{{ listForm.id ? 'Edit List' : 'Create List' }}</h3>
@@ -761,7 +761,7 @@
 
     <!-- Template Modal -->
     <Teleport to="body">
-      <div v-if="showTemplateModal" class="modal-backdrop" @click.self="showTemplateModal = false">
+      <div v-if="showTemplateModal" class="modal-backdrop">
         <div class="modal modal-lg">
           <div class="modal-header">
             <h3>{{ templateForm.id ? 'Edit Template' : 'New Template' }}</h3>
@@ -799,7 +799,7 @@
 
     <!-- Tag Manager Modal -->
     <Teleport to="body">
-      <div v-if="showTagModal" class="modal-backdrop" @click.self="showTagModal = false">
+      <div v-if="showTagModal" class="modal-backdrop">
         <div class="modal">
           <div class="modal-header">
             <h3>Manage Tags</h3>

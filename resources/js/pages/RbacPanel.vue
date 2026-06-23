@@ -280,7 +280,7 @@
 
     <!-- PERMISSION SYNC MODAL -->
     <Teleport to="body">
-      <div v-if="permModal.open" class="overlay" @click.self="permModal.open = false">
+      <div v-if="permModal.open" class="overlay">
         <div class="modal">
           <div class="modal-head">
             <div>
@@ -327,7 +327,7 @@
 
     <!-- ROLE SYNC MODAL -->
     <Teleport to="body">
-      <div v-if="roleModal.open" class="overlay" @click.self="roleModal.open = false">
+      <div v-if="roleModal.open" class="overlay">
         <div class="modal">
           <div class="modal-head">
             <div>
@@ -354,7 +354,7 @@
 
     <!-- EDIT USER MODAL -->
     <Teleport to="body">
-      <div v-if="editUserModal.open" class="overlay" @click.self="closeEditUserModal">
+      <div v-if="editUserModal.open" class="overlay">
         <div class="modal modal-wide">
           <div class="modal-head">
             <div>
@@ -499,7 +499,7 @@
 
     <!-- REMOVE GRANT CONFIRM MODAL -->
     <Teleport to="body">
-      <div v-if="removeGrantModal.open" class="overlay" @click.self="removeGrantModal.open = false">
+      <div v-if="removeGrantModal.open" class="overlay">
         <div class="modal">
           <div class="modal-head">
             <div>
@@ -529,7 +529,7 @@
 
   <!-- Restore Access confirm modal -->
   <Teleport to="body">
-    <div v-if="restoreAccessModal.open" class="overlay" @click.self="closeRestoreAccessModal">
+    <div v-if="restoreAccessModal.open" class="overlay">
       <div class="modal">
         <div class="modal-head">
           <div>
@@ -557,7 +557,7 @@
 
   <!-- Delete Role confirm modal -->
   <Teleport to="body">
-    <div v-if="deleteRoleModal.open" class="overlay" @click.self="closeDeleteRoleModal">
+    <div v-if="deleteRoleModal.open" class="overlay">
       <div class="modal">
         <div class="modal-head">
           <div>
@@ -585,7 +585,7 @@
 
   <!-- Unlock brute-force locked account modal -->
   <Teleport to="body">
-    <div v-if="unlockModal.open" class="overlay" @click.self="closeUnlockModal">
+    <div v-if="unlockModal.open" class="overlay">
       <div class="modal">
         <div class="modal-head">
           <div>
@@ -616,7 +616,7 @@
 
   <!-- Reset Password modal -->
   <Teleport to="body">
-    <div v-if="resetPwModal.open" class="overlay" @click.self="closeResetPwModal">
+    <div v-if="resetPwModal.open" class="overlay">
       <div class="modal">
         <div class="modal-head">
           <div>
@@ -669,7 +669,7 @@
 
   <!-- Delete User confirm modal -->
   <Teleport to="body">
-    <div v-if="deleteUserModal.open" class="overlay" @click.self="closeDeleteUserModal">
+    <div v-if="deleteUserModal.open" class="overlay">
       <div class="modal">
         <div class="modal-head">
           <div>

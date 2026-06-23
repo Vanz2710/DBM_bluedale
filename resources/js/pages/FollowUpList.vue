@@ -176,7 +176,7 @@
     </div>
 
     <!-- Add Follow-Up Modal -->
-    <div v-if="addModal.open" class="remark-overlay" @click.self="closeAddModal">
+    <div v-if="addModal.open" class="remark-overlay">
       <div class="add-followup-modal">
         <div class="add-modal-header">
           <div class="add-modal-title-block">
@@ -233,7 +233,7 @@
     </div>
 
     <!-- Delete confirmation modal -->
-    <div v-if="deleteTarget" class="modal-backdrop" @click.self="deleteTarget = null">
+    <div v-if="deleteTarget" class="modal-backdrop">
       <div class="modal">
         <h3>Delete Follow-Up?</h3>
         <p>Are you sure you want to delete this follow-up for <strong>{{ deleteTarget.contact_name }}</strong>?</p>

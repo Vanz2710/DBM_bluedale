@@ -337,7 +337,20 @@ watch(collapsed, (v) => localStorage.setItem('sidebarCollapsed', v ? '1' : '0'))
 
 const { loadFromServer } = useSettings();
 
+// Lock page scroll whenever any modal/overlay is visible.
+// Targets <html> (not body) because in most browsers the root element is the scroll container.
+const MODAL_SELECTOR = '.modal-overlay,.modal-backdrop,.conf-overlay,.remark-overlay,.drawer-overlay,.panel-overlay,.fm-overlay,.overlay-editor-backdrop,.overlay';
+let _modalObserver = null;
+function _syncModalLock() {
+  const open = !!document.querySelector(MODAL_SELECTOR);
+  document.documentElement.style.overflow = open ? 'hidden' : '';
+  document.body.style.overflow = open ? 'hidden' : '';
+}
+
 onMounted(() => {
+  _modalObserver = new MutationObserver(_syncModalLock);
+  _modalObserver.observe(document.body, { childList: true, subtree: true });
+
   window.addEventListener('user-profile-updated', () => {
     currentUser.value = JSON.parse(localStorage.getItem('crm_user') || 'null');
   });
@@ -363,6 +376,9 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
+  _modalObserver?.disconnect();
+  document.documentElement.style.overflow = '';
+  document.body.style.overflow = '';
   document.removeEventListener('click', handleDocClick, true);
   document.removeEventListener('keydown', handleKeydown);
 });

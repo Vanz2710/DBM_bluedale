@@ -257,7 +257,7 @@
     <div v-else class="not-found">Contact not found.</div>
 
     <!-- Task Follow-Up Modal -->
-    <div v-if="taskFuModal.open" class="modal-overlay" @click.self="closeTaskFuModal">
+    <div v-if="taskFuModal.open" class="modal-overlay">
       <div class="modal-box task-fu-modal">
         <div class="modal-head">
           <div class="modal-head-left">
@@ -317,7 +317,7 @@
     </div>
 
     <!-- Delete confirmation modal -->
-    <div v-if="showDeleteModal" class="modal-overlay" @click.self="closeDeleteModal">
+    <div v-if="showDeleteModal" class="modal-overlay">
       <div class="modal-box delete-modal">
         <div class="modal-head modal-head-danger">
           <strong class="modal-head-title">Delete Company</strong>
@@ -353,7 +353,7 @@
     />
 
   <Teleport to="body">
-    <div v-if="closedModal.open" class="conf-overlay" @click.self="closedModal.open = false">
+    <div v-if="closedModal.open" class="conf-overlay">
       <div class="conf-modal">
         <div class="conf-head">
           <div>
@@ -382,7 +382,7 @@
   </Teleport>
 
   <Teleport to="body">
-    <div v-if="deleteTaskModal.open" class="conf-overlay" @click.self="closeDeleteTaskModal">
+    <div v-if="deleteTaskModal.open" class="conf-overlay">
       <div class="conf-modal">
         <div class="conf-head">
           <div>
@@ -409,7 +409,7 @@
   </Teleport>
 
   <Teleport to="body">
-    <div v-if="deleteForecastModal.open" class="conf-overlay" @click.self="closeDeleteForecastModal">
+    <div v-if="deleteForecastModal.open" class="conf-overlay">
       <div class="conf-modal">
         <div class="conf-head">
           <div>

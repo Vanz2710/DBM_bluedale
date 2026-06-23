@@ -125,7 +125,7 @@
   </div>
 
   <Teleport to="body">
-    <div v-if="deleteModal.open" class="conf-overlay" @click.self="closeDeleteModal">
+    <div v-if="deleteModal.open" class="conf-overlay">
       <div class="conf-modal">
         <div class="conf-head">
           <div>
