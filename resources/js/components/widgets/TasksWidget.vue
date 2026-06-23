@@ -7,7 +7,15 @@
       </div>
       <router-link to="/todos" class="tw-view-all">View All</router-link>
     </div>
-    <div v-if="loading" class="tw-empty">Loading…</div>
+    <ul v-if="loading" class="tw-list">
+      <li v-for="i in 5" :key="i" class="tw-item">
+        <div class="skel skel-date"></div>
+        <div class="tw-body">
+          <div class="skel skel-name"></div>
+          <div class="skel skel-tag"></div>
+        </div>
+      </li>
+    </ul>
     <div v-else-if="!tasks.length" class="tw-empty">No pending tasks</div>
     <ul v-else class="tw-list">
       <li v-for="t in tasks" :key="t.id" class="tw-item">
@@ -189,4 +197,20 @@ onMounted(async () => {
   text-transform: uppercase;
   letter-spacing: 0.4px;
 }
+
+/* Skeleton shimmer */
+@keyframes shimmer {
+  from { background-position: -200% 0; }
+  to   { background-position:  200% 0; }
+}
+.skel {
+  background: linear-gradient(90deg, var(--border-soft) 25%, var(--border) 50%, var(--border-soft) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.6s infinite linear;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+.skel-date { height: 12px; width: 88px; }
+.skel-name { height: 13px; width: 75%; }
+.skel-tag  { height: 10px; width: 45%; margin-top: 5px; border-radius: 999px; }
 </style>

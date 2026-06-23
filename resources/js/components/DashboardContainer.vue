@@ -16,11 +16,13 @@
             <Move :size="12" />
             Drag &amp; resize to customise
           </span>
-          <span
-            v-if="saveStatus !== 'idle'"
-            class="save-status"
-            :class="`save-status--${saveStatus}`"
-          >{{ saveStatus === 'saved' ? 'Saved' : saveStatus === 'error' ? 'Save failed' : 'Saving…' }}</span>
+          <Transition name="status-fade">
+            <span
+              v-if="saveStatus !== 'idle'"
+              class="save-status"
+              :class="`save-status--${saveStatus}`"
+            >{{ saveStatus === 'saved' ? 'Saved' : saveStatus === 'error' ? 'Save failed' : 'Saving…' }}</span>
+          </Transition>
           <button
             class="hbtn hbtn-ghost"
             :class="{ 'hbtn-ghost--active': editMode }"
@@ -65,7 +67,7 @@
         @layout-updated="onLayoutUpdated"
       >
         <GridItem
-          v-for="item in layout"
+          v-for="(item, widgetIdx) in layout"
           :key="item.i"
           :x="item.x"
           :y="item.y"
@@ -78,6 +80,7 @@
           <div
             class="widget-shell"
             :class="{ 'widget-shell--edit': editMode, 'widget-shell--new': item.i === newWidgetId }"
+            :style="initialWidgetIds.has(item.i) ? { '--wi': widgetIdx } : {}"
             :data-widget-id="item.i"
           >
             <button
@@ -102,28 +105,30 @@
 
     <!-- Widget picker modal -->
     <Teleport to="body">
-      <div v-if="showPicker" class="modal-backdrop">
-        <div class="modal-box">
-          <div class="modal-head">
-            <span class="modal-title">Add Widget</span>
-            <button class="btn-icon" @click="showPicker = false"><X :size="15" /></button>
-          </div>
-          <div class="widget-catalog">
-            <button
-              v-for="w in WIDGET_CATALOG"
-              :key="w.type"
-              class="catalog-card"
-              @click="addWidget(w)"
-            >
-              <component :is="w.icon" :size="22" class="catalog-icon" />
-              <div>
-                <div class="catalog-name">{{ w.label }}</div>
-                <div class="catalog-desc">{{ w.description }}</div>
-              </div>
-            </button>
+      <Transition name="modal">
+        <div v-if="showPicker" class="modal-backdrop">
+          <div class="modal-box">
+            <div class="modal-head">
+              <span class="modal-title">Add Widget</span>
+              <button class="btn-icon" @click="showPicker = false"><X :size="15" /></button>
+            </div>
+            <div class="widget-catalog">
+              <button
+                v-for="w in WIDGET_CATALOG"
+                :key="w.type"
+                class="catalog-card"
+                @click="addWidget(w)"
+              >
+                <component :is="w.icon" :size="22" class="catalog-icon" />
+                <div>
+                  <div class="catalog-name">{{ w.label }}</div>
+                  <div class="catalog-desc">{{ w.description }}</div>
+                </div>
+              </button>
+            </div>
           </div>
         </div>
-      </div>
+      </Transition>
     </Teleport>
   </div>
 </template>
@@ -131,7 +136,7 @@
 <script setup>
 import { ref, watch, onMounted, onUnmounted, nextTick, defineAsyncComponent } from 'vue';
 import { GridLayout, GridItem } from 'grid-layout-plus';
-import { Plus, X, LayoutGrid, Move, TrendingUp, Users, BarChart2, ClipboardList, Target, CalendarCheck, Briefcase, Zap, AlertTriangle, BarChart3 } from 'lucide-vue-next';
+import { Plus, X, LayoutGrid, Move, TrendingUp, Users, BarChart2, ClipboardList, Target, CalendarCheck, Briefcase, Zap, AlertTriangle, BarChart3, Megaphone } from 'lucide-vue-next';
 import api from '../api.js';
 import LoadingSpinner from './LoadingSpinner.vue';
 
@@ -147,6 +152,7 @@ const widgetComponents = {
   PredictiveSummaryWidget:  defineAsyncComponent(() => import('./widgets/PredictiveSummaryWidget.vue')),
   AtRiskContactsWidget:     defineAsyncComponent(() => import('./widgets/AtRiskContactsWidget.vue')),
   ForecastPipelineWidget:   defineAsyncComponent(() => import('./widgets/ForecastPipelineWidget.vue')),
+  AnnouncementsWidget:      defineAsyncComponent(() => import('./widgets/AnnouncementsWidget.vue')),
 };
 
 const WIDGET_CATALOG = [
@@ -220,6 +226,13 @@ const WIDGET_CATALOG = [
     icon: BarChart3,
     defaultSize: { w: 8, h: 5 },
   },
+  {
+    type: 'AnnouncementsWidget',
+    label: 'Announcements',
+    description: 'Latest company-wide notices from administrators',
+    icon: Megaphone,
+    defaultSize: { w: 4, h: 5 },
+  },
 ];
 
 const DEFAULT_LAYOUT = [
@@ -247,10 +260,11 @@ const loadingLayout = ref(false);
 const saveStatus    = ref('idle'); // 'idle' | 'pending' | 'saving' | 'saved' | 'error'
 const newWidgetId   = ref(null);
 
-let initialised = false;
-let saveTimer   = null;
-let fadeTimer   = null;
-let glowTimer   = null;
+let initialised      = false;
+let saveTimer        = null;
+let fadeTimer        = null;
+let glowTimer        = null;
+let initialWidgetIds = new Set();
 
 // --- Auto-save ----------------------------------------------------------
 function scheduleSave() {
@@ -342,6 +356,7 @@ onMounted(async () => {
   } catch {
     layout.value = JSON.parse(JSON.stringify(DEFAULT_LAYOUT));
   } finally {
+    initialWidgetIds = new Set(layout.value.map(w => w.i));
     loadingLayout.value = false;
     initialised = true;
   }
@@ -365,6 +380,7 @@ onMounted(async () => {
     linear-gradient(118deg, #0f2456 0%, #1d4ed8 52%, #1e40af 100%);
   box-shadow: 0 18px 40px -20px rgba(15,36,86,0.7);
   margin-bottom: 24px;
+  animation: hero-in 0.45s ease-out;
 }
 .hero-glow {
   position: absolute;
@@ -566,6 +582,7 @@ onMounted(async () => {
   box-shadow: var(--shadow-sm);
   border: 1px solid var(--border-soft);
   transition: box-shadow 0.18s, transform 0.18s, border-color 0.18s;
+  animation: widget-in 0.38s ease-out calc(var(--wi, 0) * 45ms) backwards;
 }
 .widget-shell:hover {
   box-shadow: var(--shadow-md);
@@ -585,6 +602,34 @@ onMounted(async () => {
   40%  { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft), 0 0 18px 4px rgba(29,78,216,0.25), var(--shadow-md); }
   100% { border-color: var(--border-soft); box-shadow: var(--shadow-sm); }
 }
+@keyframes hero-in {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes widget-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* Modal enter/leave */
+.modal-enter-active { transition: opacity 0.22s ease; }
+.modal-leave-active { transition: opacity 0.16s ease; }
+.modal-enter-from,
+.modal-leave-to { opacity: 0; }
+.modal-enter-active .modal-box {
+  transition: transform 0.28s cubic-bezier(0.34, 1.4, 0.64, 1), opacity 0.22s ease;
+}
+.modal-leave-active .modal-box {
+  transition: transform 0.16s ease, opacity 0.16s ease;
+}
+.modal-enter-from .modal-box { transform: scale(0.92) translateY(12px); opacity: 0; }
+.modal-leave-to .modal-box   { transform: scale(0.96); opacity: 0; }
+
+/* Save-status badge enter/leave */
+.status-fade-enter-active { transition: opacity 0.2s ease, transform 0.2s ease; }
+.status-fade-leave-active { transition: opacity 0.18s ease; }
+.status-fade-enter-from   { opacity: 0; transform: translateX(-6px); }
+.status-fade-leave-to     { opacity: 0; }
 .widget-remove {
   position: absolute;
   top: 10px;

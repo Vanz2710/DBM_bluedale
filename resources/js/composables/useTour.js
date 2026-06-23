@@ -36,8 +36,8 @@ export const TOUR_STEPS = [
   },
   {
     target: '[data-tour="notification-bell"]',
-    title: 'Reminders & Alerts',
-    body: 'Your notification bell shows overdue items, tasks due today, upcoming deadlines, and system alerts. The red badge tells you how many need attention.',
+    title: 'Notifications',
+    body: 'Your notification bell shows announcements, overdue items, tasks due today, and upcoming deadlines. Click it for a quick preview, or open the Notifications page for the full view.',
     position: 'bottom-left',
   },
   {
@@ -323,14 +323,29 @@ export const PAGE_TOURS = {
   reminders: [
     {
       target: '.page-head',
-      title: 'Reminders',
-      body: 'A consolidated view of all your overdue, today, and upcoming tasks and follow-ups. Use this as your daily action list.',
+      title: 'Notifications',
+      body: 'Your personal task inbox — overdue items, things due today, and upcoming deadlines in the next 7 days. For company-wide announcements, visit the Notice Board.',
       position: 'bottom',
     },
     {
-      target: '.table-wrap',
-      title: 'Reminder Items',
-      body: 'Each item links back to the contact it belongs to. Click the company name to jump straight to the contact record and take action.',
+      target: '.section-card',
+      title: 'Reminder Sections',
+      body: 'Overdue items are highlighted in red, today\'s tasks in amber, and upcoming ones in blue. Click Open to jump to the task record, or Dismiss to mark it read.',
+      position: 'bottom',
+    },
+  ],
+
+  'notice-board': [
+    {
+      target: '.page-header',
+      title: 'Notice Board',
+      body: 'Company-wide announcements from your administrators. Unlike task reminders, announcements are broadcast to everyone — think office notices, system updates, or team-wide news.',
+      position: 'bottom',
+    },
+    {
+      target: '.announce-list',
+      title: 'Reading Announcements',
+      body: 'Unread announcements have a coloured accent bar and a dot next to the title. Click Mark read to dismiss one, or use Mark all read at the top to clear everything at once.',
       position: 'bottom',
     },
   ],
@@ -411,6 +426,147 @@ export const PAGE_TOURS = {
       target: '[data-tour="deptask-tab-board"]',
       title: 'Board View',
       body: 'Switch to the Board tab to see all team tasks organised across status columns. You can view task details here, but task creation and status changes are managed by your admin.',
+      position: 'bottom',
+    },
+  ],
+
+  admin: [
+    {
+      target: '.page-head',
+      title: 'Lookup Settings',
+      body: 'This is where you control the dropdown values used across the CRM — contact statuses, types, categories, industries, areas, and task types.',
+      position: 'bottom',
+    },
+    {
+      target: '.tabs-bar',
+      title: 'Lookup Categories',
+      body: 'Each tab manages a different dropdown list. Switch between Contact classifications (Status, Type, Category, Industry, Area) and Task types used when logging todos.',
+      position: 'bottom',
+    },
+    {
+      target: '.table-wrap',
+      title: 'Add, Edit, Delete',
+      body: 'Type a new value in the input at the top and click Add. Click Edit on any row to rename it inline. The "In Use" count shows how many records reference it — items in use cannot be deleted.',
+      position: 'bottom',
+    },
+  ],
+
+  'system-settings': [
+    {
+      target: '.page-header',
+      title: 'System Settings',
+      body: 'Global configuration that applies across the entire CRM — currently the admin notification email address for security and approval alerts.',
+      position: 'bottom',
+    },
+    {
+      target: '.settings-card',
+      title: 'Notification Settings',
+      body: 'Set the Admin Notification Email to receive alerts when a user is locked out for inactivity or when a new user registers and needs approval. If left blank, all admin and super-admin users receive the alerts instead.',
+      position: 'bottom',
+    },
+  ],
+
+  'user-activity': [
+    {
+      target: '.page-header',
+      title: 'User Activity',
+      body: 'A monitoring dashboard for all user accounts — login frequency, CRM output per user, and security events like inactivity lockouts.',
+      position: 'bottom',
+    },
+    {
+      target: '.tab-bar',
+      title: 'Two Views',
+      body: 'Users Overview shows a table of every user with their login count, last seen date, contacts owned, and activity in the selected period. Security Events logs lockouts, approvals, and access-restore actions.',
+      position: 'bottom',
+    },
+    {
+      target: '.toolbar',
+      title: 'Filter & Period',
+      body: 'Use the chips to filter by account status (All, Active, Inactive, Flagged, Pending). The Activity Period selector changes the range used to count todos, follow-ups, deals, and projects completed.',
+      position: 'bottom',
+    },
+    {
+      target: '.table-wrap',
+      title: 'User Table',
+      body: 'Each row is a user account. High activity counts appear in green; zero activity in the period is greyed out. Inactivity-flagged accounts are highlighted so you can restore access from the Access Control panel.',
+      position: 'bottom',
+    },
+  ],
+
+  'audit-log': [
+    {
+      target: '.page-head',
+      title: 'Audit Log',
+      body: 'A tamper-evident record of every admin action — who did what, when, and from which IP address. Use it for accountability reviews or to investigate unexpected changes.',
+      position: 'bottom',
+    },
+    {
+      target: '.filter-bar',
+      title: 'Filter Actions',
+      body: 'Search free-text across actor names, entity names, and action descriptions. Use the dropdowns to narrow by action type (created, updated, deleted, approved…), entity type (User, Contact, Role…), or time window.',
+      position: 'bottom',
+    },
+    {
+      target: '.table-wrap',
+      title: 'Log Entries',
+      body: 'Each row shows the timestamp, who performed the action, what action was taken, and what record was affected. The Changes column expands to show the before/after field values for any update.',
+      position: 'bottom',
+    },
+  ],
+
+  rbac: [
+    {
+      target: '.page-head',
+      title: 'Access Control',
+      body: 'This panel is where you manage every aspect of user access — who can log in, what they can do, and how contacts are distributed across the team.',
+      position: 'bottom',
+    },
+    {
+      target: '.view-tabs',
+      title: 'Five Tabs',
+      body: 'Users — view, approve, reset passwords, and delete accounts. Pending — new registrations awaiting approval. Roles & Permissions — fine-tune what each role can access. Bulk Reassign — move all contacts from one user to another in one action.',
+      position: 'bottom',
+    },
+    {
+      target: '.table-wrap',
+      title: 'User Table',
+      body: 'Each row shows a user\'s name, email, role, and login history. Use the Set Password button to reset a user\'s password without them having to request a reset themselves.',
+      position: 'bottom',
+    },
+  ],
+
+  'contact-duplicates': [
+    {
+      target: '.page-header',
+      title: 'Duplicate Contact Scanner',
+      body: 'This tool finds contacts that share the exact same name and lets you merge them into a single record. Zero groups means your data is clean. Run Refresh any time to re-scan.',
+      position: 'bottom',
+    },
+    {
+      target: '.btn-refresh',
+      title: 'Merging Duplicates',
+      body: 'When groups appear, each card lists all records with the same name — showing the owner, status, phone, and creation date. Tick the radio button on the record to keep, then click Merge Group. All todos, deals, projects, and forecasts transfer to the kept record before the rest are deleted.',
+      position: 'bottom-left',
+    },
+  ],
+
+  announcements: [
+    {
+      target: '.page-header',
+      title: 'Team Announcements',
+      body: 'Post messages that appear in every user\'s notification bell. Use announcements for office notices, system updates, or any message the whole team needs to see.',
+      position: 'bottom',
+    },
+    {
+      target: '.btn-new',
+      title: 'Create an Announcement',
+      body: 'Click here to write a new announcement. Set a Publish At time to schedule it for later, or leave it blank to go live immediately. Set Expires At to auto-remove it after a date.',
+      position: 'bottom-left',
+    },
+    {
+      target: '.table-wrap',
+      title: 'Announcement List',
+      body: 'Live announcements show a green badge and are visible to all users. Scheduled or unpublished ones show Draft. The Read by column tells you how many users have dismissed the message from their bell.',
       position: 'bottom',
     },
   ],

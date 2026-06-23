@@ -417,11 +417,33 @@ All reads require `view contacts`; writes require `edit contacts`.
 | `POST /email-campaigns` | Create campaign |
 | `PUT /email-campaigns/{id}` | Update campaign |
 | `DELETE /email-campaigns/{id}` | Delete campaign |
+| `POST /email-campaigns/{id}/duplicate` | Duplicate a campaign |
+| `POST /email-campaigns/{id}/send` | Send campaign immediately |
 | `POST /email-campaigns/{id}/schedule` | Schedule campaign send |
 | `POST /email-campaigns/{id}/send-test` | Send test email |
-| `GET /email-campaigns/{id}/sync-stats` | Sync delivery stats |
+| `GET /email-campaigns/{id}/recipients` | List campaign recipients |
 | `GET/POST/PUT/DELETE /email-templates` | Template CRUD |
-| `GET /email-campaigns/settings` | Campaign settings |
+| `POST /email-images` | Upload image for email body |
+| `GET /email-settings` | Get campaign SMTP/from settings |
+| `PUT /email-settings` | Update campaign SMTP/from settings |
+| `POST /email-settings/test` | Send test using saved settings |
+| `GET /email-contacts` | List email contacts |
+| `POST /email-contacts` | Add single contact |
+| `POST /email-contacts/bulk` | Add multiple contacts |
+| `POST /email-contacts/import` | Import contacts from CSV |
+| `GET /email-contacts/export` | Export contacts to CSV |
+| `POST /email-contacts/sync-crm` | Sync contacts from CRM |
+| `PUT /email-contacts/{id}` | Update email contact |
+| `DELETE /email-contacts/{id}` | Delete email contact |
+| `GET/POST/PUT/DELETE /email-tags` | Email contact tag CRUD |
+| `GET /email-groups` | List audience groups |
+| `POST /email-groups` | Create audience group |
+| `POST /email-groups/preview` | Preview group member count |
+| `GET /email-groups/{id}/members` | List members of a group |
+| `PUT /email-groups/{id}` | Update audience group |
+| `DELETE /email-groups/{id}` | Delete audience group |
+| `GET /email-analytics/dashboard` | Analytics dashboard totals |
+| `GET /email-analytics` | Per-campaign analytics |
 
 ---
 
@@ -471,13 +493,15 @@ All reads require `view contacts`; writes require `edit contacts`.
 
 ## 20. Admin-Only Pages
 
-| Module | Endpoint | Permission |
+| Module | Endpoint | Who Can Access |
 |---|---|---|
-| System Settings | `GET/PUT /system-settings` | `manage users` |
-| User Activity | `GET /user-activity/overview` | `manage users` |
-| Security Events | `GET /user-activity/security-events` | `manage users` |
-| Audit Log | `GET /admin/audit-log` | `manage users` |
-| Contact Edit Grants | `GET/POST/DELETE /contact-edit-grants` | `manage users` |
+| System Settings | `GET/PUT /system-settings` | super-admin (`manage users`) |
+| User Activity | `GET /user-activity/overview` | super-admin (`manage users`) |
+| Security Events | `GET /user-activity/security-events` | super-admin (`manage users`) |
+| Audit Log | `GET /admin/audit-log` | super-admin (`manage users`) |
+| Contact Edit Grants | `GET/POST/DELETE /contact-edit-grants` | super-admin (`manage users`) |
+| Contact Duplicates | `GET /contacts/find-duplicates`, `POST /contacts/merge` | admin + super-admin (role check in controller) |
+| Announcements (manage) | `GET /announcements/admin/all`, `POST/PUT/DELETE /announcements/{id}` | admin + super-admin (role middleware) |
 
 ---
 
@@ -492,7 +516,42 @@ All reads require `view contacts`; writes require `edit contacts`.
 
 ---
 
-## 22. Reminders & Notifications
+## 22. Announcements Module
+
+Announcements are company-wide or targeted broadcast messages that appear in every user's notification bell and on the Notice Board page.
+
+### User-Facing (all authenticated users)
+
+| Endpoint | Description |
+|---|---|
+| `GET /announcements` | List active announcements visible to this user (respects `target_user_id` filter + expiry) |
+| `POST /announcements/{id}/read` | Mark one announcement as read (idempotent) |
+
+**Response item fields:** `id`, `title`, `body`, `urgency` (`normal`/`urgent`), `published_at` (formatted string), `expires_at`, `author`, `is_read`
+
+### Admin Management (admin + super-admin)
+
+| Endpoint | Description |
+|---|---|
+| `GET /announcements/admin/all` | Full list including drafts/scheduled — for the admin manage page |
+| `POST /announcements` | Create announcement |
+| `PUT /announcements/{id}` | Update announcement |
+| `DELETE /announcements/{id}` | Delete announcement |
+
+**Fields for create/update:** `title` (required, max 200), `body` (required), `urgency` (`normal`/`urgent`), `target_user_id` (nullable — null = everyone), `published_at` (nullable — null = publish immediately), `expires_at` (nullable — null = never expires)
+
+**Admin response extra fields:** `target_user_id`, `target_user` (name), `reads_count`, `is_draft` (true if unpublished or scheduled for future)
+
+### Business Rules
+- `scopeActive` — only shows announcements where `published_at <= now()` and either `expires_at` is null or `expires_at > now()`
+- Targeting: null `target_user_id` = visible to all; non-null = only that user sees it
+- Read state is per-user via `announcement_reads` pivot table
+- Urgent announcements display with a red accent and `URGENT` badge
+- Announcements also appear in the notification bell (`source_type: "announcement"`) with unread count factored into the badge
+
+---
+
+## 23. Reminders & Notifications
 
 **Endpoint:** `GET /api/v1/reminders`  
 **Permission:** None (personal data only)
@@ -500,20 +559,36 @@ All reads require `view contacts`; writes require `edit contacts`.
 **Response shape:**
 ```json
 {
-  "overdue": [...],
-  "today": [...],
-  "upcoming": [...],
-  "alerts": [...]  // only for admin/super-admin users
+  "overdue":            [...],   // pending todos/followups past due date (up to 14 days back)
+  "today":              [...],   // pending todos/followups due today
+  "upcoming":           [...],   // pending todos/followups due in next 7 days
+  "expiring_sites":     [...],   // site bookings expiring within 30 days (all authenticated users)
+  "alerts":             [...],   // unread SystemAlert rows — admin/super-admin only
+  "task_notifications": [...],   // unread DeptNotification rows for this user
+  "announcements":      [...],   // active announcements visible to this user (up to 10)
+  "unread_count":       N        // total unread across all sections
 }
 ```
 
-`alerts` — unread `SystemAlert` rows (in-app admin notifications for events like password changes).
+**Item types in `source_type` field:**
+- `todo` / `followup` — CRM reminders (overdue/today/upcoming)
+- `site_expiry` — advertising booking nearing end date
+- `alert` — in-app system alert (admin only)
+- `task_notification` — dept task assignment/status notification
+- `announcement` — company-wide broadcast message
 
-**Mark read:** `POST /api/v1/reminders/read`
+**Admin filter:** Admins can pass `?user_id={id}` to view another user's CRM reminders (overdue/today/upcoming only — alerts, task_notifications, and announcements always reflect the requesting user).
+
+**Mark read:** `POST /api/v1/reminders/read`  
+Body: `{ "items": [{ "type": "todo|followup|alert|task_notification|announcement", "id": N }] }`
+
+**Notice Board (user-facing announcements page):**  
+`GET /api/v1/announcements` — returns active announcements visible to the current user with `is_read` flag.  
+`POST /api/v1/announcements/{id}/read` — mark one announcement as read.
 
 ---
 
-## 23. Public Endpoints (No Auth Required)
+## 24. Public Endpoints (No Auth Required)
 
 | Endpoint | Description |
 |---|---|
@@ -523,7 +598,7 @@ All reads require `view contacts`; writes require `edit contacts`.
 
 ---
 
-## 24. Frontend Routes & Pages
+## 25. Frontend Routes & Pages
 
 | Route Path | Page Component | Auth Required | Role/Permission |
 |---|---|---|---|
@@ -552,10 +627,10 @@ All reads require `view contacts`; writes require `edit contacts`.
 | `/forecasts` | ForecastList.vue | Yes | `view forecasts` |
 | `/forecasts/summary` | ForecastSummary.vue | Yes | `view forecast summary` |
 | `/performance` | Performance.vue | Yes | `view performance` |
-| `/admin/performance-targets` | PerformanceTargets.vue | Yes | Admin only |
 | `/data-health` | DataHealth.vue | Yes | `view data-health` |
 | `/import` | Import.vue | Yes | `import contacts` |
 | `/reminders` | Reminders.vue | Yes | Any authenticated |
+| `/notice-board` | Noticeboard.vue | Yes | Any authenticated |
 | `/reports` | Reports.vue | Yes | `view summary` |
 | `/social-media` | SocialMediaReminder.vue | Yes | `manage social-media` |
 | `/posting-calendar` | PostingCalendar.vue | Yes | `manage posting-calendar` |
@@ -564,16 +639,18 @@ All reads require `view contacts`; writes require `edit contacts`.
 | `/dept-tasks` | DeptTaskManager.vue | Yes | `manage dept-tasks` |
 | `/profile` | MyProfile.vue | Yes | Any authenticated |
 | `/settings` | Settings.vue | Yes | Any authenticated |
-| `/admin` | AdminPanel.vue | Yes | Admin only |
-| `/admin/rbac` | RbacPanel.vue | Yes | Admin only |
-| `/admin/system-settings` | SystemSettings.vue | Yes | Admin only |
-| `/admin/user-activity` | UserActivity.vue | Yes | Admin only |
-| `/admin/audit-log` | AuditLog.vue | Yes | Admin only |
+| `/admin` | AdminPanel.vue | Yes | Admin + super-admin |
+| `/admin/rbac` | RbacPanel.vue | Yes | Admin + super-admin |
+| `/admin/system-settings` | SystemSettings.vue | Yes | super-admin (`manage users`) |
+| `/admin/user-activity` | UserActivity.vue | Yes | super-admin (`manage users`) |
+| `/admin/audit-log` | AuditLog.vue | Yes | super-admin (`manage users`) |
+| `/admin/contact-duplicates` | ContactDuplicates.vue | Yes | Admin + super-admin |
+| `/admin/announcements` | Announcements.vue | Yes | Admin + super-admin |
 | `/forbidden` | Forbidden.vue | Yes | Any authenticated |
 
 ---
 
-## 25. Key Business Rules & Edge Cases
+## 26. Key Business Rules & Edge Cases
 
 ### Contact Ownership & Edit Access
 - A contact belongs to exactly one user (`user_id`)
@@ -616,7 +693,7 @@ All reads require `view contacts`; writes require `edit contacts`.
 
 ---
 
-## 26. Test Accounts (Reference)
+## 27. Test Accounts (Reference)
 
 > Update these with actual test credentials before using.
 
@@ -631,7 +708,7 @@ All reads require `view contacts`; writes require `edit contacts`.
 
 ---
 
-## 27. Test Environment Setup Notes
+## 28. Test Environment Setup Notes
 
 - **API base:** `http://localhost/library_crm_v2/public/api/`
 - **Auth header:** `Authorization: Bearer {token}`
@@ -644,4 +721,4 @@ All reads require `view contacts`; writes require `edit contacts`.
 
 ---
 
-*Generated: 2026-06-22 | System: BGOC Library CRM v2*
+*Generated: 2026-06-23 | System: BGOC Library CRM v2*

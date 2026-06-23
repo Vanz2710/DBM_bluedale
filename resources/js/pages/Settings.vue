@@ -438,6 +438,18 @@ const adminLinks = [
     desc:  'View every admin action — user changes, role edits, approvals, and unlocks',
   },
   {
+    to:    '/admin/contact-duplicates',
+    icon:  _s('<polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/>'),
+    title: 'Duplicate Contacts',
+    desc:  'Find and merge contacts that share the same name',
+  },
+  {
+    to:    '/admin/announcements',
+    icon:  _s('<path d="M3 11l19-9-9 19-2-8-8-2z"/>'),
+    title: 'Announcements',
+    desc:  'Broadcast messages to all users via the notification bell',
+  },
+  {
     to:    '/data-health',
     icon:  _s('<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>'),
     title: 'Data Health',

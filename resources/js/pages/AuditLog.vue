@@ -89,30 +89,79 @@
       </table>
     </div>
 
-    <!-- Diff modal -->
+    <!-- Detail modal -->
     <Teleport to="body">
-      <div v-if="diffModal.open" class="overlay">
-        <div class="modal modal-wide">
+      <div v-if="diffModal.open" class="overlay" @click.self="diffModal.open = false">
+        <div class="modal">
           <div class="modal-head">
             <div>
               <div class="modal-title">Change Details</div>
               <div class="modal-sub">
                 <span :class="['action-badge', `action-badge-${diffModal.log?.action}`]">{{ diffModal.log?.action }}</span>
-                <span style="margin-left:6px">{{ diffModal.log?.entity_type }}: <strong>{{ diffModal.log?.entity_name }}</strong></span>
+                <span class="modal-entity">{{ prettifyKey(diffModal.log?.entity_type ?? '') }}: <strong>{{ diffModal.log?.entity_name ?? diffModal.log?.entity_id ?? '—' }}</strong></span>
               </div>
             </div>
             <button class="modal-close" @click="diffModal.open = false">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
           </div>
-          <div class="modal-body diff-body">
-            <div v-if="diffModal.log?.old_values" class="diff-col">
-              <div class="diff-label">Before</div>
-              <div class="diff-json diff-old">{{ formatJson(diffModal.log.old_values) }}</div>
+
+          <div class="modal-body">
+            <!-- Context bar -->
+            <div class="ctx-bar">
+              <div class="ctx-item">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                <span>{{ diffModal.log?.actor?.name ?? 'System' }}</span>
+              </div>
+              <span class="ctx-dot">·</span>
+              <div class="ctx-item">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                <span>{{ formatDate(diffModal.log?.created_at) }}, {{ formatTime(diffModal.log?.created_at) }}</span>
+              </div>
+              <template v-if="diffModal.log?.ip_address">
+                <span class="ctx-dot">·</span>
+                <div class="ctx-item ctx-ip">{{ diffModal.log.ip_address }}</div>
+              </template>
             </div>
-            <div v-if="diffModal.log?.new_values" class="diff-col">
-              <div class="diff-label">After</div>
-              <div class="diff-json diff-new">{{ formatJson(diffModal.log.new_values) }}</div>
+
+            <!-- Summary sentence -->
+            <div class="summary-sentence">
+              {{ summaryText }}
+            </div>
+
+            <!-- Field-level changes -->
+            <template v-if="diffRows.length > 0">
+              <div class="section-label">
+                {{ diffModal.log?.old_values && diffModal.log?.new_values ? 'Fields Changed' : diffModal.log?.new_values ? 'Initial Values' : 'Values at Deletion' }}
+              </div>
+              <div class="change-list">
+                <div
+                  v-for="row in diffRows"
+                  :key="row.key"
+                  class="change-row"
+                  :class="`change-${row.type}`"
+                >
+                  <div class="change-field">{{ row.label }}</div>
+                  <div class="change-values">
+                    <template v-if="row.type === 'changed'">
+                      <span class="val-old">{{ row.before }}</span>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+                      <span class="val-new">{{ row.after }}</span>
+                    </template>
+                    <template v-else-if="row.type === 'added'">
+                      <span class="val-set">{{ row.after }}</span>
+                    </template>
+                    <template v-else>
+                      <span class="val-removed">{{ row.before }}</span>
+                      <span class="val-removed-label">removed</span>
+                    </template>
+                  </div>
+                </div>
+              </div>
+            </template>
+
+            <div v-else class="no-changes">
+              No field-level changes were recorded for this action.
             </div>
           </div>
         </div>
@@ -176,16 +225,73 @@ function formatTime(iso) {
   return new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
 }
 
-function formatJson(obj) {
-  if (!obj) return '—';
-  return JSON.stringify(obj, null, 2);
+const SENSITIVE_KEYS = ['password', 'remember_token', 'token', 'secret', 'api_key'];
+
+function prettifyKey(key) {
+  if (!key) return '';
+  return key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 }
 
+function prettifyValue(key, val) {
+  if (val === null || val === undefined) return null;
+  if (SENSITIVE_KEYS.some(k => key.toLowerCase().includes(k))) return '[hidden]';
+  if (typeof val === 'boolean') return val ? 'Yes' : 'No';
+  if (typeof val === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(val)) {
+    try { return new Date(val).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }); } catch { /* skip */ }
+  }
+  if (Array.isArray(val)) return val.join(', ') || '(empty)';
+  if (typeof val === 'object') return JSON.stringify(val);
+  return String(val);
+}
+
+const diffRows = computed(() => {
+  const log = diffModal.value.log;
+  if (!log) return [];
+  const oldV = log.old_values ?? {};
+  const newV = log.new_values ?? {};
+  const keys = new Set([...Object.keys(oldV), ...Object.keys(newV)]);
+  const rows = [];
+  for (const key of keys) {
+    const rawOld = key in oldV ? oldV[key] : null;
+    const rawNew = key in newV ? newV[key] : null;
+    if (JSON.stringify(rawOld) === JSON.stringify(rawNew)) continue;
+    const before = rawOld !== null ? prettifyValue(key, rawOld) : null;
+    const after  = rawNew !== null ? prettifyValue(key, rawNew) : null;
+    const type   = rawOld === null ? 'added' : rawNew === null ? 'removed' : 'changed';
+    rows.push({ key, label: prettifyKey(key), before, after, type });
+  }
+  return rows;
+});
+
+const summaryText = computed(() => {
+  const log = diffModal.value.log;
+  if (!log) return '';
+  const actor  = log.actor?.name ?? 'System';
+  const entity = prettifyKey(log.entity_type ?? '');
+  const name   = log.entity_name ?? log.entity_id ?? 'this record';
+  const changed = diffRows.value.filter(r => r.type === 'changed').length;
+  const added   = diffRows.value.filter(r => r.type === 'added').length;
+  const removed = diffRows.value.filter(r => r.type === 'removed').length;
+  const action = (log.action ?? '').toLowerCase();
+  if (action === 'created')  return `${actor} created a new ${entity.toLowerCase()} named "${name}".`;
+  if (action === 'deleted')  return `${actor} permanently deleted ${entity.toLowerCase()} "${name}".`;
+  if (action === 'restored_access') return `${actor} restored login access for "${name}".`;
+  if (action === 'approved') return `${actor} approved "${name}".`;
+  if (action === 'unlocked') return `${actor} unlocked "${name}".`;
+  if (action === 'updated_password') return `${actor} changed the password for "${name}".`;
+  if (action === 'updated') {
+    const parts = [];
+    if (changed > 0) parts.push(`${changed} field${changed > 1 ? 's' : ''} updated`);
+    if (added   > 0) parts.push(`${added} field${added   > 1 ? 's' : ''} added`);
+    if (removed > 0) parts.push(`${removed} field${removed > 1 ? 's' : ''} removed`);
+    const summary = parts.length ? parts.join(', ') : 'minor change';
+    return `${actor} updated ${entity.toLowerCase()} "${name}" — ${summary}.`;
+  }
+  return `${actor} performed "${log.action}" on ${entity.toLowerCase()} "${name}".`;
+});
+
 function diffTitle(log) {
-  const lines = [];
-  if (log.old_values) lines.push('Before: ' + JSON.stringify(log.old_values));
-  if (log.new_values) lines.push('After: ' + JSON.stringify(log.new_values));
-  return lines.join('\n');
+  return log.entity_name ?? log.entity_type ?? '';
 }
 
 function openDiff(log) {
@@ -394,64 +500,93 @@ tbody tr:hover { background: var(--app-bg); }
 
 /* ── Modal ── */
 .overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.45);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  padding: 24px;
+  position: fixed; inset: 0; background: rgba(0,0,0,0.45);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 1000; padding: 24px;
 }
 .modal {
-  background: var(--surface);
-  border-radius: var(--radius-lg);
+  background: var(--surface); border-radius: var(--radius-lg);
   box-shadow: 0 24px 80px rgba(0,0,0,0.2);
-  width: 100%;
-  max-width: 560px;
-  max-height: 80vh;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
+  width: 100%; max-width: 560px; max-height: 82vh;
+  display: flex; flex-direction: column; overflow: hidden;
 }
-.modal-wide { max-width: 820px; }
 .modal-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  padding: 20px 24px 16px;
-  border-bottom: 1px solid var(--border-soft);
-}
-.modal-title { font-size: 15px; font-weight: 700; color: var(--text-1); margin-bottom: 2px; }
-.modal-sub   { font-size: 12px; color: var(--text-2); display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
-.modal-close {
-  width: 28px; height: 28px;
-  border: none; background: none;
-  color: var(--text-3); cursor: pointer;
-  border-radius: 6px;
-  display: flex; align-items: center; justify-content: center;
+  display: flex; align-items: flex-start; justify-content: space-between;
+  padding: 20px 24px 14px; border-bottom: 1px solid var(--border-soft);
   flex-shrink: 0;
+}
+.modal-title  { font-size: 15px; font-weight: 700; color: var(--text-1); margin-bottom: 4px; }
+.modal-sub    { font-size: 12px; color: var(--text-2); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.modal-entity { color: var(--text-2); }
+.modal-close  {
+  width: 28px; height: 28px; border: none; background: none;
+  color: var(--text-3); cursor: pointer; border-radius: 6px;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
   transition: background 0.15s, color 0.15s;
 }
 .modal-close:hover { background: var(--surface-2); color: var(--text-1); }
 
-.modal-body { padding: 20px 24px; overflow-y: auto; flex: 1; }
-.diff-body  { display: flex; gap: 16px; }
-.diff-col   { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
-.diff-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-3); }
-.diff-json  {
-  font-family: monospace;
-  font-size: 12px;
-  line-height: 1.6;
-  padding: 12px 14px;
-  border-radius: 8px;
-  white-space: pre-wrap;
-  word-break: break-all;
-  overflow-y: auto;
-  max-height: 400px;
+.modal-body { padding: 20px 24px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 16px; }
+
+/* Context bar */
+.ctx-bar {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 14px; border-radius: var(--radius-sm);
+  background: var(--surface-2); font-size: 12px; color: var(--text-2);
+  flex-wrap: wrap;
 }
-.diff-old { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
-.diff-new { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
+.ctx-item { display: flex; align-items: center; gap: 5px; }
+.ctx-dot  { color: var(--border); }
+.ctx-ip   { font-family: monospace; font-size: 11.5px; }
+
+/* Summary sentence */
+.summary-sentence {
+  font-size: 13.5px; color: var(--text-1); line-height: 1.55;
+  padding: 12px 16px; border-radius: var(--radius-sm);
+  background: var(--surface-2); border-left: 3px solid var(--primary);
+}
+
+/* Section label */
+.section-label {
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.5px; color: var(--text-3);
+}
+
+/* Change list */
+.change-list { display: flex; flex-direction: column; gap: 1px; border-radius: var(--radius-sm); overflow: hidden; border: 1px solid var(--border); }
+
+.change-row {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 10px 14px; background: var(--surface);
+  font-size: 13px; border-bottom: 1px solid var(--border-soft);
+}
+.change-row:last-child { border-bottom: none; }
+.change-row.change-changed { background: #fafbff; }
+.change-row.change-added   { background: #f0fdf4; }
+.change-row.change-removed { background: #fff8f8; }
+
+.change-field {
+  font-weight: 600; color: var(--text-1); min-width: 130px;
+  flex-shrink: 0; padding-top: 1px;
+}
+.change-values {
+  display: flex; align-items: center; gap: 8px;
+  flex-wrap: wrap; flex: 1; min-width: 0;
+}
+.val-old     { color: #991b1b; text-decoration: line-through; font-size: 12.5px; word-break: break-all; }
+.val-new     { color: #15803d; font-weight: 600; font-size: 12.5px; word-break: break-all; }
+.val-set     { color: #15803d; font-weight: 600; font-size: 12.5px; word-break: break-all; }
+.val-removed { color: #991b1b; font-size: 12.5px; word-break: break-all; }
+.val-removed-label {
+  font-size: 10.5px; font-weight: 700; padding: 1px 6px; border-radius: 999px;
+  background: #fee2e2; color: #dc2626; text-transform: uppercase; letter-spacing: .3px; flex-shrink: 0;
+}
+
+/* No changes */
+.no-changes {
+  padding: 28px; text-align: center; font-size: 13px; color: var(--text-3);
+  border: 1px dashed var(--border); border-radius: var(--radius-sm);
+}
 
 @media (max-width: 768px) { .page { padding: 20px 16px; } }
 @media (max-width: 640px) { .page { padding: 16px 12px; } }

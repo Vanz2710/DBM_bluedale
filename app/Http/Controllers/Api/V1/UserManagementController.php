@@ -132,7 +132,7 @@ class UserManagementController extends Controller
 
         $reassignTo = null;
         if ($request->filled('reassign_to')) {
-            $request->validate(['reassign_to' => 'integer|exists:users,id']);
+            $request->validate(['reassign_to' => 'integer|exists:users,id,deleted_at,NULL']);
             $reassignTo = (int) $request->reassign_to;
             if ($reassignTo === $user->id) {
                 return response()->json(['message' => 'Cannot reassign to the same user being deleted.'], 422);
@@ -166,10 +166,11 @@ class UserManagementController extends Controller
 
     public function restoreAccess(Request $request, User $user)
     {
+        $oldFlaggedAt = $user->inactivity_flagged_at;
         $user->update(['inactivity_flagged_at' => null, 'last_login_at' => now()]);
 
         $this->audit('restored_access', 'user', $user->id, $user->name,
-            ['inactivity_flagged_at' => $user->inactivity_flagged_at], ['inactivity_flagged_at' => null], $request);
+            ['inactivity_flagged_at' => $oldFlaggedAt], ['inactivity_flagged_at' => null], $request);
 
         return response()->json(['status' => 'success', 'data' => $user->load('roles:id,name')]);
     }

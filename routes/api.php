@@ -48,6 +48,7 @@ use App\Http\Controllers\Api\V1\UserPreparedByController;
 use App\Http\Controllers\Api\V1\UserActivityController;
 use App\Http\Controllers\Api\V1\SessionController;
 use App\Http\Controllers\Api\V1\DeptTaskController;
+use App\Http\Controllers\Api\V1\AnnouncementController;
 
 // Auth (public)
 Route::post('auth/login', [AuthController::class, 'login'])->middleware('throttle:10,1');
@@ -86,6 +87,16 @@ Route::middleware('auth:sanctum')->group(function () {
         // Reminders — personal, no special permission
         Route::get('reminders', [ReminderController::class, 'index']);
         Route::post('reminders/read', [ReminderController::class, 'markRead']);
+
+        // Announcements — all users can read; admin can manage
+        Route::get('announcements', [AnnouncementController::class, 'index']);
+        Route::post('announcements/{announcement}/read', [AnnouncementController::class, 'markRead']);
+        Route::middleware('role:admin|super-admin')->group(function () {
+            Route::get('announcements/admin/all', [AnnouncementController::class, 'adminIndex']);
+            Route::post('announcements', [AnnouncementController::class, 'store']);
+            Route::put('announcements/{announcement}', [AnnouncementController::class, 'update']);
+            Route::delete('announcements/{announcement}', [AnnouncementController::class, 'destroy']);
+        });
 
         // Contact Analysis
         Route::middleware('can:view contacts')->group(function () {
@@ -185,6 +196,7 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::get('contacts/daily', [ContactController::class, 'daily']);
             Route::get('contacts/export', [ContactController::class, 'export']);
             Route::get('contacts/check-duplicate', [ContactController::class, 'checkDuplicate']);
+            Route::get('contacts/find-duplicates', [ContactController::class, 'findDuplicates']);
             Route::get('contacts', [ContactController::class, 'index']);
             Route::get('contacts/{contact}', [ContactController::class, 'show']);
             // Contact sub-resources (reads)
@@ -194,6 +206,7 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::get('contacts/{contact}/calls', [ContactCallController::class, 'index']);
         });
         Route::post('contacts/merge', [ContactController::class, 'merge'])->middleware('can:edit contacts');
+        Route::post('contacts/bulk-reassign', [ContactController::class, 'bulkReassign'])->middleware('can:edit contacts');
         Route::post('contacts', [ContactController::class, 'store'])->middleware('can:create contacts');
         Route::put('contacts/{contact}', [ContactController::class, 'update'])->middleware('can:edit contacts');
         Route::patch('contacts/{contact}', [ContactController::class, 'update'])->middleware('can:edit contacts');

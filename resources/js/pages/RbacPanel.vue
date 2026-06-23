@@ -278,6 +278,84 @@
       </div>
     </div>
 
+    <!-- BULK REASSIGN TAB -->
+    <div v-if="activeTab === 'reassign'">
+      <div class="table-wrap">
+        <div class="table-header-bar">
+          <span class="table-header-title">Bulk Reassign Contacts</span>
+        </div>
+        <div class="reassign-info">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          Transfer all contacts owned by one user to another — useful when a staff member leaves or changes role.
+        </div>
+        <div class="reassign-grid">
+          <div class="form-field">
+            <label>From (current owner)</label>
+            <select v-model="reassignForm.from_user_id">
+              <option value="">— Select user —</option>
+              <option v-for="u in activeUsers" :key="u.id" :value="u.id" :disabled="u.id == reassignForm.to_user_id">{{ u.name }}</option>
+            </select>
+          </div>
+          <div class="reassign-arrow">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          </div>
+          <div class="form-field">
+            <label>To (new owner)</label>
+            <select v-model="reassignForm.to_user_id">
+              <option value="">— Select user —</option>
+              <option v-for="u in activeUsers" :key="u.id" :value="u.id" :disabled="u.id == reassignForm.from_user_id">{{ u.name }}</option>
+            </select>
+          </div>
+        </div>
+        <div v-if="reassignError" class="form-error" style="padding: 0 20px 16px;">{{ reassignError }}</div>
+        <div v-if="reassignResult !== null" class="reassign-success">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          {{ reassignResult }} contact(s) reassigned successfully.
+        </div>
+        <div class="form-actions" style="padding: 0 20px 20px;">
+          <button class="btn btn-danger"
+            :disabled="!reassignForm.from_user_id || !reassignForm.to_user_id || reassignLoading"
+            @click="openReassignConfirm">
+            Reassign All Contacts
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- REASSIGN CONFIRM MODAL -->
+    <Teleport to="body">
+      <div v-if="reassignModal.open" class="overlay">
+        <div class="modal">
+          <div class="modal-head">
+            <div>
+              <div class="modal-title">Confirm Bulk Reassign</div>
+              <div class="modal-sub">This will move all contacts to the new owner.</div>
+            </div>
+            <button class="modal-close" @click="reassignModal.open = false"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+          </div>
+          <div class="modal-body">
+            <svg class="modal-warn-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+              <line x1="12" y1="9" x2="12" y2="13"/><circle cx="12" cy="17" r="1" fill="#f59e0b" stroke="none"/>
+            </svg>
+            <p class="modal-confirm-text">
+              Move <strong>all contacts</strong> from
+              <strong>{{ activeUsers.find(u => u.id == reassignForm.from_user_id)?.name }}</strong>
+              to
+              <strong>{{ activeUsers.find(u => u.id == reassignForm.to_user_id)?.name }}</strong>?
+              <br>This cannot be undone.
+            </p>
+          </div>
+          <div class="modal-foot">
+            <button class="btn btn-ghost" @click="reassignModal.open = false">Cancel</button>
+            <button class="btn btn-danger" @click="confirmReassign" :disabled="reassignModal.loading">
+              {{ reassignModal.loading ? 'Reassigning…' : 'Yes, Reassign' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
     <!-- PERMISSION SYNC MODAL -->
     <Teleport to="body">
       <div v-if="permModal.open" class="overlay">
@@ -720,6 +798,7 @@ const tabs = [
   { key: 'permissions', label: 'Permissions' },
   { key: 'users',       label: 'Users' },
   { key: 'grants',      label: 'Contact Grants' },
+  { key: 'reassign',    label: 'Bulk Reassign' },
 ];
 
 const activeTab  = ref('pending');
@@ -867,6 +946,7 @@ async function switchTab(key) {
     if (key === 'permissions') await loadPermissions();
     if (key === 'users')       await Promise.all([loadUsers(), loadRoles()]);
     if (key === 'grants')      await Promise.all([loadGrants(), loadUsers()]);
+    if (key === 'reassign')    await loadUsers();
   } finally {
     loading.value = false;
   }
@@ -1181,6 +1261,40 @@ async function confirmResetPw() {
   }
 }
 
+// ── Bulk Reassign ──
+const reassignForm  = reactive({ from_user_id: '', to_user_id: '' });
+const reassignResult = ref(null);
+const reassignError  = ref('');
+const reassignLoading = ref(false);
+const reassignModal = reactive({ open: false, loading: false });
+
+function openReassignConfirm() {
+  if (!reassignForm.from_user_id || !reassignForm.to_user_id) return;
+  reassignModal.loading = false;
+  reassignModal.open = true;
+}
+
+async function confirmReassign() {
+  reassignModal.loading = true;
+  reassignError.value = '';
+  reassignResult.value = null;
+  try {
+    const res = await api.post('/v1/contacts/bulk-reassign', {
+      from_user_id: reassignForm.from_user_id,
+      to_user_id:   reassignForm.to_user_id,
+    });
+    reassignResult.value = res.data.count;
+    reassignForm.from_user_id = '';
+    reassignForm.to_user_id   = '';
+    reassignModal.open = false;
+  } catch (e) {
+    reassignError.value = e.response?.data?.message ?? 'Reassignment failed.';
+    reassignModal.open = false;
+  } finally {
+    reassignModal.loading = false;
+  }
+}
+
 onMounted(() => switchTab('pending'));
 </script>
 
@@ -1291,7 +1405,7 @@ tbody tr:hover { background: var(--app-bg); }
 .tag-wrap { display: flex; flex-wrap: wrap; gap: 4px; }
 .tag { font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 12px; }
 .tag-blue   { background: #dbeafe; color: #1d4ed8; }
-.tag-purple { background: #dbeafe; color: #1e40af; }
+.tag-purple { background: #ede9fe; color: #6d28d9; }
 .tag-green  { background: #dcfce7; color: #15803d; }
 .tag-orange { background: #fff7ed; color: #c2410c; }
 .tag-gray   { background: #f1f5f9; color: #64748b; }
@@ -1460,4 +1574,32 @@ tbody tr:hover { background: var(--app-bg); }
   transition: border-color 0.15s;
 }
 .reassign-select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--focus-ring); }
+
+/* ── Bulk Reassign tab ── */
+.reassign-info {
+  display: flex; align-items: center; gap: 8px;
+  margin: 16px 20px; padding: 10px 14px;
+  background: #eff6ff; border: 1px solid #bfdbfe; border-radius: var(--radius-sm);
+  font-size: 13px; color: #1e40af;
+}
+.reassign-grid {
+  display: flex; align-items: flex-end; gap: 12px;
+  padding: 0 20px 20px; flex-wrap: wrap;
+}
+.reassign-grid .form-field { flex: 1; min-width: 180px; }
+.reassign-arrow {
+  color: var(--text-3); padding-bottom: 6px; flex-shrink: 0;
+}
+.reassign-success {
+  display: flex; align-items: center; gap: 6px;
+  margin: 0 20px 16px; padding: 10px 14px;
+  background: #dcfce7; border: 1px solid #86efac; border-radius: var(--radius-sm);
+  font-size: 13px; color: #16a34a; font-weight: 600;
+}
+.btn-danger {
+  padding: 9px 18px; border-radius: var(--radius-sm); border: none;
+  background: #dc2626; color: #fff; font-size: 13px; font-weight: 600; cursor: pointer;
+}
+.btn-danger:hover:not(:disabled) { opacity: .88; }
+.btn-danger:disabled { opacity: .45; cursor: not-allowed; }
 </style>

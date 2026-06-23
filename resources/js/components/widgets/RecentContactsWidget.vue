@@ -7,7 +7,15 @@
       </div>
       <router-link to="/list" class="rc-view-all">View All</router-link>
     </div>
-    <div v-if="loading" class="rc-empty">Loading…</div>
+    <ul v-if="loading" class="rc-list">
+      <li v-for="i in 5" :key="i" class="rc-item">
+        <div class="skel skel-avatar"></div>
+        <div class="rc-body">
+          <div class="skel skel-name"></div>
+          <div class="skel skel-meta"></div>
+        </div>
+      </li>
+    </ul>
     <div v-else-if="!contacts.length" class="rc-empty">No contacts yet</div>
     <ul v-else class="rc-list">
       <li v-for="c in contacts" :key="c.id" class="rc-item">
@@ -189,4 +197,20 @@ onMounted(async () => {
   transition: background 0.15s, color 0.15s;
 }
 .rc-edit:hover { background: var(--primary-soft); color: var(--primary); }
+
+/* Skeleton shimmer */
+@keyframes shimmer {
+  from { background-position: -200% 0; }
+  to   { background-position:  200% 0; }
+}
+.skel {
+  background: linear-gradient(90deg, var(--border-soft) 25%, var(--border) 50%, var(--border-soft) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.6s infinite linear;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+.skel-avatar { width: 40px; height: 40px; border-radius: 50%; }
+.skel-name   { height: 13px; width: 68%; }
+.skel-meta   { height: 10px; width: 44%; margin-top: 5px; }
 </style>

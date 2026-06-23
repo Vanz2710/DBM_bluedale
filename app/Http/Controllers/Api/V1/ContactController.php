@@ -372,6 +372,52 @@ class ContactController extends Controller
         return response()->json(['exists' => $query->exists()]);
     }
 
+    public function findDuplicates()
+    {
+        $user = Auth::user();
+        if (!$user->hasAnyRole(['admin', 'super-admin'])) {
+            return response()->json(['message' => 'Forbidden'], 403);
+        }
+
+        $dupeNames = DB::table('contacts')
+            ->whereNull('deleted_at')
+            ->select('name')
+            ->groupBy('name')
+            ->havingRaw('COUNT(*) > 1')
+            ->pluck('name');
+
+        $contacts = Contact::whereIn('name', $dupeNames)
+            ->with('user:id,name', 'status:id,name')
+            ->select('id', 'name', 'user_id', 'status_id', 'whatsapp_phone', 'created_at')
+            ->orderBy('name')
+            ->orderBy('created_at')
+            ->get()
+            ->each(fn($c) => $c->phone = $c->whatsapp_phone);
+
+        $grouped = $contacts->groupBy('name')->map(fn($g) => $g->values())->values();
+
+        return response()->json(['data' => $grouped, 'group_count' => $grouped->count()]);
+    }
+
+    public function bulkReassign(Request $request)
+    {
+        $user = Auth::user();
+        if (!$user->hasAnyRole(['admin', 'super-admin'])) {
+            return response()->json(['message' => 'Forbidden'], 403);
+        }
+
+        $validated = $request->validate([
+            'from_user_id' => 'required|integer|exists:users,id',
+            'to_user_id'   => 'required|integer|exists:users,id|different:from_user_id',
+        ]);
+
+        $count = Contact::where('user_id', $validated['from_user_id'])->count();
+        Contact::where('user_id', $validated['from_user_id'])
+            ->update(['user_id' => $validated['to_user_id']]);
+
+        return response()->json(['status' => 'success', 'count' => $count]);
+    }
+
     public function destroy(string $id)
     {
         $contact = Contact::findOrFail($id);

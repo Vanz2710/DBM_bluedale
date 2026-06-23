@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Models\Announcement;
+use App\Models\AnnouncementRead;
 use App\Models\AdvertisingProductBooking;
 use App\Models\DeptNotification;
 use App\Models\FollowUp;
@@ -176,6 +178,28 @@ class ReminderController extends Controller
             ->values()
             ->all();
 
+        $readAnnouncementIds = AnnouncementRead::where('user_id', $user->id)->pluck('announcement_id')->flip()->all();
+        $announcements = Announcement::active()
+            ->where(fn($q) => $q->whereNull('target_user_id')->orWhere('target_user_id', $user->id))
+            ->with('author:id,name')
+            ->orderByDesc('published_at')
+            ->limit(10)
+            ->get()
+            ->map(fn($a) => [
+                'id'          => $a->id,
+                'source_type' => 'announcement',
+                'urgency'     => $a->urgency ?? 'normal',
+                'title'       => $a->title,
+                'body'        => $a->body,
+                'author'      => $a->author?->name,
+                'is_read'     => isset($readAnnouncementIds[$a->id]),
+                'created_at'  => $a->published_at->format('d M Y, H:i'),
+            ])
+            ->values()
+            ->all();
+
+        $unreadAnnouncements = collect($announcements)->where('is_read', false)->count();
+
         return response()->json([
             'overdue'             => $overdue,
             'today'               => $dueToday,
@@ -183,7 +207,8 @@ class ReminderController extends Controller
             'alerts'              => $alerts,
             'expiring_sites'      => $expiringSites,
             'task_notifications'  => $taskNotifs,
-            'unread_count'        => $items->where('is_read', false)->count() + count($alerts) + count($expiringSites) + count($taskNotifs),
+            'announcements'       => $announcements,
+            'unread_count'        => $items->where('is_read', false)->count() + count($alerts) + count($expiringSites) + count($taskNotifs) + $unreadAnnouncements,
         ]);
     }
 
@@ -210,6 +235,14 @@ class ReminderController extends Controller
                     ->where('user_id', $userId)
                     ->whereNull('read_at')
                     ->update(['read_at' => now()]);
+                continue;
+            }
+
+            if ($type === 'announcement') {
+                AnnouncementRead::firstOrCreate(
+                    ['announcement_id' => $id, 'user_id' => $userId],
+                    ['read_at' => now()]
+                );
                 continue;
             }
 

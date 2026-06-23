@@ -41,6 +41,9 @@ const UserActivity            = () => import('../pages/UserActivity.vue');
 const Forbidden               = () => import('../pages/Forbidden.vue');
 const AuditLog                = () => import('../pages/AuditLog.vue');
 const DeptTaskManager         = () => import('../pages/DeptTaskManager.vue');
+const ContactDuplicates       = () => import('../pages/ContactDuplicates.vue');
+const Announcements           = () => import('../pages/Announcements.vue');
+const Noticeboard             = () => import('../pages/Noticeboard.vue');
 
 const routes = [
     { path: '/login',        component: Login,       name: 'login',        meta: { public: true } },
@@ -69,16 +72,19 @@ const routes = [
     { path: '/forecasts',                  component: ForecastList,        name: 'forecasts' },
     { path: '/forecasts/summary',          component: ForecastSummary,     name: 'forecast-summary' },
     { path: '/performance',                component: Performance,        name: 'performance' },
-    { path: '/admin',                      component: AdminPanel,       name: 'admin',        meta: { adminOnly: true } },
-    { path: '/admin/rbac',                 component: RbacPanel,        name: 'rbac',         meta: { adminOnly: true } },
+    { path: '/admin',                      component: AdminPanel,       name: 'admin',        meta: { adminOnly: true, permission: 'manage lookups' } },
+    { path: '/admin/rbac',                 component: RbacPanel,        name: 'rbac',         meta: { adminOnly: true, permission: 'manage users' } },
 { path: '/data-health',                component: DataHealth,   name: 'data-health' },
     { path: '/import',                     component: Import,       name: 'import' },
     { path: '/reminders',                  component: Reminders,    name: 'reminders' },
+    { path: '/notice-board',              component: Noticeboard,  name: 'notice-board' },
     { path: '/profile',                    component: MyProfile,    name: 'profile' },
     { path: '/reports',                    component: Reports,      name: 'reports' },
-    { path: '/admin/system-settings',     component: SystemSettings,  name: 'system-settings', meta: { adminOnly: true } },
-    { path: '/admin/user-activity',       component: UserActivity,    name: 'user-activity',   meta: { adminOnly: true } },
-    { path: '/admin/audit-log',           component: AuditLog,        name: 'audit-log',       meta: { adminOnly: true } },
+    { path: '/admin/system-settings',     component: SystemSettings,  name: 'system-settings', meta: { adminOnly: true, permission: 'manage users' } },
+    { path: '/admin/user-activity',       component: UserActivity,    name: 'user-activity',   meta: { adminOnly: true, permission: 'manage users' } },
+    { path: '/admin/audit-log',           component: AuditLog,        name: 'audit-log',       meta: { adminOnly: true, permission: 'manage users' } },
+    { path: '/admin/contact-duplicates', component: ContactDuplicates, name: 'contact-duplicates', meta: { adminOnly: true } },
+    { path: '/admin/announcements',      component: Announcements,     name: 'announcements',      meta: { adminOnly: true } },
     { path: '/settings',                   component: Settings,          name: 'settings' },
     { path: '/social-media',               component: SocialMediaReminder, name: 'social-media',          meta: { permission: 'manage social-media' } },
     { path: '/posting-calendar',           component: PostingCalendar,     name: 'posting-calendar',      meta: { permission: 'manage posting-calendar' } },

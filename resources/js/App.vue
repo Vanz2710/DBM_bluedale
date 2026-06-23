@@ -432,7 +432,8 @@ const ALL_GROUPS = [
     key: 'crm-pipeline', label: 'CRM Pipeline', icon: SVGI.folder, color: 'green', section: 'main', adminOnly: false,
     items: [
       { key: 'list',      to: '/list',      icon: SVGI.list,      label: 'Contacts',  activeRoutes: ['list', 'contact-view', 'contact-add', 'contact-edit', 'task-add'] },
-      { key: 'forecasts', to: '/forecasts', icon: SVGI.trending,  label: 'Forecasts', activeRoutes: ['forecasts', 'forecast-summary'] },
+      { key: 'forecasts',        to: '/forecasts',         icon: SVGI.trending, label: 'Forecasts',        activeRoutes: ['forecasts', 'forecast-summary'], permission: 'view forecasts' },
+      { key: 'forecast-summary', to: '/forecasts/summary', icon: SVGI.trending, label: 'Forecast Summary',  activeRoutes: ['forecast-summary'],              permission: 'view forecast summary', searchOnly: true },
       { key: 'projects',  to: '/projects',  icon: SVGI.layers,    label: 'Projects',  activeRoutes: ['projects', 'project-add', 'project-edit'], adminOnly: true },
       { key: 'deals',     to: '/deals',     icon: SVGI.briefcase, label: 'Deals',     activeRoutes: ['deals', 'deal-add', 'deal-edit'],           adminOnly: true },
     ],
@@ -442,7 +443,8 @@ const ALL_GROUPS = [
     items: [
       { key: 'todos',      to: '/todos',      icon: SVGI.clipboard, label: 'To Do List',   activeRoutes: ['todos', 'todo-add', 'task-edit'] },
       { key: 'followups',  to: '/followups',  icon: SVGI.bell,      label: 'Follow-Ups',   activeRoutes: ['followups', 'followup-add', 'followup-edit'] },
-      { key: 'reminders',  to: '/reminders',  icon: SVGI.bell,      label: 'Reminders',    activeRoutes: ['reminders'] },
+      { key: 'reminders',    to: '/reminders',    icon: SVGI.bell,      label: 'Notifications', activeRoutes: ['reminders'] },
+      { key: 'notice-board', to: '/notice-board', icon: SVGI.megaphone, label: 'Notice Board',  activeRoutes: ['notice-board'] },
       { key: 'dept-tasks', to: '/dept-tasks', icon: SVGI.kanban,    label: 'Task Manager', activeRoutes: ['dept-tasks'], permission: 'manage dept-tasks' },
     ],
   },
@@ -471,18 +473,13 @@ const ALL_GROUPS = [
   {
     key: 'admin', label: 'Administration', icon: SVGI.gear, color: 'purple', section: 'tools', adminOnly: true,
     items: [
-      { key: 'admin-panel',     to: '/admin',                  icon: SVGI.gear,     label: 'Lookup Settings', activeRoutes: ['admin'] },
-      { key: 'rbac',            to: '/admin/rbac',             icon: SVGI.shield,   label: 'Access Control',  activeRoutes: ['rbac'] },
-      { key: 'system-settings', to: '/admin/system-settings',  icon: SVGI.mail,     label: 'System Settings', activeRoutes: ['system-settings'] },
-      { key: 'user-activity',   to: '/admin/user-activity',   icon: SVGI.activity, label: 'User Activity',   activeRoutes: ['user-activity'] },
-      { key: 'audit-log',       to: '/admin/audit-log',        icon: SVGI.list,     label: 'Audit Log',       activeRoutes: ['audit-log'] },
-    ],
-  },
-  {
-    key: 'data', label: 'Data Management', icon: SVGI.download, color: 'orange', section: 'tools', adminOnly: false, hideLocked: true,
-    items: [
-      { key: 'import',      to: '/import',      icon: SVGI.download, label: 'Import Data', activeRoutes: ['import'],      permission: 'import contacts' },
-      { key: 'data-health', to: '/data-health', icon: SVGI.activity, label: 'Data Health', activeRoutes: ['data-health'], permission: 'view data-health' },
+      { key: 'admin-panel',     to: '/admin',                  icon: SVGI.gear,     label: 'Lookup Settings', activeRoutes: ['admin'],           permission: 'manage lookups' },
+      { key: 'rbac',            to: '/admin/rbac',             icon: SVGI.shield,   label: 'Access Control',  activeRoutes: ['rbac'],            permission: 'manage users' },
+      { key: 'system-settings', to: '/admin/system-settings',  icon: SVGI.mail,     label: 'System Settings', activeRoutes: ['system-settings'], permission: 'manage users' },
+      { key: 'user-activity',   to: '/admin/user-activity',   icon: SVGI.activity, label: 'User Activity',   activeRoutes: ['user-activity'],   permission: 'manage users' },
+      { key: 'audit-log',            to: '/admin/audit-log',            icon: SVGI.list,      label: 'Audit Log',           activeRoutes: ['audit-log'],            permission: 'manage users' },
+      { key: 'contact-duplicates',   to: '/admin/contact-duplicates',   icon: SVGI.layers,    label: 'Duplicate Contacts',  activeRoutes: ['contact-duplicates'] },
+      { key: 'announcements',        to: '/admin/announcements',        icon: SVGI.megaphone, label: 'Announcements',       activeRoutes: ['announcements'] },
     ],
   },
   // section: 'account' — not rendered in sidebar (only 'main'/'tools' are); included in search only
@@ -508,9 +505,11 @@ function hasItemPermission(item) {
 function resolveGroupItems(g) {
   // hideLocked: fully remove items the user can't access (group disappears when all items are hidden)
   // default: keep locked items visible but dimmed so users know the feature exists
+  // searchOnly items are searchable via topbar but intentionally omitted from the sidebar
+  const visible = g.items.filter(item => !item.searchOnly);
   return g.hideLocked
-    ? g.items.filter(item => hasItemPermission(item))
-    : g.items.map(item => ({ ...item, locked: !hasItemPermission(item) }));
+    ? visible.filter(item => hasItemPermission(item))
+    : visible.map(item => ({ ...item, locked: !hasItemPermission(item) }));
 }
 
 const mainGroups = computed(() =>

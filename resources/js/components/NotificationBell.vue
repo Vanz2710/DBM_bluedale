@@ -135,7 +135,28 @@
           </div>
         </div>
 
-        <div v-if="!taskNotifs.length && !overdue.length && !today.length && !upcoming.length && !expiringSites.length" class="panel-empty">
+        <div v-if="announcements.length > 0">
+          <div class="sec-head announce-head">Announcements <span class="sec-cnt">{{ announcements.length }}</span></div>
+          <div
+            v-for="item in announcements"
+            :key="'ann' + item.id"
+            class="r-item"
+            :class="{ 'r-read': item.is_read, 'r-urgent-row': item.urgency === 'urgent' && !item.is_read }"
+          >
+            <div class="r-body">
+              <span class="r-tag" :class="item.urgency === 'urgent' ? 'tag-urgent-ann' : 'tag-announce'">
+                {{ item.urgency === 'urgent' ? 'URGENT' : 'INFO' }}
+              </span>
+              <div class="r-text">
+                <div class="r-title">{{ clip(item.title) }}</div>
+                <div class="r-sub">{{ item.author }} · {{ item.created_at }}</div>
+              </div>
+            </div>
+            <button v-if="!item.is_read" class="btn-dismiss" @click.stop="dismissAnnouncement(item)" title="Dismiss">×</button>
+          </div>
+        </div>
+
+        <div v-if="!taskNotifs.length && !alerts.length && !announcements.length && !overdue.length && !today.length && !upcoming.length && !expiringSites.length" class="panel-empty">
           All caught up
         </div>
       </div>
@@ -160,6 +181,7 @@ const upcoming      = ref([]);
 const alerts        = ref([]);
 const expiringSites = ref([]);
 const taskNotifs    = ref([]);
+const announcements = ref([]);
 const unreadCount   = ref(0);
 
 let pollTimer = null;
@@ -178,6 +200,7 @@ async function load() {
     alerts.value        = res.data.alerts ?? [];
     expiringSites.value = res.data.expiring_sites ?? [];
     taskNotifs.value    = res.data.task_notifications ?? [];
+    announcements.value = res.data.announcements ?? [];
     unreadCount.value   = res.data.unread_count;
   } catch (_) { /* ignore */ }
   finally { loading.value = false; }
@@ -199,6 +222,8 @@ function dismissOne(item) {
     alerts.value = alerts.value.filter(a => a.id !== item.id);
   } else if (item.source_type === 'task_notification') {
     taskNotifs.value = taskNotifs.value.filter(n => n.id !== item.id);
+  } else if (item.source_type === 'announcement') {
+    announcements.value = announcements.value.filter(a => a.id !== item.id);
   } else {
     item.is_read = true;
   }
@@ -216,12 +241,19 @@ function taskTypeLabel(type) {
   return { assigned: 'ASSIGNED', approval_needed: 'NEEDS APPROVAL', completed: 'COMPLETED', rejected: 'CHANGES REQUESTED' }[type] ?? 'TASK';
 }
 
+function dismissAnnouncement(item) {
+  sendRead([item]);
+  announcements.value = announcements.value.filter(a => a.id !== item.id);
+  unreadCount.value = Math.max(0, unreadCount.value - 1);
+}
+
 async function markAllRead() {
   const unread = allUnread.value.slice();
   await sendRead(unread);
   [...alerts.value, ...overdue.value, ...today.value, ...upcoming.value].forEach(i => { i.is_read = true; });
-  alerts.value    = [];
-  taskNotifs.value = [];
+  alerts.value         = [];
+  taskNotifs.value     = [];
+  announcements.value  = announcements.value.map(a => ({ ...a, is_read: true }));
   unreadCount.value = 0;
 }
 
@@ -316,9 +348,13 @@ onUnmounted(() => {
 .alert-head    { color: #92400e; background: #fffbeb; }
 .overdue-head  { color: #dc2626; background: #fff1f2; }
 .today-head    { color: #d97706; background: #fffbeb; }
-.upcoming-head { color: #0284c7; background: #f0f9ff; }
-.sites-head    { color: #065f46; background: #ecfdf5; }
-.tag-site      { background: #d1fae5; color: #065f46; }
+.upcoming-head  { color: #0284c7; background: #f0f9ff; }
+.sites-head     { color: #065f46; background: #ecfdf5; }
+.announce-head  { color: var(--primary); background: color-mix(in srgb, var(--primary) 8%, transparent); }
+.tag-site        { background: #d1fae5; color: #065f46; }
+.tag-announce    { background: color-mix(in srgb, var(--primary) 12%, transparent); color: var(--primary); }
+.tag-urgent-ann  { background: #fee2e2; color: #dc2626; }
+.r-urgent-row    { background: #fff8f8; }
 .sec-cnt {
   background: currentColor; color: white;
   border-radius: 10px; padding: 1px 5px; font-size: 10px; opacity: 0.85;
