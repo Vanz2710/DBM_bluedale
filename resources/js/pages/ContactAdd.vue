@@ -47,15 +47,8 @@
               </select>
             </div>
           </div>
-          <div class="form-row">
+          <div v-if="isAdmin" class="form-row">
             <div class="form-group">
-              <label>Area</label>
-              <select v-model="form.area_id">
-                <option value="">Select area</option>
-                <option v-for="a in lookups.areas" :key="a.id" :value="a.id">{{ a.name }}</option>
-              </select>
-            </div>
-            <div v-if="isAdmin" class="form-group">
               <label>Assign To</label>
               <select v-model="form.user_id">
                 <option value="">— Assign to me —</option>
@@ -151,11 +144,11 @@ const submitError = ref('');
 const dupError = ref('');
 let dupTimer = null;
 
-const lookups = ref({ statuses: [], industries: [], types: [], categories: [], areas: [], users: [] });
+const lookups = ref({ statuses: [], industries: [], types: [], categories: [], users: [] });
 
 const form = ref({
   name: '', status_id: '', industry_id: '', type_id: '', category_id: '',
-  area_id: '', user_id: '',
+  user_id: '',
   address: '', created_at: new Date().toISOString().slice(0, 10),
   lead_source: 'manual',
 });

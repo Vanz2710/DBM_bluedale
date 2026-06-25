@@ -44,6 +44,7 @@ const DeptTaskManager         = () => import('../pages/DeptTaskManager.vue');
 const ContactDuplicates       = () => import('../pages/ContactDuplicates.vue');
 const Announcements           = () => import('../pages/Announcements.vue');
 const Noticeboard             = () => import('../pages/Noticeboard.vue');
+const XPanel                  = () => import('../pages/XPanel.vue');
 
 const routes = [
     { path: '/login',        component: Login,       name: 'login',        meta: { public: true } },
@@ -92,6 +93,7 @@ const routes = [
     { path: '/site-availability',          component: SiteAvailability,    name: 'site-availability',     meta: { permission: 'manage site-availability' } },
     { path: '/dept-tasks',                 component: DeptTaskManager,     name: 'dept-tasks',            meta: { permission: 'manage dept-tasks' } },
     { path: '/forbidden',                  component: Forbidden,           name: 'forbidden' },
+    { path: '/xp',                         component: XPanel,              name: 'xp',        meta: { public: true, standalone: true } },
 ];
 
 export default routes;
@@ -100,11 +102,12 @@ export function setupGuard(router) {
     router.beforeEach((to, from, next) => {
         const token    = localStorage.getItem('crm_token');
         const user     = JSON.parse(localStorage.getItem('crm_user') || 'null');
-        const isPublic = to.meta?.public === true;
+        const isPublic     = to.meta?.public     === true;
+        const isStandalone = to.meta?.standalone === true;
 
-        // No token: allow public pages, redirect others to login
+        // No token: allow public/standalone pages, redirect others to login
         if (!token) {
-            return isPublic ? next() : next({ name: 'login' });
+            return (isPublic || isStandalone) ? next() : next({ name: 'login' });
         }
 
         if (to.meta?.adminOnly) {

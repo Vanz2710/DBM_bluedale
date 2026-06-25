@@ -69,6 +69,12 @@ api.interceptors.response.use(
         return res;
     },
     (err) => {
+        if (err.response?.status === 503 && err.response?.data?.error === 'maintenance') {
+            window.dispatchEvent(new CustomEvent('crm-maintenance', {
+                detail: { message: err.response.data.message ?? 'System is under maintenance.' },
+            }));
+            return Promise.reject(err);
+        }
         if (err.response?.status === 401 && !_redirecting) {
             _redirecting = true;
             localStorage.removeItem('crm_token');

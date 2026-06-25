@@ -8,6 +8,7 @@ use App\Models\Forecast;
 use App\Models\ForecastResult;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 
 class ForecastController extends Controller
 {
@@ -35,9 +36,17 @@ class ForecastController extends Controller
     {
         $base = $this->baseQuery($request);
 
-        // Look up result IDs once (2 queries)
-        $resultIds  = ForecastResult::whereIn('name', ['Confirmed', 'Pending', 'Rejected'])->pluck('id', 'name');
-        $noResultId = ForecastResult::where('name', 'No Result')->value('id') ?? -1;
+        // Look up result IDs — cached since these rows never change at runtime.
+        // Cache a plain array (not a Collection): a serialized Collection can come back
+        // as an incomplete object from some cache drivers and fatal on method calls.
+        // The `_v2` suffix retires any previously-cached broken Collection without a manual
+        // cache:clear — the new code simply reads a fresh key.
+        $resultIds  = Cache::remember('forecast_result_ids_v2', 3600, fn () =>
+            ForecastResult::whereIn('name', ['Confirmed', 'Pending', 'Rejected'])->pluck('id', 'name')->all()
+        );
+        $noResultId = Cache::remember('forecast_no_result_id_v2', 3600, fn () =>
+            ForecastResult::where('name', 'No Result')->value('id') ?? -1
+        );
 
         // Single conditional-aggregate query replaces 6 separate sum() queries
         $agg = (clone $base)->toBase()->selectRaw(
@@ -48,9 +57,9 @@ class ForecastController extends Controller
              SUM(CASE WHEN result_id = ? THEN amount ELSE 0 END) as rejected_amount,
              SUM(CASE WHEN result_id IS NULL OR result_id = ? THEN amount ELSE 0 END) as no_result_amount',
             [
-                $resultIds->get('Confirmed'),
-                $resultIds->get('Pending'),
-                $resultIds->get('Rejected'),
+                $resultIds['Confirmed'] ?? null,
+                $resultIds['Pending'] ?? null,
+                $resultIds['Rejected'] ?? null,
                 $noResultId,
             ]
         )->first();
@@ -230,16 +239,19 @@ class ForecastController extends Controller
 
     private function relations(): array
     {
-        // contact.status and contact.type dropped — contactStatus/contactType direct
-        // relations on Forecast already cover the same data via denormalized FK columns.
+        // Constrained selects — only the columns used in format(), reduces data transfer significantly.
+        // contact also selects status_id/type_id so the nested status/type fallbacks in format()
+        // are eager-loaded (avoids an N+1 lazy-load per row when the denormalized FK is null).
         return [
-            'contact',
-            'user',
-            'product',
-            'forecastType',
-            'result',
-            'contactStatus',
-            'contactType',
+            'contact:id,name,status_id,type_id',
+            'contact.status:id,name',
+            'contact.type:id,name',
+            'user:id,name',
+            'product:id,name',
+            'forecastType:id,name',
+            'result:id,name',
+            'contactStatus:id,name',
+            'contactType:id,name',
         ];
     }
 

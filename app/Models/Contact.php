@@ -2,6 +2,11 @@
 
 namespace App\Models;
 
+use App\Models\ContactArea;
+use App\Models\ContactCategory;
+use App\Models\ContactIndustry;
+use App\Models\ContactStatus;
+use App\Models\ContactType;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;

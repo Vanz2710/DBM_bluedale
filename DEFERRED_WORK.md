@@ -126,14 +126,9 @@ The public path override (`bootstrap/app.php`) is the only **required** revert. 
 
 ---
 
-### BT-5. Archive Stale Pre-Rewrite Docs
+### BT-5. Archive Stale Pre-Rewrite Docs — ✅ DONE (2026-06-24)
 
-These files describe the old plain PHP system from before the Laravel/Vue rewrite. They no longer reflect the codebase and will confuse anyone reading them:
-
-- `docs/current-code-progress.md` — describes old plain PHP structure (ammars/ folder, bluedale2_crmbgoc, plain `index.php`, `view.php`)
-- `docs/upgrade-checklist.md` — plain PHP → Laravel 8 upgrade checklist for a different codebase
-
-**Action:** Move to `docs/archive/` or add a one-line notice at the top of each: `> Archived — describes the pre-Laravel/Vue plain PHP system (2025). No longer relevant.`
+Removed the obsolete pre-Laravel/Vue plain-PHP docs (`docs/current-code-progress.md`, `docs/upgrade-checklist.md`, `docs/crm-use-cases.md`) and the generic `INFINITYFREE_DEPLOYMENT_GUIDE.md` during the pre-cPanel context cleanup.
 
 ---
 

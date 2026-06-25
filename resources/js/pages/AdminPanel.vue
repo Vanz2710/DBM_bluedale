@@ -115,7 +115,6 @@ const TAB_GROUPS = [
       { key: 'types',      label: 'Types' },
       { key: 'industries', label: 'Industries' },
       { key: 'categories', label: 'Categories' },
-      { key: 'areas',      label: 'Areas' },
     ],
   },
   {

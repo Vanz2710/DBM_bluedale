@@ -19,6 +19,7 @@ use Spatie\Permission\Traits\HasRoles;
     'is_approved', 'approved_at', 'approved_by_id', 'access_requested_at',
     'login_count', 'last_login_at', 'inactivity_flagged_at',
     'failed_login_attempts', 'locked_until', 'lockout_level', 'permanently_locked',
+    'blocked_at',
 ])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
@@ -39,6 +40,7 @@ class User extends Authenticatable
             'is_approved'         => 'boolean',
             'login_count'            => 'integer',
             'inactivity_flagged_at'  => 'datetime',
+        'blocked_at'             => 'datetime',
             'locked_until'           => 'datetime',
             'failed_login_attempts'  => 'integer',
             'lockout_level'          => 'integer',

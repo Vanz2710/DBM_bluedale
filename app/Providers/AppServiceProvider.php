@@ -16,9 +16,10 @@ class AppServiceProvider extends ServiceProvider
     {
         Schema::defaultStringLength(191);
 
-        // super-admin bypasses all permission checks
+        // super-admin and admin bypass all permission checks
         Gate::before(function ($user, $ability) {
-            if ($user->hasRole('super-admin')) {
+            $roleNames = $user->roles->pluck('name');
+            if ($roleNames->contains('super-admin') || $roleNames->contains('admin')) {
                 return true;
             }
         });

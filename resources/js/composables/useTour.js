@@ -87,7 +87,7 @@ export const PAGE_TOURS = {
     {
       target: '.toolbar',
       title: 'Filter & Search',
-      body: 'Narrow down contacts by date added, company name, assigned user, status, type, category, or area. Use Export to download the filtered list as an Excel file.',
+      body: 'Narrow down contacts by date added, company name, assigned user, status, type, or category. Use Export to download the filtered list as an Excel file.',
       position: 'bottom',
     },
     {
@@ -114,7 +114,7 @@ export const PAGE_TOURS = {
     {
       target: '.toolbar',
       title: 'Filter & Search',
-      body: 'Narrow down contacts by date added, company name, assigned user, status, type, category, or area. Use Export to download the filtered list as an Excel file.',
+      body: 'Narrow down contacts by date added, company name, assigned user, status, type, or category. Use Export to download the filtered list as an Excel file.',
       position: 'bottom',
     },
     {
@@ -434,13 +434,13 @@ export const PAGE_TOURS = {
     {
       target: '.page-head',
       title: 'Lookup Settings',
-      body: 'This is where you control the dropdown values used across the CRM — contact statuses, types, categories, industries, areas, and task types.',
+      body: 'This is where you control the dropdown values used across the CRM — contact statuses, types, categories, industries, and task types.',
       position: 'bottom',
     },
     {
       target: '.tabs-bar',
       title: 'Lookup Categories',
-      body: 'Each tab manages a different dropdown list. Switch between Contact classifications (Status, Type, Category, Industry, Area) and Task types used when logging todos.',
+      body: 'Each tab manages a different dropdown list. Switch between Contact classifications (Status, Type, Category, Industry) and Task types used when logging todos.',
       position: 'bottom',
     },
     {
@@ -684,6 +684,110 @@ export const PAGE_TOURS = {
       target: '[data-tour="pi-deals"]',
       title: 'Deal Win Probability',
       body: 'Open deals auto-scored on activity and urgency. Each row shows the value, close date, and a win-probability bar tagged On Track, At Risk, or High Risk — so you know where to focus.',
+      position: 'bottom',
+    },
+  ],
+
+  // ── Marketing ──────────────────────────────────────────────────────────────
+  'social-media': [
+    {
+      target: '.page-header',
+      title: 'Social Media Jobs',
+      body: 'Track pending social media work for your clients. Each entry is a package booked for a given month, so the team always knows what\'s still outstanding.',
+      position: 'bottom',
+    },
+    {
+      target: '.entry-panel',
+      title: 'Log a New Job',
+      body: 'Search for the company, pick the package, set the month, then click Add Job — it appears in the pending list instantly.',
+      position: 'bottom',
+    },
+    {
+      target: '.toolbar',
+      title: 'Search & Filter',
+      body: 'Find jobs by company or package name, or narrow the list to a specific month using the Month Filter.',
+      position: 'bottom',
+    },
+    {
+      target: '.table-wrap',
+      title: 'Pending Jobs',
+      body: 'Each row is a pending job showing the company, package, and month. Update or remove a job here as the work progresses.',
+      position: 'bottom',
+    },
+  ],
+
+  'posting-calendar': [
+    {
+      target: '.page-head',
+      title: 'Posting Calendar',
+      body: 'Plan and schedule social media posts — FB, IG, TikTok, and content reminders — for the whole team in one calendar.',
+      position: 'bottom',
+    },
+    {
+      target: '.month-control',
+      title: 'Switch Months',
+      body: 'Use the arrows to move between months. The calendar and reminder list below update to show that month\'s scheduled posts.',
+      position: 'bottom-left',
+    },
+    {
+      target: '.entry-panel',
+      title: 'Schedule a Post',
+      body: 'Fill in the title, platform, client, date, time, and status (Planned → Design → Approval → Scheduled → Posted), then click Add Reminder.',
+      position: 'bottom',
+    },
+    {
+      target: '.calendar-card',
+      title: 'Calendar View',
+      body: 'Each day cell shows the posts scheduled for that date, colour-coded by status. Click an entry to edit it.',
+      position: 'bottom',
+    },
+    {
+      target: '.list-card',
+      title: 'Reminder List',
+      body: 'Below the calendar, the same posts appear as a chronological list — handy for working through the month\'s schedule in order.',
+      position: 'bottom',
+    },
+  ],
+
+  'marketing-email': [
+    {
+      target: '.page-header-row',
+      title: 'Email Marketing',
+      body: 'Build and send email campaigns to your contacts, then track how they perform — all from this one workspace.',
+      position: 'bottom',
+    },
+    {
+      target: '.tab-bar',
+      title: 'Six Sections',
+      body: 'Dashboard (performance at a glance), Campaigns (create & send), Contacts (your mailing audience), Lists (audience segments), Templates (reusable designs), and Analytics (open & click rates). Each section has its own create button in the top-right — New Campaign, Add Contact, New List, or New Template.',
+      position: 'bottom',
+    },
+    {
+      target: '.stat-grid',
+      title: 'Dashboard Stats',
+      body: 'The Dashboard opens first with headline numbers — total campaigns, contacts, and average open and click rates — plus your most recent campaigns below.',
+      position: 'bottom',
+    },
+  ],
+
+  // ── Settings ───────────────────────────────────────────────────────────────
+  settings: [
+    {
+      target: '.page-header',
+      title: 'Settings',
+      body: 'Customise how the application looks and behaves for you — and, if you\'re an admin, reach the system management tools.',
+      position: 'bottom',
+    },
+    {
+      target: '.settings-nav',
+      title: 'Settings Sections',
+      body: 'Switch between Appearance, timezone, and notification preferences here. Admins also see an Admin section linking to user management, lookups, and system configuration. The profile card at the top jumps straight to your account.',
+      position: 'right',
+    },
+    {
+      target: '.settings-content',
+      title: 'Your Preferences',
+      body: 'Each section\'s options appear in this panel. Pick your theme, set your timezone, toggle notifications, then click Save Changes to apply.',
       position: 'bottom',
     },
   ],

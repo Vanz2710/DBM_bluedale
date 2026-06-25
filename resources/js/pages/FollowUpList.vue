@@ -189,10 +189,31 @@
             <div v-if="addModal.error" class="add-error-box">{{ addModal.error }}</div>
             <div class="add-form-group">
               <label>Company <span class="req">*</span></label>
-              <select v-model="addModal.contactId" @change="onAddContactChange" required>
-                <option value="">Select company</option>
-                <option v-for="c in addContacts" :key="c.id" :value="c.id">{{ c.name }}</option>
-              </select>
+              <div class="company-search-wrap">
+                <input
+                  type="text"
+                  class="company-input"
+                  v-model="companySearch.query"
+                  @input="onCompanySearch"
+                  @focus="companySearch.open = true"
+                  @blur="closeCompanyDropdownSoon"
+                  placeholder="Type to search company…"
+                  autocomplete="off"
+                >
+                <button v-if="addModal.contactId" type="button" class="company-clear" @click="clearCompany" v-html="CI.x"></button>
+                <div v-if="companySearch.open && companySearch.query.trim().length" class="company-dropdown">
+                  <div v-if="companySearch.loading" class="company-option muted">Searching…</div>
+                  <template v-else>
+                    <div v-if="!companySearch.results.length" class="company-option muted">No companies found</div>
+                    <div
+                      v-for="c in companySearch.results"
+                      :key="c.id"
+                      class="company-option"
+                      @mousedown.prevent="selectCompany(c)"
+                    >{{ c.name }}</div>
+                  </template>
+                </div>
+              </div>
             </div>
             <div class="add-form-group">
               <label>To-Do <span class="req">*</span></label>
@@ -299,9 +320,57 @@ const deleteTarget = ref(null);
 const deleting     = ref(false);
 
 // Add Follow-Up modal
-const addContacts = ref([]);
-const addModal    = ref({ open: false, saving: false, error: '', todos: [], todosLoading: false, contactId: '' });
-const addForm     = ref({ todo_id: '', followup_date: today, action_type: '', note: '' });
+const addModal      = ref({ open: false, saving: false, error: '', todos: [], todosLoading: false, contactId: '', contactName: '' });
+const addForm       = ref({ todo_id: '', followup_date: today, action_type: '', note: '' });
+const companySearch = ref({ query: '', results: [], loading: false, open: false });
+let companyTimer = null;
+
+function onCompanySearch() {
+  clearTimeout(companyTimer);
+  const q = companySearch.value.query.trim();
+  companySearch.value.open = true;
+  // Editing the text invalidates any previously picked company
+  if (addModal.value.contactId && q !== addModal.value.contactName) {
+    addModal.value.contactId   = '';
+    addModal.value.contactName = '';
+    addForm.value.todo_id      = '';
+    addModal.value.todos       = [];
+  }
+  if (!q) { companySearch.value.results = []; return; }
+  companyTimer = setTimeout(async () => {
+    companySearch.value.loading = true;
+    try {
+      const res = await api.get('/v1/contacts', { params: { search: q, per_page: 20 } });
+      companySearch.value.results = res.data.data;
+    } catch (_) {
+      companySearch.value.results = [];
+    } finally {
+      companySearch.value.loading = false;
+    }
+  }, 300);
+}
+
+function selectCompany(c) {
+  addModal.value.contactId    = c.id;
+  addModal.value.contactName  = c.name;
+  companySearch.value.query   = c.name;
+  companySearch.value.open    = false;
+  companySearch.value.results = [];
+  onAddContactChange();
+}
+
+function clearCompany() {
+  addModal.value.contactId    = '';
+  addModal.value.contactName  = '';
+  companySearch.value.query   = '';
+  companySearch.value.results = [];
+  addForm.value.todo_id       = '';
+  addModal.value.todos        = [];
+}
+
+function closeCompanyDropdownSoon() {
+  setTimeout(() => { companySearch.value.open = false; }, 150);
+}
 
 const periodLabel = computed(() => {
   if (view.value === 'DateRange') {
@@ -412,13 +481,10 @@ async function toggleStatus(f) {
   }
 }
 
-async function openAddModal() {
-  addModal.value = { open: true, saving: false, error: '', todos: [], todosLoading: false, contactId: '' };
-  addForm.value  = { todo_id: '', followup_date: today, action_type: '', note: '' };
-  if (!addContacts.value.length) {
-    const res = await api.get('/v1/contacts', { params: { per_page: 1000 } });
-    addContacts.value = res.data.data;
-  }
+function openAddModal() {
+  addModal.value      = { open: true, saving: false, error: '', todos: [], todosLoading: false, contactId: '', contactName: '' };
+  addForm.value       = { todo_id: '', followup_date: today, action_type: '', note: '' };
+  companySearch.value = { query: '', results: [], loading: false, open: false };
 }
 
 function closeAddModal() { addModal.value.open = false; }
@@ -739,6 +805,31 @@ tbody tr:hover { background: var(--surface-2); }
   border-color: var(--primary); box-shadow: 0 0 0 3px var(--focus-ring);
 }
 .add-form-group select:disabled { background: var(--app-bg); color: var(--text-3); cursor: not-allowed; }
+
+/* Searchable company picker */
+.company-search-wrap { position: relative; }
+.company-search-wrap .company-input { padding-right: 38px; }
+.company-clear {
+  position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+  background: none; border: none; padding: 4px; cursor: pointer;
+  color: var(--text-3); display: flex; align-items: center;
+}
+.company-clear:hover { color: var(--text-1); }
+.company-clear :deep(svg) { width: 14px; height: 14px; }
+.company-dropdown {
+  position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 20;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); box-shadow: var(--shadow-md);
+  max-height: 220px; overflow-y: auto;
+}
+.company-option {
+  padding: 10px 14px; font-size: 13px; color: var(--text-1);
+  cursor: pointer; border-bottom: 1px solid var(--border-soft);
+}
+.company-option:last-child { border-bottom: none; }
+.company-option:hover { background: var(--surface-2); }
+.company-option.muted { color: var(--text-3); cursor: default; }
+.company-option.muted:hover { background: none; }
 .add-hint { font-size: 11.5px; color: #f59e0b; margin-top: 4px; display: block; }
 .add-error-box {
   background: var(--danger-soft); color: var(--danger);

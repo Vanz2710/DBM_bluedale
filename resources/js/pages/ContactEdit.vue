@@ -1,8 +1,8 @@
 ﻿<template>
   <div class="page">
-    <div class="page-banner amber">
-      <h1>Edit Company</h1>
-      <p>Update company information</p>
+    <div class="page-header">
+      <h1 class="page-title">Edit Company</h1>
+      <p class="page-subtitle">Update company information</p>
     </div>
     <div class="card">
       <LoadingSpinner v-if="loading" />
@@ -45,15 +45,8 @@
             </select>
           </div>
         </div>
-        <div class="form-row">
+        <div v-if="isAdmin" class="form-row">
           <div class="form-group">
-            <label>Area</label>
-            <select v-model="form.area_id">
-              <option value="">— No change —</option>
-              <option v-for="a in lookups.areas" :key="a.id" :value="a.id">{{ a.name }}</option>
-            </select>
-          </div>
-          <div v-if="isAdmin" class="form-group">
             <label>Assign To</label>
             <select v-model="form.user_id">
               <option value="">— No change —</option>
@@ -111,10 +104,10 @@ const error = ref('');
 const dupError = ref('');
 let dupTimer = null;
 
-const lookups = ref({ statuses: [], types: [], industries: [], categories: [], areas: [], users: [] });
+const lookups = ref({ statuses: [], types: [], industries: [], categories: [], users: [] });
 const form = ref({
   name: '', status_id: '', type_id: '', industry_id: '',
-  category_id: '', area_id: '', address: '', lead_source: '', remark: '', user_id: '',
+  category_id: '', address: '', lead_source: '', remark: '', user_id: '',
 });
 
 function checkDuplicate() {
@@ -159,7 +152,6 @@ onMounted(async () => {
       type_id:     c.type_id     ?? '',
       industry_id: c.industry_id ?? '',
       category_id: c.category_id ?? '',
-      area_id:     c.area_id     ?? '',
       address:     c.address     ?? '',
       lead_source: c.lead_source ?? '',
       remark:      c.remark      ?? '',
@@ -178,48 +170,43 @@ onMounted(async () => {
 
 <style scoped>
 .page { padding: 28px 32px; max-width: 760px; }
-.page-banner {
-  border-radius: var(--radius-lg); padding: 22px 28px; margin-bottom: 20px; color: white;
-  background:
-    radial-gradient(900px 200px at 90% -20%, rgba(96,165,250,0.5), transparent 55%),
-    linear-gradient(118deg, #0f2456 0%, #1d4ed8 52%, #1e40af 100%);
-  box-shadow: 0 12px 32px -14px rgba(15,36,86,0.65);
+.page-header { margin-bottom: 24px; }
+.page-title { font-size: 28px; font-weight: 800; color: var(--text-1); letter-spacing: -0.5px; margin: 0 0 4px; }
+.page-subtitle { font-size: 13.5px; color: var(--text-3); margin: 0; }
+.card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); box-shadow: var(--shadow-sm); padding: 28px 32px;
 }
-.page-banner.amber { /* colour unified — kept for template compat */ }
-.page-banner h1 { font-size: 26px; font-weight: 800; margin: 0 0 5px; letter-spacing: -0.4px; }
-.page-banner p { font-size: 13px; color: rgba(237,233,254,0.82); margin: 0; }
-.card { background: var(--surface); border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); padding: 28px 32px; }
-.loading-msg { text-align: center; padding: 40px; color: var(--text-3); }
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .form-group { margin-bottom: 16px; }
 .form-group label { display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-2); margin-bottom: 6px; }
 .form-group input, .form-group select, .form-group textarea {
   width: 100%; height: 40px; padding: 0 14px; border: 1.5px solid var(--border);
-  border-radius: 8px; font-size: 13px; color: var(--text-1); outline: none;
+  border-radius: var(--radius-sm); font-size: 13px; color: var(--text-1); outline: none;
   background: var(--surface); box-sizing: border-box;
 }
 .form-group textarea { height: 80px; padding: 10px 14px; resize: vertical; }
 .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
-  border-color: var(--primary); box-shadow: 0 0 0 3px rgba(29,78,216,0.12);
+  border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft);
 }
 .hint { font-size: 11px; color: var(--warning); margin-top: 4px; }
 .error-hint { color: var(--danger); font-weight: 600; }
-.error-box { background: var(--danger-soft); color: var(--danger); border-radius: 8px; padding: 10px 14px; font-size: 13px; margin-bottom: 16px; }
+.error-box { background: var(--danger-soft); color: var(--danger); border-radius: var(--radius-sm); padding: 10px 14px; font-size: 13px; margin-bottom: 16px; }
 .req { color: var(--danger); }
 .btn-row { display: flex; gap: 10px; margin-top: 24px; }
-.btn { height: 42px; padding: 0 20px; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; border: none; text-decoration: none; display: inline-flex; align-items: center; }
-.btn-cancel { background: var(--app-bg); color: var(--text-2); }
-.btn-save { flex: 1; background: var(--primary); color: white; justify-content: center; }
+.btn { height: 42px; padding: 0 20px; border-radius: var(--radius-sm); font-size: 14px; font-weight: 700; cursor: pointer; border: none; text-decoration: none; display: inline-flex; align-items: center; }
+.btn-cancel { background: var(--surface-2); color: var(--text-2); border: 1px solid var(--border); }
+.btn-save { flex: 1; background: var(--primary); color: var(--primary-on); justify-content: center; }
 .btn-save:disabled { background: var(--text-3); cursor: not-allowed; }
 
 /* Responsive */
 @media (max-width: 768px) {
-  .page { padding: 16px 12px; }
+  .page { padding: 20px 16px; }
   .card { padding: 20px 16px; }
   .form-row { grid-template-columns: 1fr; }
 }
 @media (max-width: 640px) {
-  .page { padding: 12px 8px; }
+  .page { padding: 16px 12px; }
   .btn-row { flex-wrap: wrap; }
 }
 </style>

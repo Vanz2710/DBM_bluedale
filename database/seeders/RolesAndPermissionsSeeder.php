@@ -78,8 +78,9 @@ class RolesAndPermissionsSeeder extends Seeder
 
         $names = array_column($permissions, 'name');
 
-        // super-admin: bypasses all checks via Gate::before in AppServiceProvider
-        Role::firstOrCreate(['name' => 'super-admin', 'guard_name' => 'web']);
+        // super-admin: gets all permissions directly AND bypasses via Gate::before in AppServiceProvider
+        $superAdmin = Role::firstOrCreate(['name' => 'super-admin', 'guard_name' => 'web']);
+        $superAdmin->syncPermissions($names);
 
         // admin: full CRM access + admin tools, no RBAC management
         $adminExcluded = ['manage roles', 'manage permissions', 'manage users'];

@@ -106,6 +106,7 @@
 import { computed, ref, watch } from 'vue';
 import api from '../api.js';
 import LoadingSpinner from './LoadingSpinner.vue';
+import { useLookups } from '../composables/useLookups.js';
 
 const props = defineProps({
   open: { type: Boolean, default: false },
@@ -121,11 +122,11 @@ const isAdmin = computed(() => {
   return roles.includes('admin') || roles.includes('super-admin');
 });
 
+const { lookups, load: loadLookups } = useLookups();
+
 const loading = ref(false);
 const saving = ref(false);
 const error = ref('');
-const lookups = ref({ forecast_products: [], forecast_types: [], forecast_results: [], users: [] });
-const lookupsLoaded = ref(false);
 const filteredContacts = ref([]);
 const contactSearch = ref('');
 const showDropdown = ref(false);
@@ -190,10 +191,7 @@ function resetForm() {
 }
 
 async function ensureLookups() {
-  if (lookupsLoaded.value) return;
-  const res = await api.get('/v1/lookups');
-  lookups.value = res.data;
-  lookupsLoaded.value = true;
+  await loadLookups();
 }
 
 async function initialize() {

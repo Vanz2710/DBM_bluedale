@@ -558,15 +558,8 @@
                 </select>
               </div>
             </div>
-            <div class="add-form-row">
+            <div v-if="isAdmin" class="add-form-row">
               <div class="add-form-group">
-                <label>Area</label>
-                <select v-model="addForm.area_id">
-                  <option value="">Select area</option>
-                  <option v-for="a in lookups.areas" :key="a.id" :value="a.id">{{ a.name }}</option>
-                </select>
-              </div>
-              <div v-if="isAdmin" class="add-form-group">
                 <label>Assign To</label>
                 <select v-model="addForm.user_id">
                   <option value="">— Assign to me —</option>
@@ -851,15 +844,8 @@
                 </select>
               </div>
             </div>
-            <div class="add-form-row">
+            <div v-if="isAdmin" class="add-form-row">
               <div class="add-form-group">
-                <label>Area</label>
-                <select v-model="editContactForm.area_id">
-                  <option value="">— No change —</option>
-                  <option v-for="a in lookups.areas" :key="a.id" :value="a.id">{{ a.name }}</option>
-                </select>
-              </div>
-              <div v-if="isAdmin" class="add-form-group">
                 <label>Assign To</label>
                 <select v-model="editContactForm.user_id">
                   <option value="">— No change —</option>
@@ -1581,7 +1567,7 @@ const todoDeleteModal = ref({ show: false, todo: null, loading: false });
 
 // ── Shared ──
 const users   = ref([]);
-const lookups = ref({ statuses: [], types: [], categories: [], industries: [], tasks: [], areas: [] });
+const lookups = ref({ statuses: [], types: [], categories: [], industries: [], tasks: [] });
 
 // ── Modals & drawer ──
 const remarkModal = ref({ show: false, company: '', text: '' });
@@ -1610,7 +1596,7 @@ const addTaskModalForm = ref({ task_id: '', todo_date: '', todo_remark: '' });
 
 // ── Quick Edit Contact modal (from row action) ──
 const editContactModal = ref({ open: false, contactId: null, contactName: '', loading: false, saving: false, error: '', dupError: '' });
-const editContactForm  = ref({ name: '', status_id: '', type_id: '', industry_id: '', category_id: '', area_id: '', address: '', lead_source: '', remark: '', user_id: '' });
+const editContactForm  = ref({ name: '', status_id: '', type_id: '', industry_id: '', category_id: '', address: '', lead_source: '', remark: '', user_id: '' });
 let editDupTimer = null;
 
 // ── Add Contact modal ──
@@ -1620,7 +1606,7 @@ const addSaving     = ref(false);
 const addSubmitError = ref('');
 const addDupError   = ref('');
 let addDupTimer = null;
-const addForm = ref({ name: '', status_id: '', industry_id: '', type_id: '', category_id: '', area_id: '', address: '', created_at: new Date().toISOString().slice(0, 10), lead_source: 'manual', user_id: '' });
+const addForm = ref({ name: '', status_id: '', industry_id: '', type_id: '', category_id: '', address: '', created_at: new Date().toISOString().slice(0, 10), lead_source: 'manual', user_id: '' });
 const addPic  = ref({ name: '', phone: '', email: '', office: '' });
 
 // ── Drawer month activity ──
@@ -2265,7 +2251,6 @@ async function openEditContactModal(c) {
       type_id:     contact.type_id     ?? '',
       industry_id: contact.industry_id ?? '',
       category_id: contact.category_id ?? '',
-      area_id:     contact.area_id     ?? '',
       address:     contact.address     ?? '',
       lead_source: contact.lead_source ?? '',
       remark:      contact.remark      ?? '',
@@ -2396,7 +2381,7 @@ function openAddModal() {
   addSaving.value = false;
   addSubmitError.value = '';
   addDupError.value = '';
-  addForm.value = { name: '', status_id: '', industry_id: '', type_id: '', category_id: '', area_id: '', address: '', remark: '', created_at: new Date().toISOString().slice(0, 10), lead_source: 'manual', user_id: '' };
+  addForm.value = { name: '', status_id: '', industry_id: '', type_id: '', category_id: '', address: '', remark: '', created_at: new Date().toISOString().slice(0, 10), lead_source: 'manual', user_id: '' };
   addPic.value  = { name: '', phone: '', email: '', office: '' };
   addModal.value.open = true;
 }
@@ -2455,7 +2440,6 @@ onMounted(async () => {
       categories: lu.data.categories ?? [],
       industries: lu.data.industries ?? [],
       tasks:      lu.data.tasks      ?? [],
-      areas:      lu.data.areas      ?? [],
     };
   } catch (_) {
     // individual load functions handle their own loading states; lookup failure leaves filters empty

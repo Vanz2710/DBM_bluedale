@@ -3,6 +3,14 @@
 Follow these steps **in order** every time you deploy to cPanel.  
 Tick each box as you go — do not skip steps.
 
+> **Production host: NetOnBoard cPanel.** This is a clean, standard cPanel deploy — the InfinityFree
+> workarounds do **not** apply here. The repo is already cPanel-ready: `bootstrap/app.php` has no
+> `usePublicPath` override, `app.blade.php` uses standard `@vite`, and document root points to `public/`.
+>
+> ⚠️ **Build standard, NOT IIFE.** Use plain `npm run build` (with `VITE_BASE_URL=/`). Do **NOT** set
+> `VITE_IIFE=1` — that single-bundle toggle exists only for InfinityFree's broken MIME handling and is
+> wrong for cPanel (cPanel serves `.js`/`.css` with correct MIME, so normal code-split build is best).
+
 ---
 
 ## Phase 1 — Before You Touch the Server (do this locally)

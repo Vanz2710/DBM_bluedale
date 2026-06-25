@@ -214,6 +214,22 @@
     @stay="stayLoggedIn"
     @logout="logout"
   />
+
+  <!-- Maintenance mode overlay — shown when the server returns 503 maintenance -->
+  <Teleport to="body">
+    <div v-if="maintenanceActive" class="maint-overlay">
+      <div class="maint-card">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="maint-icon">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          <line x1="12" y1="8" x2="12" y2="12"/>
+          <line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+        <h1 class="maint-title">System Maintenance</h1>
+        <p class="maint-msg">{{ maintenanceMsg }}</p>
+        <p class="maint-sub">Please check back later or contact your administrator.</p>
+      </div>
+    </div>
+  </Teleport>
 </template>
 
 <script setup>
@@ -327,7 +343,11 @@ function onSidebarEnter() { if (collapsed.value) peeking.value = true; }
 function onSidebarLeave() { peeking.value = false; }
 const currentUser = ref(JSON.parse(localStorage.getItem('crm_user') || 'null'));
 
-const isLogin = computed(() => ['login', 'verify-email'].includes(route.name));
+// ─── Maintenance mode overlay ─────────────────────────────────────────────────
+const maintenanceActive = ref(false);
+const maintenanceMsg    = ref('');
+
+const isLogin = computed(() => ['login', 'verify-email'].includes(route.name) || route.meta?.standalone === true);
 const isAdminOrSuperAdmin = computed(() => {
   const roles = currentUser.value?.roles ?? [];
   return roles.includes('admin') || roles.includes('super-admin');
@@ -353,6 +373,10 @@ onMounted(() => {
 
   window.addEventListener('user-profile-updated', () => {
     currentUser.value = JSON.parse(localStorage.getItem('crm_user') || 'null');
+  });
+  window.addEventListener('crm-maintenance', (e) => {
+    maintenanceActive.value = true;
+    maintenanceMsg.value    = e.detail?.message ?? 'System is under maintenance.';
   });
   document.addEventListener('click', handleDocClick, true);
   document.addEventListener('keydown', handleKeydown);
@@ -1054,5 +1078,51 @@ textarea:focus-visible,
   .sidebar-toggle { display: none !important; }
 }
 
+/* ── Maintenance overlay ── */
+.maint-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(4px);
+}
 
+.maint-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 48px 44px;
+  text-align: center;
+  max-width: 420px;
+  width: 90%;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+}
+
+.maint-icon {
+  color: var(--warning, #f59e0b);
+  margin-bottom: 20px;
+}
+
+.maint-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-1);
+  margin: 0 0 12px;
+}
+
+.maint-msg {
+  font-size: 15px;
+  color: var(--text-1);
+  margin: 0 0 8px;
+  line-height: 1.5;
+}
+
+.maint-sub {
+  font-size: 13px;
+  color: var(--text-3);
+  margin: 0;
+}
 </style>

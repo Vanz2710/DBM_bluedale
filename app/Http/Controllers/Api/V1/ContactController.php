@@ -336,7 +336,7 @@ class ContactController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'data'   => $contact->load(['status', 'type', 'industry', 'category', 'area', 'user']),
+            'data'   => $contact->load(['status', 'type', 'industry', 'category', 'user']),
         ]);
     }
 

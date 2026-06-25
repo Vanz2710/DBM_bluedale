@@ -32,9 +32,6 @@
     RewriteCond %{REQUEST_URI} (.+)/$
     RewriteRule ^ %1 [L,R=301]
 
-    # Force JS/MJS files through Laravel for correct MIME type (InfinityFree serves them as text/html)
-    RewriteRule ^build/assets/.+\.(js|mjs)$ index.php [L]
-
     # Send Requests To Front Controller...
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteCond %{REQUEST_FILENAME} !-f

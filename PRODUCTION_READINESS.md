@@ -1,12 +1,16 @@
 # Production Readiness Checklist
 
-## Priority 1 — Redis
-> Fixes queue, cache, permissions, and sessions in one shot
+> **Production host: NetOnBoard cPanel** (shared hosting). The cPanel-specific guidance below replaces the earlier Railway plan. Follow `DEPLOY_CPANEL.md` for the deploy steps.
 
-- [x] Install `predis/predis` via Composer — **done** (v3.5.0)
-- [x] Update `.env.production.example` — SESSION/CACHE/QUEUE all set to `redis`, client set to `predis`
-- [ ] On production server: set `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD` in `.env`
-- [ ] Add Redis service in Railway dashboard (or provision on host)
+## Priority 1 — Cache / Session / Queue driver
+> Redis is almost never available on shared cPanel — use file/database drivers
+
+- [x] `predis/predis` installed (v3.5.0) — kept in case the host offers Redis
+- [ ] On NetOnBoard cPanel: confirm whether Redis is available. **If not (typical):** set in `.env`
+  - `SESSION_DRIVER=file` (or `database`)
+  - `CACHE_STORE=file` (or `database`)
+  - `QUEUE_CONNECTION=sync` (no background jobs) **or** `database` + a cron worker (see Priority 3)
+- [ ] If Redis IS available: set `REDIS_HOST`/`REDIS_PORT`/`REDIS_PASSWORD`, keep `REDIS_CLIENT=predis`
 - [ ] After deploying: run `php artisan permission:cache-reset` to warm Spatie permission cache
 
 ---
@@ -22,11 +26,14 @@
 
 ---
 
-## Priority 3 — Failed Jobs Table
+## Priority 3 — Failed Jobs Table / Queue Worker
 > Already included in the default Laravel jobs migration
 
 - [x] `failed_jobs` table exists and has been migrated — `0001_01_01_000002_create_jobs_table.php`
-- [ ] On production: worker command should use retries — `php artisan queue:work --tries=3 --backoff=30`
+- [ ] If using `QUEUE_CONNECTION=database` on cPanel: add a **Cron Job** (cPanel → Cron Jobs, every minute):
+  `* * * * * /usr/local/bin/php /home/<acct>/library_crm_v2/artisan queue:work --stop-when-empty --tries=3`
+  (shared cPanel cannot run a persistent daemon — `--stop-when-empty` exits after draining)
+- [ ] If `QUEUE_CONNECTION=sync`: no worker needed (jobs run inline)
 
 ---
 
@@ -62,7 +69,7 @@
 ## Priority 7 — Database Backups
 > Last line of defense against bad migrations or data loss
 
-- [ ] Enable automated daily backups on production MySQL instance (Railway: built-in, VPS: mysqldump cron)
+- [ ] Enable automated daily backups (NetOnBoard cPanel: JetBackup / Backup Wizard if available; otherwise a `mysqldump` cron job)
 - [ ] Verify backup restoration works (test restore on dev DB once)
 - [ ] Document backup retention period
 
@@ -83,8 +90,13 @@
 
 ---
 
-## Deployment Files Still Needed
+## Deployment (cPanel / NetOnBoard)
 
-- [ ] Create `Procfile` — `web: php artisan serve --host=0.0.0.0 --port=$PORT`
-- [ ] Create `nixpacks.toml` — PHP 8.3 + Composer build phases for Railway
-- [ ] Set `VITE_BASE_URL=/` and run `npm run build` before deploying
+> Procfile / nixpacks are **not needed** on cPanel (those were for Railway and have been dropped).
+
+- [ ] Set `VITE_BASE_URL=/` in `.env`, then run `npm run build` locally (standard build — do **NOT** set `VITE_IIFE`; that toggle is InfinityFree-only)
+- [ ] Upload `public/build/` along with the project
+- [ ] Document root in cPanel must point to `…/library_crm_v2/public`
+- [ ] Run `php artisan migrate --force` + `db:seed --class=RolesAndPermissionsSeeder --force`
+- [ ] `config:cache` / `route:cache` / `view:cache` after `.env` is final
+- [ ] Full steps: see `DEPLOY_CPANEL.md`

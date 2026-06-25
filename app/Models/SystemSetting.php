@@ -13,8 +13,8 @@ class SystemSetting extends Model
         return static::where('key', $key)->value('value') ?? $default;
     }
 
-    public static function set(string $key, mixed $value): void
+    public static function set(string $key, mixed $value, string $label = ''): void
     {
-        static::updateOrCreate(['key' => $key], ['value' => $value]);
+        static::updateOrCreate(['key' => $key], ['value' => $value, 'label' => $label]);
     }
 }

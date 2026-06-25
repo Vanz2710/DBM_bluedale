@@ -70,6 +70,13 @@ class AuthController extends Controller
             ]);
         }
 
+        // Stealth block — response is byte-for-byte identical to wrong credentials.
+        if ($user->blocked_at) {
+            throw ValidationException::withMessages([
+                'username' => ['The provided credentials are incorrect.'],
+            ]);
+        }
+
         // Block and notify admin on first login attempt by an unapproved user
         if (!$user->is_approved) {
             if (!$user->access_requested_at) {
@@ -140,7 +147,11 @@ class AuthController extends Controller
         $attempts = $user->failed_login_attempts;
         $level    = $user->lockout_level;
 
-        if ($attempts >= self::MAX_ATTEMPTS * 3 && $level < 3) {
+        // Super-admins are exempt from permanent lock — a locked-out super-admin
+        // has no one to unlock them, making the system completely inaccessible.
+        $isSuperAdmin = $user->roles->pluck('name')->contains('super-admin');
+
+        if (!$isSuperAdmin && $attempts >= self::MAX_ATTEMPTS * 3 && $level < 3) {
             $user->update(['permanently_locked' => true, 'lockout_level' => 3]);
             $this->notifyAdmins(new BruteForceAccountLocked($user));
         } elseif ($attempts >= self::MAX_ATTEMPTS * 2 && $level < 2) {

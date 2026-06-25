@@ -169,8 +169,10 @@ import api from '../api.js';
 import LoadingSpinner from '../components/LoadingSpinner.vue';
 import ForecastFormModal from '../components/ForecastFormModal.vue';
 import { usePermissions } from '../composables/usePermissions.js';
+import { useLookups } from '../composables/useLookups.js';
 
 const { can } = usePermissions();
+const { lookups, load: loadLookups } = useLookups();
 
 const _si = (p, sz = 14) => `<svg width="${sz}" height="${sz}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
 const CI = {
@@ -183,13 +185,15 @@ const isAdmin = computed(() => {
   const roles = currentUser.value?.roles ?? [];
   return roles.includes('admin') || roles.includes('super-admin');
 });
-const resultOptions = computed(() =>
-  (lookups.value.forecast_results ?? []).filter((r) => (r.name ?? '').toLowerCase() !== 'no result')
-);
+const resultOptions = computed(() => {
+  const list = lookups.value?.forecast_results;
+  return Array.isArray(list)
+    ? list.filter((r) => (r.name ?? '').toLowerCase() !== 'no result')
+    : [];
+});
 
 const PER_PAGE_OPTIONS = [20, 50, 100];
 const perPage     = ref(50);
-const lookups     = ref({ forecast_products: [], forecast_types: [], forecast_results: [], users: [] });
 const forecasts   = ref([]);
 const summary     = ref({});
 const meta        = ref({});
@@ -256,16 +260,25 @@ async function load() {
   loading.value = true;
   try {
     const res = await api.get('/v1/forecasts', { params: buildParams() });
-    forecasts.value = res.data.data ?? [];
-    meta.value = res.data ?? {};
+    forecasts.value = Array.isArray(res.data?.data) ? res.data.data : [];
+    meta.value = res.data && typeof res.data === 'object' ? res.data : {};
+  } catch (e) {
+    forecasts.value = [];
+    meta.value = {};
+    console.error('Forecast list load failed:', e);
   } finally {
     loading.value = false;
   }
 }
 
 async function loadSummary() {
-  const res = await api.get('/v1/forecasts/summary', { params: { ...buildParams(false), totals_only: 1 } });
-  summary.value = res.data.data?.totals ?? {};
+  try {
+    const res = await api.get('/v1/forecasts/summary', { params: { ...buildParams(false), totals_only: 1 } });
+    summary.value = res.data?.data?.totals ?? {};
+  } catch (e) {
+    summary.value = {};
+    console.error('Forecast summary load failed:', e);
+  }
 }
 
 function applyFilters() { page.value = 1; load(); loadSummary(); }
@@ -291,11 +304,7 @@ async function doDelete() {
 }
 
 onMounted(async () => {
-  await Promise.all([
-    api.get('/v1/lookups').then((res) => { lookups.value = res.data; }),
-    load(),
-    loadSummary(),
-  ]);
+  await Promise.all([loadLookups(), load(), loadSummary()]);
 });
 </script>
 

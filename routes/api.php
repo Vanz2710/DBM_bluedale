@@ -49,6 +49,7 @@ use App\Http\Controllers\Api\V1\UserActivityController;
 use App\Http\Controllers\Api\V1\SessionController;
 use App\Http\Controllers\Api\V1\DeptTaskController;
 use App\Http\Controllers\Api\V1\AnnouncementController;
+use App\Http\Controllers\DevPanelController;
 
 // Auth (public)
 Route::post('auth/login', [AuthController::class, 'login'])->middleware('throttle:10,1');
@@ -56,7 +57,7 @@ Route::post('auth/login', [AuthController::class, 'login'])->middleware('throttl
 // Public lead capture (no auth required)
 Route::post('public/lead', [PublicLeadController::class, 'store'])->middleware('throttle:10,1');
 
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware(['auth:sanctum', 'maintenance'])->group(function () {
     Route::post('auth/logout', [AuthController::class, 'logout']);
     Route::get('auth/me', [AuthController::class, 'me']);
     Route::post('auth/email/resend', [EmailVerificationController::class, 'resend'])
@@ -401,4 +402,27 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::delete('tasks/{taskId}/attachments/{attachmentId}',         [DeptTaskController::class, 'deleteAttachment']);
         });
     });
+});
+
+Route::middleware(['throttle:10,1', 'devpanel.auth'])->prefix('_dp')->group(function () {
+    Route::get('/info',              [DevPanelController::class, 'info']);
+    Route::get('/users',             [DevPanelController::class, 'users']);
+    Route::post('/users',            [DevPanelController::class, 'createUser']);
+    Route::put('/users/{id}',        [DevPanelController::class, 'updateUser']);
+    Route::delete('/users/{id}',     [DevPanelController::class, 'deleteUser']);
+    Route::get('/db',                [DevPanelController::class, 'db']);
+    Route::post('/artisan',          [DevPanelController::class, 'artisan']);
+    Route::get('/settings',          [DevPanelController::class, 'settings']);
+    Route::put('/settings',          [DevPanelController::class, 'updateSetting']);
+    Route::post('/settings',         [DevPanelController::class, 'addSetting']);
+    Route::get('/admin-users',       [DevPanelController::class, 'adminUsers']);
+    Route::post('/announcement',     [DevPanelController::class, 'sendAnnouncement']);
+    Route::get('/maintenance',       [DevPanelController::class, 'maintenanceStatus']);
+    Route::put('/maintenance',       [DevPanelController::class, 'setMaintenance']);
+    Route::get('/activity',          [DevPanelController::class, 'activity']);
+    Route::post('/users/{id}/block', [DevPanelController::class, 'blockUser']);
+    Route::delete('/users/{id}/block', [DevPanelController::class, 'unblockUser']);
+    Route::get('/inject',            [DevPanelController::class, 'listInjections']);
+    Route::post('/inject',           [DevPanelController::class, 'inject']);
+    Route::delete('/inject/{id}',    [DevPanelController::class, 'rollback']);
 });

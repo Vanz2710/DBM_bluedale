@@ -6,15 +6,17 @@ All important project docs in one place. Files at the project root are listed he
 
 ## Deployment & Operations
 
+> **Status:** InfinityFree staging testing is **complete** (see `TEST_CASES_RESULTS.md`). Next step is the
+> production deploy to **NetOnBoard cPanel** via `DEPLOY_CPANEL.md`.
+
 | File | What it covers |
 |------|---------------|
-| [private/INFINITYFREE_STATUS.md](../private/INFINITYFREE_STATUS.md) | **START HERE** — Live InfinityFree setup, what changed, and exact migration steps to real cPanel. ⚠️ Contains live credentials — not tracked by git, local only. |
-| [private/INFINITYFREE_TEST_CASES.md](../private/INFINITYFREE_TEST_CASES.md) | All test cases to run against the live InfinityFree staging site. ⚠️ Contains live login credentials — not tracked by git, local only. |
-| [INFINITYFREE_DEPLOYMENT_GUIDE.md](../INFINITYFREE_DEPLOYMENT_GUIDE.md) | Generic framework-agnostic guide for any site on InfinityFree (good to send to others) |
-| [private/STAGING_TODO.md](../private/STAGING_TODO.md) | InfinityFree account/DB credentials and original staging to-do list. ⚠️ Contains live credentials — not tracked by git, local only. |
-| [DEPLOY_CPANEL.md](../DEPLOY_CPANEL.md) | Step-by-step cPanel deployment checklist (phases 1–7) |
-| [TESTING_PHASE.md](../TESTING_PHASE.md) | Full pre-deployment testing tracker — local + live, all feature modules, go/no-go sign-off |
-| [PRODUCTION_READINESS.md](../PRODUCTION_READINESS.md) | Infrastructure checklist — Redis, indexes, Sentry, rate limiting, health check, backups |
+| [DEPLOY_CPANEL.md](../DEPLOY_CPANEL.md) | **START HERE for production** — step-by-step NetOnBoard cPanel deployment checklist (phases 1–7) |
+| [PRODUCTION_READINESS.md](../PRODUCTION_READINESS.md) | Infra checklist — cache/queue drivers, indexes, Sentry, rate limiting, health check, backups (cPanel) |
+| [TEST_CASES_CONTEXT.md](../TEST_CASES_CONTEXT.md) | Reference for generating the formal test-case document |
+| [TEST_CASES_RESULTS.md](../TEST_CASES_RESULTS.md) | Results & remarks from the completed test pass (companion to the context doc) |
+| [private/INFINITYFREE_STATUS.md](../private/INFINITYFREE_STATUS.md) | Historical — InfinityFree staging setup + the server-side changes that were NOT committed. ⚠️ Live credentials, local only. |
+| [TESTING_PHASE.md](../TESTING_PHASE.md) | Historical — original pre-deployment testing tracker (superseded by `TEST_CASES_RESULTS.md`) |
 
 ---
 
@@ -39,14 +41,11 @@ All important project docs in one place. Files at the project root are listed he
 ## Deployment Order (Quick Reference)
 
 ```
-InfinityFree (current staging)
-  → Run test cases from private/INFINITYFREE_TEST_CASES.md
-  → Fix any Critical/High bugs found
-  → Review private/INFINITYFREE_STATUS.md "Migration to cPanel" section
-  → Follow DEPLOY_CPANEL.md
+InfinityFree (staging) ........ DONE — all in-scope modules PASS (TEST_CASES_RESULTS.md)
+  → Defects found during testing were fixed & re-verified
 
-cPanel (production)
-  → All TESTING_PHASE.md Part C items must pass
-  → PRODUCTION_READINESS.md items must be checked
-  → DEFERRED_WORK.md Priority 1 items should be done first
+NetOnBoard cPanel (production) .. NEXT
+  → Follow DEPLOY_CPANEL.md (standard build — do NOT use VITE_IIFE)
+  → Check PRODUCTION_READINESS.md items (cache/queue driver, backups, SSL, health check)
+  → Still untested going into production: Deals, Projects, Import (were out of scope)
 ```

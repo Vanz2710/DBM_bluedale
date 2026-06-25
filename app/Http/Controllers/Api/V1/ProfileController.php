@@ -49,6 +49,14 @@ class ProfileController extends Controller
 
         $user->update(['password' => Hash::make($request->password)]);
 
+        // Security: revoke all of the user's OTHER active tokens so a stolen or stale
+        // session can't survive a password change. The current device's token is kept
+        // so the user stays signed in here.
+        $currentTokenId = $request->user()->currentAccessToken()?->id;
+        $user->tokens()
+            ->when($currentTokenId, fn ($q) => $q->where('id', '!=', $currentTokenId))
+            ->delete();
+
         SystemAlert::notifyAdmins(
             type:  'password_change',
             title: 'Password changed — ' . $user->name,
