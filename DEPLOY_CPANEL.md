@@ -7,9 +7,17 @@ Tick each box as you go — do not skip steps.
 > workarounds do **not** apply here. The repo is already cPanel-ready: `bootstrap/app.php` has no
 > `usePublicPath` override, `app.blade.php` uses standard `@vite`, and document root points to `public/`.
 >
-> ⚠️ **Build standard, NOT IIFE.** Use plain `npm run build` (with `VITE_BASE_URL=/`). Do **NOT** set
-> `VITE_IIFE=1` — that single-bundle toggle exists only for InfinityFree's broken MIME handling and is
-> wrong for cPanel (cPanel serves `.js`/`.css` with correct MIME, so normal code-split build is best).
+> ⚠️ **Build standard, NOT IIFE.** Use plain `npm run build` with **`VITE_BASE_URL=/build/`** and
+> **`VITE_APP_BASE=/`**. Do **NOT** set `VITE_IIFE=1` — that single-bundle toggle exists only for
+> InfinityFree's broken MIME handling and is wrong for cPanel (cPanel serves `.js`/`.css` with correct
+> MIME, so normal code-split build is best).
+>
+> 🚨 **`VITE_BASE_URL` MUST be `/build/`, never `/`.** `vite.config.js` uses it as Vite's asset `base`
+> (`base: env.VITE_BASE_URL || '/build/'`). With `/`, the entry `app.js`/`app.css` still load (Laravel
+> `@vite` injects `/build/` from the manifest) but lazy-loaded chunks bake in `/assets/...` URLs that
+> 404 → the SPA HTML is returned instead → console shows *"Failed to load module script … MIME type
+> text/html"* for vue-vendor/Login/lottie and the **page renders unstyled**. This bit us on the
+> 2026-06-25 deploy. If you ever see an unstyled page with those console errors, the build base is wrong.
 
 ---
 
@@ -28,7 +36,9 @@ Tick each box as you go — do not skip steps.
   - If no Redis available: uncomment the fallback block (`SESSION_DRIVER=file`, `CACHE_STORE=file`, `QUEUE_CONNECTION=sync`)
 - [ ] Build frontend assets locally:
   ```bash
-  # Make sure VITE_BASE_URL=/ is set in your local .env first
+  # In your local .env, temporarily set BOTH (then restore your dev values after):
+  #   VITE_BASE_URL=/build/      ← asset base — MUST be /build/, NOT /
+  #   VITE_APP_BASE=/            ← router history base for a root-domain deploy
   npm run build
   ```
   This generates `public/build/` — you will upload this folder.
@@ -165,3 +175,32 @@ Upload a new `public/build/` if any frontend files changed (remember to `npm run
 | `Permission denied` on storage | Folder not writable | `chmod -R 755 storage/ bootstrap/cache/` |
 | Assets 404 (JS/CSS) | `VITE_BASE_URL` wrong or `public/build/` not uploaded | Rebuild locally with `VITE_BASE_URL=/` and re-upload `public/build/` |
 | Login works but session drops immediately | `SESSION_SECURE_COOKIE` on http, or proxy not trusted | Ensure HTTPS is active and `APP_URL` uses `https://` |
+| Page loads but **unstyled**; console: *"Failed to load module script … MIME type text/html"* on vue-vendor/Login/lottie | `VITE_BASE_URL` built as `/` instead of `/build/` | Rebuild locally with `VITE_BASE_URL=/build/`, re-upload `public/build/` |
+| **"You must specify a subdomain"** when creating a subdomain (cPanel v110) | Editing the Document Root field for a new subdomain triggers the bug; `/public_html/` prefix is locked | Create the subdomain with the **default** doc root, put the app in `/public_html/<domain>/`, and add a routing `.htaccess` (below) to funnel requests into `public/` |
+| Login returns **500**, `.env`-debug shows `[1044] Access denied for user '..._crmuser' to database '..._crmdb'` | DB user created but never granted on the DB (import still worked via cPanel's own access) | MySQL Databases → **Add User To Database** → **ALL PRIVILEGES** |
+| phpMyAdmin import shows **HTTP 502** "bad response while acting as a proxy" | Response proxy timed out on a large import — the data still finished writing | Don't re-import blindly; verify table count (~69) and `to_dos`/`contacts` row counts, then proceed |
+
+### When the document root can't be `/public` (shared cPanel, no SSH)
+
+If the host won't let you point the subdomain's doc root at `/public` (e.g. cPanel v110 locks it under `public_html`), put the **whole app** in `/public_html/<domain>/` and **prepend** this to the existing cPanel `.htaccess` (keep the `# php -- BEGIN cPanel-generated handler` block below it):
+
+```apache
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteCond %{REQUEST_URI} !^/public/
+    RewriteRule ^(.*)$ public/$1 [L]
+</IfModule>
+<FilesMatch "^\.(env|env\..*|git.*|htaccess)$">
+    Require all denied
+</FilesMatch>
+```
+
+### No Terminal/SSH? Run the artisan steps via a one-off Cron Job
+
+Cron Jobs → add `* * * * *` (every minute), let it fire once, then **delete it**. Use the full PHP 8.3 binary path:
+
+```
+cd /home/<acct>/public_html/<domain> && /opt/cpanel/ea-php83/root/usr/bin/php artisan storage:link && /opt/cpanel/ea-php83/root/usr/bin/php artisan config:clear && /opt/cpanel/ea-php83/root/usr/bin/php artisan route:clear && /opt/cpanel/ea-php83/root/usr/bin/php artisan view:clear && /opt/cpanel/ea-php83/root/usr/bin/php artisan permission:cache-reset
+```
+
+Skip `migrate`/`seed` when you imported a complete DB dump. Since `vendor/` is uploaded with the app, `composer install` isn't needed either.
