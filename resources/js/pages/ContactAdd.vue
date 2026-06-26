@@ -2,9 +2,9 @@
   <div class="page">
     <!-- Step 1 -->
     <template v-if="step === 1">
-      <div class="page-banner green">
-        <h1>Add New Contact</h1>
-        <p>Step 1 of 2 — Contact Information</p>
+      <div class="page-header">
+        <h1 class="page-title">Add New Contact</h1>
+        <p class="page-subtitle">Step 1 of 2 — Company Information</p>
       </div>
       <div class="card">
         <div class="section-label">Company Info</div>
@@ -89,9 +89,9 @@
 
     <!-- Step 2 -->
     <template v-else>
-      <div class="page-banner green">
-        <h1>Add New Company</h1>
-        <p>Step 2 of 2 — Contact information</p>
+      <div class="page-header">
+        <h1 class="page-title">Add New Contact</h1>
+        <p class="page-subtitle">Step 2 of 2 — Contact Information</p>
       </div>
       <div class="card">
         <div class="section-label">Contact Info</div>
@@ -204,17 +204,10 @@ onMounted(async () => {
 
 <style scoped>
 .page { padding: 28px 32px; max-width: 760px; }
-.page-banner {
-  border-radius: var(--radius-lg); padding: 22px 28px; margin-bottom: 20px; color: white;
-  background:
-    radial-gradient(900px 200px at 90% -20%, rgba(96,165,250,0.5), transparent 55%),
-    linear-gradient(118deg, #0f2456 0%, #1d4ed8 52%, #1e40af 100%);
-  box-shadow: 0 12px 32px -14px rgba(15,36,86,0.65);
-}
-.page-banner.green { /* colour unified — kept for template compat */ }
-.page-banner h1 { font-size: 26px; font-weight: 800; margin: 0 0 5px; letter-spacing: -0.4px; }
-.page-banner p { font-size: 13px; color: rgba(237,233,254,0.82); margin: 0; }
-.card { background: var(--surface); border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); padding: 28px 32px; }
+.page-header { margin-bottom: 24px; }
+.page-title { font-size: 28px; font-weight: 800; color: var(--text-1); letter-spacing: -0.5px; margin: 0 0 4px; }
+.page-subtitle { font-size: 13.5px; color: var(--text-3); margin: 0; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-sm); padding: 28px 32px; }
 .section-label {
   font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.7px;
   color: var(--text-2); margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid var(--border);
@@ -255,12 +248,12 @@ onMounted(async () => {
 
 /* Responsive */
 @media (max-width: 768px) {
-  .page { padding: 16px 12px; }
+  .page { padding: 20px 16px; }
   .card { padding: 20px 16px; }
   .form-row { grid-template-columns: 1fr; }
 }
 @media (max-width: 640px) {
-  .page { padding: 12px 8px; }
+  .page { padding: 16px 12px; }
   .btn-row { flex-wrap: wrap; }
 }
 </style>

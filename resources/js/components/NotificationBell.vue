@@ -67,7 +67,7 @@
             class="r-item"
             :class="{ 'r-read': item.is_read }"
           >
-            <router-link :to="item.link" class="r-body" @click="handleNav(item)">
+            <div class="r-body r-clickable" @click="onReminderClick(item)">
               <span class="r-tag" :class="item.source_type === 'todo' ? 'tag-todo' : 'tag-fu'">
                 {{ item.source_type === 'todo' ? 'TODO' : 'F/U' }}
               </span>
@@ -75,7 +75,7 @@
                 <div class="r-title">{{ clip(item.title) }}</div>
                 <div class="r-sub">{{ item.contact_name }} · <span class="date-red">{{ fmtDate(item.due_date) }}</span></div>
               </div>
-            </router-link>
+            </div>
             <button v-if="!item.is_read" class="btn-dismiss" @click.stop="dismissOne(item)" title="Dismiss">×</button>
           </div>
         </div>
@@ -88,7 +88,7 @@
             class="r-item"
             :class="{ 'r-read': item.is_read }"
           >
-            <router-link :to="item.link" class="r-body" @click="handleNav(item)">
+            <div class="r-body r-clickable" @click="onReminderClick(item)">
               <span class="r-tag" :class="item.source_type === 'todo' ? 'tag-todo' : 'tag-fu'">
                 {{ item.source_type === 'todo' ? 'TODO' : 'F/U' }}
               </span>
@@ -96,7 +96,7 @@
                 <div class="r-title">{{ clip(item.title) }}</div>
                 <div class="r-sub">{{ item.contact_name }}</div>
               </div>
-            </router-link>
+            </div>
             <button v-if="!item.is_read" class="btn-dismiss" @click.stop="dismissOne(item)" title="Dismiss">×</button>
           </div>
         </div>
@@ -109,7 +109,7 @@
             class="r-item"
             :class="{ 'r-read': item.is_read }"
           >
-            <router-link :to="item.link" class="r-body" @click="handleNav(item)">
+            <div class="r-body r-clickable" @click="onReminderClick(item)">
               <span class="r-tag" :class="item.source_type === 'todo' ? 'tag-todo' : 'tag-fu'">
                 {{ item.source_type === 'todo' ? 'TODO' : 'F/U' }}
               </span>
@@ -117,7 +117,7 @@
                 <div class="r-title">{{ clip(item.title) }}</div>
                 <div class="r-sub">{{ item.contact_name }} · {{ fmtDate(item.due_date) }}</div>
               </div>
-            </router-link>
+            </div>
             <button v-if="!item.is_read" class="btn-dismiss" @click.stop="dismissOne(item)" title="Dismiss">×</button>
           </div>
         </div>
@@ -170,7 +170,12 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { useRouter } from 'vue-router';
 import api from '../api.js';
+import { useTodoModal } from '../composables/useTodoModal.js';
+
+const router = useRouter();
+const todoModal = useTodoModal();
 
 const wrapRef       = ref(null);
 const open          = ref(false);
@@ -214,6 +219,18 @@ function togglePanel() {
 function handleNav(item) {
   sendRead([item]);
   open.value = false;
+}
+
+// To-Do reminders pop the detail modal in place; follow-ups still navigate to their edit page.
+function onReminderClick(item) {
+  sendRead([item]);
+  item.is_read = true;
+  open.value = false;
+  if (item.source_type === 'todo') {
+    todoModal.open(item.id);
+  } else {
+    router.push(item.link);
+  }
 }
 
 function dismissOne(item) {
@@ -373,6 +390,7 @@ onUnmounted(() => {
   flex: 1; display: flex; align-items: center; gap: 8px;
   text-decoration: none; color: inherit; min-width: 0;
 }
+.r-clickable { cursor: pointer; }
 .r-tag {
   font-size: 9px; font-weight: 700; padding: 2px 5px;
   border-radius: 4px; flex-shrink: 0; white-space: nowrap;

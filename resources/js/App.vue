@@ -4,11 +4,11 @@
     <router-view />
   </template>
 
-  <div v-else class="layout" :class="{ collapsed, peeking, 'mobile-open': mobileOpen }">
+  <div v-else class="layout" :class="{ collapsed, 'mobile-open': mobileOpen }">
     <!-- Mobile overlay backdrop -->
     <div class="mobile-overlay" @click="mobileOpen = false"></div>
     <!-- Sidebar -->
-    <aside class="sidebar" @mouseenter="onSidebarEnter" @mouseleave="onSidebarLeave">
+    <aside class="sidebar">
       <button class="sidebar-toggle" @click="collapsed = !collapsed" :title="collapsed ? 'Expand' : 'Collapse'" v-html="collapsed ? SVGI.chevronRight : SVGI.chevronLeft"></button>
 
       <router-link to="/" class="sidebar-brand" aria-label="Bluedale CRM" data-tour="brand">
@@ -33,7 +33,7 @@
             <span class="nav-arrow nav-text" :class="{ open: openGroups[group.key] }">›</span>
           </button>
           <Transition name="nav-menu">
-            <div v-show="openGroups[group.key] && (!collapsed || peeking)" class="nav-group-slide">
+            <div v-show="openGroups[group.key] && !collapsed" class="nav-group-slide">
               <div class="nav-group-items">
                 <template v-for="item in group.items" :key="item.key">
                   <router-link
@@ -71,7 +71,7 @@
             <span class="nav-arrow nav-text" :class="{ open: openGroups[group.key] }">›</span>
           </button>
           <Transition name="nav-menu">
-            <div v-show="openGroups[group.key] && (!collapsed || peeking)" class="nav-group-slide">
+            <div v-show="openGroups[group.key] && !collapsed" class="nav-group-slide">
               <div class="nav-group-items">
                 <template v-for="item in group.items" :key="item.key">
                   <router-link
@@ -207,6 +207,7 @@
   </div>
 
   <TourOverlay />
+  <TodoDetailModal />
   <ToastContainer />
   <SessionTimeoutModal
     :show="sessionWarning"
@@ -238,6 +239,7 @@ import { useRoute, useRouter } from 'vue-router';
 import api from './api.js';
 import NotificationBell from './components/NotificationBell.vue';
 import TourOverlay from './components/TourOverlay.vue';
+import TodoDetailModal from './components/TodoDetailModal.vue';
 import ToastContainer from './components/ToastContainer.vue';
 import SessionTimeoutModal from './components/SessionTimeoutModal.vue';
 import { useSessionTimeout } from './composables/useSessionTimeout.js';
@@ -247,7 +249,6 @@ import { useTour } from './composables/useTour.js';
 const route = useRoute();
 const router = useRouter();
 const collapsed = ref(localStorage.getItem('sidebarCollapsed') === '1');
-const peeking = ref(false);
 const mobileOpen = ref(false);
 
 // ─── Tour ──────────────────────────────────────────────────────────────────────
@@ -339,8 +340,6 @@ function handleKeydown(e) {
   }
 }
 
-function onSidebarEnter() { if (collapsed.value) peeking.value = true; }
-function onSidebarLeave() { peeking.value = false; }
 const currentUser = ref(JSON.parse(localStorage.getItem('crm_user') || 'null'));
 
 // ─── Maintenance mode overlay ─────────────────────────────────────────────────
@@ -465,7 +464,7 @@ const ALL_GROUPS = [
   {
     key: 'activity', label: 'Activity', icon: SVGI.clipboard, color: 'teal', section: 'main', adminOnly: false,
     items: [
-      { key: 'todos',      to: '/todos',      icon: SVGI.clipboard, label: 'To Do List',   activeRoutes: ['todos', 'todo-add', 'task-edit'] },
+      { key: 'todos',      to: '/todos',      icon: SVGI.clipboard, label: 'To Do List',   activeRoutes: ['todos', 'todo-add', 'task-edit', 'todo-view'] },
       { key: 'followups',  to: '/followups',  icon: SVGI.bell,      label: 'Follow-Ups',   activeRoutes: ['followups', 'followup-add', 'followup-edit'] },
       { key: 'reminders',    to: '/reminders',    icon: SVGI.bell,      label: 'Notifications', activeRoutes: ['reminders'] },
       { key: 'notice-board', to: '/notice-board', icon: SVGI.megaphone, label: 'Notice Board',  activeRoutes: ['notice-board'] },
@@ -781,23 +780,10 @@ textarea:focus-visible,
 .layout.collapsed .brand-mark { width: 36px; height: 36px; }
 .layout.collapsed .brand-mark svg { width: 22px; height: 22px; }
 .layout.collapsed .nav-group-header { flex-direction: column; justify-content: center; align-items: center; padding: 8px 4px; gap: 3px; }
-.layout.collapsed:not(.peeking) .nav-group-label { font-size: 9.5px; font-weight: 600; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 68px; line-height: 1.2; opacity: 0.7; display: block; }
+.layout.collapsed .nav-group-label { display: none; }
 .layout.collapsed .nav-link { justify-content: center; padding: 10px 0; }
 .layout.collapsed .nav-icon { width: auto; }
 .layout.collapsed .main-content { margin-left: 76px; }
-
-/* Peek-expand: sidebar expands over content on hover when collapsed */
-.layout.collapsed.peeking .sidebar { width: 248px; box-shadow: 4px 0 24px rgba(0,0,0,0.13); }
-.layout.collapsed.peeking .nav-label,
-.layout.collapsed.peeking .sidebar-footer { display: block; }
-.layout.collapsed.peeking .nav-text { display: inline; }
-.layout.collapsed.peeking .sidebar-toggle { right: 12px; top: 16px; }
-.layout.collapsed.peeking .sidebar-brand { justify-content: center; padding: 14px 16px 12px; border-bottom: 1px solid var(--sb-divider); }
-.layout.collapsed.peeking .nav-group-header { flex-direction: row; justify-content: flex-start; padding: 10px 12px; gap: 12px; }
-.layout.collapsed.peeking .nav-group-label { font-size: inherit; font-weight: inherit; opacity: 1; text-align: left; white-space: normal; overflow: visible; text-overflow: clip; max-width: none; }
-.layout.collapsed.peeking .nav-link { justify-content: flex-start; padding: 9px 12px; }
-.layout.collapsed.peeking .nav-sub { padding-left: 28px; }
-.layout.collapsed.peeking .nav-icon { width: 22px; }
 
 .sidebar { position: fixed; left: 0; top: 0; width: 248px; height: 100vh; background: var(--sb-bg);
   display: flex; flex-direction: column; overflow-y: auto; overflow-x: hidden; z-index: 1000;
@@ -818,7 +804,7 @@ textarea:focus-visible,
 .brand-mark { display: none; width: 28px; height: 28px; align-items: center; justify-content: center;
   border-radius: 8px; color: var(--sb-brand-2); flex-shrink: 0; }
 /* Collapsed-only: show icon mark, hide logo (logo already hidden via .nav-text) */
-.layout.collapsed:not(.peeking) .brand-mark { display: inline-flex; }
+.layout.collapsed .brand-mark { display: inline-flex; }
 .brand-logo {
   /* object-fit: cover crops the image's internal whitespace, zooming into just the text */
   width: 100%; height: 68px; max-width: calc(100% - 44px);
@@ -1035,7 +1021,7 @@ textarea:focus-visible,
 @media (min-width: 641px) and (max-width: 1023px) {
   .sidebar { width: 76px; }
   .nav-label, .nav-text:not(.nav-group-label), .sidebar-footer, .sidebar-user { display: none !important; }
-  .nav-group-label { display: block !important; font-size: 9.5px; font-weight: 600; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 68px; line-height: 1.2; opacity: 0.7; }
+  .nav-group-label { display: none !important; }
   .brand-mark { width: 36px; height: 36px; }
   .sidebar-toggle { right: 23px; top: 12px; }
   .sidebar-brand { justify-content: center; padding: 18px 0 16px; border-bottom: 1px solid var(--sb-divider); }

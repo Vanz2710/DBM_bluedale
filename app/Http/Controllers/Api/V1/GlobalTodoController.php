@@ -66,6 +66,7 @@ class GlobalTodoController extends Controller
                 'status'            => $t->contact?->status?->name,
                 'type'              => $t->contact?->type?->name,
                 'completion_status' => $t->completion_status ?? 'pending',
+                'completed_at'      => $t->completed_at?->format('d-m-Y'),
                 'followups_count'   => (int) ($t->follow_ups_count ?? 0),
                 'last_followup_date' => $t->last_followup_date
                     ? \Carbon\Carbon::parse($t->last_followup_date)->format('d-m-Y')

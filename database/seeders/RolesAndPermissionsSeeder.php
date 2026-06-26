@@ -55,7 +55,6 @@ class RolesAndPermissionsSeeder extends Seeder
             ['name' => 'view performance', 'description' => 'View individual and team performance KPIs and targets.'],
             // Admin-managed entities
             ['name' => 'manage lookups',     'description' => 'Add, edit, and delete lookup values (statuses, types, categories, industries, areas).'],
-            ['name' => 'manage territories', 'description' => 'Manage territory definitions. (Currently unused — reserved for future use.)'],
             // Marketing & media features
             ['name' => 'manage social-media',       'description' => 'View and manage social media reminder entries.'],
             ['name' => 'manage posting-calendar',   'description' => 'View and manage the social media posting calendar.'],

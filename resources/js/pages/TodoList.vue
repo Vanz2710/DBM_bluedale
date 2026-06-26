@@ -29,9 +29,18 @@
           @update:modelValue="onCalendarPick"
           @month-change="({ year, month }) => loadMarkedDates(year, month)"
         />
-        <button class="date-nav-arrow" @click="shiftDate(1)" type="button">
+        <button class="date-nav-arrow" @click="shiftDate(1)" type="button" :disabled="period === 'all'">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
         </button>
+      </div>
+      <div class="filter-group">
+        <label>Period</label>
+        <select v-model="period" @change="onPeriodChange">
+          <option value="day">Day</option>
+          <option value="week">Week</option>
+          <option value="month">Month</option>
+          <option value="all">All Time</option>
+        </select>
       </div>
       <div class="filter-group wide">
         <label>Search</label>
@@ -72,6 +81,7 @@
               <th>No</th>
               <th>To Do Date</th>
               <th>Date Created</th>
+              <th>Completed On</th>
               <th>Status</th>
               <th>Type</th>
               <th>Company</th>
@@ -86,13 +96,17 @@
           </thead>
           <tbody>
             <tr v-if="todos.length === 0">
-              <td colspan="14" class="empty-state">No tasks found for this period.</td>
+              <td colspan="15" class="empty-state">No tasks found for this period.</td>
             </tr>
             <tr v-for="(t, idx) in todos" :key="t.id" :class="{ 'row-done': t.completion_status === 'completed' }">
               <td><input type="checkbox" :value="t.id" v-model="selectedIds"></td>
               <td><span class="row-num">{{ meta.from ? meta.from + idx : idx + 1 }}</span></td>
               <td><span class="date-text">{{ t.todo_date }}</span></td>
               <td><span class="date-text">{{ t.date_created ?? '—' }}</span></td>
+              <td>
+                <span v-if="t.completion_status === 'completed' && t.completed_at" class="completed-date">{{ t.completed_at }}</span>
+                <span v-else class="muted">—</span>
+              </td>
               <td>
                 <span v-if="t.status" class="status-chip">{{ t.status }}</span>
                 <span v-else class="muted">—</span>
@@ -363,6 +377,7 @@ const navDate      = ref((() => { const d = new Date(); return `${d.getFullYear(
 const search       = ref('');
 const userId       = ref('');
 const statusFilter = ref('pending');
+const period       = ref('day');   // day | week | month | all
 const perPage      = ref(50);
 const page         = ref(1);
 const todos        = ref([]);
@@ -417,8 +432,26 @@ const addModal    = ref({ open: false, saving: false, error: '' });
 const addForm     = ref({ contact_id: '', task_id: '', user_id: '', todo_date: today, date_created: today, todo_remark: '', status_id: '', type_id: '' });
 
 const hasFilters = computed(() =>
-  search.value || userId.value || statusFilter.value
+  search.value || userId.value || statusFilter.value !== 'pending' || period.value !== 'day'
 );
+
+function ymd(d) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+// The active date window the list queries, derived from the anchor date + period.
+const dateRange = computed(() => {
+  const [y, m, day] = navDate.value.split('-').map(Number);
+  if (period.value === 'all')  return { from: '2000-01-01', to: '2099-12-31' };
+  if (period.value === 'day')  return { from: navDate.value, to: navDate.value };
+  if (period.value === 'week') {
+    const d   = new Date(y, m - 1, day);
+    const dow = (d.getDay() + 6) % 7;                 // Monday = 0
+    return { from: ymd(new Date(y, m - 1, day - dow)), to: ymd(new Date(y, m - 1, day - dow + 6)) };
+  }
+  // month
+  return { from: ymd(new Date(y, m - 1, 1)), to: ymd(new Date(y, m, 0)) };
+});
 
 const pageNumbers = computed(() => {
   const total = meta.value.last_page ?? 1;
@@ -430,8 +463,13 @@ const pageNumbers = computed(() => {
 });
 
 const periodLabel = computed(() => {
+  if (period.value === 'all') return 'All time';
   const d = new Date(navDate.value + 'T00:00:00');
-  return d.toLocaleDateString('en-GB', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
+  if (period.value === 'day')   return d.toLocaleDateString('en-GB', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
+  if (period.value === 'month') return d.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+  // week
+  const fmt = (s) => new Date(s + 'T00:00:00').toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+  return `${fmt(dateRange.value.from)} – ${fmt(dateRange.value.to)}`;
 });
 
 const navDateLabel = computed(() => {
@@ -443,7 +481,7 @@ async function load() {
   loading.value = true;
   selectedIds.value = [];
   try {
-    const params = { view: 'All', per_page: perPage.value, page: page.value, from_date: navDate.value, to_date: navDate.value };
+    const params = { view: 'All', per_page: perPage.value, page: page.value, from_date: dateRange.value.from, to_date: dateRange.value.to };
     if (search.value)       params.search    = search.value;
     if (userId.value)       params.user_id   = userId.value;
     if (statusFilter.value) params.completion_status = statusFilter.value;
@@ -463,6 +501,7 @@ function clearFilters() {
   search.value       = '';
   userId.value       = '';
   statusFilter.value = 'pending';
+  period.value       = 'day';
   page.value         = 1;
   load();
   if (today.slice(0, 7) !== oldMonth) {
@@ -471,9 +510,13 @@ function clearFilters() {
 }
 
 function shiftDate(n) {
+  if (period.value === 'all') return;
   const [y, m, day] = navDate.value.split('-').map(Number);
-  const d = new Date(y, m - 1, day + n);
-  const newDate = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  let d;
+  if (period.value === 'week')       d = new Date(y, m - 1, day + n * 7);
+  else if (period.value === 'month') d = new Date(y, m - 1 + n, 1);
+  else                               d = new Date(y, m - 1, day + n);
+  const newDate = ymd(d);
   const oldMonth = navDate.value.slice(0, 7);
   navDate.value = newDate;
   page.value = 1;
@@ -481,6 +524,11 @@ function shiftDate(n) {
   if (newDate.slice(0, 7) !== oldMonth) {
     loadMarkedDates(d.getFullYear(), d.getMonth() + 1);
   }
+}
+
+function onPeriodChange() {
+  page.value = 1;
+  load();
 }
 
 async function loadMarkedDates(year, month) {
@@ -733,6 +781,7 @@ tbody tr:hover { background: var(--surface-2); }
   border-radius: 999px; font-size: 10px; font-weight: 700; color: var(--text-3);
 }
 .date-text { font-size: 11.5px; color: var(--text-2); font-weight: 500; white-space: nowrap; }
+.completed-date { font-size: 11px; font-weight: 600; color: var(--success); background: var(--success-soft); padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
 .company-link { color: var(--text-1); font-weight: 600; text-decoration: none; }
 .company-link:hover { color: var(--primary); }
 .status-chip { background: var(--surface-2); color: var(--text-2); font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
@@ -766,6 +815,7 @@ tbody tr:hover { background: var(--surface-2); }
 .muted { color: var(--text-3); }
 .row-done td { opacity: 0.5; text-decoration: line-through; text-decoration-color: var(--border); }
 .row-done .icon-btn { text-decoration: none; opacity: 1; }
+.row-done .completed-date { text-decoration: none; opacity: 1; }
 .empty-state { text-align: center; padding: 48px; color: var(--text-3); font-size: 14px; }
 
 .pager {

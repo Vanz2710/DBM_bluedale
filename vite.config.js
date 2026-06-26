@@ -36,7 +36,6 @@ export default defineConfig(({ mode }) => {
                             if (id.includes('/node_modules/axios')) return 'axios';
                             if (id.includes('/node_modules/chart.js')) return 'chart';
                             if (id.includes('/node_modules/lottie-web')) return 'lottie';
-                            if (id.includes('/node_modules/@sentry')) return 'sentry';
                             if (id.includes('/node_modules/leaflet')) return 'leaflet';
                         },
                     },

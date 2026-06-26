@@ -514,6 +514,7 @@ export const PAGE_TOURS = {
     },
   ],
 
+  // Admin tour — tab steps target the always-visible tab buttons (not tab content)
   rbac: [
     {
       target: '.page-head',
@@ -523,14 +524,44 @@ export const PAGE_TOURS = {
     },
     {
       target: '.view-tabs',
-      title: 'Five Tabs',
-      body: 'Users — view, approve, reset passwords, and delete accounts. Pending — new registrations awaiting approval. Roles & Permissions — fine-tune what each role can access. Bulk Reassign — move all contacts from one user to another in one action.',
+      title: 'Six Tabs',
+      body: 'Access Control is split into six tabs: Pending Approvals, Roles, Permissions, Users, Contact Grants, and Bulk Reassign. We\'ll walk through each one — click any tab anytime to jump straight to it.',
       position: 'bottom',
     },
     {
-      target: '.table-wrap',
-      title: 'User Table',
-      body: 'Each row shows a user\'s name, email, role, and login history. Use the Set Password button to reset a user\'s password without them having to request a reset themselves.',
+      target: '[data-tour="rbac-tab-pending"]',
+      title: 'Pending Approvals',
+      body: 'New user registrations land here awaiting your sign-off. Review the requested account, then click Approve to grant access. The badge shows how many users are currently waiting.',
+      position: 'bottom',
+    },
+    {
+      target: '[data-tour="rbac-tab-roles"]',
+      title: 'Roles',
+      body: 'Roles bundle a set of permissions under one name — like admin, user, or viewer. Create a new role, rename it, or adjust which permissions it carries. Assigning a user a role is the quickest way to grant a whole group of capabilities at once.',
+      position: 'bottom',
+    },
+    {
+      target: '[data-tour="rbac-tab-permissions"]',
+      title: 'Permissions',
+      body: 'Permissions are the individual capabilities (e.g. "view contacts", "manage territories") that make up a role. Use this tab to review every permission in the system and see which are available to assign to roles.',
+      position: 'bottom',
+    },
+    {
+      target: '[data-tour="rbac-tab-users"]',
+      title: 'Users',
+      body: 'The full list of accounts — name, email, role, and login history. From here you can edit a user, change their role, reset their password with Set Password (no request needed), or delete an account.',
+      position: 'bottom',
+    },
+    {
+      target: '[data-tour="rbac-tab-grants"]',
+      title: 'Contact Grants',
+      body: 'Grant one user access to another user\'s contacts without changing ownership. Enable the mutual option to share access both ways — useful for partners or stand-ins who cover each other\'s portfolios.',
+      position: 'bottom',
+    },
+    {
+      target: '[data-tour="rbac-tab-reassign"]',
+      title: 'Bulk Reassign',
+      body: 'Move every contact from one user to another in a single action — ideal when someone leaves or portfolios are reorganised. Pick the source user, the target user, and confirm to transfer the whole book of contacts at once.',
       position: 'bottom',
     },
   ],

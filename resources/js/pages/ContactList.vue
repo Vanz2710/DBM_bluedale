@@ -278,19 +278,29 @@
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
               Permanently Closed
             </div>
-            <div class="drawer-actions" v-if="drawer.contact">
-              <router-link :to="`/contacts/${drawer.contact.id}`" class="daction-btn btn-view-full"><span v-html="CI.eye"></span> Full View</router-link>
-              <router-link v-if="can('edit contacts') && drawer.contact.can_edit" :to="`/contacts/${drawer.contact.id}/edit`" class="daction-btn btn-edit-c"><span v-html="CI.edit"></span> Edit</router-link>
-              <button v-if="can('create followups')" type="button" class="daction-btn btn-followup-c" @click="openFollowUpModal()"><span v-html="CI.bell"></span> Follow-Up</button>
-              <button v-if="can('create forecasts')" type="button" class="daction-btn btn-forecast-c" @click="openForecastAddForDrawer"><span v-html="CI.trending"></span> Forecast</button>
-              <button
-                v-if="can('edit contacts') && drawer.contact.can_edit"
-                type="button"
-                :class="drawer.contact.is_permanently_closed ? 'daction-btn btn-reopen-c' : 'daction-btn btn-close-c'"
-                @click="drawer.contact.is_permanently_closed ? toggleDrawerClosed() : openDrawerClosedModal()"
-              >
-                {{ drawer.contact.is_permanently_closed ? 'Mark Active' : 'Mark Closed' }}
-              </button>
+            <div class="drawer-actions-wrap" v-if="drawer.contact">
+              <!-- Primary: the day-to-day things you DO on a contact -->
+              <template v-if="canLogActivity">
+                <span class="daction-eyebrow">Log Activity</span>
+                <div class="daction-primary">
+                  <button v-if="can('create followups')" type="button" class="daction-btn btn-followup-c" @click="openFollowUpModal()"><span v-html="CI.bell"></span> Log Follow-Up</button>
+                  <button v-if="can('create todos')" type="button" class="daction-btn btn-task-c" @click="openAddTaskFromBar"><span v-html="CI.clipboard"></span> Add Task</button>
+                  <button v-if="can('create forecasts')" type="button" class="daction-btn btn-forecast-c" @click="openForecastAddForDrawer"><span v-html="CI.trending"></span> Add Forecast</button>
+                </div>
+              </template>
+              <!-- Secondary: open the full record, edit, or change status -->
+              <div class="daction-secondary">
+                <router-link :to="`/contacts/${drawer.contact.id}`" class="dlink"><span v-html="CI.eye"></span> Open Full Page</router-link>
+                <router-link v-if="can('edit contacts') && drawer.contact.can_edit" :to="`/contacts/${drawer.contact.id}/edit`" class="dlink"><span v-html="CI.edit"></span> Edit Details</router-link>
+                <button
+                  v-if="can('edit contacts') && drawer.contact.can_edit"
+                  type="button"
+                  :class="['dlink', drawer.contact.is_permanently_closed ? '' : 'dlink-danger']"
+                  @click="drawer.contact.is_permanently_closed ? toggleDrawerClosed() : openDrawerClosedModal()"
+                >
+                  <span v-html="CI.x"></span> {{ drawer.contact.is_permanently_closed ? 'Mark Active' : 'Mark Closed' }}
+                </button>
+              </div>
             </div>
           </div>
 
@@ -359,7 +369,7 @@
                 </div>
 
                 <!-- Add Task inline form -->
-                <div v-if="addTaskOpen" class="add-task-form">
+                <div v-if="addTaskOpen" ref="addTaskFormRef" class="add-task-form">
                   <div class="add-task-row">
                     <div class="add-task-field">
                       <label>Task</label>
@@ -1558,9 +1568,12 @@ const forecastLoading  = ref(false);
 const forecastPage     = ref(1);
 const forecastLookups  = ref({ forecast_products: [], forecast_types: [], forecast_results: [] });
 const forecastFilters  = ref({ q: '', product_id: '', forecast_type_id: '', result_id: '', user_id: '', from_date: '', to_date: '' });
-const forecastResultOptions = computed(() =>
-  (forecastLookups.value.forecast_results ?? []).filter((r) => (r.name ?? '').toLowerCase() !== 'no result')
-);
+const forecastResultOptions = computed(() => {
+  const list = forecastLookups.value?.forecast_results;
+  return Array.isArray(list)
+    ? list.filter((r) => (r.name ?? '').toLowerCase() !== 'no result')
+    : [];
+});
 const forecastModal = ref({ open: false, mode: 'add', forecastId: null, prefilledContact: null });
 const forecastDeleteModal = ref({ show: false, forecast: null, loading: false });
 const todoDeleteModal = ref({ show: false, todo: null, loading: false });
@@ -2140,6 +2153,19 @@ function openAddTask() {
   addTaskOpen.value = true;
   addTaskError.value = '';
   addTaskForm.value = { task_id: '', todo_date: new Date().toISOString().slice(0, 10), todo_remark: '' };
+}
+
+// Whether the "Log Activity" group should appear at all (hidden for read-only viewers)
+const canLogActivity = computed(() =>
+  can('create followups') || can('create todos') || can('create forecasts')
+);
+
+const addTaskFormRef = ref(null);
+// "Add Task" from the top action bar opens the inline form (which lives lower in the
+// To-Dos section) and scrolls it into view so the user isn't left wondering where it went.
+function openAddTaskFromBar() {
+  openAddTask();
+  nextTick(() => addTaskFormRef.value?.scrollIntoView({ behavior: 'smooth', block: 'center' }));
 }
 
 function openFollowUpModal(todoId = '') {
@@ -3302,6 +3328,21 @@ tbody tr:last-child td { border-bottom: none; }
 }
 .drawer-close:hover { background: var(--danger-soft); color: var(--danger); }
 .drawer-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+/* Grouped action bar — primary "Log Activity" cluster + subtle secondary links */
+.drawer-actions-wrap { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+.daction-eyebrow { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-3); }
+.daction-primary { display: flex; gap: 8px; flex-wrap: wrap; }
+.daction-secondary { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; padding-top: 8px; border-top: 1px solid var(--border-soft); }
+.dlink {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 12px; font-weight: 600; color: var(--text-2); text-decoration: none;
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: 999px;
+  padding: 5px 12px; cursor: pointer; transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.dlink:hover { background: var(--primary-soft); color: var(--primary-text); border-color: var(--primary-soft); }
+.dlink-danger:hover { background: var(--danger-soft); color: var(--danger); border-color: var(--danger-soft); }
+.btn-task-c { background: var(--success-soft); color: var(--success); }
+.btn-task-c:hover { background: var(--success); color: #fff; }
 .daction-btn {
   height: 34px;
   padding: 0 14px;

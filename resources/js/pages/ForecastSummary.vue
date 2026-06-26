@@ -171,9 +171,12 @@ const isAdmin = computed(() => {
   const roles = currentUser.value?.roles ?? [];
   return roles.includes('admin') || roles.includes('super-admin');
 });
-const resultOptions = computed(() =>
-  (lookups.value.forecast_results ?? []).filter((r) => (r.name ?? '').toLowerCase() !== 'no result')
-);
+const resultOptions = computed(() => {
+  const list = lookups.value?.forecast_results;
+  return Array.isArray(list)
+    ? list.filter((r) => (r.name ?? '').toLowerCase() !== 'no result')
+    : [];
+});
 
 const hasFilters = computed(() =>
   filters.year !== yearNow ||

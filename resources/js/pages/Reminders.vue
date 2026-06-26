@@ -49,7 +49,7 @@
             </div>
             <div class="item-date overdue-date">{{ fmtDate(item.due_date) }}</div>
             <div class="item-actions">
-              <router-link :to="item.link" class="btn-go">Open</router-link>
+              <button class="btn-go" @click="onOpen(item)">Open</button>
               <button v-if="!item.is_read" class="btn-dismiss" @click="dismissOne(item)">Dismiss</button>
               <span v-else class="read-label">Read</span>
             </div>
@@ -76,7 +76,7 @@
             </div>
             <div class="item-date today-date">Today</div>
             <div class="item-actions">
-              <router-link :to="item.link" class="btn-go">Open</router-link>
+              <button class="btn-go" @click="onOpen(item)">Open</button>
               <button v-if="!item.is_read" class="btn-dismiss" @click="dismissOne(item)">Dismiss</button>
               <span v-else class="read-label">Read</span>
             </div>
@@ -103,7 +103,7 @@
             </div>
             <div class="item-date upcoming-date">{{ fmtDate(item.due_date) }}</div>
             <div class="item-actions">
-              <router-link :to="item.link" class="btn-go">Open</router-link>
+              <button class="btn-go" @click="onOpen(item)">Open</button>
               <button v-if="!item.is_read" class="btn-dismiss" @click="dismissOne(item)">Dismiss</button>
               <span v-else class="read-label">Read</span>
             </div>
@@ -124,8 +124,22 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
 import api from '../api.js';
 import LoadingSpinner from '../components/LoadingSpinner.vue';
+import { useTodoModal } from '../composables/useTodoModal.js';
+
+const router = useRouter();
+const todoModal = useTodoModal();
+
+// To-Do reminders open the detail modal in place; follow-ups navigate to their edit page.
+function onOpen(item) {
+  if (item.source_type === 'todo') {
+    todoModal.open(item.id);
+  } else {
+    router.push(item.link);
+  }
+}
 
 const loading  = ref(false);
 const marking  = ref(false);
@@ -295,6 +309,7 @@ onMounted(async () => {
   border: 1px solid rgba(29,78,216,0.15); border-radius: 999px;
   padding: 5px 12px; font-size: 12px; font-weight: 600;
   text-decoration: none; white-space: nowrap; transition: background 0.12s;
+  cursor: pointer; font-family: inherit;
 }
 .btn-go:hover { background: var(--primary); color: var(--primary-on); border-color: var(--primary); }
 .btn-dismiss {

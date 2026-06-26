@@ -143,13 +143,11 @@ onMounted(async () => {
 }
 .kpi-card-body { min-width: 0; }
 .kpi-label {
-  font-size: 11.5px;
+  font-size: 11px;
   color: var(--text-2);
   font-weight: 500;
   margin-bottom: 6px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  line-height: 1.3;
 }
 .kpi-num {
   font-size: 24px;

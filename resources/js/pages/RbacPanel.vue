@@ -10,6 +10,7 @@
 
     <div class="view-tabs">
       <button v-for="tab in tabs" :key="tab.key"
+        :data-tour="`rbac-tab-${tab.key}`"
         :class="['tab-btn', { 'tab-active': activeTab === tab.key }]"
         @click="switchTab(tab.key)">
         {{ tab.label }}

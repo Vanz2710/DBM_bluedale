@@ -368,7 +368,10 @@ onMounted(async () => {
   max-width: 1500px;
   margin: 0 auto;
   padding: 28px 28px 48px;
+  overflow-x: auto;
 }
+/* Grid never collapses below a readable width — scrolls horizontally on narrow screens */
+.grid-canvas { min-width: 680px; }
 
 /* Welcome hero */
 .dash-hero {

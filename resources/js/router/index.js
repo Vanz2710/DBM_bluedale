@@ -21,6 +21,7 @@ const TaskAdd             = () => import('../pages/TaskAdd.vue');
 const TodoList            = () => import('../pages/TodoList.vue');
 const TodoAdd             = () => import('../pages/TodoAdd.vue');
 const TaskEdit            = () => import('../pages/TodoEdit.vue');
+const TodoDetail          = () => import('../pages/TodoDetail.vue');
 const AdminPanel          = () => import('../pages/AdminPanel.vue');
 const RbacPanel           = () => import('../pages/RbacPanel.vue');
 const DataHealth          = () => import('../pages/DataHealth.vue');
@@ -61,6 +62,7 @@ const routes = [
     { path: '/todos',                      component: TodoList,    name: 'todos' },
     { path: '/todos/add',                  component: TodoAdd,     name: 'todo-add' },
     { path: '/todos/:id/edit',             component: TaskEdit,    name: 'task-edit' },
+    { path: '/todos/:id',                  component: TodoDetail,  name: 'todo-view' },
     { path: '/followups',                  component: FollowUpList, name: 'followups' },
     { path: '/followups/add',              component: FollowUpAdd,  name: 'followup-add' },
     { path: '/followups/:id/edit',         component: FollowUpEdit, name: 'followup-edit' },

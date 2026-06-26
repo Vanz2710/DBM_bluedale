@@ -405,7 +405,7 @@ function applyCustom() {
   if (!customFrom.value || !customTo.value) return;
   filters.from  = customFrom.value;
   filters.to    = customTo.value;
-  filters.label = `${customFrom.value} → ${customTo.value}`;
+  filters.label = `${customFrom.value} – ${customTo.value}`;
   pickerOpen.value = false;
   loadAll();
 }

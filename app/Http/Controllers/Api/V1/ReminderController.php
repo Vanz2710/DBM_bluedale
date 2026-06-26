@@ -97,7 +97,7 @@ class ReminderController extends Controller
                 'contact_name' => $t['contact_name'],
                 'contact_id'   => $t['contact_id'],
                 'due_date'     => $t['todo_date'],
-                'link'         => '/todos/' . $t['id'] . '/edit',
+                'link'         => '/todos/' . $t['id'],
                 'is_read'      => isset($readTodoIds[$t['id']]),
             ]);
         }

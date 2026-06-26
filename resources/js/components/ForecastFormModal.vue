@@ -143,9 +143,12 @@ const form = ref({
   assigned_user_id: '',
 });
 
-const resultOptions = computed(() =>
-  (lookups.value.forecast_results ?? []).filter((r) => (r.name ?? '').toLowerCase() !== 'no result')
-);
+const resultOptions = computed(() => {
+  const list = lookups.value?.forecast_results;
+  return Array.isArray(list)
+    ? list.filter((r) => (r.name ?? '').toLowerCase() !== 'no result')
+    : [];
+});
 
 function selectContact(contact) {
   form.value.contact_id = contact.id;
