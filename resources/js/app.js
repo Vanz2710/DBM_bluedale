@@ -28,4 +28,6 @@ router.onError((err, to) => {
 
 const app = createApp(App).use(router);
 
-app.mount('#app');
+// Wait for the first navigation (and its guard) to complete before mounting,
+// so the app never flashes a protected page before the login redirect fires.
+router.isReady().then(() => app.mount('#app'));

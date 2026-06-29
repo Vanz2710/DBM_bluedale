@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Models\ContactEditGrant;
 use App\Models\FollowUp;
 use App\Models\ToDo;
 use Illuminate\Http\Request;
@@ -48,10 +49,27 @@ class GlobalTodoController extends Controller
         if ($completionStatus = $request->input('completion_status')) {
             $query->where('completion_status', $completionStatus);
         }
+        if ($contactId = $request->input('contact_id')) {
+            $query->where('contact_id', $contactId);
+        }
+        if ($statusId = $request->input('status_id')) {
+            $query->whereHas('contact', fn($q) => $q->where('status_id', $statusId));
+        }
+        if ($typeId = $request->input('type_id')) {
+            $query->whereHas('contact', fn($q) => $q->where('type_id', $typeId));
+        }
+        if ($taskId = $request->input('task_id')) {
+            $query->where('task_id', $taskId);
+        }
 
         $todos = $query->paginate($perPage);
 
-        $todos->getCollection()->transform(function ($t) {
+        $me = $request->user();
+        $isAdmin = $me->hasAnyRole(['admin', 'super-admin']);
+        $grantedOwnerIds = $isAdmin ? [] : ContactEditGrant::where('user_id', $me->id)
+            ->pluck('target_user_id')->map(fn($id) => (int) $id)->toArray();
+
+        $todos->getCollection()->transform(function ($t) use ($me, $isAdmin, $grantedOwnerIds) {
             return [
                 'id'                => $t->id,
                 'todo_date'         => $t->todo_date?->format('d-m-Y'),
@@ -71,6 +89,8 @@ class GlobalTodoController extends Controller
                 'last_followup_date' => $t->last_followup_date
                     ? \Carbon\Carbon::parse($t->last_followup_date)->format('d-m-Y')
                     : null,
+                'can_edit'          => $isAdmin || (int) $t->user_id === (int) $me->id
+                    || \in_array((int) $t->user_id, $grantedOwnerIds),
             ];
         });
 

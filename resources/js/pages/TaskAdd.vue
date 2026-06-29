@@ -1,7 +1,7 @@
 ﻿<template>
   <div class="page">
     <div class="page-header">
-      <h1 class="page-title">Add Task</h1>
+      <h1 class="page-title">Add To-Do</h1>
       <p class="page-subtitle">{{ contact ? contact.name : 'Schedule a to-do for this contact' }}</p>
     </div>
     <div class="card">
@@ -54,12 +54,12 @@
         </div>
         <div class="form-group">
           <label>Remark</label>
-          <textarea v-model="form.todo_remark" rows="4" placeholder="Enter task remark or notes…"></textarea>
+          <textarea v-model="form.todo_remark" rows="4" placeholder="Enter remark or notes…"></textarea>
         </div>
         <div class="btn-row">
           <router-link :to="`/contacts/${contactId}`" class="btn btn-cancel">Cancel</router-link>
           <button type="submit" class="btn btn-save" :disabled="saving">
-            {{ saving ? 'Saving…' : 'Add Task' }}
+            {{ saving ? 'Saving…' : 'Add To-Do' }}
           </button>
         </div>
       </form>

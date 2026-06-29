@@ -1,7 +1,7 @@
 ﻿<template>
-  <div class="page">
-    <div class="page-head">
-      <div class="page-head-left">
+  <div class="page" :class="{ 'page-embedded': embedded }">
+    <div class="page-head" :class="{ 'page-head-embedded': embedded }">
+      <div v-if="!embedded" class="page-head-left">
         <h1 class="page-title">Forecasts</h1>
         <p class="page-subtitle">Track forecasted revenue by company, product, type, result, and owner</p>
       </div>
@@ -40,11 +40,25 @@
           <option v-for="r in resultOptions" :key="r.id" :value="r.id">{{ r.name }}</option>
         </select>
       </div>
+      <div class="filter-group">
+        <label>Snapshot</label>
+        <select v-model="filters.contact_status_id" @change="applyFilters">
+          <option value="">All Statuses</option>
+          <option v-for="s in lookups.statuses" :key="s.id" :value="s.id">{{ s.name }}</option>
+        </select>
+      </div>
       <div v-if="isAdmin" class="filter-group">
         <label>User</label>
         <select v-model="filters.user_id" @change="applyFilters">
           <option value="">All Users</option>
           <option v-for="u in lookups.users" :key="u.id" :value="u.id">{{ u.name }}</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label>Year</label>
+        <select v-model="filters.year" @change="applyFilters">
+          <option value="">All Years</option>
+          <option v-for="y in YEAR_OPTIONS" :key="y" :value="y">{{ y }}</option>
         </select>
       </div>
       <div class="filter-group">
@@ -69,14 +83,33 @@
           <span class="fstat-chip"><strong>{{ fmtValue(summary.total_amount) }}</strong><small>Total</small></span>
           <span class="fstat-chip fstat-confirmed"><strong>{{ fmtValue(summary.confirmed_amount) }}</strong><small>Confirmed</small></span>
           <span class="fstat-chip fstat-pending"><strong>{{ fmtValue(summary.pending_amount) }}</strong><small>Pending</small></span>
+          <button v-if="selectedIds.size > 0" class="btn-export-sel" @click="exportSelected">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Export Selected ({{ selectedIds.size }})
+          </button>
         </div>
       </div>
 
       <LoadingSpinner v-if="loading" />
       <div v-else class="table-scroll">
         <table>
+          <colgroup>
+            <col style="width:36px">    <!-- checkbox -->
+            <col style="width:44px">    <!-- no -->
+            <col>                        <!-- company -->
+            <col style="width:110px">   <!-- product -->
+            <col style="width:92px">    <!-- type -->
+            <col style="width:132px">   <!-- snapshot -->
+            <col style="width:120px">   <!-- amount -->
+            <col style="width:112px">   <!-- forecast date -->
+            <col style="width:102px">   <!-- result -->
+            <col style="width:82px">    <!-- assigned -->
+            <col style="width:100px">   <!-- updated -->
+            <col style="width:76px">    <!-- actions -->
+          </colgroup>
           <thead>
             <tr>
+              <th class="th-check"><input type="checkbox" class="row-cb" :checked="allSelected" :indeterminate.prop="someSelected" @change="toggleAll"></th>
               <th>No</th>
               <th>Company</th>
               <th>Product</th>
@@ -92,11 +125,12 @@
           </thead>
           <tbody>
             <tr v-if="forecasts.length === 0">
-              <td colspan="11" class="empty-state">No forecasts found.</td>
+              <td colspan="12" class="empty-state">No forecasts found.</td>
             </tr>
             <tr v-for="(f, idx) in forecasts" :key="f.id">
+              <td class="td-check"><input type="checkbox" class="row-cb" :checked="selectedIds.has(f.id)" @change="toggleSelect(f.id)"></td>
               <td><span class="row-num">{{ (meta.from ?? 1) + idx }}</span></td>
-              <td>
+              <td class="td-company">
                 <router-link v-if="f.contact_id" :to="`/contacts/${f.contact_id}`" class="company-link">{{ f.contact_name }}</router-link>
                 <span v-else class="muted">—</span>
               </td>
@@ -114,8 +148,8 @@
               <td>{{ f.user_name ?? '—' }}</td>
               <td><span class="date-text">{{ fmtDate(f.forecast_updatedate) }}</span></td>
               <td class="actions-cell">
-                <button v-if="can('edit forecasts')" type="button" class="icon-btn btn-edit" title="Edit" @click="openEdit(f.id)" v-html="CI.edit"></button>
-                <button v-if="can('delete forecasts')" class="icon-btn btn-del" title="Delete" @click="confirmDelete(f)" v-html="CI.trash"></button>
+                <button v-if="can('edit forecasts') && f.can_edit" type="button" class="icon-btn btn-edit" title="Edit" @click="openEdit(f.id)" v-html="CI.edit"></button>
+                <button v-if="can('delete forecasts') && f.can_edit" class="icon-btn btn-del" title="Delete" @click="confirmDelete(f)" v-html="CI.trash"></button>
               </td>
             </tr>
           </tbody>
@@ -142,16 +176,30 @@
     </div>
 
     <!-- Delete confirmation modal -->
-    <div v-if="deleteTarget" class="modal-backdrop">
-      <div class="modal">
-        <h3>Delete Forecast?</h3>
-        <p>Delete the forecast for <strong>{{ deleteTarget.contact_name }}</strong>?</p>
-        <div class="modal-btns">
-          <button class="btn btn-cancel-sm" @click="deleteTarget = null">Cancel</button>
-          <button class="btn btn-danger" @click="doDelete" :disabled="deleting">{{ deleting ? 'Deleting…' : 'Delete' }}</button>
+    <Teleport to="body">
+      <div v-if="deleteTarget" class="conf-overlay" @mousedown.self="deleteTarget = null">
+        <div class="conf-modal">
+          <div class="conf-head">
+            <div>
+              <p class="conf-title">Delete Forecast</p>
+              <p class="conf-sub">This action cannot be undone.</p>
+            </div>
+            <button class="conf-close" @click="deleteTarget = null"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+          </div>
+          <div class="conf-body">
+            <svg class="conf-warn" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+              <line x1="12" y1="9" x2="12" y2="13"/><circle cx="12" cy="17" r="1" fill="#f59e0b" stroke="none"/>
+            </svg>
+            <p class="conf-text">Delete the forecast for <strong>{{ deleteTarget.contact_name }}</strong>?</p>
+          </div>
+          <div class="conf-foot">
+            <button class="conf-cancel" @click="deleteTarget = null">Cancel</button>
+            <button class="conf-delete" @click="doDelete" :disabled="deleting">{{ deleting ? 'Deleting…' : 'Delete' }}</button>
+          </div>
         </div>
       </div>
-    </div>
+    </Teleport>
 
     <ForecastFormModal
       :open="formModal.open"
@@ -170,6 +218,9 @@ import LoadingSpinner from '../components/LoadingSpinner.vue';
 import ForecastFormModal from '../components/ForecastFormModal.vue';
 import { usePermissions } from '../composables/usePermissions.js';
 import { useLookups } from '../composables/useLookups.js';
+
+// `embedded` = rendered inside the Contacts page's Forecast tab (vs the standalone route).
+defineProps({ embedded: { type: Boolean, default: false } });
 
 const { can } = usePermissions();
 const { lookups, load: loadLookups } = useLookups();
@@ -193,6 +244,8 @@ const resultOptions = computed(() => {
 });
 
 const PER_PAGE_OPTIONS = [20, 50, 100];
+const YEAR_OPTIONS = Array.from({ length: new Date().getFullYear() - 2019 }, (_, i) => 2020 + i);
+
 const perPage     = ref(50);
 const forecasts   = ref([]);
 const summary     = ref({});
@@ -204,8 +257,21 @@ const page        = ref(1);
 const sortField   = ref('forecast_date');
 const sortDir     = ref('desc');
 
+const selectedIds = ref(new Set());
+const allSelected = computed(() => forecasts.value.length > 0 && selectedIds.value.size === forecasts.value.length);
+const someSelected = computed(() => selectedIds.value.size > 0 && selectedIds.value.size < forecasts.value.length);
+
+function toggleSelect(id) {
+  const s = new Set(selectedIds.value);
+  s.has(id) ? s.delete(id) : s.add(id);
+  selectedIds.value = s;
+}
+function toggleAll() {
+  selectedIds.value = allSelected.value ? new Set() : new Set(forecasts.value.map(f => f.id));
+}
+
 const filters = reactive({
-  q: '', product_id: '', forecast_type_id: '', result_id: '', user_id: '', from_date: '', to_date: '',
+  q: '', product_id: '', forecast_type_id: '', result_id: '', contact_status_id: '', user_id: '', year: '', from_date: '', to_date: '',
 });
 
 const pageNumbers = computed(() => {
@@ -258,6 +324,7 @@ function resultClass(name) {
 
 async function load() {
   loading.value = true;
+  selectedIds.value = new Set();
   try {
     const res = await api.get('/v1/forecasts', { params: buildParams() });
     forecasts.value = Array.isArray(res.data?.data) ? res.data.data : [];
@@ -292,6 +359,25 @@ function openEdit(id)    { formModal.value = { open: true, mode: 'edit', forecas
 function closeFormModal(){ formModal.value.open = false; }
 function onFormSaved()   { closeFormModal(); load(); loadSummary(); }
 
+function exportSelected() {
+  const rows = forecasts.value.filter(f => selectedIds.value.has(f.id));
+  if (!rows.length) return;
+  const esc = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
+  const headers = ['No','Company','Product','Type','Contact Status','Contact Type','Amount','Forecast Date','Result','Assigned','Updated'];
+  const lines = [headers.join(',')];
+  rows.forEach((f, i) => lines.push([
+    i + 1, esc(f.contact_name), esc(f.product_name), esc(f.forecast_type_name),
+    esc(f.contact_status_name), esc(f.contact_type_name), f.amount ?? 0,
+    fmtDate(f.forecast_date), esc(f.result_name ?? 'No Result'), esc(f.user_name), fmtDate(f.forecast_updatedate),
+  ].join(',')));
+  const blob = new Blob(['﻿' + lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url;
+  a.download = `Forecast_Export_${new Date().toISOString().slice(0,10)}.csv`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
 async function doDelete() {
   deleting.value = true;
   try {
@@ -310,6 +396,8 @@ onMounted(async () => {
 
 <style scoped>
 .page { padding: 28px 28px 48px; max-width: 1500px; margin: 0 auto; }
+.page-embedded { padding: 0; max-width: none; }
+.page-head-embedded { margin-bottom: 14px; }
 
 /* Page head */
 .page-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 18px; flex-wrap: wrap; }
@@ -389,19 +477,23 @@ onMounted(async () => {
 .fstat-confirmed strong { color: #15803d; }
 .fstat-pending { background: #fef3c7; }
 .fstat-pending strong { color: #b45309; }
-.table-scroll { overflow-x: auto; }
-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.table-scroll { overflow-x: hidden; }
+table { width: 100%; border-collapse: collapse; font-size: 12px; table-layout: fixed; }
 thead th {
-  background: transparent; color: var(--text-3); font-size: 11.5px; font-weight: 600;
-  padding: 12px 12px; border-bottom: 1px solid var(--border-soft);
-  text-align: left; white-space: nowrap;
+  background: var(--surface-2); color: var(--text-2); font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.55px; padding: 10px 12px;
+  border-bottom: 2px solid var(--border); border-right: 1px solid var(--border-soft);
+  text-align: left; white-space: nowrap; overflow: hidden;
 }
+thead th:last-child { border-right: none; }
 thead th.sortable { cursor: pointer; user-select: none; }
-thead th.sortable:hover { color: var(--text-1); }
-.sort-icon { font-size: 10px; color: var(--primary); margin-left: 2px; }
-tbody td { padding: 12px 12px; border-bottom: 1px solid var(--border-soft); color: var(--text-1); vertical-align: middle; }
+thead th.sortable:hover { color: var(--text-1); background: var(--border-soft); }
+.sort-icon { display: inline-flex; vertical-align: middle; margin-left: 3px; color: var(--primary); }
+tbody td { padding: 8px 12px; border-bottom: 1px solid var(--border-soft); border-right: 1px solid var(--border-soft); color: var(--text-1); vertical-align: middle; font-size: 13px; white-space: nowrap; overflow: hidden; }
+tbody td:last-child { border-right: none; }
 tbody tr:last-child td { border-bottom: none; }
 tbody tr:hover { background: var(--surface-2); }
+.td-company { white-space: normal !important; word-break: break-word; overflow: visible !important; }
 
 .row-num {
   display: inline-flex; align-items: center; justify-content: center;
@@ -422,6 +514,17 @@ tbody tr:hover { background: var(--surface-2); }
 .snapshot { display: flex; flex-direction: column; gap: 2px; }
 .snapshot span { font-size: 12.5px; font-weight: 600; color: var(--text-1); }
 .snapshot small { font-size: 11px; color: var(--text-3); }
+.th-check, .td-check { text-align: center; padding: 0 !important; }
+.row-cb { width: 15px; height: 15px; cursor: pointer; accent-color: var(--primary); }
+.btn-export-sel {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 30px; padding: 0 14px;
+  background: var(--primary-soft); color: var(--primary-text);
+  border: 1px solid var(--primary); border-radius: 999px;
+  font-size: 12px; font-weight: 700; cursor: pointer;
+  transition: background 0.15s;
+}
+.btn-export-sel:hover { background: var(--primary); color: var(--primary-on); }
 .icon-btn {
   display: inline-flex; align-items: center; justify-content: center;
   width: 30px; height: 30px; border-radius: var(--radius-sm); font-size: 14px;
@@ -469,16 +572,23 @@ tbody tr:hover { background: var(--surface-2); }
 }
 .pager-rows-sel:focus { border-color: var(--primary); }
 
-/* Delete modal */
-.modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 2000; display: flex; align-items: center; justify-content: center; }
-.modal { background: var(--surface); border-radius: var(--radius-lg); padding: 28px 32px; max-width: 400px; width: 90%; box-shadow: var(--shadow-lg); border: 1px solid var(--border-soft); }
-.modal h3 { font-size: 16px; font-weight: 700; color: var(--text-1); margin: 0 0 10px; }
-.modal p { font-size: 13px; color: var(--text-2); margin: 0 0 20px; }
-.modal-btns { display: flex; gap: 10px; justify-content: flex-end; }
-.btn-cancel-sm { height: 38px; padding: 0 18px; border: 1px solid var(--border); border-radius: 999px; background: var(--surface); color: var(--text-2); font-size: 13px; font-weight: 600; cursor: pointer; }
-.btn-danger { height: 38px; padding: 0 18px; border: none; border-radius: 999px; background: var(--danger); color: white; font-size: 13px; font-weight: 600; cursor: pointer; }
-.btn-danger:hover:not(:disabled) { background: #dc2626; }
-.btn-danger:disabled { opacity: 0.45; cursor: not-allowed; }
+/* Confirm / delete modal */
+.conf-overlay { position: fixed; inset: 0; background: rgba(15,23,42,0.5); z-index: 900; display: flex; align-items: center; justify-content: center; padding: 16px; }
+.conf-modal { background: var(--surface); border-radius: var(--radius-lg); width: 100%; max-width: 420px; box-shadow: var(--shadow-lg); border: 1px solid var(--border-soft); overflow: hidden; }
+.conf-head { display: flex; justify-content: space-between; align-items: flex-start; padding: 18px 22px 14px; border-bottom: 1px solid var(--border-soft); }
+.conf-title { font-size: 15px; font-weight: 700; color: var(--text-1); margin: 0 0 2px; }
+.conf-sub { font-size: 12px; color: var(--text-3); margin: 0; }
+.conf-close { background: none; border: none; cursor: pointer; font-size: 16px; color: var(--text-3); line-height: 1; padding: 0; }
+.conf-close:hover { color: var(--text-1); }
+.conf-body { padding: 20px 24px; display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; }
+.conf-warn { width: 44px; height: 44px; flex-shrink: 0; }
+.conf-text { font-size: 14px; color: var(--text-1); margin: 0; line-height: 1.5; }
+.conf-foot { display: flex; justify-content: flex-end; gap: 10px; padding: 14px 22px; border-top: 1px solid var(--border-soft); }
+.conf-cancel { height: 38px; padding: 0 18px; background: none; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 13px; font-weight: 600; color: var(--text-2); cursor: pointer; }
+.conf-cancel:hover { background: var(--surface-2); }
+.conf-delete { height: 38px; padding: 0 18px; background: var(--danger); color: #fff; border: none; border-radius: var(--radius-sm); font-size: 13px; font-weight: 700; cursor: pointer; }
+.conf-delete:hover:not(:disabled) { background: #b91c1c; }
+.conf-delete:disabled { opacity: 0.5; cursor: not-allowed; }
 
 @media (max-width: 768px) {
   .page { padding: 16px 12px; }

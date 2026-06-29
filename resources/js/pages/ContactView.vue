@@ -5,7 +5,7 @@
     <div class="page-head">
       <router-link to="/list" class="back-btn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle;margin-right:4px"><polyline points="15 18 9 12 15 6"/></svg>Back to Contacts</router-link>
       <div class="head-actions" v-if="contact" data-tour="contact-head-actions">
-        <button v-if="can('create todos')" class="btn btn-outline" @click="openAddTaskPanel">+ Add Task</button>
+        <button v-if="can('create todos')" class="btn btn-outline" @click="openAddTaskPanel">+ Add To-Do</button>
         <button v-if="can('create forecasts')" class="btn btn-info" @click="openForecastAdd">+ Forecast</button>
         <button
           v-if="can('edit contacts') && contact.can_edit"
@@ -78,7 +78,7 @@
                 <span v-else class="detail-muted">—</span>
               </div>
               <div class="detail-item">
-                <span class="detail-label">Tasks / Follow-Ups</span>
+                <span class="detail-label">To-Dos / Follow-Ups</span>
                 <span class="detail-value">{{ contact.todos?.length ?? 0 }} / {{ totalFollowUps }}</span>
               </div>
             </div>
@@ -149,7 +149,7 @@
       <div class="card" data-tour="contact-tasks-card">
         <div class="card-title-row">
           <span class="card-title">To-Dos ({{ contact.todos?.length ?? 0 }})</span>
-          <button class="btn btn-sm btn-success" @click="openAddTaskPanel">+ Add Task</button>
+          <button class="btn btn-sm btn-success" @click="openAddTaskPanel">+ Add To-Do</button>
         </div>
 
         <!-- Inline Add Task form -->
@@ -175,12 +175,12 @@
           <div class="if-actions">
             <button class="btn btn-sm btn-outline" @click="addTaskOpen = false; addTaskError = ''">Cancel</button>
             <button class="btn btn-sm btn-primary" :disabled="!addTaskForm.todo_date || addTaskSaving" @click="submitAddTask">
-              {{ addTaskSaving ? 'Saving…' : 'Save Task' }}
+              {{ addTaskSaving ? 'Saving…' : 'Save To-Do' }}
             </button>
           </div>
         </div>
 
-        <p v-if="!contact.todos?.length" class="empty-text">No tasks logged yet.</p>
+        <p v-if="!contact.todos?.length" class="empty-text">No to-dos logged yet.</p>
         <table v-else class="data-table">
           <thead>
             <tr>
@@ -210,7 +210,7 @@
                 <div class="task-action-cell">
                   <button v-if="can('edit todos') && td.completion_status !== 'completed'" class="done-btn" title="Mark complete" @click="toggleDone(td, 'completed')"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></button>
                   <button v-else-if="can('edit todos')" class="undo-btn" title="Mark pending" @click="toggleDone(td, 'pending')"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.63"/></svg></button>
-                  <button v-if="can('delete todos')" class="task-del-btn" title="Delete task" @click="openDeleteTaskModal(td)"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+                  <button v-if="can('delete todos')" class="task-del-btn" title="Delete to-do" @click="openDeleteTaskModal(td)"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
                 </div>
               </td>
             </tr>
@@ -529,7 +529,7 @@
       <div class="conf-modal">
         <div class="conf-head">
           <div>
-            <p class="conf-title">Delete Task</p>
+            <p class="conf-title">Delete To-Do</p>
             <p class="conf-sub">All linked follow-ups will also be removed.</p>
           </div>
           <button class="conf-close" @click="closeDeleteTaskModal"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>

@@ -5,7 +5,7 @@
         <span class="fu-title">Upcoming Follow-Ups</span>
         <span class="fu-sub">{{ items.length ? items.length + ' pending this week' : 'Next 7 days' }}</span>
       </div>
-      <router-link to="/followups" class="fu-link">View All</router-link>
+      <router-link :to="{ path: '/list', query: { tab: 'followups' } }" class="fu-link">View All</router-link>
     </div>
 
     <div v-if="loading" class="fu-state">Loading…</div>

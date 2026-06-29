@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Models\ContactEditGrant;
 use App\Models\FollowUp;
 use Illuminate\Http\Request;
 
@@ -43,6 +44,15 @@ class FollowUpController extends Controller
 
         if ($status = $request->input('completion_status')) {
             $query->where('completion_status', $status);
+        }
+        if ($statusId = $request->input('status_id')) {
+            $query->whereHas('todo.contact', fn($q) => $q->where('status_id', $statusId));
+        }
+        if ($typeId = $request->input('type_id')) {
+            $query->whereHas('todo.contact', fn($q) => $q->where('type_id', $typeId));
+        }
+        if ($taskId = $request->input('task_id')) {
+            $query->whereHas('todo', fn($q) => $q->where('task_id', $taskId));
         }
 
         $followUps = $query->paginate($perPage);
@@ -198,8 +208,25 @@ class FollowUpController extends Controller
         return response()->stream($callback, 200, $headers);
     }
 
+    private ?array $_grantedOwnerIds = null;
+
+    private function grantedOwnerIds(): array
+    {
+        if ($this->_grantedOwnerIds !== null) return $this->_grantedOwnerIds;
+        $me = \Illuminate\Support\Facades\Auth::user();
+        if (!$me || $me->hasAnyRole(['admin', 'super-admin'])) {
+            return $this->_grantedOwnerIds = [];
+        }
+        return $this->_grantedOwnerIds = ContactEditGrant::where('user_id', $me->id)
+            ->pluck('target_user_id')->map(fn($id) => (int) $id)->toArray();
+    }
+
     private function format(FollowUp $f): array
     {
+        $me      = \Illuminate\Support\Facades\Auth::user();
+        $isAdmin = $me?->hasAnyRole(['admin', 'super-admin']);
+        $todoUserId = (int) $f->todo?->user_id;
+
         return [
             'id'                => $f->id,
             'followup_date'     => $f->followup_date?->format('d-m-Y'),
@@ -214,6 +241,9 @@ class FollowUpController extends Controller
             'type'              => $f->todo?->contact?->type?->name,
             'user'              => $f->todo?->user?->name,
             'task'              => $f->todo?->task?->name,
+            'can_edit'          => $isAdmin
+                || $todoUserId === (int) $me?->id
+                || \in_array($todoUserId, $this->grantedOwnerIds()),
         ];
     }
 }

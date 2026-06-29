@@ -5,7 +5,7 @@
         <span class="tw-title">Tasks To Do</span>
         <span class="tw-sub">Today · {{ tasks.length }} pending</span>
       </div>
-      <router-link to="/todos" class="tw-view-all">View All</router-link>
+      <router-link :to="{ path: '/list', query: { tab: 'tasks' } }" class="tw-view-all">View All</router-link>
     </div>
     <ul v-if="loading" class="tw-list">
       <li v-for="i in 5" :key="i" class="tw-item">
@@ -66,7 +66,7 @@ function isOverdue(dateStr) {
 }
 
 function taskLink(t) {
-  return t.contact_id ? `/contacts/${t.contact_id}` : '/todos';
+  return t.contact_id ? `/contacts/${t.contact_id}` : '/list?tab=tasks';
 }
 
 onMounted(async () => {

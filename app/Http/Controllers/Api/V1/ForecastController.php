@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Models\Contact;
+use App\Models\ContactEditGrant;
 use App\Models\Forecast;
 use App\Models\ForecastResult;
 use Illuminate\Http\Request;
@@ -255,8 +256,24 @@ class ForecastController extends Controller
         ];
     }
 
+    private ?array $_grantedOwnerIds = null;
+
+    private function grantedOwnerIds(): array
+    {
+        if ($this->_grantedOwnerIds !== null) return $this->_grantedOwnerIds;
+        $me = Auth::user();
+        if (!$me || $me->hasAnyRole(['admin', 'super-admin'])) {
+            return $this->_grantedOwnerIds = [];
+        }
+        return $this->_grantedOwnerIds = ContactEditGrant::where('user_id', $me->id)
+            ->pluck('target_user_id')->map(fn($id) => (int) $id)->toArray();
+    }
+
     private function format(Forecast $forecast): array
     {
+        $me      = Auth::user();
+        $isAdmin = $me?->hasAnyRole(['admin', 'super-admin']);
+
         return [
             'id'                    => $forecast->id,
             'amount'                => $forecast->amount,
@@ -277,6 +294,9 @@ class ForecastController extends Controller
             'result_id'             => $forecast->result_id,
             'result_name'           => $forecast->result?->name,
             'created_at'            => $forecast->created_at?->toISOString(),
+            'can_edit'              => $isAdmin
+                || (int) $forecast->user_id === (int) $me?->id
+                || \in_array((int) $forecast->user_id, $this->grantedOwnerIds()),
         ];
     }
 

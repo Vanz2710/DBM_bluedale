@@ -454,8 +454,8 @@ const ALL_GROUPS = [
   {
     key: 'crm-pipeline', label: 'CRM Pipeline', icon: SVGI.folder, color: 'green', section: 'main', adminOnly: false,
     items: [
-      { key: 'list',      to: '/list',      icon: SVGI.list,      label: 'Contacts',  activeRoutes: ['list', 'contact-view', 'contact-add', 'contact-edit', 'task-add'] },
-      { key: 'forecasts',        to: '/forecasts',         icon: SVGI.trending, label: 'Forecasts',        activeRoutes: ['forecasts', 'forecast-summary'], permission: 'view forecasts' },
+      { key: 'list',      to: '/list',      icon: SVGI.list,      label: 'Contacts',  activeTab: 'contacts', activeRoutes: ['list', 'contact-view', 'contact-add', 'contact-edit', 'task-add'] },
+      { key: 'forecasts', to: { path: '/list', query: { tab: 'forecast' } }, icon: SVGI.trending, label: 'Forecasts', activeTab: 'forecast', activeRoutes: ['forecast-summary'], permission: 'view forecasts' },
       { key: 'forecast-summary', to: '/forecasts/summary', icon: SVGI.trending, label: 'Forecast Summary',  activeRoutes: ['forecast-summary'],              permission: 'view forecast summary', searchOnly: true },
       { key: 'projects',  to: '/projects',  icon: SVGI.layers,    label: 'Projects',  activeRoutes: ['projects', 'project-add', 'project-edit'], adminOnly: true },
       { key: 'deals',     to: '/deals',     icon: SVGI.briefcase, label: 'Deals',     activeRoutes: ['deals', 'deal-add', 'deal-edit'],           adminOnly: true },
@@ -464,8 +464,8 @@ const ALL_GROUPS = [
   {
     key: 'activity', label: 'Activity', icon: SVGI.clipboard, color: 'teal', section: 'main', adminOnly: false,
     items: [
-      { key: 'todos',      to: '/todos',      icon: SVGI.clipboard, label: 'To Do List',   activeRoutes: ['todos', 'todo-add', 'task-edit', 'todo-view'] },
-      { key: 'followups',  to: '/followups',  icon: SVGI.bell,      label: 'Follow-Ups',   activeRoutes: ['followups', 'followup-add', 'followup-edit'] },
+      { key: 'todos',     to: { path: '/list', query: { tab: 'tasks' } },     icon: SVGI.clipboard, label: 'To Do List', activeTab: 'tasks',     activeRoutes: ['todo-add', 'task-edit', 'todo-view'] },
+      { key: 'followups', to: { path: '/list', query: { tab: 'followups' } }, icon: SVGI.bell,      label: 'Follow-Ups', activeTab: 'followups', activeRoutes: ['followup-add', 'followup-edit'] },
       { key: 'reminders',    to: '/reminders',    icon: SVGI.bell,      label: 'Notifications', activeRoutes: ['reminders'] },
       { key: 'notice-board', to: '/notice-board', icon: SVGI.megaphone, label: 'Notice Board',  activeRoutes: ['notice-board'] },
       { key: 'dept-tasks', to: '/dept-tasks', icon: SVGI.kanban,    label: 'Task Manager', activeRoutes: ['dept-tasks'], permission: 'manage dept-tasks' },
@@ -551,11 +551,19 @@ const toolGroups = computed(() =>
 // ─── Group open/close state ───────────────────────────────────────────────────
 const openGroups = reactive(Object.fromEntries(ALL_GROUPS.map(g => [g.key, false])));
 const activeRouteName = computed(() => route.name ?? '');
+function _itemActive(item, name, tab) {
+  if (tab !== null && item.activeTab) {
+    return item.activeTab === tab;
+  }
+  return item.activeRoutes.includes(name);
+}
 const activeGroupKeys = computed(() => {
   const keys = new Set();
+  const name = activeRouteName.value;
+  const tab = name === 'list' ? (route.query.tab ?? 'contacts') : null;
 
   for (const group of ALL_GROUPS) {
-    if (group.items.some(item => item.activeRoutes.includes(activeRouteName.value))) {
+    if (group.items.some(item => _itemActive(item, name, tab))) {
       keys.add(group.key);
     }
   }
@@ -564,12 +572,12 @@ const activeGroupKeys = computed(() => {
 });
 const activeItemKeys = computed(() => {
   const keys = new Set();
+  const name = activeRouteName.value;
+  const tab = name === 'list' ? (route.query.tab ?? 'contacts') : null;
 
   for (const group of ALL_GROUPS) {
     for (const item of group.items) {
-      if (item.activeRoutes.includes(activeRouteName.value)) {
-        keys.add(item.key);
-      }
+      if (_itemActive(item, name, tab)) keys.add(item.key);
     }
   }
 
@@ -597,9 +605,10 @@ function toggleGroup(key) {
 watch(route, (newRoute) => {
   mobileOpen.value = false;
   currentUser.value = JSON.parse(localStorage.getItem('crm_user') || 'null');
-  const routeName = newRoute.name ?? '';
+  const name = newRoute.name ?? '';
+  const tab = name === 'list' ? (newRoute.query?.tab ?? 'contacts') : null;
   for (const group of ALL_GROUPS) {
-    if (group.items.some(item => item.activeRoutes.includes(routeName))) {
+    if (group.items.some(item => _itemActive(item, name, tab))) {
       openGroups[group.key] = true;
     }
   }

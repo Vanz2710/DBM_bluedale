@@ -1,7 +1,7 @@
 ﻿<template>
-  <div class="page">
-    <div class="page-head">
-      <div class="page-head-left">
+  <div class="page" :class="{ 'page-embedded': embedded }">
+    <div class="page-head" :class="{ 'page-head-embedded': embedded }">
+      <div v-if="!embedded" class="page-head-left">
         <h1 class="page-title">Follow-Ups</h1>
         <p class="page-subtitle">Track follow-up actions by date range or month range</p>
       </div>
@@ -93,17 +93,62 @@
       <LoadingSpinner v-if="loading" />
       <div v-else class="table-scroll">
         <table>
+          <colgroup>
+            <col style="width:34px">    <!-- checkbox -->
+            <col style="width:44px">    <!-- no -->
+            <col style="width:108px">   <!-- date -->
+            <col style="width:112px">   <!-- action type -->
+            <col>                       <!-- company -->
+            <col style="width:120px">   <!-- status -->
+            <col style="width:82px">    <!-- type -->
+            <col style="width:78px">    <!-- user -->
+            <col style="width:112px">   <!-- task -->
+            <col style="width:150px">   <!-- note -->
+            <col style="width:106px">   <!-- actions -->
+          </colgroup>
           <thead>
             <tr>
               <th><input type="checkbox" @change="toggleAll" ref="selectAllRef"></th>
               <th>No</th>
               <th>Follow-Up Date</th>
-              <th>Action Type</th>
+              <th class="th-filter">
+                <div class="col-head">
+                  <span>Action Type</span>
+                  <select v-model="colActionFilter" @change="page = 1; load()" class="col-filter-sel">
+                    <option value="">All</option>
+                    <option v-for="t in ACTION_TYPES" :key="t" :value="t">{{ t }}</option>
+                  </select>
+                </div>
+              </th>
               <th>Company</th>
-              <th>Status</th>
-              <th>Type</th>
+              <th class="th-filter">
+                <div class="col-head">
+                  <span>Status</span>
+                  <select v-model="colStatusFilter" @change="page = 1; load()" class="col-filter-sel">
+                    <option value="">All</option>
+                    <option v-for="s in lookups.statuses" :key="s.id" :value="s.id">{{ s.name }}</option>
+                  </select>
+                </div>
+              </th>
+              <th class="th-filter">
+                <div class="col-head">
+                  <span>Type</span>
+                  <select v-model="colTypeFilter" @change="page = 1; load()" class="col-filter-sel">
+                    <option value="">All</option>
+                    <option v-for="t in lookups.types" :key="t.id" :value="t.id">{{ t.name }}</option>
+                  </select>
+                </div>
+              </th>
               <th>User</th>
-              <th>Task</th>
+              <th class="th-filter">
+                <div class="col-head">
+                  <span>Task</span>
+                  <select v-model="colTaskFilter" @change="page = 1; load()" class="col-filter-sel">
+                    <option value="">All</option>
+                    <option v-for="t in lookups.tasks" :key="t.id" :value="t.id">{{ t.name }}</option>
+                  </select>
+                </div>
+              </th>
               <th>Note</th>
               <th>Actions</th>
             </tr>
@@ -120,7 +165,7 @@
                 <span v-if="f.action_type" class="action-chip">{{ f.action_type }}</span>
                 <span v-else class="muted">—</span>
               </td>
-              <td>
+              <td class="td-company">
                 <router-link v-if="f.contact_id" :to="`/contacts/${f.contact_id}`" class="company-link">
                   {{ f.contact_name }}
                 </router-link>
@@ -138,18 +183,18 @@
               </td>
               <td class="note-cell">{{ f.note ?? '—' }}</td>
               <td class="actions-cell">
-                <button v-if="can('edit followups') && f.completion_status === 'pending'"
+                <button v-if="can('edit followups') && f.can_edit && f.completion_status === 'pending'"
                   class="icon-btn btn-complete" title="Mark complete"
                   :disabled="completing === f.id"
                   @click="toggleStatus(f)" v-html="CI.check">
                 </button>
-                <button v-if="can('edit followups') && f.completion_status !== 'pending'"
+                <button v-if="can('edit followups') && f.can_edit && f.completion_status !== 'pending'"
                   class="icon-btn btn-undo" title="Mark pending"
                   :disabled="completing === f.id"
                   @click="toggleStatus(f)" v-html="CI.undo">
                 </button>
-                <router-link v-if="can('edit followups')" :to="`/followups/${f.id}/edit`" class="icon-btn btn-edit" title="Edit" v-html="CI.edit"></router-link>
-                <button v-if="can('delete followups')" class="icon-btn btn-del" title="Delete" @click="confirmDelete(f)" v-html="CI.trash"></button>
+                <button v-if="can('edit followups') && f.can_edit" class="icon-btn btn-edit" title="Edit" @click="openEditModal(f)" v-html="CI.edit"></button>
+                <button v-if="can('delete followups') && f.can_edit" class="icon-btn btn-del" title="Delete" @click="confirmDelete(f)" v-html="CI.trash"></button>
               </td>
             </tr>
           </tbody>
@@ -253,6 +298,66 @@
       </div>
     </div>
 
+    <!-- Edit Follow-Up Modal -->
+    <Teleport to="body">
+      <div v-if="editModal.open" class="remark-overlay" @mousedown.self="closeEditModal">
+        <div class="add-followup-modal">
+          <div class="add-modal-header">
+            <div class="add-modal-title-block">
+              <strong class="add-modal-title">Edit Follow-Up</strong>
+            </div>
+            <button class="remark-close" @click="closeEditModal" v-html="CI.x"></button>
+          </div>
+          <div class="add-modal-body">
+            <div v-if="editModal.error" class="add-error-box">{{ editModal.error }}</div>
+            <div class="fu-context-row">
+              <div class="fu-context-item">
+                <span class="fu-context-label">Company</span>
+                <span class="fu-context-value">{{ editModal.followUp?.contact_name ?? '—' }}</span>
+              </div>
+              <div class="fu-context-item">
+                <span class="fu-context-label">Task</span>
+                <span class="fu-context-value">{{ editModal.followUp?.task ?? '—' }}</span>
+              </div>
+              <div class="fu-context-item">
+                <span class="fu-context-label">To-Do Date</span>
+                <span class="fu-context-value">{{ editModal.followUp?.todo_date ?? '—' }}</span>
+              </div>
+              <div class="fu-context-item">
+                <span class="fu-context-label">Assigned To</span>
+                <span class="fu-context-value">{{ editModal.followUp?.user ?? '—' }}</span>
+              </div>
+            </div>
+            <form @submit.prevent="submitEditFollowUp">
+              <div class="add-form-row">
+                <div class="add-form-group">
+                  <label>Follow-Up Date <span class="req">*</span></label>
+                  <input type="date" v-model="editForm.followup_date" required>
+                </div>
+                <div class="add-form-group">
+                  <label>Action Type</label>
+                  <select v-model="editForm.action_type">
+                    <option value="">— Select type —</option>
+                    <option v-for="t in ACTION_TYPES" :key="t" :value="t">{{ t }}</option>
+                  </select>
+                </div>
+              </div>
+              <div class="add-form-group">
+                <label>Note</label>
+                <textarea v-model="editForm.note" rows="5" placeholder="Enter follow-up note or outcome…"></textarea>
+              </div>
+              <div class="add-modal-actions">
+                <button type="button" class="btn btn-cancel" @click="closeEditModal">Cancel</button>
+                <button type="submit" class="btn-followup-submit" :disabled="!editForm.followup_date || editModal.saving">
+                  {{ editModal.saving ? 'Saving…' : 'Save Changes' }}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
     <!-- Delete confirmation modal -->
     <div v-if="deleteTarget" class="modal-backdrop">
       <div class="modal">
@@ -275,6 +380,9 @@ import { useRoute, useRouter } from 'vue-router';
 import api from '../api.js';
 import LoadingSpinner from '../components/LoadingSpinner.vue';
 import { usePermissions } from '../composables/usePermissions.js';
+
+// `embedded` = rendered inside the Contacts page's Follow-Up tab (vs the standalone route).
+const props = defineProps({ embedded: { type: Boolean, default: false } });
 
 const { can } = usePermissions();
 
@@ -308,6 +416,15 @@ const actionType       = ref('');
 const completionStatus = ref('pending');
 const search           = ref('');
 const perPage          = ref(50);
+
+// Column header filters
+const colActionFilter = ref('');
+const colStatusFilter = ref('');
+const colTypeFilter   = ref('');
+const colTaskFilter   = ref('');
+
+// Lookups for column filter dropdowns
+const lookups = ref({ statuses: [], types: [], tasks: [] });
 const page             = ref(1);
 const completing       = ref(null);
 
@@ -318,6 +435,56 @@ const selectedIds  = ref([]);
 const selectAllRef = ref(null);
 const deleteTarget = ref(null);
 const deleting     = ref(false);
+
+// List rows use d-m-Y; date inputs need Y-m-d
+function dmyToYmd(d) {
+  if (!d) return '';
+  const p = String(d).split('-');
+  return p.length === 3 ? `${p[2]}-${p[1]}-${p[0]}` : d;
+}
+
+// Edit Follow-Up modal
+const editModal = ref({ open: false, saving: false, error: '', followUp: null });
+const editForm  = ref({ followup_date: '', action_type: '', note: '' });
+
+function openEditModal(f) {
+  editModal.value = { open: true, saving: false, error: '', followUp: f };
+  editForm.value  = {
+    followup_date: dmyToYmd(f.followup_date),
+    action_type:   f.action_type ?? '',
+    note:          f.note        ?? '',
+  };
+}
+
+function closeEditModal() { editModal.value.open = false; }
+
+async function submitEditFollowUp() {
+  const f = editModal.value.followUp;
+  if (!f) return;
+  editModal.value.saving = true;
+  editModal.value.error  = '';
+  try {
+    await api.put(`/v1/followups/${f.id}`, {
+      followup_date: editForm.value.followup_date,
+      action_type:   editForm.value.action_type || null,
+      note:          editForm.value.note        || null,
+    });
+    // Update row in-place
+    f.followup_date = editForm.value.followup_date
+      ? (() => { const [y,m,d] = editForm.value.followup_date.split('-'); return `${d}-${m}-${y}`; })()
+      : f.followup_date;
+    f.action_type = editForm.value.action_type || null;
+    f.note        = editForm.value.note        || null;
+    closeEditModal();
+  } catch (e) {
+    const errors = e.response?.data?.errors;
+    editModal.value.error = errors
+      ? Object.values(errors).flat().join(' ')
+      : (e.response?.data?.message ?? 'Failed to save. Please try again.');
+  } finally {
+    editModal.value.saving = false;
+  }
+}
 
 // Add Follow-Up modal
 const addModal      = ref({ open: false, saving: false, error: '', todos: [], todosLoading: false, contactId: '', contactName: '' });
@@ -402,17 +569,22 @@ function buildParams() {
     p.from_date = fromDate.value;
     p.to_date   = toDate.value;
   }
-  if (actionType.value)       p.action_type        = actionType.value;
-  if (completionStatus.value) p.completion_status  = completionStatus.value;
-  if (search.value)           p.search             = search.value;
-  if (todoFilter.value)       p.todo_id            = todoFilter.value;
+  if (actionType.value)       p.action_type       = actionType.value;
+  if (completionStatus.value) p.completion_status = completionStatus.value;
+  if (search.value)           p.search            = search.value;
+  if (todoFilter.value)       p.todo_id           = todoFilter.value;
+  if (colActionFilter.value)  p.action_type       = colActionFilter.value;
+  if (colStatusFilter.value)  p.status_id         = colStatusFilter.value;
+  if (colTypeFilter.value)    p.type_id           = colTypeFilter.value;
+  if (colTaskFilter.value)    p.task_id           = colTaskFilter.value;
   return p;
 }
 
 function clearTodoFilter() {
   todoFilter.value     = null;
   todoFilterInfo.value = null;
-  router.replace({ query: {} });
+  // When embedded in the Contacts page tab, keep the ?tab=followups query intact.
+  router.replace({ query: props.embedded ? { tab: 'followups' } : {} });
   load();
 }
 
@@ -525,11 +697,18 @@ async function submitAddFollowUp() {
 }
 
 onMounted(async () => {
+  // Load lookups for column filter dropdowns
+  try {
+    const lu = await api.get('/v1/lookups');
+    lookups.value = { statuses: lu.data.statuses ?? [], types: lu.data.types ?? [], tasks: lu.data.tasks ?? [] };
+  } catch (_) { /* non-critical */ }
+
   // If filtered by a specific ToDo, fetch its details for the banner.
   if (todoFilter.value) {
-    // Widen date range so we don't accidentally exclude the to-do's existing follow-ups.
-    fromDate.value = '2000-01-01';
-    toDate.value   = '2099-12-31';
+    // Widen date range and clear status filter so all follow-ups for this todo are visible.
+    fromDate.value       = '2000-01-01';
+    toDate.value         = '2099-12-31';
+    completionStatus.value = '';
     try {
       const todoRes = await api.get(`/v1/todos/${todoFilter.value}`);
       const t = todoRes.data.data;
@@ -546,6 +725,8 @@ onMounted(async () => {
 
 <style scoped>
 .page { padding: 28px 28px 48px; max-width: 1500px; margin: 0 auto; }
+.page-embedded { padding: 0; max-width: none; }
+.page-head-embedded { margin-bottom: 14px; }
 
 /* Page head */
 .page-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 18px; flex-wrap: wrap; }
@@ -644,19 +825,30 @@ onMounted(async () => {
 .record-count { display: flex; align-items: center; gap: 10px; }
 .count-label { font-size: 14px; font-weight: 700; color: var(--text-1); letter-spacing: -0.2px; }
 .count-badge { background: var(--primary-soft); color: var(--primary-text); font-size: 11.5px; font-weight: 700; padding: 4px 12px; border-radius: 999px; }
-.table-scroll { overflow-x: auto; }
-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.table-scroll { overflow-x: hidden; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed; }
 thead th {
   background: var(--surface-2); color: var(--text-2); font-size: 11px; font-weight: 700;
-  text-transform: uppercase; letter-spacing: 0.55px; padding: 11px 14px;
+  text-transform: uppercase; letter-spacing: 0.55px; padding: 10px 12px;
   border-bottom: 2px solid var(--border); border-right: 1px solid var(--border-soft);
-  text-align: left; white-space: nowrap;
+  text-align: left; white-space: nowrap; overflow: hidden;
 }
 thead th:last-child { border-right: none; }
-tbody td { padding: 13px 14px; border-bottom: 1px solid var(--border-soft); border-right: 1px solid var(--border-soft); color: var(--text-1); vertical-align: middle; font-size: 13.5px; }
+tbody td { padding: 8px 12px; border-bottom: 1px solid var(--border-soft); border-right: 1px solid var(--border-soft); color: var(--text-1); vertical-align: middle; font-size: 13px; white-space: nowrap; overflow: hidden; }
 tbody td:last-child { border-right: none; }
 tbody tr:last-child td { border-bottom: none; }
 tbody tr:hover { background: var(--surface-2); }
+
+/* Column header filters */
+.th-filter { white-space: normal !important; overflow: visible !important; vertical-align: top !important; padding: 8px 10px !important; }
+.col-head { display: flex; flex-direction: column; gap: 5px; }
+.col-head span { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.55px; color: var(--text-2); white-space: nowrap; }
+.col-filter-sel {
+  width: 100%; height: 22px; font-size: 11px; padding: 0 4px;
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--surface); color: var(--text-1); cursor: pointer;
+}
+.col-filter-sel:focus { outline: 1px solid var(--primary); }
 
 .row-num {
   display: inline-flex; align-items: center; justify-content: center;
@@ -664,7 +856,8 @@ tbody tr:hover { background: var(--surface-2); }
   border-radius: 999px; font-size: 11px; font-weight: 700; color: var(--text-3);
 }
 .date-text { font-size: 12.5px; color: var(--text-2); font-weight: 500; }
-.company-link { color: var(--text-1); font-weight: 600; text-decoration: none; }
+.td-company { white-space: normal !important; word-break: break-word; overflow: visible !important; }
+.company-link { color: var(--text-1); font-weight: 600; text-decoration: none; white-space: normal; word-break: break-word; }
 .company-link:hover { color: var(--primary); }
 .action-chip { background: #fce7f3; color: #9d174d; font-size: 11.5px; font-weight: 600; padding: 3px 10px; border-radius: 999px; white-space: nowrap; }
 .status-chip { background: var(--surface-2); color: var(--text-2); font-size: 11.5px; font-weight: 600; padding: 3px 10px; border-radius: 999px; white-space: nowrap; }
@@ -753,6 +946,16 @@ tbody tr:hover { background: var(--surface-2); }
   .filter-group.wide { flex: 1 1 100%; }
   .filter-group.wide input { width: 100%; }
 }
+
+/* Follow-up context info row (used in Add and Edit modals) */
+.fu-context-row {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 8px 16px;
+  background: var(--surface-2); border-radius: var(--radius-sm);
+  padding: 12px 14px; margin-bottom: 16px;
+}
+.fu-context-item { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.fu-context-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-3); }
+.fu-context-value { font-size: 13px; font-weight: 600; color: var(--text-1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* Add Follow-Up Modal */
 .remark-overlay {

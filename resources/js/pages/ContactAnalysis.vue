@@ -150,7 +150,7 @@
           </div>
         </div>
         <div class="ca-attn-label">Never Contacted</div>
-        <div class="ca-attn-desc">Contacts with no tasks logged at all</div>
+        <div class="ca-attn-desc">Contacts with no to-dos logged at all</div>
         <div class="ca-attn-action">
           View contacts
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>

@@ -26,7 +26,6 @@ use App\Http\Controllers\Api\V1\ProfileController;
 use App\Http\Controllers\Api\V1\UserSettingsController;
 use App\Http\Controllers\Api\V1\UserManagementController;
 use App\Http\Controllers\Api\V1\AdminAuditLogController;
-use App\Http\Controllers\Api\V1\EmailVerificationController;
 use App\Http\Controllers\Api\V1\PublicLeadController;
 use App\Http\Controllers\Api\V1\UserDashboardController;
 use App\Http\Controllers\Api\V1\SocialMediaReminderController;
@@ -60,9 +59,6 @@ Route::post('public/lead', [PublicLeadController::class, 'store'])->middleware('
 Route::middleware(['auth:sanctum', 'maintenance'])->group(function () {
     Route::post('auth/logout', [AuthController::class, 'logout']);
     Route::get('auth/me', [AuthController::class, 'me']);
-    Route::post('auth/email/resend', [EmailVerificationController::class, 'resend'])
-        ->middleware('throttle:6,1');
-
     Route::prefix('v1')->group(function () {
         // Profile — no special permission (own data only)
         Route::get('profile', [ProfileController::class, 'show']);

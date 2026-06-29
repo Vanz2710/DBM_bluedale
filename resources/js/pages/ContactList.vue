@@ -9,9 +9,6 @@
         <button v-if="tab === 'contacts' && can('create contacts')" class="btn-primary-pill" data-tour="add-contact-btn" @click="openAddModal">
           <span class="plus-icon" aria-hidden="true">+</span> Add New Contact
         </button>
-        <button v-else-if="tab === 'forecast' && can('create forecasts')" class="btn-primary-pill" @click="openForecastAdd()">
-          <span class="plus-icon" aria-hidden="true">+</span> Add Forecast
-        </button>
       </div>
     </div>
 
@@ -25,6 +22,9 @@
       </button>
       <button :class="['tab-btn', { 'tab-active': tab === 'tasks' }]" @click="switchTab('tasks')">
         <span class="tab-icon" v-html="CI.clipboard"></span> To-Do
+      </button>
+      <button :class="['tab-btn', { 'tab-active': tab === 'followups' }]" @click="switchTab('followups')">
+        <span class="tab-icon" v-html="CI.bell"></span> Follow-Up
       </button>
       <button :class="['tab-btn', { 'tab-active': tab === 'forecast' }]" @click="switchTab('forecast')">
         <span class="tab-icon" v-html="CI.trending"></span> Forecast
@@ -169,95 +169,6 @@
     </div>
 
     <!-- Tasks toolbar -->
-    <div v-else-if="tab === 'tasks'" class="toolbar">
-      <div class="date-nav">
-        <button class="date-nav-arrow" @click="shiftTodoDate(-1)" type="button">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
-        </button>
-        <CalendarPicker
-          v-model="todoDate"
-          :marked-dates="todoMarked"
-          :loading-dates="todoMarkLoading"
-          @update:modelValue="loadTodos"
-          @month-change="({ year, month }) => loadTodoMarkedDates(year, month)"
-        />
-        <button class="date-nav-arrow" @click="shiftTodoDate(1)" type="button">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
-        </button>
-      </div>
-      <div class="filter-group wide">
-        <label>Search</label>
-        <input v-model="todoSearch" @keyup.enter="loadTodos" placeholder="Company name…">
-      </div>
-      <div class="filter-group">
-        <label>User</label>
-        <select v-model="todoUserId" @change="loadTodos">
-          <option value="">All Users</option>
-          <option v-for="u in users" :key="u.id" :value="u.id">{{ u.name }}</option>
-        </select>
-      </div>
-      <div class="filter-group">
-        <label>Status</label>
-        <select v-model="todoStatus" @change="loadTodos">
-          <option value="">All</option>
-          <option value="pending">Pending</option>
-          <option value="completed">Completed</option>
-        </select>
-      </div>
-      <div class="filter-group">
-        <label>Per Page</label>
-        <input type="number" v-model.number="todoPerPage" @change="loadTodos" style="width:70px;">
-      </div>
-      <button class="btn btn-primary" @click="loadTodos">Search</button>
-    </div>
-
-    <!-- Forecast toolbar -->
-    <div v-else class="toolbar">
-      <div class="filter-group wide">
-        <label>Search</label>
-        <input v-model="forecastFilters.q" @keyup.enter="applyForecastFilters" placeholder="Company, product, user…">
-      </div>
-      <div class="filter-group">
-        <label>Product</label>
-        <select v-model="forecastFilters.product_id" @change="applyForecastFilters">
-          <option value="">All Products</option>
-          <option v-for="p in forecastLookups.forecast_products" :key="p.id" :value="p.id">{{ p.name }}</option>
-        </select>
-      </div>
-      <div class="filter-group">
-        <label>Type</label>
-        <select v-model="forecastFilters.forecast_type_id" @change="applyForecastFilters">
-          <option value="">All Types</option>
-          <option v-for="t in forecastLookups.forecast_types" :key="t.id" :value="t.id">{{ t.name }}</option>
-        </select>
-      </div>
-      <div class="filter-group">
-        <label>Result</label>
-        <select v-model="forecastFilters.result_id" @change="applyForecastFilters">
-          <option value="">All Results</option>
-          <option value="none">No Result</option>
-          <option v-for="r in forecastResultOptions" :key="r.id" :value="r.id">{{ r.name }}</option>
-        </select>
-      </div>
-      <div class="filter-group">
-        <label>User</label>
-        <select v-model="forecastFilters.user_id" @change="applyForecastFilters">
-          <option value="">All Users</option>
-          <option v-for="u in users" :key="u.id" :value="u.id">{{ u.name }}</option>
-        </select>
-      </div>
-      <div class="filter-group">
-        <label>From</label>
-        <input type="date" v-model="forecastFilters.from_date" @change="applyForecastFilters">
-      </div>
-      <div class="filter-group">
-        <label>To</label>
-        <input type="date" v-model="forecastFilters.to_date" @change="applyForecastFilters">
-      </div>
-      <button class="btn btn-primary" @click="applyForecastFilters">Search</button>
-      <button class="btn btn-clear" @click="resetForecastFilters">Reset</button>
-    </div>
-
     <!-- Shared drawer -->
     <transition name="drawer">
       <div v-if="drawer.open" class="drawer-overlay">
@@ -280,11 +191,10 @@
             </div>
             <div class="drawer-actions-wrap" v-if="drawer.contact">
               <!-- Primary: the day-to-day things you DO on a contact -->
-              <template v-if="canLogActivity">
+              <template v-if="can('view todos') || can('create forecasts')">
                 <span class="daction-eyebrow">Log Activity</span>
                 <div class="daction-primary">
-                  <button v-if="can('create followups')" type="button" class="daction-btn btn-followup-c" @click="openFollowUpModal()"><span v-html="CI.bell"></span> Log Follow-Up</button>
-                  <button v-if="can('create todos')" type="button" class="daction-btn btn-task-c" @click="openAddTaskFromBar"><span v-html="CI.clipboard"></span> Add Task</button>
+                  <router-link v-if="can('view todos')" class="daction-btn btn-task-c" :to="{ path: '/list', query: { tab: 'tasks', contact_id: drawer.contact.id, contact_name: drawer.contact.name } }" @click="closeDrawer"><span v-html="CI.clipboard"></span> Manage To-Dos</router-link>
                   <button v-if="can('create forecasts')" type="button" class="daction-btn btn-forecast-c" @click="openForecastAddForDrawer"><span v-html="CI.trending"></span> Add Forecast</button>
                 </div>
               </template>
@@ -365,38 +275,12 @@
               <div class="drawer-section">
                 <div class="dsec-title-row">
                   <span class="dsec-title">To-Dos ({{ drawer.contact.todos?.length ?? 0 }})</span>
-                  <button v-if="can('create todos')" class="add-task-toggle-btn" @click="openAddTask">+ Add Task</button>
+                  <router-link v-if="can('view todos')" class="manage-todo-link" :to="{ path: '/list', query: { tab: 'tasks', contact_id: drawer.contact.id, contact_name: drawer.contact.name } }" @click="closeDrawer">
+                    Open in To-Do <span v-html="CI.arrowRight"></span>
+                  </router-link>
                 </div>
 
-                <!-- Add Task inline form -->
-                <div v-if="addTaskOpen" ref="addTaskFormRef" class="add-task-form">
-                  <div class="add-task-row">
-                    <div class="add-task-field">
-                      <label>Task</label>
-                      <select v-model="addTaskForm.task_id">
-                        <option value="">Select task type</option>
-                        <option v-for="t in lookups.tasks" :key="t.id" :value="t.id">{{ t.name }}</option>
-                      </select>
-                    </div>
-                    <div class="add-task-field">
-                      <label>Date <span class="req">*</span></label>
-                      <input type="date" v-model="addTaskForm.todo_date">
-                    </div>
-                  </div>
-                  <div class="add-task-field">
-                    <label>Remark</label>
-                    <textarea v-model="addTaskForm.todo_remark" placeholder="Optional notes…" rows="2"></textarea>
-                  </div>
-                  <div v-if="addTaskError" class="add-task-error">{{ addTaskError }}</div>
-                  <div class="add-task-actions">
-                    <button class="btn btn-clear btn-sm" @click="addTaskOpen = false; addTaskError = ''">Cancel</button>
-                    <button class="btn btn-primary btn-sm" :disabled="!addTaskForm.todo_date || addTaskSaving" @click="submitQuickTask">
-                      {{ addTaskSaving ? 'Saving…' : 'Save Task' }}
-                    </button>
-                  </div>
-                </div>
-
-                <p v-if="!drawer.contact.todos?.length" class="drawer-empty">No tasks logged yet.</p>
+                <p v-if="!drawer.contact.todos?.length" class="drawer-empty">No to-dos logged yet.</p>
                 <table v-else class="drawer-table">
                   <thead>
                     <tr>
@@ -404,7 +288,7 @@
                       <th>Task</th>
                       <th>User</th>
                       <th>Remark</th>
-                      <th style="text-align:right">Actions</th>
+                      <th>Status</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -414,13 +298,9 @@
                         <td><span v-if="td.task" class="dtask-badge">{{ td.task.name }}</span><span v-else class="muted-dash">—</span></td>
                         <td>{{ td.user?.name ?? '—' }}</td>
                         <td style="white-space:pre-line;font-size:12px">{{ td.todo_remark || '—' }}</td>
-                        <td class="todo-actions-cell">
-                          <button class="fu-count-badge" :class="{ 'fu-has-entries': td.follow_ups?.length }" :title="(td.follow_ups?.length ?? 0) + ' follow-up(s) — click to view/add'" @click="openTaskFuModal(td)">
-                            <span v-html="CI.phone" style="display:inline-flex;align-items:center;margin-right:3px"></span>{{ td.follow_ups?.length ?? 0 }}
-                          </button>
-                          <button v-if="td.completion_status !== 'completed'" class="todo-done-btn" title="Mark complete" @click="toggleDrawerTodoDone(td, 'completed')" v-html="CI.check"></button>
-                          <button v-else class="todo-undo-btn" title="Mark pending" @click="toggleDrawerTodoDone(td, 'pending')" v-html="CI.rotateCcw"></button>
-                          <button class="todo-del-btn" title="Delete task" @click="deleteDrawerTodo(td)" v-html="CI.x"></button>
+                        <td>
+                          <span class="todo-status-badge" :class="td.completion_status === 'completed' ? 'tsb-done' : 'tsb-pending'">{{ td.completion_status === 'completed' ? 'Done' : 'Pending' }}</span>
+                          <span v-if="td.follow_ups?.length" class="todo-fu-note">{{ td.follow_ups.length }} follow-up{{ td.follow_ups.length !== 1 ? 's' : '' }}</span>
                         </td>
                       </tr>
                     </template>
@@ -954,10 +834,6 @@
                 </td>
                 <td class="col-action" @click.stop>
                   <div class="action-btns">
-                    <button v-if="can('create todos')" class="action-chip chip-task" title="Add Task" @click="openAddTaskModal(c)">
-                      <span class="chip-icon" v-html="CI.list"></span>
-                      <span class="chip-label">Task</span>
-                    </button>
                     <button v-if="can('edit contacts') && c.can_edit" class="action-chip chip-edit" title="Edit Contact" @click="openEditContactModal(c)">
                       <span class="chip-icon" v-html="CI.edit"></span>
                       <span class="chip-label">Edit</span>
@@ -1088,129 +964,16 @@
 
     <!-- ── TASKS TAB ── -->
     <template v-else-if="tab === 'tasks'">
-      <LoadingSpinner v-if="todoLoading" />
-      <div v-else class="table-wrap">
-        <div class="table-header-bar">
-          <span class="record-count">
-            <span class="count-label">{{ todoPeriodLabel }}</span>
-            <span class="count-badge">{{ todoMeta.total ?? todos.length }} task(s)</span>
-          </span>
-        </div>
-        <div class="table-scroll">
-          <table>
-            <thead>
-              <tr>
-                <th class="col-no">#</th>
-                <th style="width:100px">To Do Date</th>
-                <th class="col-status">Status</th>
-                <th class="col-name">Company</th>
-                <th class="col-user">User</th>
-                <th style="width:110px">Task</th>
-                <th>Remark</th>
-                <th style="width:60px;text-align:center">Done</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-if="todos.length === 0">
-                <td colspan="8" class="empty-state">
-                  <div class="empty-icon" v-html="CIL.clipboard"></div>
-                  <div class="empty-title">No tasks found</div>
-                  <div class="empty-sub">Try a different date or search filter</div>
-                </td>
-              </tr>
-              <tr v-for="(t, idx) in todos" :key="t.id" :class="{ 'row-done': t.completion_status === 'completed' }">
-                <td class="col-no"><span class="row-num">{{ todoMeta.from ? todoMeta.from + idx : idx + 1 }}</span></td>
-                <td><span class="date-text">{{ t.todo_date }}</span></td>
-                <td class="col-status">
-                  <span class="badge badge-status" :class="statusClass(t.status)">{{ t.status ?? '—' }}</span>
-                </td>
-                <td class="col-name">
-                  <button class="task-company-btn" @click="openDrawer({ id: t.contact_id })">{{ t.contact_name }}</button>
-                </td>
-                <td class="col-user"><span class="user-name">{{ t.user ?? '—' }}</span></td>
-                <td><span v-if="t.task" class="dtask-badge">{{ t.task }}</span><span v-else class="muted-dash">—</span></td>
-                <td style="font-size:12px;white-space:pre-line;color:#374151">{{ t.todo_remark || '—' }}</td>
-                <td style="text-align:center">
-                  <button v-if="t.completion_status !== 'completed'" class="todo-done-btn" title="Mark complete" @click="markTodoDone(t)" v-html="CI.check"></button>
-                  <button v-else class="todo-undo-btn" title="Mark pending" @click="markTodoPending(t)" v-html="CI.rotateCcw"></button>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-        <div v-if="todoMeta.last_page > 1" class="pagination">
-          <button :disabled="todoMeta.current_page <= 1" @click="todoChangePage(todoMeta.current_page - 1)"><span v-html="CI.chevronLeft" style="display:inline-flex;align-items:center"></span> Prev</button>
-          <span>Page {{ todoMeta.current_page }} of {{ todoMeta.last_page }}</span>
-          <button :disabled="todoMeta.current_page >= todoMeta.last_page" @click="todoChangePage(todoMeta.current_page + 1)">Next <span v-html="CI.chevronRight" style="display:inline-flex;align-items:center"></span></button>
-        </div>
-      </div>
+      <TodoList :embedded="true" />
+    </template>
+
+    <template v-else-if="tab === 'followups'">
+      <FollowUpList :embedded="true" />
     </template>
 
     <!-- ── FORECAST TAB ── -->
-    <template v-else>
-      <LoadingSpinner v-if="forecastLoading" />
-      <div v-else class="table-wrap">
-        <div class="table-header-bar">
-          <span class="record-count">
-            <span class="count-label">Forecasts</span>
-            <span class="count-badge">{{ forecastMeta.total ?? forecasts.length }} forecast(s)</span>
-          </span>
-          <div class="forecast-stats">
-            <span class="fstat-chip"><strong>{{ fmtCurrency(forecastSummary.total_amount) }}</strong><small>Total</small></span>
-            <span class="fstat-chip fstat-confirmed"><strong>{{ fmtCurrency(forecastSummary.confirmed_amount) }}</strong><small>Confirmed</small></span>
-            <span class="fstat-chip fstat-pending"><strong>{{ fmtCurrency(forecastSummary.pending_amount) }}</strong><small>Pending</small></span>
-          </div>
-        </div>
-        <div class="table-scroll">
-          <table>
-            <thead>
-              <tr>
-                <th class="col-no">#</th>
-                <th class="col-name">Company</th>
-                <th>Product</th>
-                <th>Type</th>
-                <th class="fcol-amount">Amount</th>
-                <th class="col-date">Forecast Date</th>
-                <th>Result</th>
-                <th class="col-user">Assigned</th>
-                <th class="col-date">Updated</th>
-                <th class="col-action">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-if="forecasts.length === 0">
-                <td colspan="10" class="empty-state">
-                  <div class="empty-icon" v-html="CIL.trending"></div>
-                  <div class="empty-title">No forecasts found</div>
-                  <div class="empty-sub">Try adjusting filters or add a new forecast</div>
-                </td>
-              </tr>
-              <tr v-for="(f, idx) in forecasts" :key="f.id" class="contact-row" @click="openDrawerById(f.contact_id)" style="cursor:pointer">
-                <td class="col-no"><span class="row-num">{{ (forecastMeta.from ?? 1) + idx }}</span></td>
-                <td class="col-name"><span class="company-link">{{ f.contact_name ?? '—' }}</span></td>
-                <td>{{ f.product_name ?? '—' }}</td>
-                <td><span class="tag">{{ f.forecast_type_name ?? '—' }}</span></td>
-                <td class="fcol-amount fcast-amount">{{ fmtCurrency(f.amount) }}</td>
-                <td class="col-date"><span class="date-text">{{ fmtDate(f.forecast_date) }}</span></td>
-                <td><span class="result-badge" :class="resultClass(f.result_name)">{{ f.result_name ?? 'No Result' }}</span></td>
-                <td class="col-user"><span class="user-name">{{ f.user_name ?? '—' }}</span></td>
-                <td class="col-date"><span class="date-text">{{ fmtDate(f.forecast_updatedate) }}</span></td>
-                <td class="col-action" @click.stop>
-                  <div class="action-btns">
-                    <button class="icon-btn btn-edit" title="Edit Forecast" @click="openForecastEdit(f.id)" v-html="CI.edit"></button>
-                    <button class="icon-btn btn-delete" title="Delete Forecast" @click="openForecastDeleteModal(f)" v-html="CI.trash"></button>
-                  </div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-        <div v-if="forecastMeta.last_page > 1" class="pagination">
-          <button :disabled="forecastMeta.current_page <= 1" @click="forecastChangePage(forecastMeta.current_page - 1)"><span v-html="CI.chevronLeft" style="display:inline-flex;align-items:center"></span> Prev</button>
-          <span>Page {{ forecastMeta.current_page }} of {{ forecastMeta.last_page }}</span>
-          <button :disabled="forecastMeta.current_page >= forecastMeta.last_page" @click="forecastChangePage(forecastMeta.current_page + 1)">Next <span v-html="CI.chevronRight" style="display:inline-flex;align-items:center"></span></button>
-        </div>
-      </div>
+    <template v-else-if="tab === 'forecast'">
+      <ForecastList :embedded="true" />
     </template>
 
     <!-- Export Modal -->
@@ -1407,12 +1170,14 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, nextTick } from 'vue';
+import { ref, computed, onMounted, nextTick, watch } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import api from '../api.js';
 import LoadingSpinner from '../components/LoadingSpinner.vue';
-import CalendarPicker from '../components/CalendarPicker.vue';
 import ForecastFormModal from '../components/ForecastFormModal.vue';
+import TodoList from './TodoList.vue';
+import FollowUpList from './FollowUpList.vue';
+import ForecastList from './ForecastList.vue';
 import { usePermissions } from '../composables/usePermissions.js';
 
 const { can, isAdmin } = usePermissions();
@@ -1451,6 +1216,7 @@ const ICO = {
   user:        (sz) => _si('<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>', sz),
   arrowUp:     (sz) => _si('<line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/>', sz),
   arrowDown:   (sz) => _si('<line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/>', sz),
+  arrowRight:  (sz) => _si('<line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>', sz),
   check:       (sz) => _si('<polyline points="20 6 9 17 4 12"/>', sz),
   rotateCcw:   (sz) => _si('<polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.63"/>', sz),
   info:        (sz) => _si('<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>', sz),
@@ -1467,23 +1233,30 @@ function switchTab(newTab) {
   tab.value = newTab;
   router.replace({ query: newTab !== 'contacts' ? { tab: newTab } : {} });
   if (newTab === 'summary') { summaryPage.value = 1; loadSummary(); }
-  else if (newTab === 'tasks') {
-    loadTodos();
-    const [y, m] = todoDate.value.split('-').map(Number);
-    loadTodoMarkedDates(y, m);
-  }
-  else if (newTab === 'forecast') loadForecasts();
+  // tasks/followups/forecast tabs are self-contained (embedded components load their own data).
 }
+
+// Sidebar deep-links (e.g. /list?tab=tasks) change only the query — sync the tab.
+watch(() => route.query.tab, (t) => {
+  const target = (typeof t === 'string' && ['summary', 'tasks', 'followups', 'forecast'].includes(t)) ? t : 'contacts';
+  if (target !== tab.value) {
+    tab.value = target;
+    if (target === 'summary') { summaryPage.value = 1; loadSummary(); }
+    // tasks/followups/forecast are self-contained.
+  }
+});
 
 const bannerTitle = computed(() => {
   if (tab.value === 'summary') return 'Activity Summary';
   if (tab.value === 'tasks') return 'To-Do List';
+  if (tab.value === 'followups') return 'Follow-Ups';
   if (tab.value === 'forecast') return 'Forecasts';
   return 'List of Contacts';
 });
 const bannerSub = computed(() => {
   if (tab.value === 'summary') return 'Track contact engagement across months and years';
   if (tab.value === 'tasks') return 'View, manage and complete to-dos across all contacts';
+  if (tab.value === 'followups') return 'Track follow-up actions by date range or month range';
   if (tab.value === 'forecast') return 'Track forecasted revenue by company, product, type and result';
   return 'Browse, manage and add new contacts';
 });
@@ -1546,19 +1319,7 @@ const summarySelectAllRef = ref(null);
 const summaryPage         = ref(1);
 const summaryMeta         = ref({});
 
-// ── Tasks tab state ──
-const todoView    = ref('Day');
-const todoDate    = ref((() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; })());
-const todoSearch  = ref('');
-const todoUserId  = ref('');
-const todoStatus  = ref('pending');
-const todoPerPage = ref(50);
-const todoPage    = ref(1);
-const todos       = ref([]);
-const todoMeta    = ref({});
-const todoLoading    = ref(false);
-const todoMarked     = ref([]);
-const todoMarkLoading = ref(false);
+// ── Tasks tab: rendered by the embedded <TodoList> component (self-contained) ──
 
 // ── Forecast tab state ──
 const forecasts        = ref([]);
@@ -1667,16 +1428,6 @@ const dateLabel = computed(() => {
   if (dateFrom.value && dateTo.value) return `${fmt(dateFrom.value)} – ${fmt(dateTo.value)}`;
   if (dateFrom.value) return `From ${fmt(dateFrom.value)}`;
   return `Until ${fmt(dateTo.value)}`;
-});
-
-const todoPeriodLabel = computed(() => {
-  const d = new Date(todoDate.value + 'T00:00:00');
-  return d.toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-});
-
-const todoNavLabel = computed(() => {
-  const d = new Date(todoDate.value + 'T00:00:00');
-  return d.toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' });
 });
 
 // ── Helpers ──
@@ -1921,46 +1672,6 @@ function exportSummary() {
   URL.revokeObjectURL(url);
 }
 
-// ── Tasks tab ──
-async function loadTodos() {
-  todoLoading.value = true;
-  try {
-    const params = { view: todoView.value, date: todoDate.value, per_page: todoPerPage.value, page: todoPage.value };
-    if (todoSearch.value)  params.search             = todoSearch.value;
-    if (todoUserId.value)  params.user_id            = todoUserId.value;
-    if (todoStatus.value)  params.completion_status  = todoStatus.value;
-    const res = await api.get('/v1/todos', { params });
-    todos.value    = res.data.data;
-    todoMeta.value = res.data.meta ?? {};
-  } finally {
-    todoLoading.value = false;
-  }
-}
-
-function todoChangePage(p) { todoPage.value = p; loadTodos(); }
-
-function shiftTodoDate(n) {
-  const [y, m, day] = todoDate.value.split('-').map(Number);
-  const d = new Date(y, m - 1, day + n);
-  const newDate = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-  const oldMonth = todoDate.value.slice(0, 7);
-  todoDate.value = newDate;
-  loadTodos();
-  if (newDate.slice(0, 7) !== oldMonth) {
-    loadTodoMarkedDates(d.getFullYear(), d.getMonth() + 1);
-  }
-}
-
-async function loadTodoMarkedDates(year, month) {
-  todoMarkLoading.value = true;
-  try {
-    const res = await api.get('/v1/todos/active-dates', { params: { year, month } });
-    todoMarked.value = res.data.dates ?? [];
-  } finally {
-    todoMarkLoading.value = false;
-  }
-}
-
 const followUpPrompt = ref({ open: false, todoId: null, count: 0, loading: false });
 
 async function checkAndPromptFollowUps(todoId) {
@@ -1986,19 +1697,6 @@ async function completeFollowUps() {
 
 function dismissFollowUpPrompt() {
   followUpPrompt.value = { open: false, todoId: null, count: 0, loading: false };
-}
-
-async function markTodoDone(todo) {
-  await api.patch(`/v1/todos/${todo.id}/status`, { status: 'completed' });
-  todo.completion_status = 'completed';
-  showToast('Task marked complete');
-  checkAndPromptFollowUps(todo.id);
-}
-
-async function markTodoPending(todo) {
-  await api.patch(`/v1/todos/${todo.id}/status`, { status: 'pending' });
-  todo.completion_status = 'pending';
-  showToast('Task marked pending');
 }
 
 // ── Forecast tab ──
@@ -2253,7 +1951,7 @@ async function submitAddTaskModal() {
       todo_remark: addTaskModalForm.value.todo_remark || null,
     });
     closeAddTaskModal();
-    if (tab.value === 'tasks') loadTodos();
+    // To-Do tab is self-contained (embedded <TodoList>); nothing to refresh here.
     showToast('Task saved');
   } catch (e) {
     addTaskModal.value.error = e.response?.data?.message ?? 'Failed to save task.';
@@ -2333,7 +2031,7 @@ async function submitQuickTask() {
     addTaskOpen.value = false;
     const res = await api.get(`/v1/contacts/${drawer.value.contact.id}`);
     drawer.value.contact = res.data.data;
-    if (tab.value === 'tasks') loadTodos();
+    // To-Do tab is self-contained (embedded <TodoList>); nothing to refresh here.
     showToast('Task saved');
   } catch (e) {
     addTaskError.value = e.response?.data?.message ?? 'Failed to save task.';
@@ -2346,10 +2044,6 @@ async function toggleDrawerTodoDone(todo, status) {
   await api.patch(`/v1/todos/${todo.id}/status`, { status });
   todo.completion_status = status;
   showToast(status === 'completed' ? 'Task marked complete' : 'Task marked pending');
-  if (tab.value === 'tasks') {
-    const t = todos.value.find(x => x.id === todo.id);
-    if (t) t.completion_status = status;
-  }
   if (status === 'completed') checkAndPromptFollowUps(todo.id);
 }
 
@@ -2370,7 +2064,6 @@ async function confirmTodoDelete() {
     closeTodoDeleteModal();
     const res = await api.get(`/v1/contacts/${drawer.value.contact.id}`);
     drawer.value.contact = res.data.data;
-    if (tab.value === 'tasks') todos.value = todos.value.filter(t => t.id !== todo.id);
     showToast('Task deleted');
   } catch {
     todoDeleteModal.value.loading = false;
@@ -2448,17 +2141,17 @@ async function submitAdd() {
 
 onMounted(async () => {
   const initialTab = route.query.tab;
-  if (['summary', 'tasks', 'forecast'].includes(initialTab)) {
+  if (['summary', 'tasks', 'followups', 'forecast'].includes(initialTab)) {
     tab.value = initialTab;
   }
   const initialLoad =
-    tab.value === 'summary'  ? loadSummary() :
-    tab.value === 'tasks'    ? loadTodos() :
-    tab.value === 'forecast' ? loadForecasts() :
+    tab.value === 'summary'   ? loadSummary() :
+    tab.value === 'tasks'     ? Promise.resolve() :
+    tab.value === 'followups' ? Promise.resolve() :
+    tab.value === 'forecast'  ? Promise.resolve() :
     load();
-  const [y, m] = todoDate.value.split('-').map(Number);
   try {
-    const [lu] = await Promise.all([api.get('/v1/lookups'), initialLoad, loadTodoMarkedDates(y, m)]);
+    const [lu] = await Promise.all([api.get('/v1/lookups'), initialLoad]);
     users.value = lu.data.users ?? [];
     lookups.value = {
       statuses:   lu.data.statuses   ?? [],
@@ -3481,6 +3174,24 @@ tbody tr:last-child td { border-bottom: none; }
 .drawer-empty { font-size: 13px; color: var(--text-3); font-style: italic; margin: 0; }
 .drawer-email-link { color: var(--primary); text-decoration: none; font-size: 12.5px; }
 .drawer-email-link:hover { text-decoration: underline; color: var(--primary-hover); }
+
+/* Drawer: read-only to-do summary (editing happens on the To-Do page) */
+.manage-todo-link {
+  display: inline-flex; align-items: center; gap: 5px;
+  height: 30px; padding: 0 14px; border-radius: 999px;
+  background: var(--primary-soft); color: var(--primary-text);
+  font-size: 11.5px; font-weight: 700; text-decoration: none; white-space: nowrap;
+  transition: background 0.15s, color 0.15s;
+}
+.manage-todo-link:hover { background: var(--primary); color: var(--primary-on); }
+.manage-todo-link :deep(svg) { width: 13px; height: 13px; }
+.todo-status-badge {
+  display: inline-block; padding: 3px 10px; border-radius: 999px;
+  font-size: 10.5px; font-weight: 700; white-space: nowrap;
+}
+.tsb-done    { background: var(--success-soft); color: var(--success); }
+.tsb-pending { background: var(--warning-soft); color: var(--warning); }
+.todo-fu-note { display: block; margin-top: 3px; font-size: 10.5px; color: var(--text-3); }
 
 /* Drawer: add task toggle button */
 .add-task-toggle-btn {

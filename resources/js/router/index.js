@@ -1,5 +1,4 @@
 const Login               = () => import('../pages/Login.vue');
-const VerifyEmail         = () => import('../pages/VerifyEmail.vue');
 const DealList            = () => import('../pages/DealList.vue');
 const DealAdd             = () => import('../pages/DealAdd.vue');
 const DealEdit            = () => import('../pages/DealEdit.vue');
@@ -49,7 +48,6 @@ const XPanel                  = () => import('../pages/XPanel.vue');
 
 const routes = [
     { path: '/login',        component: Login,       name: 'login',        meta: { public: true } },
-    { path: '/verify-email', component: VerifyEmail, name: 'verify-email', meta: { public: true } },
     { path: '/lead',         component: LeadForm,    name: 'lead-form',    meta: { public: true } },
     { path: '/',                           component: Dashboard,   name: 'home' },
     { path: '/list',                       component: ContactList,     name: 'list' },
@@ -59,11 +57,11 @@ const routes = [
     { path: '/contacts/:id',               component: ContactView, name: 'contact-view' },
     { path: '/contacts/:id/edit',          component: ContactEdit, name: 'contact-edit' },
     { path: '/contacts/:id/task/add',      component: TaskAdd,     name: 'task-add' },
-    { path: '/todos',                      component: TodoList,    name: 'todos' },
+    { path: '/todos',                      redirect: (to) => ({ path: '/list', query: { tab: 'tasks', ...to.query } }) },
     { path: '/todos/add',                  component: TodoAdd,     name: 'todo-add' },
     { path: '/todos/:id/edit',             component: TaskEdit,    name: 'task-edit' },
     { path: '/todos/:id',                  component: TodoDetail,  name: 'todo-view' },
-    { path: '/followups',                  component: FollowUpList, name: 'followups' },
+    { path: '/followups',                  redirect: (to) => ({ path: '/list', query: { tab: 'followups', ...to.query } }) },
     { path: '/followups/add',              component: FollowUpAdd,  name: 'followup-add' },
     { path: '/followups/:id/edit',         component: FollowUpEdit, name: 'followup-edit' },
     { path: '/projects',                   component: ProjectList,        name: 'projects' },
@@ -72,7 +70,7 @@ const routes = [
     { path: '/deals',                      component: DealList,           name: 'deals' },
     { path: '/deals/add',                  component: DealAdd,            name: 'deal-add' },
     { path: '/deals/:id/edit',             component: DealEdit,           name: 'deal-edit' },
-    { path: '/forecasts',                  component: ForecastList,        name: 'forecasts' },
+    { path: '/forecasts',                  redirect: () => ({ path: '/list', query: { tab: 'forecast' } }) },
     { path: '/forecasts/summary',          component: ForecastSummary,     name: 'forecast-summary' },
     { path: '/performance',                component: Performance,        name: 'performance' },
     { path: '/admin',                      component: AdminPanel,       name: 'admin',        meta: { adminOnly: true, permission: 'manage lookups' } },

@@ -1,13 +1,7 @@
 <?php
 
-use App\Http\Controllers\Api\V1\EmailVerificationController;
 use App\Http\Controllers\EmailTrackingController;
 use Illuminate\Support\Facades\Route;
-
-// Email verification link (must be before SPA catch-all)
-Route::get('/email/verify/{id}/{hash}', [EmailVerificationController::class, 'verify'])
-    ->middleware(['signed', 'throttle:6,1'])
-    ->name('verification.verify');
 
 // Email open/click tracking and unsubscribe (hit by email clients, no auth needed)
 Route::get('track/open/{token}.png', [EmailTrackingController::class, 'open'])->name('email.track.open');
