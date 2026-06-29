@@ -37,6 +37,12 @@ class RoleController extends Controller
             'description' => 'nullable|string|max:255',
         ]);
 
+        // System roles must keep their name — it is hard-referenced by the Gate bypass
+        // (super-admin/admin) and `role:` route middleware. Renaming would lock everyone out.
+        if (in_array($role->name, ['super-admin', 'admin']) && $request->name !== $role->name) {
+            return response()->json(['message' => 'System roles cannot be renamed.'], 422);
+        }
+
         $role->update([
             'name'        => $request->name,
             'description' => $request->description,

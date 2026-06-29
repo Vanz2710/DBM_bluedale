@@ -58,6 +58,21 @@ class User extends Authenticatable
         return $this->hasMany(Forecast::class);
     }
 
+    public function deals()
+    {
+        return $this->hasMany(Deal::class);
+    }
+
+    public function projects()
+    {
+        return $this->hasMany(Project::class);
+    }
+
+    public function todos()
+    {
+        return $this->hasMany(ToDo::class);
+    }
+
     public function approvedBy()
     {
         return $this->belongsTo(User::class, 'approved_by_id')->withTrashed();

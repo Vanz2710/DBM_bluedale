@@ -90,7 +90,7 @@ async function save() {
 </script>
 
 <style scoped>
-.page { padding: 28px 32px; max-width: 720px; }
+.page { padding: 28px 32px; }
 .page-header { margin-bottom: 28px; }
 .page-title  { font-size: 28px; font-weight: 800; color: var(--text-1); letter-spacing: -0.5px; margin: 0 0 4px; }
 .page-subtitle { font-size: 13.5px; color: var(--text-3); margin: 0; }

@@ -194,7 +194,7 @@ class CampaignSender
     private function wrap(EmailCampaign $campaign, string $body, EmailSetting $settings, ?EmailCampaignRecipient $recipient): string
     {
         $isHtml = $body !== strip_tags($body);
-        $content = $isHtml ? nl2br($this->inlineImages($body)) : nl2br(e($body));
+        $content = $isHtml ? $this->inlineImages($body) : nl2br(e($body));
 
         $base = rtrim(config('app.url'), '/');
         $trackingOn = $settings->tracking_enabled && $recipient;

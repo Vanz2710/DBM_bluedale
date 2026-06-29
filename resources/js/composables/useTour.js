@@ -749,13 +749,13 @@ export const PAGE_TOURS = {
 
   'posting-calendar': [
     {
-      target: '.page-head',
+      target: '.page-header',
       title: 'Posting Calendar',
       body: 'Plan and schedule social media posts — FB, IG, TikTok, and content reminders — for the whole team in one calendar.',
       position: 'bottom',
     },
     {
-      target: '.month-control',
+      target: '.month-nav',
       title: 'Switch Months',
       body: 'Use the arrows to move between months. The calendar and reminder list below update to show that month\'s scheduled posts.',
       position: 'bottom-left',
@@ -763,19 +763,19 @@ export const PAGE_TOURS = {
     {
       target: '.entry-panel',
       title: 'Schedule a Post',
-      body: 'Fill in the title, platform, client, date, time, and status (Planned → Design → Approval → Scheduled → Posted), then click Add Reminder.',
+      body: 'Fill in the title, platform, description, date, time, and status (Planned → Design → Approval → Scheduled → Posted), then click + Add.',
       position: 'bottom',
     },
     {
-      target: '.calendar-card',
+      target: '.calendar-wrap',
       title: 'Calendar View',
-      body: 'Each day cell shows the posts scheduled for that date, colour-coded by status. Click an entry to edit it.',
+      body: 'Each day cell shows the posts scheduled for that date, colour-coded by platform. Click an event pill to load it into the form for editing.',
       position: 'bottom',
     },
     {
-      target: '.list-card',
-      title: 'Reminder List',
-      body: 'Below the calendar, the same posts appear as a chronological list — handy for working through the month\'s schedule in order.',
+      target: '.table-wrap',
+      title: 'All Reminders',
+      body: 'Below the calendar, all reminders appear as a paginated table sorted by date. Use the search and platform filter above to narrow the list.',
       position: 'bottom',
     },
   ],

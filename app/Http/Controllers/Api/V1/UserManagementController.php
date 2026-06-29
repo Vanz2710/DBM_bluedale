@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\AdminAuditLog;
 use App\Models\Contact;
 use App\Models\Deal;
+use App\Models\Forecast;
 use App\Models\Project;
 use App\Models\ToDo;
 use App\Models\User;
@@ -33,14 +34,20 @@ class UserManagementController extends Controller
             });
         }
 
-        $users = $query->withCount('contacts')->orderBy('name')->get([
+        $users = $query->withCount(['contacts', 'deals', 'projects', 'forecasts', 'todos'])->orderBy('name')->get([
             'id', 'name', 'username', 'email', 'is_approved', 'approved_at',
             'access_requested_at', 'login_count', 'last_login_at',
             'inactivity_flagged_at', 'created_at', 'deleted_at',
             'failed_login_attempts', 'locked_until', 'lockout_level', 'permanently_locked',
         ]);
 
-        return response()->json(['data' => $users]);
+        // Tell the UI when each soft-deleted account is scheduled for permanent removal.
+        $retentionDays = (int) config('app.deleted_user_retention_days', 30);
+        $users->each(function ($u) use ($retentionDays) {
+            $u->purge_at = $u->deleted_at ? $u->deleted_at->copy()->addDays($retentionDays) : null;
+        });
+
+        return response()->json(['data' => $users, 'retention_days' => $retentionDays]);
     }
 
     public function pendingApprovals()
@@ -78,7 +85,7 @@ class UserManagementController extends Controller
             $user->assignRole($request->role);
         }
 
-        Cache::forget('lookups');
+        Cache::forget('lookups_v2');
         $this->audit('created', 'user', $user->id, $user->name, null, [
             'name' => $user->name, 'username' => $user->username,
             'email' => $user->email, 'role' => $request->role,
@@ -115,7 +122,7 @@ class UserManagementController extends Controller
 
         $user->update($data);
 
-        Cache::forget('lookups');
+        Cache::forget('lookups_v2');
         $this->audit('updated', 'user', $user->id, $user->name, $old, $request->only('name', 'username', 'email'), $request);
 
         return response()->json([
@@ -130,6 +137,22 @@ class UserManagementController extends Controller
             return response()->json(['message' => 'You cannot delete your own account.'], 422);
         }
 
+        // If the user owns work, a reassignment target is mandatory — otherwise their
+        // contacts/deals/projects/forecasts would be orphaned under a dead account (and
+        // would later block the permanent purge, since contacts/deals/projects cascade).
+        $ownsWork = $user->contacts()->count()
+            + $user->deals()->count()
+            + $user->projects()->count()
+            + $user->forecasts()->count()
+            + ToDo::where('user_id', $user->id)->count();
+
+        if ($ownsWork > 0 && !$request->filled('reassign_to')) {
+            return response()->json([
+                'message' => 'This user owns records. Select a colleague to reassign their work to before deleting.',
+                'code'    => 'reassign_required',
+            ], 422);
+        }
+
         $reassignTo = null;
         if ($request->filled('reassign_to')) {
             $request->validate(['reassign_to' => 'integer|exists:users,id,deleted_at,NULL']);
@@ -137,13 +160,17 @@ class UserManagementController extends Controller
             if ($reassignTo === $user->id) {
                 return response()->json(['message' => 'Cannot reassign to the same user being deleted.'], 422);
             }
+            // Reassign owned work. FollowUps follow their ToDo (no direct user_id), so
+            // moving ToDos carries them across. Personal metrics (KPI/performance targets)
+            // are intentionally NOT reassigned — they belong to the departing user.
             Contact::where('user_id', $user->id)->update(['user_id' => $reassignTo]);
             Deal::where('user_id', $user->id)->update(['user_id' => $reassignTo]);
             Project::where('user_id', $user->id)->update(['user_id' => $reassignTo]);
             ToDo::where('user_id', $user->id)->update(['user_id' => $reassignTo]);
+            Forecast::where('user_id', $user->id)->update(['user_id' => $reassignTo]);
         }
 
-        Cache::forget('lookups');
+        Cache::forget('lookups_v2');
         $this->audit('deleted', 'user', $user->id, $user->name,
             ['name' => $user->name, 'username' => $user->username],
             ['reassigned_to' => $reassignTo], $request);
@@ -211,9 +238,21 @@ class UserManagementController extends Controller
             'roles.*' => 'string|exists:roles,name',
         ]);
 
+        $actor          = $request->user();
+        $actorIsSuper   = $actor->hasRole('super-admin');
+        $wasSuper       = $user->hasRole('super-admin');
+        $willBeSuper    = in_array('super-admin', $request->roles);
+
+        // Only a super-admin may grant or revoke the super-admin role. This stops a
+        // plain admin (who otherwise bypasses gate checks) from self-promoting or
+        // tampering with super-admin accounts.
+        if (!$actorIsSuper && ($willBeSuper || $wasSuper)) {
+            return response()->json(['message' => 'Only a super-admin can grant or change the super-admin role.'], 403);
+        }
+
         // Prevent stripping super-admin from the last super-admin in the system
-        $isLastSuperAdmin = $user->hasRole('super-admin')
-            && !in_array('super-admin', $request->roles)
+        $isLastSuperAdmin = $wasSuper
+            && !$willBeSuper
             && User::role('super-admin')->where('id', '!=', $user->id)->count() === 0;
 
         if ($isLastSuperAdmin) {

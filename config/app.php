@@ -101,6 +101,12 @@ return [
 
     'dev_master_key' => env('DEV_MASTER_KEY'),
 
+    /*
+    | Days a soft-deleted user is retained before the scheduled `users:purge-deleted`
+    | command permanently removes them. During this window the account is restorable.
+    */
+    'deleted_user_retention_days' => (int) env('DELETED_USER_RETENTION_DAYS', 30),
+
     'previous_keys' => [
         ...array_filter(
             explode(',', (string) env('APP_PREVIOUS_KEYS', ''))

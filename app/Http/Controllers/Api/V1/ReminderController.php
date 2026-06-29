@@ -8,6 +8,7 @@ use App\Models\AnnouncementRead;
 use App\Models\AdvertisingProductBooking;
 use App\Models\DeptNotification;
 use App\Models\FollowUp;
+use App\Models\PostingCalendarReminder;
 use App\Models\ReminderRead;
 use App\Models\SystemAlert;
 use App\Models\ToDo;
@@ -133,10 +134,31 @@ class ReminderController extends Controller
                     'site_name'    => $b->product->site_name ?? 'Unknown Site',
                     'product_type' => $b->product->product_type ?? '',
                     'end_date'     => $b->end_date->format('Y-m-d'),
-                    'days_left'    => (int) now()->diffInDays($b->end_date, false),
+                    'days_left'    => (int) $b->end_date->diffInDays(now()),
                 ])
                 ->all()
         );
+
+        $postingReminders = [];
+        if ($user->can('manage posting-calendar')) {
+            $postingReminders = Cache::remember("reminders_posting_{$targetUserId}", 30, fn () =>
+                PostingCalendarReminder::where('user_id', $targetUserId)
+                    ->where('status', '!=', 'posted')
+                    ->whereBetween('date', [$pastFrom, $futureEnd])
+                    ->orderBy('date')
+                    ->orderBy('time')
+                    ->get()
+                    ->map(fn ($r) => [
+                        'id'          => $r->id,
+                        'source_type' => 'posting',
+                        'title'       => $r->title,
+                        'platform'    => $r->platform,
+                        'date'        => $r->date,
+                        'status'      => $r->status,
+                    ])
+                    ->all()
+            );
+        }
 
         $alerts = [];
         if ($isAdmin) {
@@ -206,9 +228,10 @@ class ReminderController extends Controller
             'upcoming'            => $upcoming,
             'alerts'              => $alerts,
             'expiring_sites'      => $expiringSites,
+            'posting_reminders'   => $postingReminders,
             'task_notifications'  => $taskNotifs,
             'announcements'       => $announcements,
-            'unread_count'        => $items->where('is_read', false)->count() + count($alerts) + count($expiringSites) + count($taskNotifs) + $unreadAnnouncements,
+            'unread_count'        => $items->where('is_read', false)->count() + count($alerts) + count($expiringSites) + count($postingReminders) + count($taskNotifs) + $unreadAnnouncements,
         ]);
     }
 

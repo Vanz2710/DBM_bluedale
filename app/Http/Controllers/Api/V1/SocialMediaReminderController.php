@@ -31,9 +31,9 @@ class SocialMediaReminderController extends Controller
             $query->where('month', $month);
         }
 
-        return response()->json([
-            'data' => $query->get(),
-        ]);
+        $perPage = min((int) $request->input('per_page', 10), 100);
+
+        return response()->json($query->paginate($perPage));
     }
 
     public function store(Request $request)

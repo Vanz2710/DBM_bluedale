@@ -48,6 +48,10 @@ class EmailCampaignController extends Controller
 
     public function update(Request $request, EmailCampaign $campaign)
     {
+        if ($campaign->status === 'sent') {
+            return response()->json(['message' => 'A sent campaign cannot be edited.'], 422);
+        }
+
         $data = $this->validateCampaign($request, true);
 
         $campaign->fill(array_filter([
@@ -72,6 +76,10 @@ class EmailCampaignController extends Controller
 
     public function destroy(EmailCampaign $campaign)
     {
+        if ($campaign->status === 'sent') {
+            return response()->json(['message' => 'A sent campaign cannot be deleted — it contains delivery history. Archive it instead if needed.'], 422);
+        }
+
         $campaign->delete();
         return response()->json(['message' => 'Campaign deleted.']);
     }
@@ -92,6 +100,10 @@ class EmailCampaignController extends Controller
      */
     public function send(EmailCampaign $campaign, CampaignSender $sender)
     {
+        if ($campaign->status === 'sent') {
+            return response()->json(['message' => 'This campaign has already been sent.'], 422);
+        }
+
         try {
             $built = $this->buildRecipients($campaign);
             if ($built === 0 && $campaign->recipients()->count() === 0) {
@@ -115,6 +127,10 @@ class EmailCampaignController extends Controller
      */
     public function schedule(Request $request, EmailCampaign $campaign)
     {
+        if ($campaign->status === 'sent') {
+            return response()->json(['message' => 'A sent campaign cannot be rescheduled.'], 422);
+        }
+
         $data = $request->validate(['scheduled_at' => 'required|date|after:now']);
 
         try {

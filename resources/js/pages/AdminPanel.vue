@@ -131,6 +131,12 @@ const TAB_GROUPS = [
       { key: 'forecast-results',  label: 'Results' },
     ],
   },
+  {
+    label: 'Marketing',
+    tabs: [
+      { key: 'packages', label: 'Social Media Packages' },
+    ],
+  },
 ];
 
 const tabs = TAB_GROUPS.flatMap(g => g.tabs);

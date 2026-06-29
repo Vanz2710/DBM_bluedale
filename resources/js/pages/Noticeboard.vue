@@ -63,17 +63,18 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import api from '../api.js';
 import LoadingSpinner from '../components/LoadingSpinner.vue';
 
 const items   = ref([]);
 const loading = ref(false);
+let pollTimer = null;
 
 const unread = computed(() => items.value.filter(a => !a.is_read));
 
-async function load() {
-  loading.value = true;
+async function load(silent = false) {
+  if (!silent) loading.value = true;
   try {
     const res = await api.get('/v1/announcements');
     items.value = res.data.data ?? [];
@@ -93,11 +94,24 @@ function markAllRead() {
   unread.value.forEach(item => dismiss(item));
 }
 
-onMounted(load);
+function onVisibilityChange() {
+  if (!document.hidden) load(true);
+}
+
+onMounted(() => {
+  load();
+  pollTimer = setInterval(() => load(true), 30_000);
+  document.addEventListener('visibilitychange', onVisibilityChange);
+});
+
+onUnmounted(() => {
+  clearInterval(pollTimer);
+  document.removeEventListener('visibilitychange', onVisibilityChange);
+});
 </script>
 
 <style scoped>
-.page { padding: 28px 32px; max-width: 860px; }
+.page { padding: 28px 32px; }
 
 .page-header {
   display: flex; align-items: flex-start; justify-content: space-between;

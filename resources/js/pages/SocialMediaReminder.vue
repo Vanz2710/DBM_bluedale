@@ -57,7 +57,7 @@
         <label>Month Filter</label>
         <input v-model="monthFilter" placeholder="All months" @keyup.enter="load">
       </div>
-      <button class="btn-search" @click="load">Search</button>
+      <button class="btn-search" @click="load(1)">Search</button>
       <button class="btn-clear" @click="clearFilters">Clear</button>
     </div>
 
@@ -72,7 +72,7 @@
 
     <div class="table-wrap">
       <div class="table-title">
-        <span>{{ reminders.length }} job(s)</span>
+        <span>{{ meta.total ?? reminders.length }} job(s)</span>
         <span class="production-badge">Production Status</span>
       </div>
 
@@ -96,62 +96,121 @@
             <td colspan="9" class="empty-state">No social media jobs yet.</td>
           </tr>
           <tr v-for="(item, idx) in reminders" :key="item.id">
-            <td class="no-col">{{ idx + 1 }}</td>
-            <td><input class="plain-input client-input" v-model="item.company_name" @change="saveReminder(item)"></td>
-            <td>
-              <select class="plain-select package-input" v-model="item.package" @change="saveReminder(item)">
-                <option v-if="!packageOptions.some((pkg) => pkg.name === item.package)" :value="item.package">{{ item.package }}</option>
-                <option v-for="pkg in packageOptions" :key="pkg.id" :value="pkg.name">{{ pkg.name }}</option>
-              </select>
+            <td class="td-no">{{ idx + 1 }}</td>
+
+            <td class="td-client">
+              <input class="cell-input cell-client" v-model="item.company_name" @change="saveReminder(item)">
             </td>
-            <td><input class="plain-input month-input" v-model="item.month" @change="saveReminder(item)"></td>
-            <td :class="statusClass(item.content_calendar_status)">
-              <select v-model="item.content_calendar_status" @change="saveReminder(item)">
-                <option value="pending">PENDING</option>
-                <option value="wfa">WFA</option>
-                <option value="approved">APPROVED</option>
-              </select>
-            </td>
-            <td :class="statusClass(item.artwork_editing_status)">
-              <select v-model="item.artwork_editing_status" @change="saveReminder(item)">
-                <option value="pending">PENDING</option>
-                <option value="wfa">WFA</option>
-                <option value="approved">APPROVED</option>
-              </select>
-            </td>
-            <td :class="statusClass(item.posting_status)">
-              <div class="posting-cell">
-                <select v-model="item.posting_status" @change="handlePostingChange(item)">
-                  <option value="pending">PENDING</option>
-                  <option value="wfa">WFA</option>
-                  <option value="approved">APPROVED</option>
-                  <option value="scheduling">SCHEDULING</option>
-                  <option value="posted">POSTED</option>
+
+            <td class="td-package">
+              <div class="pkg-wrap">
+                <span class="pkg-label">{{ item.package }}</span>
+                <svg class="pkg-chevron" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                <select class="pkg-select" v-model="item.package" @change="saveReminder(item)">
+                  <option v-if="!packageOptions.some((pkg) => pkg.name === item.package)" :value="item.package">{{ item.package }}</option>
+                  <option v-for="pkg in packageOptions" :key="pkg.id" :value="pkg.name">{{ pkg.name }}</option>
                 </select>
+              </div>
+            </td>
+
+            <td class="td-month">
+              <input class="cell-input cell-month" v-model="item.month" @change="saveReminder(item)">
+            </td>
+
+            <!-- Content Calendar -->
+            <td class="td-status">
+              <div :class="['pill', pillClass(item.content_calendar_status)]">
+                {{ pillLabel(item.content_calendar_status) }}
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                <select v-model="item.content_calendar_status" @change="saveReminder(item)">
+                  <option value="pending">Pending</option>
+                  <option value="wfa">WFA</option>
+                  <option value="approved">Approved</option>
+                </select>
+              </div>
+            </td>
+
+            <!-- Artwork Editing -->
+            <td class="td-status">
+              <div :class="['pill', pillClass(item.artwork_editing_status)]">
+                {{ pillLabel(item.artwork_editing_status) }}
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                <select v-model="item.artwork_editing_status" @change="saveReminder(item)">
+                  <option value="pending">Pending</option>
+                  <option value="wfa">WFA</option>
+                  <option value="approved">Approved</option>
+                </select>
+              </div>
+            </td>
+
+            <!-- Posting -->
+            <td class="td-status">
+              <div class="posting-group">
+                <div :class="['pill', pillClass(item.posting_status)]">
+                  {{ pillLabel(item.posting_status) }}
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                  <select v-model="item.posting_status" @change="handlePostingChange(item)">
+                    <option value="pending">Pending</option>
+                    <option value="wfa">WFA</option>
+                    <option value="approved">Approved</option>
+                    <option value="scheduling">Scheduling</option>
+                    <option value="posted">Posted</option>
+                  </select>
+                </div>
                 <input
                   v-if="item.posting_status === 'scheduling'"
-                  class="initials-input"
+                  class="initials-chip"
                   v-model="item.posting_staff_initials"
-                  maxlength="10"
+                  maxlength="4"
                   placeholder="AA"
                   @change="saveReminder(item)"
                 >
               </div>
             </td>
-            <td :class="statusClass(item.report_status)">
-              <select v-model="item.report_status" @change="saveReminder(item)">
-                <option value="pending">PENDING</option>
-                <option value="wfa">WFA</option>
-                <option value="done">DONE</option>
-                <option value="completed">COMPLETED</option>
-              </select>
+
+            <!-- Report -->
+            <td class="td-status">
+              <div :class="['pill', pillClass(item.report_status)]">
+                {{ pillLabel(item.report_status) }}
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                <select v-model="item.report_status" @change="saveReminder(item)">
+                  <option value="pending">Pending</option>
+                  <option value="wfa">WFA</option>
+                  <option value="done">Done</option>
+                  <option value="completed">Completed</option>
+                </select>
+              </div>
             </td>
-            <td class="action-col">
-              <button class="btn-delete" @click="openDeleteModal(item)">Delete</button>
+
+            <td class="td-action">
+              <button class="btn-del" @click="openDeleteModal(item)" title="Delete">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+              </button>
             </td>
           </tr>
         </tbody>
       </table>
+
+      <div v-if="meta.last_page > 1" class="pagination">
+        <span class="pagination-info">Showing {{ reminders.length }} of {{ meta.total }} job(s)</span>
+        <div class="pagination-btns">
+          <button class="page-nav" :disabled="meta.current_page <= 1" @click="load(meta.current_page - 1)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 18l-6-6 6-6"/></svg>
+          </button>
+          <template v-for="pg in pageNumbers" :key="'pg-' + pg">
+            <button
+              v-if="pg !== '...'"
+              class="page-num"
+              :class="{ 'page-num--on': pg === meta.current_page }"
+              @click="load(pg)"
+            >{{ pg }}</button>
+            <span v-else class="page-ellipsis">…</span>
+          </template>
+          <button class="page-nav" :disabled="meta.current_page >= meta.last_page" @click="load(meta.current_page + 1)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18l6-6-6-6"/></svg>
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -188,6 +247,8 @@ import { computed, onMounted, ref, reactive } from 'vue';
 import api from '../api.js';
 
 const reminders = ref([]);
+const meta      = ref({ current_page: 1, last_page: 1, total: 0 });
+const page      = ref(1);
 const loading = ref(false);
 const saving = ref(false);
 const error = ref('');
@@ -211,15 +272,30 @@ const canAdd = computed(() => selectedContactId.value && form.value.package.trim
 const todayLabel = computed(() => new Date().toLocaleDateString('en-GB'));
 const showCompanyResults = computed(() => form.value.company_name.trim().length > 0 && !selectedContactId.value);
 
-function statusClass(status) {
-  return {
-    'status-pending': status === 'pending',
-    'status-wfa': status === 'wfa',
-    'status-approved': status === 'approved',
-    'status-scheduling': status === 'scheduling',
-    'status-posted': status === 'posted',
-    'status-done': status === 'done' || status === 'completed',
+function pillClass(status) {
+  const map = {
+    pending:    'pill-pending',
+    wfa:        'pill-wfa',
+    approved:   'pill-approved',
+    scheduling: 'pill-scheduling',
+    posted:     'pill-posted',
+    done:       'pill-done',
+    completed:  'pill-done',
   };
+  return map[status] ?? 'pill-pending';
+}
+
+function pillLabel(status) {
+  const map = {
+    pending:    'Pending',
+    wfa:        'WFA',
+    approved:   'Approved',
+    scheduling: 'Scheduling',
+    posted:     'Posted',
+    done:       'Done',
+    completed:  'Completed',
+  };
+  return map[status] ?? status;
 }
 
 function payload(item) {
@@ -280,15 +356,30 @@ function selectFirstCompany() {
   }
 }
 
-async function load() {
+const pageNumbers = computed(() => {
+  const total = meta.value.last_page ?? 1;
+  const cur   = meta.value.current_page ?? 1;
+  if (total <= 5) return Array.from({ length: total }, (_, i) => i + 1);
+  if (cur <= 3)          return [1, 2, 3, '...', total];
+  if (cur >= total - 2)  return [1, '...', total - 2, total - 1, total];
+  return [1, '...', cur, '...', total];
+});
+
+async function load(pg = page.value) {
+  page.value = pg;
   loading.value = true;
   error.value = '';
   try {
-    const params = {};
+    const params = { page: pg, per_page: 20 };
     if (search.value.trim()) params.search = search.value.trim();
     if (monthFilter.value.trim()) params.month = monthFilter.value.trim();
     const res = await api.get('/v1/social-media-reminders', { params });
     reminders.value = res.data.data ?? [];
+    meta.value = {
+      current_page: res.data.current_page ?? 1,
+      last_page:    res.data.last_page    ?? 1,
+      total:        res.data.total        ?? 0,
+    };
   } catch (e) {
     error.value = e.response?.data?.message ?? 'Failed to load social media reminders.';
   } finally {
@@ -362,7 +453,7 @@ async function confirmDelete() {
 function clearFilters() {
   search.value = '';
   monthFilter.value = '';
-  load();
+  load(1);
 }
 
 onMounted(load);
@@ -431,7 +522,7 @@ async function loadPackages() {
 .company-results button:hover { background: var(--surface-2); color: var(--primary); }
 .company-empty { padding: 10px; color: var(--text-2); font-size: 12px; font-weight: 700; }
 
-/* ── Buttons ── */
+/* ── Panel buttons ── */
 .btn-add, .btn-search, .btn-clear {
   height: 36px; border: none; border-radius: var(--radius-sm);
   padding: 0 15px; font-size: 13px; font-weight: 700; cursor: pointer;
@@ -454,10 +545,16 @@ async function loadPackages() {
 /* ── Status legend ── */
 .legend { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 14px; }
 .legend-item {
-  padding: 3px 12px; border-radius: 999px;
-  font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;
+  padding: 4px 13px; border-radius: 999px;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.3px;
   white-space: nowrap;
 }
+.legend-item.status-pending    { background: #fee2e2; color: #991b1b; }
+.legend-item.status-wfa        { background: #dbeafe; color: #1d4ed8; }
+.legend-item.status-approved   { background: #dcfce7; color: #15803d; }
+.legend-item.status-scheduling { background: #ede9fe; color: #6d28d9; }
+.legend-item.status-posted     { background: #dcfce7; color: #15803d; }
+.legend-item.status-done       { background: #d1fae5; color: #065f46; }
 
 /* ── Table wrapper ── */
 .table-wrap {
@@ -467,22 +564,18 @@ async function loadPackages() {
   box-shadow: var(--shadow-sm);
   overflow: auto;
 }
-
 .table-title {
   background: var(--surface-2);
   border-bottom: 1px solid var(--border);
-  padding: 10px 14px;
+  padding: 11px 16px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--text-2);
-  text-transform: uppercase;
-  letter-spacing: 0.6px;
+  font-size: 11px; font-weight: 700; color: var(--text-2);
+  text-transform: uppercase; letter-spacing: 0.6px;
 }
 .production-badge {
-  display: inline-flex; align-items: center; padding: 2px 10px;
+  display: inline-flex; align-items: center; padding: 3px 11px;
   border-radius: 999px; background: var(--primary-soft); color: var(--primary);
   font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
 }
@@ -490,85 +583,114 @@ async function loadPackages() {
 /* ── Loading / empty ── */
 .loading-wrap { display: flex; justify-content: center; align-items: center; padding: 60px 0; }
 .loading-msg { color: var(--text-2); font-size: 14px; }
-.empty-state { text-align: center; padding: 48px 24px; color: var(--text-3); font-size: 14px; background: var(--surface); }
+.empty-state { text-align: center; padding: 48px 24px; color: var(--text-3); font-size: 14px; }
 
 /* ── Table ── */
-table { width: 100%; min-width: 1120px; border-collapse: collapse; font-size: 12px; }
+table { width: 100%; min-width: 1060px; border-collapse: collapse; font-size: 13px; }
 
 thead tr { background: var(--surface-2); }
 thead th {
-  padding: 10px 8px;
+  padding: 11px 12px;
   font-size: 11px; font-weight: 700; color: var(--text-2);
   text-transform: uppercase; letter-spacing: 0.6px;
   text-align: center; white-space: nowrap;
   border-bottom: 1px solid var(--border);
-  border-right: 1px solid var(--border-soft);
 }
-thead th:last-child { border-right: none; }
+thead th:first-child { text-align: center; }
+thead th:nth-child(2) { text-align: left; }
+
+tbody tr {
+  border-bottom: 1px solid var(--border-soft);
+  transition: background 0.1s;
+}
+tbody tr:last-child { border-bottom: none; }
+tbody tr:hover { background: var(--surface-2); }
 
 tbody td {
-  padding: 0; height: 42px; color: var(--text-1);
-  background: var(--surface); vertical-align: middle;
-  border-bottom: 1px solid var(--border-soft);
-  border-right: 1px solid var(--border-soft);
-}
-tbody td:last-child { border-right: none; }
-tbody tr:last-child td { border-bottom: none; }
-tbody tr:hover td:not([class]) { background: var(--surface-2); }
-
-.no-col { width: 52px; text-align: center; font-weight: 800; }
-.action-col { width: 86px; text-align: center; }
-
-/* ── Inline edit inputs ── */
-.plain-input {
-  width: 100%; min-height: 40px; border: none; padding: 0 8px;
-  background: transparent; font-size: 12px; color: var(--text-1); outline: none;
-}
-.plain-select {
-  width: 100%; min-height: 40px; border: none; padding: 0 8px;
-  background: transparent; font-size: 12px; color: var(--text-1); outline: none;
-}
-.client-input { min-width: 210px; font-weight: 700; color: var(--primary); text-decoration: underline; }
-.package-input { min-width: 230px; text-align: center; }
-.month-input { min-width: 110px; text-align: center; font-weight: 800; text-transform: uppercase; }
-
-td select {
-  width: 100%; height: 40px; border: none; background: transparent; color: inherit;
-  font-size: 12px; font-weight: 700; text-align: center; text-align-last: center;
-  outline: none; cursor: pointer;
+  padding: 10px 12px;
+  color: var(--text-1);
+  vertical-align: middle;
 }
 
-.posting-cell { display: flex; align-items: center; gap: 4px; padding: 0 4px; }
-.posting-cell select { flex: 1; min-width: 110px; }
-.initials-input {
-  width: 46px; height: 28px; border: 1px solid var(--border); border-radius: var(--radius-sm);
-  text-align: center; font-size: 12px; font-weight: 700; text-transform: uppercase;
-  color: inherit; background: var(--surface); outline: none;
+/* ── Column cells ── */
+.td-no { width: 48px; text-align: center; font-size: 12px; font-weight: 700; color: var(--text-3); }
+.td-client { min-width: 200px; }
+.td-package { min-width: 160px; text-align: center; }
+.td-month { width: 130px; text-align: center; }
+.td-status { width: 140px; text-align: center; }
+.td-action { width: 52px; text-align: center; }
+
+/* ── Client inline input ── */
+.cell-input {
+  width: 100%; border: none; background: transparent;
+  font-size: 13px; color: var(--text-1); outline: none;
+  border-radius: var(--radius-sm);
+  transition: background 0.12s, box-shadow 0.12s;
+}
+.cell-input:hover { background: var(--surface-2); }
+.cell-input:focus {
+  background: var(--surface);
+  box-shadow: 0 0 0 2px var(--primary-soft);
+}
+.cell-client { font-weight: 700; padding: 5px 8px; }
+.cell-month  { text-align: center; font-weight: 700; font-size: 12px; text-transform: uppercase; padding: 5px 4px; }
+
+/* ── Package dropdown ── */
+.pkg-wrap {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 5px 10px; border-radius: var(--radius-sm);
+  font-size: 12.5px; font-weight: 600; color: var(--text-2);
+  position: relative; cursor: pointer;
+  transition: background 0.12s;
+}
+.pkg-wrap:hover { background: var(--surface-2); }
+.pkg-chevron { color: var(--text-3); flex-shrink: 0; }
+.pkg-select {
+  position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%;
 }
 
-/* ── Status cell colours (soft / design-system-aligned) ── */
-.status-pending   { background: #fee2e2 !important; color: #991b1b !important; }
-.status-wfa       { background: #dbeafe !important; color: #1d4ed8 !important; }
-.status-approved  { background: #dcfce7 !important; color: #15803d !important; }
-.status-scheduling{ background: #ede9fe !important; color: #6d28d9 !important; }
-.status-posted    { background: #dcfce7 !important; color: #15803d !important; }
-.status-done      { background: #dcfce7 !important; color: #15803d !important; }
-
-/* legend uses same colours */
-.legend-item.status-pending    { background: #fee2e2; color: #991b1b; }
-.legend-item.status-wfa        { background: #dbeafe; color: #1d4ed8; }
-.legend-item.status-approved   { background: #dcfce7; color: #15803d; }
-.legend-item.status-scheduling { background: #ede9fe; color: #6d28d9; }
-.legend-item.status-posted     { background: #dcfce7; color: #15803d; }
-.legend-item.status-done       { background: #dcfce7; color: #15803d; }
-
-/* ── Delete button ── */
-.btn-delete {
-  height: 28px; border: none; border-radius: var(--radius-sm); padding: 0 9px;
-  background: #fee2e2; color: #991b1b;
-  font-size: 11px; font-weight: 700; cursor: pointer; transition: background 0.15s;
+/* ── Status pill (badge + overlay select) ── */
+.pill {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 5px 10px 5px 12px;
+  border-radius: 999px;
+  font-size: 11px; font-weight: 700;
+  white-space: nowrap;
+  position: relative; cursor: pointer;
+  transition: opacity 0.12s, filter 0.12s;
+  user-select: none;
 }
-.btn-delete:hover { background: #fca5a5; }
+.pill:hover { filter: brightness(0.95); }
+.pill select {
+  position: absolute; inset: 0; width: 100%; opacity: 0; cursor: pointer;
+}
+
+.pill-pending    { background: #fee2e2; color: #991b1b; }
+.pill-wfa        { background: #dbeafe; color: #1d4ed8; }
+.pill-approved   { background: #dcfce7; color: #15803d; }
+.pill-scheduling { background: #ede9fe; color: #6d28d9; }
+.pill-posted     { background: #dcfce7; color: #15803d; }
+.pill-done       { background: #d1fae5; color: #065f46; }
+
+/* ── Posting column — pill + initials chip ── */
+.posting-group { display: flex; align-items: center; justify-content: center; gap: 6px; }
+.initials-chip {
+  width: 36px; height: 26px; text-align: center;
+  border: 1.5px solid var(--border); border-radius: var(--radius-sm);
+  font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px;
+  background: var(--surface); color: var(--text-1); outline: none;
+  transition: border-color 0.12s;
+}
+.initials-chip:focus { border-color: var(--primary); }
+
+/* ── Delete icon button ── */
+.btn-del {
+  width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--surface); color: var(--text-3);
+  cursor: pointer; transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+.btn-del:hover { background: #fee2e2; color: #dc2626; border-color: #fca5a5; }
 
 /* ── Responsive ── */
 @media (max-width: 768px) {
@@ -577,9 +699,33 @@ td select {
   .field, .month-field { width: 100%; min-width: 0; }
   .btn-add, .btn-search, .btn-clear { width: 100%; }
 }
-@media (max-width: 640px) {
-  .page { padding: 16px 12px; }
+@media (max-width: 640px) { .page { padding: 16px 12px; } }
+
+/* ── Pagination ── */
+.pagination {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 18px; border-top: 1px solid var(--border-soft);
+  background: var(--surface-2);
 }
+.pagination-info { font-size: 12px; color: var(--text-3); flex-shrink: 0; }
+.pagination-btns { display: flex; align-items: center; gap: 3px; }
+.page-nav {
+  width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;
+  border: none; background: transparent; border-radius: 50%;
+  color: var(--text-2); cursor: pointer; transition: background 0.12s;
+}
+.page-nav svg { width: 14px; height: 14px; }
+.page-nav:hover:not(:disabled) { background: color-mix(in srgb, var(--primary) 12%, transparent); }
+.page-nav:disabled { opacity: 0.3; cursor: default; }
+.page-num {
+  width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;
+  border: none; background: transparent; border-radius: 50%;
+  font-size: 12.5px; font-weight: 600; color: var(--text-2);
+  cursor: pointer; transition: background 0.12s;
+}
+.page-num:hover { background: color-mix(in srgb, var(--primary) 12%, transparent); }
+.page-num--on { background: var(--primary); color: #fff; font-weight: 700; }
+.page-ellipsis { width: 32px; text-align: center; color: var(--text-3); font-size: 13px; line-height: 32px; }
 
 /* ── Confirm delete modal ── */
 .conf-overlay {

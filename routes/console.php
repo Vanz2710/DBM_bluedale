@@ -12,3 +12,4 @@ Schedule::command('workflow:inactivity-check')->dailyAt('08:00');
 Schedule::command('dept:notify-overdue')->dailyAt('09:00');
 Schedule::command('dept:prune-notifications')->dailyAt('02:00');
 Schedule::command('email:dispatch-scheduled')->everyMinute();
+Schedule::command('users:purge-deleted')->dailyAt('03:00');

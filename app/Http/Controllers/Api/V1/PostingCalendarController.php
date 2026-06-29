@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Models\PostingCalendarReminder;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 
 class PostingCalendarController extends Controller
 {
@@ -46,11 +47,10 @@ class PostingCalendarController extends Controller
             'status'   => 'required|in:planned,design,approval,scheduled,posted',
         ]);
 
-        $reminder = PostingCalendarReminder::create([
-            'user_id' => $request->user()->id,
-            ...$data,
-        ]);
+        $userId   = $request->user()->id;
+        $reminder = PostingCalendarReminder::create(['user_id' => $userId, ...$data]);
 
+        Cache::forget("reminders_posting_{$userId}");
         return response()->json($reminder, 201);
     }
 
@@ -70,6 +70,7 @@ class PostingCalendarController extends Controller
         ]);
 
         $postingCalendarReminder->update($data);
+        Cache::forget("reminders_posting_{$request->user()->id}");
 
         return response()->json($postingCalendarReminder);
     }
@@ -81,6 +82,7 @@ class PostingCalendarController extends Controller
         }
 
         $postingCalendarReminder->delete();
+        Cache::forget("reminders_posting_{$request->user()->id}");
         return response()->json(null, 204);
     }
 }

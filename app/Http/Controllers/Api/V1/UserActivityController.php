@@ -50,7 +50,7 @@ class UserActivityController extends Controller
             $contactCounts, $todosCounts, $followupCounts, $dealCounts, $projectCounts
         ) {
             $daysSince = $user->last_login_at
-                ? (int) $user->last_login_at->diffInDays(now())
+                ? (int) now()->diffInDays($user->last_login_at)
                 : null;
 
             if ($user->inactivity_flagged_at) {

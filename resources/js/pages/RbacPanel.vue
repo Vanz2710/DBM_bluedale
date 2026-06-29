@@ -240,6 +240,7 @@
               </td>
               <td>
                 <span v-if="user.deleted_at" class="tag tag-gray">Deleted</span>
+                <span v-if="user.deleted_at && purgeCountdown(user)" class="purge-note">{{ purgeCountdown(user) }}</span>
                 <span v-else-if="user.permanently_locked" class="tag tag-red">Locked — Brute Force</span>
                 <span v-else-if="user.locked_until && isTempLocked(user)" class="tag tag-orange">Temp Locked</span>
                 <span v-else-if="user.inactivity_flagged_at" class="tag tag-red">Locked — Inactive</span>
@@ -762,22 +763,24 @@
             <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
             <line x1="12" y1="9" x2="12" y2="13"/><circle cx="12" cy="17" r="1" fill="#f59e0b" stroke="none"/>
           </svg>
-          <p class="modal-confirm-text">Delete <strong>{{ deleteUserModal.user?.name }}</strong>? Their account will be deactivated but can be restored.</p>
+          <p class="modal-confirm-text">Delete <strong>{{ deleteUserModal.user?.name }}</strong>? Their account will be deactivated and can be restored. It is permanently removed after {{ retentionDays }} days.</p>
 
-          <div v-if="deleteUserModal.user?.contacts_count > 0" class="reassign-block">
+          <div v-if="deleteOwned.total > 0" class="reassign-block">
             <div class="reassign-info">
               <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" class="reassign-info-icon"><circle cx="12" cy="12" r="10"/><path stroke-linecap="round" d="M12 8v4m0 4h.01"/></svg>
-              <span>This user owns <strong>{{ deleteUserModal.user.contacts_count }}</strong> contact{{ deleteUserModal.user.contacts_count !== 1 ? 's' : '' }}. Reassign them to:</span>
+              <span>This user owns <strong>{{ deleteOwned.parts.join(', ') }}</strong>. Reassign all of it to:</span>
             </div>
-            <select v-model="deleteUserModal.reassignTo" class="reassign-select">
-              <option value="">Leave unassigned</option>
+            <select v-model="deleteUserModal.reassignTo" class="reassign-select" :class="{ 'select-error': deleteNeedsReassign && deleteUserModal.error }">
+              <option value="">Select a colleague…</option>
               <option v-for="u in reassignTargets" :key="u.id" :value="u.id">{{ u.name }}</option>
             </select>
           </div>
+
+          <div v-if="deleteUserModal.error" class="form-error" style="width: 100%;">{{ deleteUserModal.error }}</div>
         </div>
         <div class="modal-foot">
           <button class="btn btn-ghost" @click="closeDeleteUserModal">Cancel</button>
-          <button class="btn btn-danger" @click="confirmDeleteUser" :disabled="deleteUserModal.loading">
+          <button class="btn btn-danger" @click="confirmDeleteUser" :disabled="deleteUserModal.loading || deleteNeedsReassign">
             {{ deleteUserModal.loading ? 'Deleting…' : 'Delete User' }}
           </button>
         </div>
@@ -811,6 +814,7 @@ const permissions = ref([]);
 const users       = ref([]);
 const pending     = ref([]);
 const showDeleted = ref(false);
+const retentionDays = ref(30);
 
 const activeUsers   = computed(() => users.value.filter(u => !u.deleted_at))
 const userSearch    = ref('')
@@ -919,6 +923,16 @@ function formatDate(iso) {
   return new Date(iso).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
+// Human countdown to permanent removal for a soft-deleted user (uses server-supplied purge_at).
+function purgeCountdown(user) {
+  if (!user?.purge_at) return '';
+  const diffMs = new Date(user.purge_at) - Date.now();
+  const days = Math.ceil(diffMs / 86400000);
+  if (days <= 0) return 'Removes on next cleanup';
+  if (days === 1) return 'Permanent removal in 1 day';
+  return `Permanent removal in ${days} days`;
+}
+
 async function loadRoles() {
   const res = await api.get('/v1/rbac/roles');
   roles.value = res.data.data;
@@ -931,6 +945,7 @@ async function loadUsers() {
   const params = showDeleted.value ? { include_deleted: 1 } : {};
   const res = await api.get('/v1/rbac/users', { params });
   users.value = res.data.data;
+  if (res.data.retention_days) retentionDays.value = res.data.retention_days;
 }
 async function loadPending() {
   const res = await api.get('/v1/rbac/users/pending');
@@ -1085,14 +1100,40 @@ async function createUser() {
     userCreatedMsg.value = res.data.message ?? 'User created. They must log in once for admin approval.';
   } catch (e) { handleError(e); }
 }
-const deleteUserModal = reactive({ open: false, user: null, loading: false, reassignTo: '' });
+const deleteUserModal = reactive({ open: false, user: null, loading: false, reassignTo: '', error: '' });
 const reassignTargets = computed(() => activeUsers.value.filter(u => u.id !== deleteUserModal.user?.id));
-function openDeleteUserModal(user) { deleteUserModal.user = user; deleteUserModal.reassignTo = ''; deleteUserModal.open = true; }
-function closeDeleteUserModal() { deleteUserModal.open = false; deleteUserModal.user = null; deleteUserModal.loading = false; deleteUserModal.reassignTo = ''; }
+
+// Breakdown of work the user being deleted still owns. Mirrors the backend's check so
+// the modal never lets through a deletion the server would reject.
+const deleteOwned = computed(() => {
+  const u = deleteUserModal.user;
+  if (!u) return { total: 0, parts: [] };
+  const map = [
+    ['contact',  u.contacts_count],
+    ['deal',     u.deals_count],
+    ['project',  u.projects_count],
+    ['forecast', u.forecasts_count],
+    ['to-do',    u.todos_count],
+  ];
+  const parts = map
+    .filter(([, n]) => (n || 0) > 0)
+    .map(([label, n]) => `${n} ${label}${n !== 1 ? 's' : ''}`);
+  const total = map.reduce((s, [, n]) => s + (n || 0), 0);
+  return { total, parts };
+});
+const deleteNeedsReassign = computed(() => deleteOwned.value.total > 0 && !deleteUserModal.reassignTo);
+
+function openDeleteUserModal(user) { deleteUserModal.user = user; deleteUserModal.reassignTo = ''; deleteUserModal.error = ''; deleteUserModal.open = true; }
+function closeDeleteUserModal() { deleteUserModal.open = false; deleteUserModal.user = null; deleteUserModal.loading = false; deleteUserModal.reassignTo = ''; deleteUserModal.error = ''; }
 
 async function confirmDeleteUser() {
   if (!deleteUserModal.user) return;
+  if (deleteNeedsReassign.value) {
+    deleteUserModal.error = 'Select a colleague to reassign this user’s work to before deleting.';
+    return;
+  }
   deleteUserModal.loading = true;
+  deleteUserModal.error = '';
   try {
     const payload = deleteUserModal.reassignTo ? { reassign_to: deleteUserModal.reassignTo } : {};
     await api.delete(`/v1/rbac/users/${deleteUserModal.user.id}`, { data: payload });
@@ -1103,7 +1144,9 @@ async function confirmDeleteUser() {
       users.value = users.value.filter(u => u.id !== deleteUserModal.user.id);
     }
     closeDeleteUserModal();
-  } catch (e) { handleError(e); closeDeleteUserModal(); }
+  } catch (e) {
+    deleteUserModal.error = e.response?.data?.message ?? 'Could not delete user. Please try again.';
+  }
   finally { deleteUserModal.loading = false; }
 }
 
@@ -1575,6 +1618,11 @@ tbody tr:hover { background: var(--app-bg); }
   transition: border-color 0.15s;
 }
 .reassign-select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--focus-ring); }
+.reassign-select.select-error { border-color: var(--danger, #dc2626); }
+.purge-note {
+  display: block; margin-top: 4px; font-size: 11px; color: var(--text-3);
+  font-style: italic; line-height: 1.3;
+}
 
 /* ── Bulk Reassign tab ── */
 .reassign-info {

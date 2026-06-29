@@ -12,6 +12,7 @@ use App\Models\ContactType;
 use App\Models\ForecastProduct;
 use App\Models\ForecastResult;
 use App\Models\ForecastType;
+use App\Models\SocialMediaPackage;
 use App\Models\Task;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -30,6 +31,7 @@ class AdminController extends Controller
         'forecast-products' => [ForecastProduct::class, 'name'],
         'forecast-types'    => [ForecastType::class,    'name'],
         'forecast-results'  => [ForecastResult::class,  'name'],
+        'packages'          => [SocialMediaPackage::class, 'name'],
     ];
 
     private static array $usageMap = [
@@ -42,6 +44,9 @@ class AdminController extends Controller
         'forecast-products' => [['forecasts', 'product_id']],
         'forecast-types'    => [['forecasts', 'forecast_type_id']],
         'forecast-results'  => [['forecasts', 'result_id']],
+        // 3rd element = parent column to match on (defaults to 'id').
+        // social_media_reminders.package stores the package name, not a FK id.
+        'packages'          => [['social_media_reminders', 'package', 'name']],
     ];
 
     public function index(string $entity)
@@ -50,10 +55,10 @@ class AdminController extends Controller
         $modelTable = (new $model)->getTable();
         $sources    = self::$usageMap[$entity];
 
-        $subParts  = array_map(
-            fn($src) => "(SELECT COUNT(*) FROM {$src[0]} WHERE {$src[1]} = {$modelTable}.id)",
-            $sources
-        );
+        $subParts = array_map(function ($src) use ($modelTable) {
+            $parentCol = $src[2] ?? 'id';
+            return "(SELECT COUNT(*) FROM {$src[0]} WHERE {$src[1]} = {$modelTable}.{$parentCol})";
+        }, $sources);
         $usageExpr = implode(' + ', $subParts);
 
         $items = $model::selectRaw("*, ({$usageExpr}) as usage_count")
@@ -75,7 +80,7 @@ class AdminController extends Controller
 
         $item = $model::create($validated);
 
-        Cache::forget('lookups');
+        Cache::forget('lookups_v2');
         $this->audit('created', $entity, $item->id, $item->name, null, ['name' => $item->name], $request);
 
         return response()->json(['status' => 'success', 'data' => $item], 201);
@@ -95,7 +100,7 @@ class AdminController extends Controller
         $old = ['name' => $item->name];
         $item->update($validated);
 
-        Cache::forget('lookups');
+        Cache::forget('lookups_v2');
         $this->audit('updated', $entity, $item->id, $item->name, $old, ['name' => $item->name], $request);
 
         return response()->json(['status' => 'success', 'data' => $item]);
@@ -109,8 +114,10 @@ class AdminController extends Controller
             $item = $model::lockForUpdate()->findOrFail($id);
 
             $count = 0;
-            foreach (self::$usageMap[$entity] as [$table, $col]) {
-                $count += DB::table($table)->where($col, $id)->count();
+            foreach (self::$usageMap[$entity] as $src) {
+                [$table, $col] = $src;
+                $matchValue = isset($src[2]) ? $item->{$src[2]} : $id;
+                $count += DB::table($table)->where($col, $matchValue)->count();
             }
 
             if ($count > 0) {
@@ -119,7 +126,7 @@ class AdminController extends Controller
                 ], 409);
             }
 
-            Cache::forget('lookups');
+            Cache::forget('lookups_v2');
             $this->audit('deleted', $entity, $item->id, $item->name, ['name' => $item->name], null, $request);
 
             $item->delete();

@@ -135,6 +135,19 @@
           </div>
         </div>
 
+        <div v-if="postingReminders.length > 0">
+          <div class="sec-head post-head">Posting Calendar <span class="sec-cnt">{{ postingReminders.length }}</span></div>
+          <div v-for="item in postingReminders" :key="'post' + item.id" class="r-item">
+            <router-link to="/posting-calendar" class="r-body" @click="open = false">
+              <span class="r-tag tag-post">{{ item.platform }}</span>
+              <div class="r-text">
+                <div class="r-title">{{ clip(item.title) }}</div>
+                <div class="r-sub">{{ item.status }} · {{ fmtDate(item.date) }}</div>
+              </div>
+            </router-link>
+          </div>
+        </div>
+
         <div v-if="announcements.length > 0">
           <div class="sec-head announce-head">Announcements <span class="sec-cnt">{{ announcements.length }}</span></div>
           <div
@@ -156,7 +169,7 @@
           </div>
         </div>
 
-        <div v-if="!taskNotifs.length && !alerts.length && !announcements.length && !overdue.length && !today.length && !upcoming.length && !expiringSites.length" class="panel-empty">
+        <div v-if="!taskNotifs.length && !alerts.length && !announcements.length && !overdue.length && !today.length && !upcoming.length && !expiringSites.length && !postingReminders.length" class="panel-empty">
           All caught up
         </div>
       </div>
@@ -177,17 +190,18 @@ import { useTodoModal } from '../composables/useTodoModal.js';
 const router = useRouter();
 const todoModal = useTodoModal();
 
-const wrapRef       = ref(null);
-const open          = ref(false);
-const loading       = ref(false);
-const overdue       = ref([]);
-const today         = ref([]);
-const upcoming      = ref([]);
-const alerts        = ref([]);
-const expiringSites = ref([]);
-const taskNotifs    = ref([]);
-const announcements = ref([]);
-const unreadCount   = ref(0);
+const wrapRef           = ref(null);
+const open              = ref(false);
+const loading           = ref(false);
+const overdue           = ref([]);
+const today             = ref([]);
+const upcoming          = ref([]);
+const alerts            = ref([]);
+const expiringSites     = ref([]);
+const postingReminders  = ref([]);
+const taskNotifs        = ref([]);
+const announcements     = ref([]);
+const unreadCount       = ref(0);
 
 let pollTimer = null;
 
@@ -199,14 +213,15 @@ async function load() {
   loading.value = true;
   try {
     const res         = await api.get('/v1/reminders');
-    overdue.value     = res.data.overdue;
-    today.value       = res.data.today;
-    upcoming.value    = res.data.upcoming;
-    alerts.value        = res.data.alerts ?? [];
-    expiringSites.value = res.data.expiring_sites ?? [];
-    taskNotifs.value    = res.data.task_notifications ?? [];
-    announcements.value = res.data.announcements ?? [];
-    unreadCount.value   = res.data.unread_count;
+    overdue.value          = res.data.overdue;
+    today.value            = res.data.today;
+    upcoming.value         = res.data.upcoming;
+    alerts.value           = res.data.alerts ?? [];
+    expiringSites.value    = res.data.expiring_sites ?? [];
+    postingReminders.value = res.data.posting_reminders ?? [];
+    taskNotifs.value       = res.data.task_notifications ?? [];
+    announcements.value    = res.data.announcements ?? [];
+    unreadCount.value      = res.data.unread_count;
   } catch (_) { /* ignore */ }
   finally { loading.value = false; }
 }
@@ -300,15 +315,21 @@ function onOutsideClick(e) {
   }
 }
 
+function onVisibilityChange() {
+  if (!document.hidden) load();
+}
+
 onMounted(() => {
   load();
-  pollTimer = setInterval(load, 60_000);
+  pollTimer = setInterval(load, 30_000);
   document.addEventListener('click', onOutsideClick, true);
+  document.addEventListener('visibilitychange', onVisibilityChange);
 });
 
 onUnmounted(() => {
   clearInterval(pollTimer);
   document.removeEventListener('click', onOutsideClick, true);
+  document.removeEventListener('visibilitychange', onVisibilityChange);
 });
 </script>
 
@@ -367,8 +388,10 @@ onUnmounted(() => {
 .today-head    { color: #d97706; background: #fffbeb; }
 .upcoming-head  { color: #0284c7; background: #f0f9ff; }
 .sites-head     { color: #065f46; background: #ecfdf5; }
+.post-head      { color: #6d28d9; background: #f5f3ff; }
 .announce-head  { color: var(--primary); background: color-mix(in srgb, var(--primary) 8%, transparent); }
 .tag-site        { background: #d1fae5; color: #065f46; }
+.tag-post        { background: #ede9fe; color: #6d28d9; }
 .tag-announce    { background: color-mix(in srgb, var(--primary) 12%, transparent); color: var(--primary); }
 .tag-urgent-ann  { background: #fee2e2; color: #dc2626; }
 .r-urgent-row    { background: #fff8f8; }
