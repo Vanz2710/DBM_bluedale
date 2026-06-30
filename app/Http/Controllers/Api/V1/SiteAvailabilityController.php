@@ -108,6 +108,8 @@ class SiteAvailabilityController extends Controller
             'facing'      => ['sometimes', 'nullable', 'string', 'max:100'],
             'state_city'  => ['sometimes', 'nullable', 'string', 'max:255'],
             'coordinate'  => ['sometimes', 'nullable', 'string', 'max:255'],
+            'contact_name'   => ['sometimes', 'nullable', 'string', 'max:255'],
+            'contact_mobile' => ['sometimes', 'nullable', 'string', 'max:50'],
             'nearest_landmarks' => ['sometimes', 'nullable', 'array'],
             'nearest_landmarks.*.category' => ['required_with:nearest_landmarks', 'string', 'max:100'],
             'nearest_landmarks.*.place' => ['nullable', 'string', 'max:255'],
@@ -565,7 +567,17 @@ class SiteAvailabilityController extends Controller
                 'location'           => $this->shortLocation($product),
                 'state_city'         => $product->state_city,
                 'coordinate'         => $product->coordinate,
-                'landmarks'          => $product->nearest_landmarks ?: [],
+                'contact_name'       => $product->contact_name,
+                'contact_mobile'     => $product->contact_mobile,
+                // Only list landmarks that were actually found — drop placeholder "Not Found"/"Not set"
+                // rows so the client-facing sheet isn't padded with empty entries.
+                'landmarks'          => collect($product->nearest_landmarks ?: [])
+                    ->filter(function ($l) {
+                        $place = strtolower(trim($l['place'] ?? ''));
+                        return $place !== '' && $place !== 'not found' && $place !== 'not set';
+                    })
+                    ->values()
+                    ->all(),
                 'site_photo_data'    => $this->resizeForPdfFrame(
                     $composite ?? $this->photoDataUri($product->site_photo), $photoW, $photoH
                 ),
@@ -577,9 +589,10 @@ class SiteAvailabilityController extends Controller
     }
 
     /**
-     * Resize/crop a base64 data URI image to exact pixel dimensions for PDF embedding.
-     * Uses cover-fill strategy (scale to fill, center-crop). Returns JPEG data URI.
-     * Falls back to original if GD cannot decode the image.
+     * Resize a base64 data URI image to exact pixel dimensions for PDF embedding.
+     * Uses a "contain" strategy: the WHOLE image is scaled to fit inside the frame
+     * without cropping, then centered on a white canvas (leftover space is letterboxed).
+     * Returns JPEG data URI. Falls back to original if GD cannot decode the image.
      */
     private function resizeForPdfFrame(?string $dataUri, int $targetW, int $targetH): ?string
     {
@@ -592,19 +605,20 @@ class SiteAvailabilityController extends Controller
         $srcW = imagesx($src);
         $srcH = imagesy($src);
 
-        $scale = max($targetW / $srcW, $targetH / $srcH);
-        $fitW  = (int) round($srcW * $scale);
-        $fitH  = (int) round($srcH * $scale);
-
-        $tmp = imagecreatetruecolor($fitW, $fitH);
-        imagecopyresampled($tmp, $src, 0, 0, 0, 0, $fitW, $fitH, $srcW, $srcH);
-        imagedestroy($src);
+        // Fit-inside (contain): scale by the smaller ratio so the entire image is visible.
+        $scale = min($targetW / $srcW, $targetH / $srcH);
+        $fitW  = max(1, (int) round($srcW * $scale));
+        $fitH  = max(1, (int) round($srcH * $scale));
 
         $dst   = imagecreatetruecolor($targetW, $targetH);
-        $cropX = (int) (($fitW - $targetW) / 2);
-        $cropY = (int) (($fitH - $targetH) / 2);
-        imagecopy($dst, $tmp, 0, 0, $cropX, $cropY, $targetW, $targetH);
-        imagedestroy($tmp);
+        $white = imagecolorallocate($dst, 255, 255, 255);
+        imagefilledrectangle($dst, 0, 0, $targetW, $targetH, $white);
+
+        // Center the scaled image within the frame.
+        $dstX = (int) (($targetW - $fitW) / 2);
+        $dstY = (int) (($targetH - $fitH) / 2);
+        imagecopyresampled($dst, $src, $dstX, $dstY, 0, 0, $fitW, $fitH, $srcW, $srcH);
+        imagedestroy($src);
 
         ob_start();
         imagejpeg($dst, null, 90);

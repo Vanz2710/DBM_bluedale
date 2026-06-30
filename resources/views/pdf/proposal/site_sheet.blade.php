@@ -29,12 +29,8 @@
                 @endif
             </td>
             <td style="vertical-align:middle; padding-left:4px;">
-                <div style="font-size:10.5px; font-weight:bold; color:#0d4f8a; line-height:1.25;">
+                <div style="font-size:11.5px; font-weight:bold; color:#0d4f8a; line-height:1.25;">
                     {{ $product['location'] }}
-                </div>
-                <div style="font-size:7.5px; color:#666; margin-top:2px;">
-                    {{ $product['state_city'] ?: '' }}@if($product['site_code'] && $product['state_city'])&nbsp;·&nbsp;@endif{{ $product['site_code'] ?: '' }}@if($product['size']
-                        )&nbsp;·&nbsp;{{ $product['size'] }}@endif
                 </div>
             </td>
             <td style="text-align:right; vertical-align:middle; padding-right:2px;">
@@ -95,12 +91,12 @@
             <td width="40%" style="vertical-align:top; padding-left:15px;">
 
                 <!-- Site Details — layout differs by product type -->
-                {{-- Bunting: Site Code, Size, Location, State & City, Coordinate.
-                     Billboard/Temp Board: adds Board Size label, Status, Site Type. --}}
+                {{-- Bunting: Site Code, generic "Size", Location, State & City, Coordinate.
+                     Billboard/Temp Board: "Board Size" plus Illumination and Facing rows. --}}
                 <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:9px; border:1px solid #c8d4e8;">
                     <tr>
                         <td colspan="2" style="background:#0d4f8a; color:#fff; font-weight:bold;
-                                               font-size:7.5px; padding:5px 8px; letter-spacing:0.4px;">
+                                               font-size:9px; padding:5px 8px; letter-spacing:0.4px;">
                             SITE DETAILS
                         </td>
                     </tr>
@@ -159,8 +155,14 @@
                     <tr>
                         <td style="font-weight:bold; color:#555; font-size:8px;
                                    padding:4px 8px; background:#f4f7fc; border-top:1px solid #e0e8f4;">Coordinate</td>
-                        <td style="color:#0a3d7a; font-size:7.5px; text-decoration:underline;
-                                   padding:4px 8px; border-top:1px solid #e0e8f4;">{{ $product['coordinate'] ?: '—' }}</td>
+                        <td style="font-size:7.5px; padding:4px 8px; border-top:1px solid #e0e8f4;">
+                            @if($product['coordinate'])
+                                <a href="https://www.google.com/maps?q={{ urlencode($product['coordinate']) }}"
+                                   style="color:#0a3d7a; text-decoration:underline;">{{ $product['coordinate'] }}</a>
+                            @else
+                                —
+                            @endif
+                        </td>
                     </tr>
                 </table>
 
@@ -168,7 +170,7 @@
                 <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid #e0d080;">
                     <tr>
                         <td colspan="2" style="background:#e6a800; color:#fff; font-weight:bold;
-                                               font-size:7.5px; padding:5px 8px; letter-spacing:0.4px;">
+                                               font-size:9px; padding:5px 8px; letter-spacing:0.4px;">
                             NEAREST LANDMARKS
                         </td>
                     </tr>
@@ -218,13 +220,18 @@
                 current promotion with a minimum 3-month contract or longer. If a new skin is required,
                 an additional fee of RM500 will apply.
             </div>
-            @if(!empty($company['tel']) || !empty($signatory['mobile']))
+            @php
+                // Per-site contact takes priority; fall back to the proposal signatory (config default).
+                $contactName   = !empty($product['contact_name'])   ? $product['contact_name']   : ($signatory['name']   ?? '');
+                $contactMobile = !empty($product['contact_mobile']) ? $product['contact_mobile'] : ($signatory['mobile'] ?? '');
+            @endphp
+            @if(!empty($company['tel']) || !empty($contactMobile) || !empty($contactName))
             <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:5px; background:#0d4f8a;">
                 <tr>
                     <td style="padding:5px 8px; color:#fff; font-size:7.5px; font-weight:bold;">
                         Contact:
-                        @if(!empty($signatory['name'])) {{ $signatory['name'] }} @endif
-                        @if(!empty($signatory['mobile'])) {{ $signatory['mobile'] }} @endif
+                        @if(!empty($contactName)) {{ $contactName }} @endif
+                        @if(!empty($contactMobile)) {{ $contactMobile }} @endif
                     </td>
                     <td style="padding:5px 8px; color:#dde; font-size:7px; text-align:right;">
                         @if(!empty($company['tel'])) Tel: {{ $company['tel'] }} @endif

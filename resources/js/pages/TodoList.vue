@@ -643,6 +643,11 @@ const CI = {
   x:     _si('<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>'),
 };
 
+// Fires the global toast handled by ToastContainer.vue (mounted in App.vue).
+function toast(message, type = 'success') {
+  window.dispatchEvent(new CustomEvent('crm-toast', { detail: { message, type } }));
+}
+
 const PER_PAGE_OPTIONS = [20, 50, 100];
 const FU_ACTION_TYPES = ['Call', 'Email', 'Meeting', 'Site Visit', 'Presentation', 'Proposal', 'Demo', 'Contract', 'Other'];
 
@@ -699,7 +704,10 @@ async function confirmTaskChange() {
     m.todo.task    = addLookups.value.tasks?.find(t => t.id === taskId)?.name ?? null;
     m.todo.task_id = taskId;
     closeTaskChangeModal();
-  } catch { /* silent — row keeps old value */ }
+    toast('Task updated successfully.');
+  } catch {
+    toast('Failed to update task. Please try again.', 'error');
+  }
   finally { m.saving = false; }
 }
 
@@ -736,6 +744,7 @@ async function submitFollowUp() {
     });
     closeFuModal();
     load();
+    toast('Follow-up added successfully.');
   } catch (e) {
     const errors = e.response?.data?.errors;
     fuModal.value.error = errors
@@ -1074,6 +1083,7 @@ async function submitEditTodo() {
       if (nt) row.type   = nt.name;
     }
     closeEditModal();
+    toast('To-do updated successfully.');
   } catch (e) {
     const errors = e.response?.data?.errors;
     editModal.value.error = errors
@@ -1096,8 +1106,10 @@ async function confirmDeleteTodo() {
     todos.value = todos.value.filter(t => t.id !== deleteTodoModal.todo.id);
     if (meta.value.total) meta.value.total--;
     closeDeleteTodoModal();
+    toast('To-do deleted successfully.');
   } catch {
     closeDeleteTodoModal();
+    toast('Failed to delete to-do. Please try again.', 'error');
   } finally {
     deleteTodoModal.loading = false;
   }
@@ -1124,6 +1136,7 @@ async function saveRemark() {
     });
     todo.todo_remark = remarkModal.value.text;
     closeRemarkModal();
+    toast('Remark saved successfully.');
   } catch (e) {
     remarkModal.value.error = e.response?.data?.message ?? 'Failed to save. Please try again.';
   } finally {
@@ -1166,6 +1179,7 @@ async function submitAddTodo() {
     }
     closeAddModal();
     load();
+    toast('To-do added successfully.');
   } catch (e) {
     const errors = e.response?.data?.errors;
     addModal.value.error = errors

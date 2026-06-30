@@ -22,6 +22,8 @@ class AdvertisingProduct extends Model
         'nearest_landmarks',
         'site_photo',
         'site_map_photo',
+        'contact_name',
+        'contact_mobile',
         'is_pending',
     ];
 

@@ -66,6 +66,14 @@
     <div v-if="pendingRows.length > 0" class="staged-section">
       <div class="staged-header" @click="stagedCollapsed = !stagedCollapsed">
         <div class="staged-header-left">
+          <input
+            type="checkbox"
+            class="staged-select-all"
+            :checked="allStagedSelected"
+            @click.stop
+            @change="toggleAllStaged"
+            aria-label="Select all staged sites"
+          >
           <svg class="staged-chevron" :class="{ 'staged-chevron-open': !stagedCollapsed }" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
           <span class="staged-title">Staged for Client Review</span>
           <span class="staged-count-chip">{{ pendingRows.length }}</span>
@@ -73,7 +81,14 @@
         <p class="staged-sub">These sites are awaiting client approval. Confirm to add them to the availability list, or discard to remove.</p>
       </div>
       <div v-if="!stagedCollapsed" class="staged-grid">
-        <article v-for="(product, i) in pendingRows" :key="product.id" class="staged-card">
+        <article v-for="(product, i) in pendingRows" :key="product.id" class="staged-card" :class="{ 'staged-card-selected': selectedProductIds.includes(product.id) }">
+          <input
+            type="checkbox"
+            class="staged-card-check"
+            :checked="selectedProductIds.includes(product.id)"
+            @change="toggleProductSelection(product.id)"
+            :aria-label="`Select ${product.site_name}`"
+          >
           <div class="staged-card-avatar" :style="avatarStyle(i)">{{ avatarLabel(product) }}</div>
           <div class="staged-card-info">
             <div class="staged-card-name" :title="product.site_name">{{ product.site_name }}</div>
@@ -260,7 +275,7 @@
       </div>
     </div>
 
-    <div v-if="selectedProduct" class="modal-backdrop">
+    <div v-if="selectedProduct" class="modal-backdrop product-detail-backdrop">
       <section class="product-detail-modal" role="dialog" aria-modal="true">
 
         <!-- Header -->
@@ -367,6 +382,39 @@
                 </tbody>
               </table>
             </div>
+          </div>
+
+          <!-- Contact (shown on this site's sheet) -->
+          <div class="detail-panel contact-panel">
+            <div class="detail-actions">
+              <span>Contact</span>
+              <button v-if="!editingContact" type="button" @click="startContactEdit">Edit</button>
+              <div v-else class="detail-edit-actions">
+                <button type="button" class="btn-save-detail" :disabled="savingContact" @click="saveContact">
+                  {{ savingContact ? 'Saving...' : 'Save' }}
+                </button>
+                <button type="button" class="btn-cancel-detail" :disabled="savingContact" @click="cancelContactEdit">Cancel</button>
+              </div>
+            </div>
+            <table class="detail-table">
+              <tbody>
+                <tr>
+                  <th>Name</th>
+                  <td>
+                    <input v-if="editingContact" v-model="contactForm.contact_name" aria-label="Contact name" placeholder="e.g. NURUL ASYIQIN JAAFAR">
+                    <span v-else>{{ selectedProduct.contact_name || 'Default (NURUL ASYIQIN JAAFAR)' }}</span>
+                  </td>
+                </tr>
+                <tr>
+                  <th>Mobile</th>
+                  <td>
+                    <input v-if="editingContact" v-model="contactForm.contact_mobile" aria-label="Contact mobile" placeholder="e.g. +6014-907 253">
+                    <span v-else>{{ selectedProduct.contact_mobile || 'Default (+6014- 907 253)' }}</span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+            <p class="contact-hint">Leave blank to use the company default contact on this site's sheet.</p>
           </div>
 
           <!-- Photo upload section -->
@@ -1547,6 +1595,9 @@ const detailForm = ref({
 const editingLandmarks = ref(false);
 const savingLandmarks = ref(false);
 const landmarkForm = ref([]);
+const editingContact = ref(false);
+const savingContact = ref(false);
+const contactForm = ref({ contact_name: '', contact_mobile: '' });
 let companySearchTimer = null;
 
 // Map view state
@@ -1655,6 +1706,7 @@ watch([() => confirmedRows.value.length, rowsPerPage], () => {
 });
 const stagedCollapsed = ref(false);
 const allRowsSelected = computed(() => pagedRows.value.length > 0 && pagedRows.value.every((row) => selectedProductIds.value.includes(row.id)));
+const allStagedSelected = computed(() => pendingRows.value.length > 0 && pendingRows.value.every((p) => selectedProductIds.value.includes(p.id)));
 const productMapUrl = computed(() => {
   if (!selectedProduct.value) return '#';
   const query = selectedProduct.value.coordinate || selectedProduct.value.site_name;
@@ -1788,6 +1840,14 @@ function toggleAllRows() {
   selectedProductIds.value = [...new Set([...selectedProductIds.value, ...pagedRows.value.map((row) => row.id)])];
 }
 
+function toggleAllStaged() {
+  if (allStagedSelected.value) {
+    selectedProductIds.value = selectedProductIds.value.filter((id) => !pendingRows.value.some((p) => p.id === id));
+    return;
+  }
+  selectedProductIds.value = [...new Set([...selectedProductIds.value, ...pendingRows.value.map((p) => p.id)])];
+}
+
 function bookingFor(row, month) {
   return row.bookings.find((booking) => Number(booking.month) === Number(month));
 }
@@ -1832,6 +1892,8 @@ function openProductDetail(row) {
   detailForm.value = emptyDetailForm();
   editingLandmarks.value = false;
   landmarkForm.value = [];
+  editingContact.value = false;
+  contactForm.value = { contact_name: '', contact_mobile: '' };
 }
 
 function closeProductDetail() {
@@ -1840,6 +1902,45 @@ function closeProductDetail() {
   detailForm.value = emptyDetailForm();
   editingLandmarks.value = false;
   landmarkForm.value = [];
+  editingContact.value = false;
+  contactForm.value = { contact_name: '', contact_mobile: '' };
+}
+
+function startContactEdit() {
+  if (!selectedProduct.value) return;
+  contactForm.value = {
+    contact_name:   selectedProduct.value.contact_name || '',
+    contact_mobile: selectedProduct.value.contact_mobile || '',
+  };
+  editingContact.value = true;
+}
+
+function cancelContactEdit() {
+  editingContact.value = false;
+  contactForm.value = { contact_name: '', contact_mobile: '' };
+}
+
+async function saveContact() {
+  if (!selectedProduct.value) return;
+  savingContact.value = true;
+  error.value = '';
+  try {
+    const res = await api.put(`/v1/site-availability/products/${selectedProduct.value.id}`, {
+      contact_name:   contactForm.value.contact_name.trim() || null,
+      contact_mobile: contactForm.value.contact_mobile.trim() || null,
+    });
+    const prepared = normalizeRow(res.data.data);
+    const index = rows.value.findIndex((row) => row.id === prepared.id);
+    if (index !== -1) rows.value[index] = prepared;
+    selectedProduct.value = prepared;
+    editingContact.value = false;
+    contactForm.value = { contact_name: '', contact_mobile: '' };
+  } catch (e) {
+    const errors = e.response?.data?.errors;
+    error.value = errors ? Object.values(errors).flat().join(' ') : 'Failed to save contact details.';
+  } finally {
+    savingContact.value = false;
+  }
 }
 
 function emptyDetailForm() {
@@ -2214,6 +2315,10 @@ function openProposalWizard() {
 
 function closeProposalWizard() {
   proposalWizardOpen.value = false;
+  // Clear the working selection so the Generate Proposal button only reflects
+  // sites the user explicitly checks in the confirmed list — staged sites that
+  // were auto-selected on registration/Print PDF must not leave the button "on".
+  selectedProductIds.value = [];
   wizardStep.value = 'info';
   pasteTargetId.value = null;
   siteQuantities.value = {};
@@ -3845,6 +3950,23 @@ onMounted(() => {
   position: fixed; inset: 0; z-index: 2000; background: rgba(15,23,42,0.45);
   display: flex; align-items: center; justify-content: center; padding: 24px;
 }
+.product-detail-backdrop { z-index: 2100; }
+
+/* ── Modal open animation (shared with ContactList.vue) ── */
+@keyframes overlay-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes modal-spring-in {
+  from { opacity: 0; transform: scale(0.92) translateY(10px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+.modal-backdrop,
+.conf-overlay,
+.overlay-editor-backdrop { animation: overlay-fade-in 0.18s ease; }
+.modal-backdrop > *,
+.conf-overlay > *,
+.overlay-editor-backdrop > * { animation: modal-spring-in 0.26s cubic-bezier(0.34, 1.4, 0.64, 1); }
 .product-detail-modal {
   width: min(880px, 96vw); max-height: 88vh; background: var(--surface); color: var(--text-1);
   display: flex; flex-direction: column; overflow: hidden; border-radius: var(--radius-lg);
@@ -3867,37 +3989,54 @@ onMounted(() => {
 }
 .detail-close:hover { background: var(--border); }
 .detail-grid { display: grid; grid-template-columns: minmax(260px, 1fr) minmax(280px, 1.15fr); gap: 18px; align-items: start; }
-.detail-panel, .landmark-panel { min-width: 0; }
+.detail-panel, .landmark-panel, .contact-panel {
+  min-width: 0; background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); box-shadow: var(--shadow-sm); overflow: hidden;
+}
+.contact-panel { margin-top: 18px; }
+.contact-hint { margin: 0; padding: 10px 16px 14px; font-size: 12px; color: var(--text-3); }
 .detail-actions, .landmark-actions {
-  min-height: 40px; background: var(--text-1); color: #ffffff; border: 1px solid var(--border);
-  border-bottom: none; display: flex; align-items: center; justify-content: space-between;
-  gap: 10px; padding: 7px 10px 7px 16px; font-size: 10px; font-weight: 900; text-transform: uppercase;
+  min-height: 44px; background: var(--surface-2); color: var(--text-1);
+  border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between;
+  gap: 10px; padding: 8px 12px 8px 16px; font-size: 12px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.5px;
 }
 .detail-actions button, .landmark-actions button {
-  height: 26px; border: none; border-radius: 5px; padding: 0 10px; font-size: 10px;
-  font-weight: 900; cursor: pointer;
+  height: 30px; border-radius: var(--radius-sm); padding: 0 14px; font-size: 12px;
+  font-weight: 600; cursor: pointer; transition: background 0.15s, border-color 0.15s, color 0.15s;
 }
-.detail-actions > button, .landmark-actions > button, .btn-save-detail, .btn-save-landmarks { background: #ffffff; color: var(--text-1); }
-.btn-cancel-detail, .btn-cancel-landmarks { background: var(--text-2); color: #ffffff; }
+.detail-actions > button, .landmark-actions > button,
+.btn-cancel-detail, .btn-cancel-landmarks {
+  background: var(--surface); color: var(--text-2); border: 1px solid var(--border);
+}
+.detail-actions > button:hover, .landmark-actions > button:hover,
+.btn-cancel-detail:hover, .btn-cancel-landmarks:hover { background: var(--border); color: var(--text-1); }
+.btn-save-detail, .btn-save-landmarks { background: var(--primary); color: var(--primary-on); border: none; }
+.btn-save-detail:hover, .btn-save-landmarks:hover { background: var(--primary-hover); }
 .detail-actions button:disabled, .landmark-actions button:disabled { opacity: 0.6; cursor: not-allowed; }
 .detail-edit-actions, .landmark-edit-actions { display: flex; align-items: center; gap: 6px; }
-.detail-table, .landmark-table { width: 100%; min-width: 0; border-collapse: collapse; font-size: 11px; }
+.detail-table, .landmark-table { width: 100%; min-width: 0; border-collapse: collapse; font-size: 13px; }
 .detail-table th, .detail-table td, .landmark-table th, .landmark-table td {
-  border: 1px solid var(--border); height: 40px; padding: 8px 10px; background: var(--surface); vertical-align: middle;
+  padding: 10px 16px; border-bottom: 1px solid var(--border-soft); vertical-align: middle; text-align: left;
 }
-.detail-table th, .landmark-table th { width: 42%; text-transform: uppercase; font-size: 10px; font-weight: 900; text-align: center; }
-.detail-table td, .landmark-table td { font-weight: 750; text-align: center; line-height: 1.3; }
-.detail-table a { color: var(--primary); font-weight: 700; text-decoration: underline; }
+.detail-table tbody tr:last-child th, .detail-table tbody tr:last-child td,
+.landmark-table tbody tr:last-child th, .landmark-table tbody tr:last-child td { border-bottom: none; }
+.detail-table th, .landmark-table th {
+  width: 40%; text-transform: uppercase; font-size: 11px; font-weight: 700;
+  letter-spacing: 0.5px; color: var(--text-2); background: var(--surface-2); white-space: nowrap;
+}
+.detail-table td, .landmark-table td { font-weight: 600; color: var(--text-1); line-height: 1.35; }
+.detail-table a { color: var(--primary); font-weight: 600; text-decoration: underline; }
 .detail-table input, .landmark-table input {
-  width: 100%; min-height: 30px; border: 1px solid var(--border); border-radius: 5px;
-  padding: 0 8px; color: var(--text-1); font-size: 11px; font-weight: 800; text-align: center;
-  outline: none;
+  width: 100%; height: 34px; border: 1.5px solid var(--border); border-radius: var(--radius-sm);
+  padding: 0 10px; color: var(--text-1); font-size: 13px; font-weight: 500; text-align: left;
+  outline: none; background: var(--surface);
 }
 .detail-table input:focus, .landmark-table input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); }
 .map-link {
   display: inline-flex; align-items: center; justify-content: center; min-height: 36px;
-  padding: 0 14px; border-radius: var(--radius-sm); background: var(--text-1); color: #ffffff; font-size: 12px;
-  font-weight: 700; text-decoration: none;
+  padding: 0 14px; border-radius: var(--radius-sm); background: var(--primary); color: var(--primary-on); font-size: 12px;
+  font-weight: 600; text-decoration: none;
 }
 
 /* Add/Edit Booking modal */
@@ -3969,19 +4108,22 @@ onMounted(() => {
   display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 18px;
 }
 .photo-panel {
-  border: 1px solid var(--border); background: var(--surface); border-radius: var(--radius-sm); overflow: hidden;
-  display: flex; flex-direction: column;
+  border: 1px solid var(--border); background: var(--surface); border-radius: var(--radius); overflow: hidden;
+  display: flex; flex-direction: column; box-shadow: var(--shadow-sm);
 }
 .photo-actions {
-  background: var(--text-1); color: #fff; padding: 7px 10px;
+  background: var(--surface-2); color: var(--text-1); padding: 8px 12px;
   display: flex; align-items: center; justify-content: space-between; gap: 8px;
-  font-size: 10px; font-weight: 900; text-transform: uppercase;
+  font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
+  border-bottom: 1px solid var(--border);
 }
 .btn-upload, .btn-remove-photo {
-  height: 26px; border: none; border-radius: 5px; padding: 0 10px; font-size: 10px;
-  font-weight: 900; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;
+  height: 30px; border: none; border-radius: var(--radius-sm); padding: 0 14px; font-size: 12px;
+  font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;
+  transition: background 0.15s;
 }
-.btn-upload { background: #fff; color: var(--text-1); }
+.btn-upload { background: var(--primary); color: var(--primary-on); }
+.btn-upload:hover { background: var(--primary-hover); }
 .btn-upload input { display: none; }
 .btn-upload:has(input:disabled) { opacity: 0.6; cursor: not-allowed; }
 .btn-remove-photo { background: #fee2e2; color: #991b1b; }
@@ -4462,6 +4604,11 @@ onMounted(() => {
   background: var(--surface); padding: 12px 16px;
   display: flex; flex-direction: row; align-items: center; gap: 14px;
   border-right: 1px solid #fde68a; border-bottom: 1px solid #fde68a;
+  transition: background 0.15s;
+}
+.staged-card-selected { background: var(--primary-soft); }
+.staged-card-check, .staged-select-all {
+  width: 16px; height: 16px; flex-shrink: 0; cursor: pointer; accent-color: var(--primary); margin: 0;
 }
 .staged-card-avatar {
   width: 38px; height: 38px; border-radius: 50%; flex-shrink: 0;
