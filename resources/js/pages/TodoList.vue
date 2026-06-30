@@ -6,6 +6,7 @@
         <p class="page-subtitle">List of to-dos for each contact</p>
       </div>
       <div class="page-head-actions">
+        <button class="btn-head-export" @click="openExportModal()">Export</button>
         <button v-if="can('create todos')" class="btn-primary-pill" data-tour="add-todo-btn" @click="openAddModal">
           <span class="plus-icon" aria-hidden="true">+</span> Add To-Do
         </button>
@@ -18,7 +19,7 @@
     </div>
 
     <div v-if="selectedIds.length > 0" class="selection-bar">
-      <button class="btn-export-sel" @click="exportSelected">Export {{ selectedIds.length }} selected</button>
+      <button class="btn-export-sel" @click="openExportModal(true)">Export {{ selectedIds.length }} selected</button>
       <button v-if="can('edit todos')" class="btn-done-sel" @click="markSelectedDone">Set as Done</button>
       <button v-if="can('edit todos')" class="btn-pending-sel" @click="markSelectedPending">Revert to Pending</button>
       <span>{{ selectedIds.length }} record(s) selected</span>
@@ -119,7 +120,7 @@
             <col style="width:80px">   <!-- type -->
             <col>                      <!-- company - absorbs remaining space -->
             <col style="width:70px">   <!-- user -->
-            <col style="width:100px">  <!-- task -->
+            <col style="width:140px">  <!-- task -->
             <col style="width:124px">  <!-- remark -->
             <col style="width:100px">  <!-- follow-ups -->
             <col style="width:88px">   <!-- last f/u -->
@@ -180,7 +181,7 @@
                 <router-link :to="`/contacts/${t.contact_id}`" class="company-link">{{ t.contact_name }}</router-link>
               </td>
               <td>{{ t.user ?? '—' }}</td>
-              <td>
+              <td class="td-task">
                 <div class="task-chip-wrap">
                   <span v-if="t.task" class="task-chip">{{ t.task }}</span>
                   <span v-else class="muted">—</span>
@@ -434,6 +435,61 @@
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
+    <!-- Export Modal -->
+    <Teleport to="body">
+      <div v-if="exportModal.open" class="remark-overlay" @mousedown.self="exportModal.open = false">
+        <div class="export-modal">
+          <div class="export-modal-header">
+            <div>
+              <strong class="export-modal-title">Export To-Dos</strong>
+              <p class="export-modal-sub">Pick what to include, then download.</p>
+            </div>
+            <button class="remark-close" @click="exportModal.open = false" v-html="CI.x"></button>
+          </div>
+          <div class="export-modal-body">
+            <div class="export-section">
+              <div class="export-cols-head">
+                <span class="export-section-label">Columns to include</span>
+                <div class="export-cols-actions">
+                  <button class="export-link-btn" @click="exportCols.forEach(c => c.checked = true)">All</button>
+                  <span class="export-dot-sep">·</span>
+                  <button class="export-link-btn" @click="exportCols.forEach(c => c.checked = false)">None</button>
+                </div>
+              </div>
+              <div class="export-cols-grid">
+                <label v-for="col in exportCols" :key="col.key" class="export-col-check">
+                  <input type="checkbox" v-model="col.checked">
+                  <span>{{ col.label }}</span>
+                </label>
+              </div>
+            </div>
+          </div>
+          <div class="export-modal-footer">
+            <p class="export-footer-count">
+              Will export <strong>{{ exportRowCount }}</strong> × <strong>{{ exportCols.filter(c => c.checked).length }}</strong> column(s)
+            </p>
+            <div class="export-action-stack">
+              <button class="export-dl-btn export-dl-xls" :disabled="exportModal.loading || exportCols.every(c => !c.checked)" @click="executeExport('xls')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="export-dl-icon"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                <span class="export-dl-text">
+                  <span class="export-dl-label">{{ exportModal.loading ? 'Exporting…' : 'Download Excel' }}</span>
+                  <span class="export-dl-desc">Formatted with borders &amp; column widths</span>
+                </span>
+              </button>
+              <button class="export-dl-btn export-dl-csv" :disabled="exportModal.loading || exportCols.every(c => !c.checked)" @click="executeExport('csv')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="export-dl-icon"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                <span class="export-dl-text">
+                  <span class="export-dl-label">Download CSV</span>
+                  <span class="export-dl-desc">Plain text, opens in any spreadsheet app</span>
+                </span>
+              </button>
+              <button class="export-cancel-btn" @click="exportModal.open = false">Cancel</button>
+            </div>
           </div>
         </div>
       </div>
@@ -805,10 +861,85 @@ function toggleAll(e) {
   selectedIds.value = e.target.checked ? todos.value.map(t => t.id) : [];
 }
 
-function exportSelected() {
-  const ids = selectedIds.value.join(',');
-  const token = localStorage.getItem('crm_token');
-  window.location.href = `/api/v1/todos/export?ids=${ids}&_token=${token}`;
+// ── Export ──
+const EXPORT_COLUMNS = [
+  { key: 'no',           label: 'No' },
+  { key: 'todo_date',    label: 'To Do Date' },
+  { key: 'date_created', label: 'Date Created' },
+  { key: 'status',       label: 'Status' },
+  { key: 'type',         label: 'Type' },
+  { key: 'company',      label: 'Company' },
+  { key: 'user',         label: 'User' },
+  { key: 'task',         label: 'Task' },
+  { key: 'remark',       label: 'Remark' },
+  { key: 'completion',   label: 'Completion' },
+];
+const exportModal = ref({ open: false, loading: false, selectedIds: null });
+const exportCols  = ref(EXPORT_COLUMNS.map(c => ({ ...c, checked: true })));
+const exportRowCount = computed(() =>
+  exportModal.value.selectedIds ? `${exportModal.value.selectedIds.length} selected` : 'all filtered'
+);
+
+function openExportModal(selectedOnly = false) {
+  exportModal.value = {
+    open: true,
+    loading: false,
+    selectedIds: selectedOnly && selectedIds.value.length ? [...selectedIds.value] : null,
+  };
+}
+
+function buildExportParams() {
+  const p = {};
+  if (viewMode.value === 'MonthRange') {
+    p.view = 'MonthRange';
+    p.from_month = fromMonth.value;
+    p.to_month   = toMonth.value;
+  } else {
+    p.view      = 'DateRange';
+    p.from_date = rangeFrom.value || '2000-01-01';
+    p.to_date   = rangeTo.value   || '2099-12-31';
+  }
+  if (search.value)          p.search            = search.value;
+  if (userId.value)          p.user_id           = userId.value;
+  if (statusFilter.value)    p.completion_status = statusFilter.value;
+  if (contactId.value)       p.contact_id        = contactId.value;
+  if (colStatusFilter.value) p.status_id         = colStatusFilter.value;
+  if (colTypeFilter.value)   p.type_id           = colTypeFilter.value;
+  if (colTaskFilter.value)   p.task_id           = colTaskFilter.value;
+  return p;
+}
+
+async function executeExport(format = 'xls') {
+  const cols = exportCols.value.filter(c => c.checked);
+  if (!cols.length) return;
+  exportModal.value.loading = true;
+  try {
+    const params = new URLSearchParams({ cols: cols.map(c => c.key).join(','), format });
+    if (exportModal.value.selectedIds) {
+      params.set('ids', exportModal.value.selectedIds.join(','));
+    } else {
+      Object.entries(buildExportParams()).forEach(([k, v]) => params.set(k, v));
+    }
+    const token = localStorage.getItem('crm_token');
+    const resp  = await fetch(`/api/v1/todos/export?${params}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!resp.ok) throw new Error(`Server error ${resp.status}`);
+    const blob = await resp.blob();
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = `ToDo_Export_${new Date().toISOString().slice(0, 10)}.${format}`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 500);
+    exportModal.value.open = false;
+  } catch (err) {
+    console.error('[Export]', err);
+  } finally {
+    exportModal.value.loading = false;
+  }
 }
 
 async function markSelectedDone() {
@@ -1097,6 +1228,16 @@ onMounted(async () => {
 }
 .btn-primary-pill:hover { background: var(--primary-hover); }
 .btn-primary-pill:active { transform: translateY(1px); }
+.btn-head-export {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: #10b981; color: #fff;
+  border: none; border-radius: 999px; padding: 11px 20px;
+  font-size: 13px; font-weight: 700; cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, transform 0.06s;
+}
+.btn-head-export:hover { background: #059669; }
+.btn-head-export:active { transform: translateY(1px); }
 .plus-icon {
   display: inline-flex; align-items: center; justify-content: center;
   width: 20px; height: 20px; border-radius: 50%;
@@ -1198,6 +1339,7 @@ thead th {
 thead th:last-child { border-right: none; }
 tbody td { padding: 8px 12px; border-bottom: 1px solid var(--border-soft); border-right: 1px solid var(--border-soft); color: var(--text-1); vertical-align: middle; font-size: 13px; white-space: nowrap; overflow: hidden; }
 tbody td.td-company { white-space: normal; word-break: break-word; overflow: visible; }
+tbody td.td-task { white-space: normal; overflow: visible; }
 tbody td:last-child { border-right: none; }
 tbody tr:last-child td { border-bottom: none; }
 tbody tr:hover { background: var(--surface-2); }
@@ -1274,13 +1416,12 @@ tbody tr:hover { background: var(--surface-2); }
 /* Task chip in table cell */
 .task-chip-wrap {
   display: flex; align-items: center; gap: 5px;
-  overflow: hidden; max-width: 100%;
+  max-width: 100%; flex-wrap: wrap;
 }
 .task-chip {
   background: var(--primary-soft); color: var(--primary-text);
   font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  min-width: 0; flex-shrink: 1;
+  white-space: normal; word-break: break-word;
 }
 .task-edit-btn {
   display: inline-flex; align-items: center; justify-content: center;
@@ -1536,4 +1677,71 @@ tbody tr:hover { background: var(--surface-2); }
 .conf-followup-ok { height: 38px; padding: 0 18px; background: var(--primary); color: #fff; border: none; border-radius: var(--radius-sm); font-size: 13px; font-weight: 700; cursor: pointer; }
 .conf-followup-ok:hover:not(:disabled) { background: var(--primary-hover); }
 .conf-followup-ok:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ── Export modal ── */
+.export-modal {
+  background: var(--surface); border-radius: var(--radius-xl, 14px);
+  width: 480px; max-width: 95vw; max-height: 90vh;
+  display: flex; flex-direction: column; box-shadow: var(--shadow-lg);
+  border: 1px solid var(--border-soft); overflow: hidden;
+}
+.export-modal-header {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  padding: 20px 24px; border-bottom: 1px solid var(--border-soft); flex-shrink: 0;
+}
+.export-modal-title { font-size: 17px; font-weight: 800; color: var(--text-1); }
+.export-modal-sub   { font-size: 12.5px; color: var(--text-3); margin: 3px 0 0; }
+.export-modal-body  { padding: 20px 24px; display: flex; flex-direction: column; gap: 18px; overflow-y: auto; flex: 1 1 auto; min-height: 0; }
+.export-modal-footer {
+  display: flex; flex-direction: column; gap: 12px;
+  padding: 16px 24px; border-top: 1px solid var(--border-soft); flex-shrink: 0;
+}
+.export-footer-count { font-size: 13px; color: var(--text-3); margin: 0; }
+.export-footer-count strong { color: var(--primary); }
+.export-action-stack { display: flex; flex-direction: column; gap: 10px; }
+.export-dl-btn {
+  width: 100%; display: flex; align-items: flex-start; gap: 14px;
+  padding: 14px 18px; border-radius: var(--radius); border: none; cursor: pointer;
+  text-align: left; transition: opacity 0.15s, transform 0.08s;
+}
+.export-dl-btn:hover:not(:disabled) { opacity: 0.88; transform: translateY(-1px); }
+.export-dl-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.export-dl-icon { width: 20px; height: 20px; flex-shrink: 0; margin-top: 2px; }
+.export-dl-text { display: flex; flex-direction: column; gap: 2px; }
+.export-dl-label { font-size: 14px; font-weight: 700; line-height: 1.2; }
+.export-dl-desc  { font-size: 12px; opacity: 0.82; line-height: 1.3; }
+.export-dl-xls { background: #10b981; color: #fff; }
+.export-dl-csv { background: var(--surface); border: 1.5px solid var(--border) !important; color: var(--text-1); }
+.export-cancel-btn {
+  width: 100%; padding: 10px 16px; background: none;
+  border: 1px solid var(--border-soft); border-radius: var(--radius);
+  font-size: 13px; font-weight: 600; color: var(--text-3); cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+.export-cancel-btn:hover { background: var(--border-soft); color: var(--text-2); }
+.export-section { display: flex; flex-direction: column; gap: 10px; }
+.export-section-label { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; color: var(--text-3); }
+.export-cols-head    { display: flex; align-items: center; justify-content: space-between; margin-bottom: 2px; }
+.export-cols-actions { display: flex; align-items: center; gap: 4px; }
+.export-link-btn { background: none; border: none; cursor: pointer; font-size: 12px; font-weight: 600; color: var(--primary); padding: 2px 4px; border-radius: 4px; }
+.export-link-btn:hover { text-decoration: underline; }
+.export-dot-sep { color: var(--text-3); font-size: 12px; }
+.export-cols-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px 12px; }
+.export-col-check { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; color: var(--text-2); font-weight: 500; padding: 6px 10px; border-radius: var(--radius-sm, 6px); border: 1px solid var(--border-soft); transition: background 0.12s, border-color 0.12s; }
+.export-col-check:hover { background: var(--primary-soft, #dbeafe); border-color: var(--primary); }
+.export-col-check input[type="checkbox"] { accent-color: var(--primary); width: 14px; height: 14px; flex-shrink: 0; cursor: pointer; }
+
+/* ── Modal open animation ── */
+@keyframes overlay-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes modal-spring-in {
+  from { opacity: 0; transform: scale(0.92) translateY(10px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+.remark-overlay { animation: overlay-fade-in 0.18s ease; }
+.remark-overlay > * { animation: modal-spring-in 0.26s cubic-bezier(0.34, 1.4, 0.64, 1); }
+.conf-overlay { animation: overlay-fade-in 0.18s ease; }
+.conf-overlay > * { animation: modal-spring-in 0.26s cubic-bezier(0.34, 1.4, 0.64, 1); }
 </style>

@@ -113,7 +113,7 @@
       </div>
       <button class="btn btn-primary" @click="load(1)">Search</button>
       <button class="btn btn-clear" @click="clearFilters" v-if="hasFilters">Clear</button>
-      <button class="btn btn-export" @click="openExportModal">Export</button>
+      <button class="btn btn-export" @click="openExportModal">{{ contactSelectedIds.length > 0 ? `Export (${contactSelectedIds.length})` : 'Export' }}</button>
     </div>
 
     <!-- Summary toolbar -->
@@ -124,9 +124,28 @@
           <option v-for="y in summaryYears" :key="y" :value="y">{{ y }}</option>
         </select>
       </div>
-      <div class="filter-group wide">
+      <div class="filter-group wide search-group">
         <label>Search</label>
-        <input v-model="summaryFilters.search" @keyup.enter="applySummaryFilters" placeholder="Company name…">
+        <div class="search-wrap">
+          <input
+            v-model="summaryFilters.search"
+            @input="onSummarySearchInput"
+            @keyup.enter="applySummaryFilters; summaryShowSuggestions = false"
+            @keydown.esc="summaryShowSuggestions = false"
+            @blur="onSummarySearchBlur"
+            @focus="summaryFilters.search.trim() && summarySuggestions.length && (summaryShowSuggestions = true)"
+            placeholder="Company name…"
+            autocomplete="off"
+          >
+          <div v-if="summaryShowSuggestions && summarySuggestions.length" class="suggestions-dropdown">
+            <div
+              v-for="s in summarySuggestions"
+              :key="s.id"
+              class="suggestion-item"
+              @mousedown.prevent="pickSummarySuggestion(s.name)"
+            >{{ s.name }}</div>
+          </div>
+        </div>
       </div>
       <div class="filter-group">
         <label>User</label>
@@ -165,7 +184,7 @@
       </div>
       <button class="btn btn-primary" @click="applySummaryFilters">Search</button>
       <button class="btn btn-clear" @click="resetSummaryFilters">Reset</button>
-      <button class="btn btn-export" @click="exportSummary">Export</button>
+      <button class="btn btn-export" @click="summaryExportModal.open = true">Export</button>
     </div>
 
     <!-- Tasks toolbar -->
@@ -778,6 +797,10 @@
       </div>
     </div>
 
+    <!-- ── TAB PANELS ── -->
+    <Transition name="tab-fade" mode="out-in">
+    <div :key="tab" class="tab-panel">
+
     <!-- ── CONTACTS TAB ── -->
     <template v-if="tab === 'contacts'">
       <LoadingSpinner v-if="loading" />
@@ -792,7 +815,7 @@
           <table>
             <thead>
               <tr>
-                <th class="col-no">#</th>
+                <th class="col-check"><input type="checkbox" @change="toggleAllContacts" ref="contactSelectAllRef" :indeterminate.prop="contactSomeSelected"></th>
                 <th class="col-date">Date Added</th>
                 <th class="col-user">User</th>
                 <th class="col-status">Status</th>
@@ -813,7 +836,7 @@
                 </td>
               </tr>
               <tr v-for="(c, idx) in contacts" :key="c.id" class="contact-row" @click="openDrawer(c)" style="cursor:pointer">
-                <td class="col-no"><span class="row-num">{{ (meta.from ?? 1) + idx }}</span></td>
+                <td class="col-check" @click.stop><input type="checkbox" :value="c.id" v-model="contactSelectedIds"></td>
                 <td class="col-date"><span class="date-text">{{ fmtDate(c.created_at) }}</span></td>
                 <td class="col-user"><span class="user-name">{{ c.user?.name ?? '—' }}</span></td>
                 <td class="col-status">
@@ -885,13 +908,18 @@
             <span class="legend-dot dot-cancelled"></span><span class="legend-label">Cancelled</span>
             <span class="legend-dot" style="background:#e2e8f0"></span><span class="legend-label">No activity</span>
           </div>
+          <div class="sum-pager-rows">
+            <span class="sum-pager-label">Rows</span>
+            <select v-model.number="summaryPerPage" @change="applySummaryFilters" class="sum-pager-sel">
+              <option v-for="n in [20, 50, 100]" :key="n" :value="n">{{ n }}</option>
+            </select>
+          </div>
         </div>
         <div class="table-scroll">
           <table class="summary-table">
             <thead>
               <tr>
                 <th class="col-check"><input type="checkbox" @change="toggleAllSummary" ref="summarySelectAllRef"></th>
-                <th class="sum-no-col">#</th>
                 <th class="sum-name-col">Company</th>
                 <th class="sum-user-col">User</th>
                 <th class="sum-status-col">Status</th>
@@ -900,7 +928,7 @@
             </thead>
             <tbody>
               <tr v-if="summaryContacts.length === 0">
-                <td colspan="6" class="empty-state">
+                <td colspan="5" class="empty-state">
                   <div class="empty-icon" v-html="CIL.chart"></div>
                   <div class="empty-title">No records found</div>
                   <div class="empty-sub">Try adjusting filters or the year</div>
@@ -908,7 +936,6 @@
               </tr>
               <tr v-for="(c, idx) in summaryContacts" :key="c.id" class="contact-row" @click="openDrawer(c)" style="cursor:pointer">
                 <td class="col-check" @click.stop><input type="checkbox" :value="c.id" v-model="summarySelectedIds"></td>
-                <td class="sum-no-col"><span class="row-num">{{ idx + 1 }}</span></td>
                 <td class="sum-name-col"><span class="sum-company-link">{{ c.name }}</span></td>
                 <td class="sum-user-col"><span class="user-name">{{ c.user ?? '—' }}</span></td>
                 <td class="sum-status-col">
@@ -924,13 +951,15 @@
                     <div
                       v-for="m in 12" :key="m"
                       class="sum-month-cell"
-                      :class="c.months[m] ? (c.months[m].status === 'cancelled' ? 'smc-cancelled' : 'smc-active') : 'smc-empty'"
-                      :title="c.months[m] ? `${MONTH_NAMES[m-1]}: ${c.months[m].date} — ${c.months[m].task} (${c.months[m].status})` : MONTH_NAMES[m-1]"
+                      :class="monthCellClass(c, m)"
+                      @click.stop="c.months[m]?.length ? openSummaryPopover($event, c, m) : null"
+                      :style="c.months[m]?.length ? 'cursor:pointer' : ''"
                     >
                       <span class="smc-name">{{ MONTH_NAMES[m-1] }}</span>
-                      <template v-if="c.months[m]">
-                        <span class="smc-date">{{ c.months[m].date.slice(0, 5) }}</span>
-                        <span class="smc-task">{{ c.months[m].task }}</span>
+                      <template v-if="c.months[m]?.length">
+                        <span v-if="c.months[m].length > 1" class="smc-count">{{ c.months[m].length }}</span>
+                        <span class="smc-date">{{ c.months[m][c.months[m].length - 1].date.slice(0, 5) }}</span>
+                        <span class="smc-task">{{ c.months[m][c.months[m].length - 1].task }}</span>
                       </template>
                     </div>
                   </div>
@@ -975,6 +1004,108 @@
     <template v-else-if="tab === 'forecast'">
       <ForecastList :embedded="true" />
     </template>
+
+    </div>
+    </Transition>
+
+    <!-- Summary Month Popover -->
+    <Teleport to="body">
+      <template v-if="summaryPopover.open">
+        <div class="sp-backdrop" @click="closeSummaryPopover"></div>
+        <div
+          class="sp-card"
+          :class="summaryPopover.above ? 'sp-card--above' : 'sp-card--below'"
+          :style="{ left: summaryPopover.x + 'px', top: summaryPopover.y + 'px' }"
+          @click.stop
+        >
+          <div class="sp-header">
+            <div class="sp-header-text">
+              <div class="sp-header-row">
+                <strong class="sp-month-title">{{ summaryPopover.monthName }}</strong>
+                <span class="sp-count-pill">{{ summaryPopover.items.length }} todo{{ summaryPopover.items.length !== 1 ? 's' : '' }}</span>
+              </div>
+              <span class="sp-company-name">{{ summaryPopover.contact?.name }}</span>
+            </div>
+            <button class="sp-close" @click="closeSummaryPopover" v-html="CI.x"></button>
+          </div>
+          <div class="sp-list" @scroll.stop>
+            <div v-for="(item, i) in summaryPopover.items" :key="i" class="sp-item">
+              <div class="sp-item-inner">
+                <div class="sp-item-row">
+                  <div class="sp-item-left">
+                    <span class="sp-index">{{ summaryPopover.items.length - i }}</span>
+                    <span class="sp-date">{{ item.date }}</span>
+                  </div>
+                  <span class="sp-status-badge" :class="item.status === 'completed' ? 'sp-badge-completed' : 'sp-badge-cancelled'">
+                    {{ item.status }}
+                  </span>
+                </div>
+                <span class="sp-task">{{ item.task }}</span>
+                <p v-if="item.remark" class="sp-remark">{{ item.remark }}</p>
+              </div>
+            </div>
+          </div>
+          <div v-if="summaryPopover.items.length > 3" class="sp-scroll-hint">
+            Scroll to see all {{ summaryPopover.items.length }} entries
+          </div>
+        </div>
+      </template>
+    </Teleport>
+
+    <!-- Summary Export Modal -->
+    <Teleport to="body">
+      <div v-if="summaryExportModal.open" class="remark-overlay" @mousedown.self="summaryExportModal.open = false">
+        <div class="export-modal">
+          <div class="export-modal-header">
+            <div>
+              <strong class="export-modal-title">Export Summary</strong>
+              <p class="export-modal-sub">Pick what to include, then download.</p>
+            </div>
+            <button class="remark-close" @click="summaryExportModal.open = false" v-html="CI.x"></button>
+          </div>
+          <div class="export-modal-body">
+            <div class="export-section">
+              <div class="export-cols-head">
+                <span class="export-section-label">Columns to include</span>
+                <div class="export-cols-actions">
+                  <button class="export-link-btn" @click="summaryCols.forEach(c => c.checked = true)">All</button>
+                  <span class="export-dot-sep">·</span>
+                  <button class="export-link-btn" @click="summaryCols.forEach(c => c.checked = false)">None</button>
+                </div>
+              </div>
+              <div class="export-cols-grid">
+                <label v-for="col in summaryCols" :key="col.key" class="export-col-check">
+                  <input type="checkbox" v-model="col.checked">
+                  <span>{{ col.label }}</span>
+                </label>
+              </div>
+            </div>
+          </div>
+          <div class="export-modal-footer">
+            <p class="export-footer-count">
+              Will export <strong>{{ summarySelectedIds.length > 0 ? summarySelectedIds.length + ' selected' : summaryContacts.length }}</strong> row(s) × <strong>{{ summaryCols.filter(c => c.checked).length }}</strong> column(s)
+            </p>
+            <div class="export-action-stack">
+              <button class="export-dl-btn export-dl-xls" :disabled="summaryCols.every(c => !c.checked)" @click="executeSummaryExport('xls')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="export-dl-icon"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                <span class="export-dl-text">
+                  <span class="export-dl-label">Download Excel</span>
+                  <span class="export-dl-desc">Formatted with borders &amp; column widths</span>
+                </span>
+              </button>
+              <button class="export-dl-btn export-dl-csv" :disabled="summaryCols.every(c => !c.checked)" @click="executeSummaryExport('csv')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="export-dl-icon"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                <span class="export-dl-text">
+                  <span class="export-dl-label">Download CSV</span>
+                  <span class="export-dl-desc">Plain text, opens in any spreadsheet app</span>
+                </span>
+              </button>
+              <button class="export-cancel-btn" @click="summaryExportModal.open = false">Cancel</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Teleport>
 
     <!-- Export Modal -->
     <div v-if="exportModal.open" class="remark-overlay">
@@ -1232,8 +1363,8 @@ const tab = ref('contacts');
 function switchTab(newTab) {
   tab.value = newTab;
   router.replace({ query: newTab !== 'contacts' ? { tab: newTab } : {} });
-  if (newTab === 'summary') { summaryPage.value = 1; loadSummary(); }
-  // tasks/followups/forecast tabs are self-contained (embedded components load their own data).
+  if (newTab === 'summary')  { summaryPage.value = 1; loadSummary(); }
+  if (newTab === 'contacts') { load(contactsPage.value); }
 }
 
 // Sidebar deep-links (e.g. /list?tab=tasks) change only the query — sync the tab.
@@ -1241,8 +1372,8 @@ watch(() => route.query.tab, (t) => {
   const target = (typeof t === 'string' && ['summary', 'tasks', 'followups', 'forecast'].includes(t)) ? t : 'contacts';
   if (target !== tab.value) {
     tab.value = target;
-    if (target === 'summary') { summaryPage.value = 1; loadSummary(); }
-    // tasks/followups/forecast are self-contained.
+    if (target === 'summary')  { summaryPage.value = 1; loadSummary(); }
+    if (target === 'contacts') { load(contactsPage.value); }
   }
 });
 
@@ -1270,9 +1401,12 @@ const statusId    = ref('');
 const typeId      = ref('');
 const categoryId  = ref('');
 const sort        = ref('desc');
-const contacts = ref([]);
-const meta     = ref({});
-const loading  = ref(false);
+const contacts            = ref([]);
+const meta                = ref({});
+const loading             = ref(false);
+const contactSelectedIds  = ref([]);
+const contactSelectAllRef = ref(null);
+const contactSomeSelected = computed(() => contactSelectedIds.value.length > 0 && contactSelectedIds.value.length < contacts.value.length);
 const contactsPage    = ref(1);
 const contactsPerPage = ref(25);
 const CONTACT_PER_PAGE_OPTIONS = [10, 25, 50, 100];
@@ -1308,6 +1442,37 @@ function onSearchBlur() {
   setTimeout(() => { showSuggestions.value = false; }, 160);
 }
 
+// ── Summary tab search suggestions ──
+const summarySuggestions     = ref([]);
+const summaryShowSuggestions = ref(false);
+let _summaryTimer = null;
+
+function onSummarySearchInput() {
+  clearTimeout(_summaryTimer);
+  if (!summaryFilters.value.search.trim()) {
+    summarySuggestions.value = [];
+    summaryShowSuggestions.value = false;
+    return;
+  }
+  _summaryTimer = setTimeout(async () => {
+    try {
+      const res = await api.get('/v1/contacts/daily', { params: { search: summaryFilters.value.search, per_page: 8, sort: 'desc' } });
+      summarySuggestions.value = (res.data.data ?? []).map(c => ({ id: c.id, name: c.name }));
+      summaryShowSuggestions.value = summarySuggestions.value.length > 0;
+    } catch { /* silent */ }
+  }, 250);
+}
+
+function pickSummarySuggestion(name) {
+  summaryFilters.value.search = name;
+  summaryShowSuggestions.value = false;
+  applySummaryFilters();
+}
+
+function onSummarySearchBlur() {
+  setTimeout(() => { summaryShowSuggestions.value = false; }, 160);
+}
+
 // ── Summary tab state ──
 const summaryYear         = ref(new Date().getFullYear());
 const summaryYears        = Array.from({ length: 7 }, (_, i) => 2024 + i);
@@ -1317,6 +1482,7 @@ const summaryFilters      = ref({ search: '', user_id: '', status_id: '', type_i
 const summarySelectedIds  = ref([]);
 const summarySelectAllRef = ref(null);
 const summaryPage         = ref(1);
+const summaryPerPage      = ref(50);
 const summaryMeta         = ref({});
 
 // ── Tasks tab: rendered by the embedded <TodoList> component (self-contained) ──
@@ -1467,10 +1633,16 @@ function resultClass(name) {
 }
 
 // ── Contacts tab ──
+function toggleAllContacts(e) {
+  contactSelectedIds.value = e.target.checked ? contacts.value.map(c => c.id) : [];
+}
+
 async function load(page = 1) {
   contactsPage.value = page;
   loading.value = true;
   showSuggestions.value = false;
+  contactSelectedIds.value = [];
+  if (contactSelectAllRef.value) contactSelectAllRef.value.checked = false;
   try {
     const params = { sort: sort.value, per_page: contactsPerPage.value, page: contactsPage.value };
     if (dateFrom.value)   params.date_from    = dateFrom.value;
@@ -1520,13 +1692,19 @@ const EXPORT_COLUMNS = [
   { key: 'pic_offices', label: 'Office(s)',    width: 150 },
 ];
 
-const exportModal = ref({ open: false, loading: false });
+const exportModal = ref({ open: false, loading: false, selectedIds: null });
 const exportCols  = ref(EXPORT_COLUMNS.map(c => ({ ...c, checked: true })));
 
-const exportRowCount = computed(() => 'all');
+const exportRowCount = computed(() =>
+  exportModal.value.selectedIds ? `${exportModal.value.selectedIds.length} selected` : 'all filtered'
+);
 
 function openExportModal() {
-  exportModal.value.open = true;
+  exportModal.value = {
+    open: true,
+    loading: false,
+    selectedIds: contactSelectedIds.value.length > 0 ? [...contactSelectedIds.value] : null,
+  };
 }
 
 function getCellValue(c, key, idx) {
@@ -1563,6 +1741,17 @@ async function executeExport(format = 'xls') {
   try {
     const qs = new URLSearchParams({ cols: selected.map(c => c.key).join(','), sort: sort.value, format });
     if (needsIncharges) qs.set('with_incharges', '1');
+    if (exportModal.value.selectedIds) {
+      qs.set('ids', exportModal.value.selectedIds.join(','));
+    } else {
+      if (dateFrom.value)   qs.set('date_from',   dateFrom.value);
+      if (dateTo.value)     qs.set('date_to',     dateTo.value);
+      if (search.value)     qs.set('search',      search.value);
+      if (userId.value)     qs.set('user_id',     userId.value);
+      if (statusId.value)   qs.set('status_id',   statusId.value);
+      if (typeId.value)     qs.set('type_id',     typeId.value);
+      if (categoryId.value) qs.set('category_id', categoryId.value);
+    }
 
     const token = localStorage.getItem('crm_token');
     const resp  = await fetch(`/api/v1/contacts/export?${qs}`, {
@@ -1603,7 +1792,7 @@ async function loadSummary() {
     const params = {
       year: summaryYear.value,
       page: summaryPage.value,
-      per_page: 50,
+      per_page: summaryPerPage.value,
       ...Object.fromEntries(Object.entries(summaryFilters.value).filter(([, v]) => v)),
     };
     const res = await api.get('/v1/summary', { params });
@@ -1627,15 +1816,70 @@ function summaryChangePage(p) {
 function summaryLastContact(c) {
   const keys = Object.keys(c.months).map(Number);
   if (!keys.length) return null;
-  return c.months[Math.max(...keys)];
+  const arr = c.months[Math.max(...keys)];
+  return Array.isArray(arr) ? arr[arr.length - 1] : arr;
 }
 
 function summaryActiveMonths(c) {
   return Object.keys(c.months).length;
 }
 
+function monthCellClass(c, m) {
+  const arr = c.months[m];
+  if (!arr?.length) return 'smc-empty';
+  return arr.some(x => x.status === 'completed') ? 'smc-active' : 'smc-cancelled';
+}
+
+// ── Summary month popover ──
+const summaryPopover = ref({ open: false, x: 0, y: 0, items: [], monthName: '', contact: null, above: false });
+let _spScrollHandler = null;
+
+function closeSummaryPopover() {
+  summaryPopover.value.open = false;
+  if (_spScrollHandler) {
+    window.removeEventListener('scroll', _spScrollHandler, { capture: true });
+    const tableScroll = document.querySelector('.table-scroll');
+    if (tableScroll) tableScroll.removeEventListener('scroll', _spScrollHandler);
+    _spScrollHandler = null;
+  }
+}
+
+async function openSummaryPopover(event, contact, month) {
+  closeSummaryPopover();
+  const rect = event.currentTarget.getBoundingClientRect();
+  summaryPopover.value = {
+    open: true,
+    x: rect.left + rect.width / 2,
+    y: rect.bottom + 10,
+    items: contact.months[month] ?? [],
+    monthName: MONTH_NAMES[month - 1],
+    contact,
+    above: false,
+  };
+  await nextTick();
+  const card = document.querySelector('.sp-card');
+  if (card) {
+    const cr = card.getBoundingClientRect();
+    // horizontal clamp
+    if (cr.right > window.innerWidth - 12) summaryPopover.value.x = window.innerWidth - 12 - cr.width / 2;
+    if (cr.left < 12) summaryPopover.value.x = 12 + cr.width / 2;
+    // flip above if not enough room below
+    if (cr.bottom > window.innerHeight - 12) {
+      summaryPopover.value.y = rect.top - cr.height - 10;
+      summaryPopover.value.above = true;
+    }
+  }
+  // close on any page or table scroll (but NOT on sp-list internal scroll)
+  _spScrollHandler = () => closeSummaryPopover();
+  window.addEventListener('scroll', _spScrollHandler, { capture: true });
+  const tableScroll = document.querySelector('.table-scroll');
+  if (tableScroll) tableScroll.addEventListener('scroll', _spScrollHandler);
+}
+
 function resetSummaryFilters() {
   summaryFilters.value = { search: '', user_id: '', status_id: '', type_id: '', category_id: '', industry_id: '' };
+  summarySuggestions.value = [];
+  summaryShowSuggestions.value = false;
   summaryPage.value = 1;
   loadSummary();
 }
@@ -1644,32 +1888,91 @@ function toggleAllSummary(e) {
   summarySelectedIds.value = e.target.checked ? summaryContacts.value.map(c => c.id) : [];
 }
 
-function exportSummary() {
+// ── Summary export ──
+const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const SUMMARY_COLS_DEF = [
+  { key: 'no',        label: 'No' },
+  { key: 'user',      label: 'User' },
+  { key: 'status',    label: 'Status' },
+  { key: 'type',      label: 'Type' },
+  { key: 'category',  label: 'Category' },
+  { key: 'industry',  label: 'Industry' },
+  { key: 'company',   label: 'Company' },
+  { key: 'last_date', label: 'Last Contact Date' },
+  { key: 'last_task', label: 'Last Contact Task' },
+  { key: 'active',    label: 'Active Months' },
+  ...MONTHS_SHORT.map((m, i) => ({ key: `m${i+1}`, label: m })),
+];
+const summaryExportModal = ref({ open: false });
+const summaryCols = ref(SUMMARY_COLS_DEF.map(c => ({ ...c, checked: true })));
+
+function getSummaryCellVal(key, c, i) {
+  const lc = summaryLastContact(c);
+  if (key === 'no')        return i + 1;
+  if (key === 'user')      return c.user ?? '—';
+  if (key === 'status')    return c.status ?? '—';
+  if (key === 'type')      return c.type ?? '—';
+  if (key === 'category')  return c.category ?? '—';
+  if (key === 'industry')  return c.industry ?? '—';
+  if (key === 'company')   return c.name;
+  if (key === 'last_date') return lc?.date ?? '—';
+  if (key === 'last_task') return lc?.task ?? '—';
+  if (key === 'active')    return `${summaryActiveMonths(c)}/12`;
+  const m = parseInt(key.slice(1));
+  if (m >= 1 && m <= 12) {
+    const arr = c.months[m];
+    if (!arr?.length) return '—';
+    return arr.map(d => `${d.date} — ${d.task} (${d.status})`).join(' | ');
+  }
+  return '';
+}
+
+function executeSummaryExport(format = 'csv') {
   const rows = summarySelectedIds.value.length
     ? summaryContacts.value.filter(c => summarySelectedIds.value.includes(c.id))
     : summaryContacts.value;
+  const cols = summaryCols.value.filter(c => c.checked);
+  if (!cols.length || !rows.length) return;
 
-  const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  const headers = ['No','User','Status','Type','Category','Industry','Company','Last Contact Date','Last Contact Task','Active Months',...MONTHS];
-  const lines = [headers];
-
-  rows.forEach((c, i) => {
-    const lc = summaryLastContact(c);
-    const monthCols = Array.from({ length: 12 }, (_, m) => {
-      const d = c.months[m + 1];
-      return d ? `${d.date} - ${d.task} (${d.status})` : '—';
+  const date = new Date().toISOString().slice(0, 10);
+  const triggerDownload = (blob, filename) => {
+    const url = URL.createObjectURL(blob);
+    const a   = document.createElement('a');
+    a.href     = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 100);
+  };
+  if (format === 'xls') {
+    const esc = v => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    const COL_WIDTHS = {
+      no: 30, user: 90, status: 80, type: 55, category: 90, industry: 90,
+      company: 200, last_date: 90, last_task: 110, active: 65,
+    };
+    let xml = '<?xml version="1.0" encoding="UTF-8"?>\n';
+    xml += '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">\n';
+    const BORDERS = '<Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1"/></Borders>';
+    xml += '<Styles>';
+    xml += `<Style ss:ID="H"><Font ss:Bold="1" ss:FontName="Arial" ss:Size="10"/><Alignment ss:Horizontal="Left" ss:Vertical="Center" ss:WrapText="0"/>${BORDERS}</Style>`;
+    xml += `<Style ss:ID="D"><Font ss:FontName="Arial" ss:Size="10"/><Alignment ss:Vertical="Top" ss:WrapText="1"/>${BORDERS}</Style>`;
+    xml += '</Styles>';
+    xml += '<Worksheet ss:Name="Summary"><Table>\n';
+    cols.forEach(c => { xml += `<Column ss:Width="${COL_WIDTHS[c.key] ?? 48}"/>`; });
+    xml += '\n<Row ss:Height="18">' + cols.map(c => `<Cell ss:StyleID="H"><Data ss:Type="String">${esc(c.label)}</Data></Cell>`).join('') + '</Row>\n';
+    rows.forEach((c, i) => {
+      xml += '<Row>' + cols.map(col => `<Cell ss:StyleID="D"><Data ss:Type="String">${esc(getSummaryCellVal(col.key, c, i))}</Data></Cell>`).join('') + '</Row>\n';
     });
-    lines.push([i + 1, c.user ?? '—', c.status ?? '—', c.type ?? '—', c.category ?? '—', c.industry ?? '—', c.name, lc?.date ?? '—', lc?.task ?? '—', `${summaryActiveMonths(c)}/12`, ...monthCols]);
-  });
-
-  const csv = '﻿' + lines.map(row => row.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement('a');
-  a.href     = url;
-  a.download = `Summary_${summaryYear.value}.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
+    xml += '</Table></Worksheet></Workbook>';
+    triggerDownload(new Blob([xml], { type: 'application/vnd.ms-excel' }), `Summary_${summaryYear.value}_${date}.xls`);
+  } else {
+    const lines = [cols.map(c => c.label)];
+    rows.forEach((c, i) => lines.push(cols.map(col => getSummaryCellVal(col.key, c, i))));
+    const csv = '﻿' + lines.map(row => row.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
+    triggerDownload(new Blob([csv], { type: 'text/csv;charset=utf-8;' }), `Summary_${summaryYear.value}_${date}.csv`);
+  }
+  summaryExportModal.value.open = false;
 }
 
 const followUpPrompt = ref({ open: false, todoId: null, count: 0, loading: false });
@@ -2372,7 +2675,6 @@ onMounted(async () => {
 table { width: 100%; border-collapse: collapse; font-size: 13px; }
 
 /* Column widths */
-.col-no       { width: 44px; text-align: center; }
 .col-date     { width: 100px; white-space: nowrap; }
 .col-user     { width: 150px; }
 .col-status   { width: 110px; }
@@ -2398,7 +2700,6 @@ thead th {
   white-space: nowrap;
 }
 thead th:last-child { border-right: none; }
-thead th.col-no { text-align: center; }
 tbody td {
   padding: 13px 14px;
   border-bottom: 1px solid var(--border-soft);
@@ -2523,7 +2824,6 @@ tbody tr:last-child td { border-bottom: none; }
 /* Summary table — scoped column widths so activity always gets room */
 .summary-table { table-layout: fixed; width: 100%; }
 .summary-table .col-check      { width: 36px; text-align: center; vertical-align: middle; }
-.summary-table .sum-no-col     { width: 44px; text-align: center; vertical-align: middle; }
 .summary-table .sum-user-col   { width: 110px; vertical-align: middle; }
 .summary-table .sum-status-col { width: 110px; vertical-align: middle; }
 .summary-table .sum-name-col   { width: 230px; vertical-align: middle; word-break: break-word; }
@@ -2573,19 +2873,19 @@ tbody tr:last-child td { border-bottom: none; }
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 7px 4px;
+  padding: 8px 4px 7px;
   border-radius: 8px;
   text-align: center;
   gap: 3px;
-  min-height: 58px;
+  min-height: 68px;
   min-width: 0;
   cursor: default;
   transition: transform 0.12s, box-shadow 0.12s;
 }
-.sum-month-cell:hover { transform: scale(1.07); box-shadow: 0 3px 10px -2px rgba(0,0,0,0.15); z-index: 1; position: relative; }
-.smc-empty    { background: var(--surface-2); border: 1px solid var(--border-soft); }
-.smc-active   { background: var(--success-soft); border: 1.5px solid var(--success); }
-.smc-cancelled { background: #fef3c7; border: 1.5px solid #fbbf24; }
+.sum-month-cell:hover { transform: scale(1.08); box-shadow: 0 4px 12px -2px rgba(0,0,0,0.18); z-index: 1; position: relative; }
+.smc-empty    { background: var(--surface-2); border: 1px solid var(--border-soft); opacity: 0.55; }
+.smc-active   { background: #bbf7d0; border: 2px solid #16a34a; box-shadow: 0 2px 8px -2px rgba(22,163,74,0.3); }
+.smc-cancelled { background: #fde68a; border: 2px solid #d97706; box-shadow: 0 2px 8px -2px rgba(217,119,6,0.25); }
 .smc-name {
   font-size: 9.5px;
   font-weight: 700;
@@ -2594,26 +2894,32 @@ tbody tr:last-child td { border-bottom: none; }
   line-height: 1;
 }
 .smc-empty .smc-name { color: var(--text-3); }
-.smc-active .smc-name { color: var(--success); }
-.smc-cancelled .smc-name { color: #d97706; }
+.smc-active .smc-name { color: #15803d; font-weight: 800; }
+.smc-cancelled .smc-name { color: #b45309; font-weight: 800; }
 .smc-date {
-  font-size: 10.5px;
+  font-size: 11px;
   font-weight: 800;
   line-height: 1.2;
 }
-.smc-active .smc-date { color: var(--success); }
-.smc-cancelled .smc-date { color: #d97706; }
+.smc-active .smc-date { color: #14532d; }
+.smc-cancelled .smc-date { color: #92400e; }
 .smc-task {
   font-size: 9px;
-  font-weight: 600;
+  font-weight: 700;
   line-height: 1.2;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 100%;
 }
-.smc-active .smc-task { color: #065f46; }
-.smc-cancelled .smc-task { color: #92400e; }
+.smc-active .smc-task { color: #166534; }
+.smc-cancelled .smc-task { color: #78350f; }
+.smc-count {
+  font-size: 9px; font-weight: 800; line-height: 1;
+  background: rgba(0,0,0,0.18); color: inherit;
+  border-radius: 99px; padding: 1px 5px;
+  display: inline-block; margin-bottom: 1px;
+}
 
 /* Tasks tab */
 .task-company-btn {
@@ -2696,6 +3002,14 @@ tbody tr:last-child td { border-bottom: none; }
 .page-num:hover { background: #e5eeff; }
 .page-num--on { background: var(--primary, #1d4ed8); color: #fff; font-weight: 700; }
 .page-ellipsis { width: 32px; text-align: center; color: var(--text-3); font-size: 13px; line-height: 32px; }
+.sum-pager-rows { display: flex; align-items: center; gap: 6px; }
+.sum-pager-label { font-size: 11px; font-weight: 700; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.06em; white-space: nowrap; }
+.sum-pager-sel {
+  height: 30px; padding: 0 10px; border: 1px solid var(--border); border-radius: 999px;
+  font-size: 12px; background: var(--surface); color: var(--text-1); outline: none; cursor: pointer;
+  transition: border-color 0.15s;
+}
+.sum-pager-sel:focus { border-color: var(--primary); }
 /* Empty state */
 .empty-state { text-align: center; padding: 64px 24px; }
 .empty-icon  { display: flex; align-items: center; justify-content: center; margin-bottom: 12px; opacity: 0.7; }
@@ -3589,4 +3903,131 @@ tbody tr:last-child td { border-bottom: none; }
 .conf-delete { height: 38px; padding: 0 18px; background: var(--danger); color: #fff; border: none; border-radius: var(--radius-sm); font-size: 13px; font-weight: 700; cursor: pointer; }
 .conf-delete:hover:not(:disabled) { background: #b91c1c; }
 .conf-delete:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ── Tab panel transition ── */
+.tab-panel { width: 100%; }
+.tab-fade-enter-active {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+.tab-fade-leave-active {
+  transition: opacity 0.1s ease;
+}
+.tab-fade-enter-from {
+  opacity: 0;
+  transform: translateY(8px);
+}
+.tab-fade-leave-to {
+  opacity: 0;
+}
+
+/* ── Modal open animation (all remark-overlay and conf-overlay modals) ── */
+@keyframes overlay-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes modal-spring-in {
+  from { opacity: 0; transform: scale(0.92) translateY(10px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+.remark-overlay {
+  animation: overlay-fade-in 0.18s ease;
+}
+.remark-overlay > * {
+  animation: modal-spring-in 0.26s cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+.conf-overlay {
+  animation: overlay-fade-in 0.18s ease;
+}
+.conf-overlay > * {
+  animation: modal-spring-in 0.26s cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+
+/* ── Summary month popover ── */
+.sp-backdrop {
+  position: fixed; inset: 0; z-index: 9998;
+}
+.sp-card {
+  position: fixed; z-index: 9999;
+  transform: translateX(-50%);
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg, 14px);
+  box-shadow: 0 12px 40px -6px rgba(0,0,0,0.22), 0 3px 10px -3px rgba(0,0,0,0.12);
+  width: 320px; max-width: calc(100vw - 24px);
+  overflow: hidden;
+}
+.sp-card--below { animation: sp-slide-down 0.18s cubic-bezier(0.34, 1.4, 0.64, 1); }
+.sp-card--above { animation: sp-slide-up 0.18s cubic-bezier(0.34, 1.4, 0.64, 1); }
+@keyframes sp-slide-down {
+  from { opacity: 0; transform: translateX(-50%) translateY(-8px) scale(0.95); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+}
+@keyframes sp-slide-up {
+  from { opacity: 0; transform: translateX(-50%) translateY(8px) scale(0.95); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+}
+.sp-header {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 10px;
+  padding: 13px 14px 11px;
+  border-bottom: 1px solid var(--border-soft);
+  background: var(--surface-2);
+}
+.sp-header-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1; }
+.sp-header-row  { display: flex; align-items: center; gap: 7px; }
+.sp-month-title { font-size: 13.5px; font-weight: 800; color: var(--text-1); letter-spacing: 0.3px; }
+.sp-count-pill  {
+  font-size: 10px; font-weight: 700; color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 12%, transparent);
+  border-radius: 99px; padding: 2px 7px; white-space: nowrap;
+}
+.sp-company-name { font-size: 11.5px; color: var(--text-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sp-close {
+  flex-shrink: 0; width: 26px; height: 26px; display: flex; align-items: center; justify-content: center;
+  background: none; border: none; cursor: pointer; color: var(--text-3); border-radius: var(--radius-sm);
+}
+.sp-close:hover { background: var(--border-soft); color: var(--text-1); }
+.sp-list {
+  padding: 8px 0; display: flex; flex-direction: column;
+  max-height: 260px; overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.sp-list::-webkit-scrollbar { width: 4px; }
+.sp-list::-webkit-scrollbar-track { background: transparent; }
+.sp-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 99px; }
+.sp-item { padding: 0 14px; }
+.sp-item + .sp-item { border-top: 1px solid var(--border-soft); }
+.sp-item-inner { padding: 10px 0; }
+.sp-item-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 4px;
+}
+.sp-item-left  { display: flex; align-items: center; gap: 6px; }
+.sp-index {
+  font-size: 9.5px; font-weight: 800; color: var(--text-3);
+  background: var(--surface-2); border: 1px solid var(--border-soft);
+  border-radius: 99px; width: 18px; height: 18px;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.sp-date  { font-size: 12px; font-weight: 700; color: var(--text-1); }
+.sp-status-badge {
+  font-size: 10px; font-weight: 700; text-transform: capitalize;
+  border-radius: 99px; padding: 2px 8px; flex-shrink: 0;
+}
+.sp-badge-completed { background: #d1fae5; color: #065f46; }
+.sp-badge-cancelled { background: #fef3c7; color: #92400e; }
+.sp-task {
+  font-size: 12.5px; font-weight: 600; color: var(--text-2);
+  display: block; margin-bottom: 4px; padding-left: 24px;
+}
+.sp-remark {
+  font-size: 11.5px; color: var(--text-3); margin: 0;
+  padding: 6px 10px; padding-left: 24px;
+  line-height: 1.55; white-space: pre-wrap;
+  border-left: 2px solid var(--border); margin-left: 24px;
+  background: var(--surface-2); border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+.sp-scroll-hint {
+  font-size: 11px; color: var(--text-3); text-align: center;
+  padding: 7px 14px; border-top: 1px solid var(--border-soft);
+  background: var(--surface-2); letter-spacing: 0.2px;
+}
 </style>

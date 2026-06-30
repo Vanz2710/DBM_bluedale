@@ -24,7 +24,7 @@
     </div>
 
     <div v-if="selectedIds.length > 0" class="selection-bar">
-      <button class="btn-export-sel" @click="exportSelected">Export {{ selectedIds.length }} selected</button>
+      <button class="btn-export-sel" @click="openExportModal(true)">Export {{ selectedIds.length }} selected</button>
       <span>{{ selectedIds.length }} record(s) selected</span>
     </div>
 
@@ -80,7 +80,7 @@
         <input type="text" v-model="search" @keyup.enter="load" placeholder="Company name…">
       </div>
       <button class="btn btn-primary" @click="load">Search</button>
-      <button class="btn btn-export" @click="exportAll">Export</button>
+      <button class="btn btn-export" @click="openExportModal()">Export</button>
     </div>
 
     <div class="table-wrap">
@@ -95,8 +95,7 @@
         <table>
           <colgroup>
             <col style="width:34px">    <!-- checkbox -->
-            <col style="width:44px">    <!-- no -->
-            <col style="width:108px">   <!-- date -->
+            <col style="width:126px">   <!-- date -->
             <col style="width:112px">   <!-- action type -->
             <col>                       <!-- company -->
             <col style="width:120px">   <!-- status -->
@@ -109,7 +108,6 @@
           <thead>
             <tr>
               <th><input type="checkbox" @change="toggleAll" ref="selectAllRef"></th>
-              <th>No</th>
               <th>Follow-Up Date</th>
               <th class="th-filter">
                 <div class="col-head">
@@ -155,11 +153,10 @@
           </thead>
           <tbody>
             <tr v-if="followUps.length === 0">
-              <td colspan="11" class="empty-state">No follow-ups found for this period.</td>
+              <td colspan="10" class="empty-state">No follow-ups found for this period.</td>
             </tr>
             <tr v-for="(f, idx) in followUps" :key="f.id" :class="{ 'row-done': f.completion_status === 'completed', 'row-cancelled': f.completion_status === 'cancelled' }">
               <td><input type="checkbox" :value="f.id" v-model="selectedIds"></td>
-              <td><span class="row-num">{{ meta.from ? meta.from + idx : idx + 1 }}</span></td>
               <td><span class="date-text">{{ f.followup_date }}</span></td>
               <td>
                 <span v-if="f.action_type" class="action-chip">{{ f.action_type }}</span>
@@ -219,6 +216,61 @@
         </div>
       </div>
     </div>
+
+    <!-- Export Modal -->
+    <Teleport to="body">
+      <div v-if="exportModal.open" class="remark-overlay" @mousedown.self="exportModal.open = false">
+        <div class="export-modal">
+          <div class="export-modal-header">
+            <div>
+              <strong class="export-modal-title">Export Follow-Ups</strong>
+              <p class="export-modal-sub">Pick what to include, then download.</p>
+            </div>
+            <button class="remark-close" @click="exportModal.open = false" v-html="CI.x"></button>
+          </div>
+          <div class="export-modal-body">
+            <div class="export-section">
+              <div class="export-cols-head">
+                <span class="export-section-label">Columns to include</span>
+                <div class="export-cols-actions">
+                  <button class="export-link-btn" @click="exportCols.forEach(c => c.checked = true)">All</button>
+                  <span class="export-dot-sep">·</span>
+                  <button class="export-link-btn" @click="exportCols.forEach(c => c.checked = false)">None</button>
+                </div>
+              </div>
+              <div class="export-cols-grid">
+                <label v-for="col in exportCols" :key="col.key" class="export-col-check">
+                  <input type="checkbox" v-model="col.checked">
+                  <span>{{ col.label }}</span>
+                </label>
+              </div>
+            </div>
+          </div>
+          <div class="export-modal-footer">
+            <p class="export-footer-count">
+              Will export <strong>{{ exportRowCount }}</strong> × <strong>{{ exportCols.filter(c => c.checked).length }}</strong> column(s)
+            </p>
+            <div class="export-action-stack">
+              <button class="export-dl-btn export-dl-xls" :disabled="exportModal.loading || exportCols.every(c => !c.checked)" @click="executeExport('xls')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="export-dl-icon"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                <span class="export-dl-text">
+                  <span class="export-dl-label">{{ exportModal.loading ? 'Exporting…' : 'Download Excel' }}</span>
+                  <span class="export-dl-desc">Formatted with borders &amp; column widths</span>
+                </span>
+              </button>
+              <button class="export-dl-btn export-dl-csv" :disabled="exportModal.loading || exportCols.every(c => !c.checked)" @click="executeExport('csv')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="export-dl-icon"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                <span class="export-dl-text">
+                  <span class="export-dl-label">Download CSV</span>
+                  <span class="export-dl-desc">Plain text, opens in any spreadsheet app</span>
+                </span>
+              </button>
+              <button class="export-cancel-btn" @click="exportModal.open = false">Cancel</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Teleport>
 
     <!-- Add Follow-Up Modal -->
     <div v-if="addModal.open" class="remark-overlay">
@@ -569,11 +621,11 @@ function buildParams() {
     p.from_date = fromDate.value;
     p.to_date   = toDate.value;
   }
-  if (actionType.value)       p.action_type       = actionType.value;
+  const effectiveActionType = colActionFilter.value || actionType.value;
+  if (effectiveActionType)    p.action_type       = effectiveActionType;
   if (completionStatus.value) p.completion_status = completionStatus.value;
   if (search.value)           p.search            = search.value;
   if (todoFilter.value)       p.todo_id           = todoFilter.value;
-  if (colActionFilter.value)  p.action_type       = colActionFilter.value;
   if (colStatusFilter.value)  p.status_id         = colStatusFilter.value;
   if (colTypeFilter.value)    p.type_id           = colTypeFilter.value;
   if (colTaskFilter.value)    p.task_id           = colTaskFilter.value;
@@ -609,17 +661,63 @@ function toggleAll(e) {
   selectedIds.value = e.target.checked ? followUps.value.map(f => f.id) : [];
 }
 
-function exportAll() {
-  const token = localStorage.getItem('crm_token');
-  const p = buildParams();
-  const qs = new URLSearchParams({ ...p, _token: token }).toString();
-  window.location.href = `/api/v1/followups/export?${qs}`;
+// ── Export ──
+const EXPORT_COLUMNS = [
+  { key: 'no',            label: 'No' },
+  { key: 'followup_date', label: 'Follow-Up Date' },
+  { key: 'action_type',   label: 'Action Type' },
+  { key: 'company',       label: 'Company' },
+  { key: 'status',        label: 'Status' },
+  { key: 'type',          label: 'Type' },
+  { key: 'user',          label: 'User' },
+  { key: 'task',          label: 'Task' },
+  { key: 'note',          label: 'Note' },
+];
+const exportModal = ref({ open: false, loading: false, selectedIds: null });
+const exportCols  = ref(EXPORT_COLUMNS.map(c => ({ ...c, checked: true })));
+const exportRowCount = computed(() =>
+  exportModal.value.selectedIds ? `${exportModal.value.selectedIds.length} selected` : 'all filtered'
+);
+
+function openExportModal(selectedOnly = false) {
+  exportModal.value = {
+    open: true,
+    loading: false,
+    selectedIds: selectedOnly && selectedIds.value.length ? [...selectedIds.value] : null,
+  };
 }
 
-function exportSelected() {
-  const token = localStorage.getItem('crm_token');
-  const ids   = selectedIds.value.join(',');
-  window.location.href = `/api/v1/followups/export?ids=${ids}&_token=${token}`;
+async function executeExport(format = 'xls') {
+  const cols = exportCols.value.filter(c => c.checked);
+  if (!cols.length) return;
+  exportModal.value.loading = true;
+  try {
+    const params = new URLSearchParams({ cols: cols.map(c => c.key).join(','), format });
+    if (exportModal.value.selectedIds) {
+      params.set('ids', exportModal.value.selectedIds.join(','));
+    } else {
+      Object.entries(buildParams()).forEach(([k, v]) => { if (v !== '' && v != null) params.set(k, v); });
+    }
+    const token = localStorage.getItem('crm_token');
+    const resp  = await fetch(`/api/v1/followups/export?${params}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!resp.ok) throw new Error(`Server error ${resp.status}`);
+    const blob = await resp.blob();
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = `FollowUp_Export_${new Date().toISOString().slice(0, 10)}.${format}`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 500);
+    exportModal.value.open = false;
+  } catch (err) {
+    console.error('[Export]', err);
+  } finally {
+    exportModal.value.loading = false;
+  }
 }
 
 function confirmDelete(f) {
@@ -1057,4 +1155,57 @@ tbody tr:hover { background: var(--surface-2); }
 }
 .btn-followup-submit:disabled { background: #94a3b8; cursor: not-allowed; }
 .req { color: #ef4444; }
+
+/* ── Export modal ── */
+.export-modal {
+  background: var(--surface); border-radius: var(--radius-xl, 14px);
+  width: 480px; max-width: 95vw; max-height: 90vh;
+  display: flex; flex-direction: column; box-shadow: var(--shadow-lg);
+  border: 1px solid var(--border-soft); overflow: hidden;
+}
+.export-modal-header {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  padding: 20px 24px; border-bottom: 1px solid var(--border-soft); flex-shrink: 0;
+}
+.export-modal-title { font-size: 17px; font-weight: 800; color: var(--text-1); }
+.export-modal-sub   { font-size: 12.5px; color: var(--text-3); margin: 3px 0 0; }
+.export-modal-body  { padding: 20px 24px; display: flex; flex-direction: column; gap: 18px; overflow-y: auto; flex: 1 1 auto; min-height: 0; }
+.export-modal-footer { display: flex; flex-direction: column; gap: 12px; padding: 16px 24px; border-top: 1px solid var(--border-soft); flex-shrink: 0; }
+.export-footer-count { font-size: 13px; color: var(--text-3); margin: 0; }
+.export-footer-count strong { color: var(--primary); }
+.export-action-stack { display: flex; flex-direction: column; gap: 10px; }
+.export-dl-btn { width: 100%; display: flex; align-items: flex-start; gap: 14px; padding: 14px 18px; border-radius: var(--radius); border: none; cursor: pointer; text-align: left; transition: opacity 0.15s, transform 0.08s; }
+.export-dl-btn:hover:not(:disabled) { opacity: 0.88; transform: translateY(-1px); }
+.export-dl-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.export-dl-icon { width: 20px; height: 20px; flex-shrink: 0; margin-top: 2px; }
+.export-dl-text { display: flex; flex-direction: column; gap: 2px; }
+.export-dl-label { font-size: 14px; font-weight: 700; line-height: 1.2; }
+.export-dl-desc  { font-size: 12px; opacity: 0.82; line-height: 1.3; }
+.export-dl-xls { background: #10b981; color: #fff; }
+.export-dl-csv { background: var(--surface); border: 1.5px solid var(--border) !important; color: var(--text-1); }
+.export-cancel-btn { width: 100%; padding: 10px 16px; background: none; border: 1px solid var(--border-soft); border-radius: var(--radius); font-size: 13px; font-weight: 600; color: var(--text-3); cursor: pointer; transition: background 0.12s, color 0.12s; }
+.export-cancel-btn:hover { background: var(--border-soft); color: var(--text-2); }
+.export-section { display: flex; flex-direction: column; gap: 10px; }
+.export-section-label { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; color: var(--text-3); }
+.export-cols-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 2px; }
+.export-cols-actions { display: flex; align-items: center; gap: 4px; }
+.export-link-btn { background: none; border: none; cursor: pointer; font-size: 12px; font-weight: 600; color: var(--primary); padding: 2px 4px; border-radius: 4px; }
+.export-link-btn:hover { text-decoration: underline; }
+.export-dot-sep { color: var(--text-3); font-size: 12px; }
+.export-cols-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px 12px; }
+.export-col-check { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; color: var(--text-2); font-weight: 500; padding: 6px 10px; border-radius: var(--radius-sm, 6px); border: 1px solid var(--border-soft); transition: background 0.12s, border-color 0.12s; }
+.export-col-check:hover { background: var(--primary-soft, #dbeafe); border-color: var(--primary); }
+.export-col-check input[type="checkbox"] { accent-color: var(--primary); width: 14px; height: 14px; flex-shrink: 0; cursor: pointer; }
+
+/* ── Modal open animation ── */
+@keyframes overlay-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes modal-spring-in {
+  from { opacity: 0; transform: scale(0.92) translateY(10px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+.remark-overlay { animation: overlay-fade-in 0.18s ease; }
+.remark-overlay > * { animation: modal-spring-in 0.26s cubic-bezier(0.34, 1.4, 0.64, 1); }
 </style>

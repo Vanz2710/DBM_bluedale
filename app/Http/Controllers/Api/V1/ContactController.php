@@ -146,6 +146,18 @@ class ContactController extends Controller
         if ($withIncharges) {
             $query->with('incharges');
         }
+        if ($ids = $request->input('ids')) {
+            $idArr = array_values(array_filter(array_map('intval', explode(',', $ids))));
+            if (!empty($idArr)) $query->whereIn('id', $idArr);
+        } else {
+            if ($v = $request->input('date_from'))   $query->whereDate('created_at', '>=', $v);
+            if ($v = $request->input('date_to'))     $query->whereDate('created_at', '<=', $v);
+            if ($v = $request->input('search'))      $query->where('name', 'like', "%{$v}%");
+            if ($v = $request->input('user_id'))     $query->where('user_id', $v);
+            if ($v = $request->input('status_id'))   $query->where('status_id', $v);
+            if ($v = $request->input('type_id'))     $query->where('type_id', $v);
+            if ($v = $request->input('category_id')) $query->where('category_id', $v);
+        }
         $query->orderBy('created_at', $sort);
 
         $format   = $request->input('format') === 'csv' ? 'csv' : 'xls';

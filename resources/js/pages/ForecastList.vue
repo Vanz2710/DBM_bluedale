@@ -71,6 +71,7 @@
       </div>
       <button class="btn btn-primary" @click="applyFilters">Search</button>
       <button class="btn btn-clear" @click="resetFilters">Reset</button>
+      <button class="btn btn-export" @click="openExportModal">{{ selectedIds.size > 0 ? `Export (${selectedIds.size})` : 'Export' }}</button>
     </div>
 
     <div class="table-wrap">
@@ -83,10 +84,6 @@
           <span class="fstat-chip"><strong>{{ fmtValue(summary.total_amount) }}</strong><small>Total</small></span>
           <span class="fstat-chip fstat-confirmed"><strong>{{ fmtValue(summary.confirmed_amount) }}</strong><small>Confirmed</small></span>
           <span class="fstat-chip fstat-pending"><strong>{{ fmtValue(summary.pending_amount) }}</strong><small>Pending</small></span>
-          <button v-if="selectedIds.size > 0" class="btn-export-sel" @click="exportSelected">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            Export Selected ({{ selectedIds.size }})
-          </button>
         </div>
       </div>
 
@@ -95,7 +92,6 @@
         <table>
           <colgroup>
             <col style="width:36px">    <!-- checkbox -->
-            <col style="width:44px">    <!-- no -->
             <col>                        <!-- company -->
             <col style="width:110px">   <!-- product -->
             <col style="width:92px">    <!-- type -->
@@ -110,7 +106,6 @@
           <thead>
             <tr>
               <th class="th-check"><input type="checkbox" class="row-cb" :checked="allSelected" :indeterminate.prop="someSelected" @change="toggleAll"></th>
-              <th>No</th>
               <th>Company</th>
               <th>Product</th>
               <th>Type</th>
@@ -125,11 +120,10 @@
           </thead>
           <tbody>
             <tr v-if="forecasts.length === 0">
-              <td colspan="12" class="empty-state">No forecasts found.</td>
+              <td colspan="11" class="empty-state">No forecasts found.</td>
             </tr>
             <tr v-for="(f, idx) in forecasts" :key="f.id">
               <td class="td-check"><input type="checkbox" class="row-cb" :checked="selectedIds.has(f.id)" @change="toggleSelect(f.id)"></td>
-              <td><span class="row-num">{{ (meta.from ?? 1) + idx }}</span></td>
               <td class="td-company">
                 <router-link v-if="f.contact_id" :to="`/contacts/${f.contact_id}`" class="company-link">{{ f.contact_name }}</router-link>
                 <span v-else class="muted">—</span>
@@ -196,6 +190,61 @@
           <div class="conf-foot">
             <button class="conf-cancel" @click="deleteTarget = null">Cancel</button>
             <button class="conf-delete" @click="doDelete" :disabled="deleting">{{ deleting ? 'Deleting…' : 'Delete' }}</button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
+    <!-- Export Modal -->
+    <Teleport to="body">
+      <div v-if="exportModal.open" class="remark-overlay" @mousedown.self="exportModal.open = false">
+        <div class="export-modal">
+          <div class="export-modal-header">
+            <div>
+              <strong class="export-modal-title">Export Forecasts</strong>
+              <p class="export-modal-sub">Pick what to include, then download.</p>
+            </div>
+            <button class="remark-close" @click="exportModal.open = false"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+          </div>
+          <div class="export-modal-body">
+            <div class="export-section">
+              <div class="export-cols-head">
+                <span class="export-section-label">Columns to include</span>
+                <div class="export-cols-actions">
+                  <button class="export-link-btn" @click="exportCols.forEach(c => c.checked = true)">All</button>
+                  <span class="export-dot-sep">·</span>
+                  <button class="export-link-btn" @click="exportCols.forEach(c => c.checked = false)">None</button>
+                </div>
+              </div>
+              <div class="export-cols-grid">
+                <label v-for="col in exportCols" :key="col.key" class="export-col-check">
+                  <input type="checkbox" v-model="col.checked">
+                  <span>{{ col.label }}</span>
+                </label>
+              </div>
+            </div>
+          </div>
+          <div class="export-modal-footer">
+            <p class="export-footer-count">
+              Will export <strong>{{ exportRowCount }}</strong> forecast(s) × <strong>{{ exportCols.filter(c => c.checked).length }}</strong> column(s)
+            </p>
+            <div class="export-action-stack">
+              <button class="export-dl-btn export-dl-xls" :disabled="exportCols.every(c => !c.checked)" @click="executeExport('xls')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="export-dl-icon" stroke-linecap="round" stroke-linejoin="round"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                <span class="export-dl-text">
+                  <span class="export-dl-label">Download Excel</span>
+                  <span class="export-dl-desc">Formatted with borders &amp; column widths</span>
+                </span>
+              </button>
+              <button class="export-dl-btn export-dl-csv" :disabled="exportCols.every(c => !c.checked)" @click="executeExport('csv')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="export-dl-icon" stroke-linecap="round" stroke-linejoin="round"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                <span class="export-dl-text">
+                  <span class="export-dl-label">Download CSV</span>
+                  <span class="export-dl-desc">Plain text, opens in any spreadsheet app</span>
+                </span>
+              </button>
+              <button class="export-cancel-btn" @click="exportModal.open = false">Cancel</button>
+            </div>
           </div>
         </div>
       </div>
@@ -359,23 +408,102 @@ function openEdit(id)    { formModal.value = { open: true, mode: 'edit', forecas
 function closeFormModal(){ formModal.value.open = false; }
 function onFormSaved()   { closeFormModal(); load(); loadSummary(); }
 
-function exportSelected() {
-  const rows = forecasts.value.filter(f => selectedIds.value.has(f.id));
+const FORECAST_EXPORT_COLUMNS = [
+  { key: 'no',                  label: 'No' },
+  { key: 'contact_name',        label: 'Company' },
+  { key: 'product_name',        label: 'Product' },
+  { key: 'forecast_type_name',  label: 'Type' },
+  { key: 'contact_status_name', label: 'Contact Status' },
+  { key: 'contact_type_name',   label: 'Contact Type' },
+  { key: 'amount',              label: 'Amount' },
+  { key: 'forecast_date',       label: 'Forecast Date' },
+  { key: 'result_name',         label: 'Result' },
+  { key: 'user_name',           label: 'Assigned' },
+  { key: 'forecast_updatedate', label: 'Updated' },
+];
+
+const exportModal = ref({ open: false });
+const exportCols  = ref(FORECAST_EXPORT_COLUMNS.map(c => ({ ...c, checked: true })));
+const exportRowCount = computed(() =>
+  selectedIds.value.size > 0 ? selectedIds.value.size : forecasts.value.length
+);
+
+function openExportModal() { exportModal.value.open = true; }
+
+function getCellVal(key, f, i) {
+  switch (key) {
+    case 'no':                  return i + 1;
+    case 'contact_name':        return f.contact_name ?? '—';
+    case 'product_name':        return f.product_name ?? '—';
+    case 'forecast_type_name':  return f.forecast_type_name ?? '—';
+    case 'contact_status_name': return f.contact_status_name ?? '—';
+    case 'contact_type_name':   return f.contact_type_name ?? '—';
+    case 'amount':              return f.amount ?? 0;
+    case 'forecast_date':       return fmtDate(f.forecast_date);
+    case 'result_name':         return f.result_name ?? 'No Result';
+    case 'user_name':           return f.user_name ?? '—';
+    case 'forecast_updatedate': return fmtDate(f.forecast_updatedate);
+    default:                    return '';
+  }
+}
+
+function executeExport(format = 'csv') {
+  const rows = selectedIds.value.size > 0
+    ? forecasts.value.filter(f => selectedIds.value.has(f.id))
+    : forecasts.value;
   if (!rows.length) return;
-  const esc = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
-  const headers = ['No','Company','Product','Type','Contact Status','Contact Type','Amount','Forecast Date','Result','Assigned','Updated'];
-  const lines = [headers.join(',')];
-  rows.forEach((f, i) => lines.push([
-    i + 1, esc(f.contact_name), esc(f.product_name), esc(f.forecast_type_name),
-    esc(f.contact_status_name), esc(f.contact_type_name), f.amount ?? 0,
-    fmtDate(f.forecast_date), esc(f.result_name ?? 'No Result'), esc(f.user_name), fmtDate(f.forecast_updatedate),
-  ].join(',')));
-  const blob = new Blob(['﻿' + lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a'); a.href = url;
-  a.download = `Forecast_Export_${new Date().toISOString().slice(0,10)}.csv`;
-  document.body.appendChild(a); a.click(); document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  const cols = exportCols.value.filter(c => c.checked);
+  if (!cols.length) return;
+
+  const date = new Date().toISOString().slice(0, 10);
+
+  const triggerDownload = (blob, filename) => {
+    const url = URL.createObjectURL(blob);
+    const a   = document.createElement('a');
+    a.href     = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 100);
+  };
+
+  if (format === 'xls') {
+    const esc = v => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    const NUMERIC_KEYS = new Set(['no', 'amount']);
+    const COL_WIDTHS = {
+      no: 30, contact_name: 190, product_name: 110, forecast_type_name: 90,
+      contact_status_name: 100, contact_type_name: 80, amount: 75,
+      forecast_date: 90, result_name: 90, user_name: 90, forecast_updatedate: 90,
+    };
+    let xml = '<?xml version="1.0" encoding="UTF-8"?>\n';
+    xml += '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">\n';
+    const B = '<Border ss:LineStyle="Continuous" ss:Weight="1"/>';
+    const BORDERS = `<Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1"/></Borders>`;
+    xml += '<Styles>';
+    xml += `<Style ss:ID="H"><Font ss:Bold="1" ss:FontName="Arial" ss:Size="10"/><Alignment ss:Horizontal="Left" ss:Vertical="Center" ss:WrapText="0"/>${BORDERS}</Style>`;
+    xml += `<Style ss:ID="D"><Font ss:FontName="Arial" ss:Size="10"/><Alignment ss:Vertical="Top" ss:WrapText="1"/>${BORDERS}</Style>`;
+    xml += `<Style ss:ID="N"><Font ss:FontName="Arial" ss:Size="10"/><Alignment ss:Horizontal="Right" ss:Vertical="Top"/>${BORDERS}</Style>`;
+    xml += '</Styles>';
+    xml += '<Worksheet ss:Name="Forecasts"><Table>\n';
+    cols.forEach(c => { xml += `<Column ss:Width="${COL_WIDTHS[c.key] ?? 100}"/>`; });
+    xml += '\n<Row ss:Height="18">' + cols.map(c => `<Cell ss:StyleID="H"><Data ss:Type="String">${esc(c.label)}</Data></Cell>`).join('') + '</Row>\n';
+    rows.forEach((f, i) => {
+      xml += '<Row>' + cols.map(c => {
+        const v = getCellVal(c.key, f, i);
+        const isNum = NUMERIC_KEYS.has(c.key) && v !== '' && v !== '—' && !isNaN(Number(v));
+        return `<Cell ss:StyleID="${isNum ? 'N' : 'D'}"><Data ss:Type="${isNum ? 'Number' : 'String'}">${isNum ? v : esc(v)}</Data></Cell>`;
+      }).join('') + '</Row>\n';
+    });
+    xml += '</Table></Worksheet></Workbook>';
+    triggerDownload(new Blob([xml], { type: 'application/vnd.ms-excel' }), `Forecast_Export_${date}.xls`);
+  } else {
+    const lines = [cols.map(c => c.label)];
+    rows.forEach((f, i) => lines.push(cols.map(c => getCellVal(c.key, f, i))));
+    const csv = '﻿' + lines.map(row => row.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
+    triggerDownload(new Blob([csv], { type: 'text/csv;charset=utf-8;' }), `Forecast_Export_${date}.csv`);
+  }
+  exportModal.value.open = false;
 }
 
 async function doDelete() {
@@ -395,7 +523,7 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.page { padding: 28px 28px 48px; max-width: 1500px; margin: 0 auto; }
+.page { padding: 28px 32px; max-width: 1500px; margin: 0 auto; }
 .page-embedded { padding: 0; max-width: none; }
 .page-head-embedded { margin-bottom: 14px; }
 
@@ -455,6 +583,8 @@ onMounted(async () => {
 .btn-primary:hover { background: var(--primary-hover); }
 .btn-clear { background: var(--surface); color: var(--text-2); border: 1px solid var(--border); }
 .btn-clear:hover { background: var(--danger-soft); color: var(--danger); border-color: var(--danger-soft); }
+.btn-export { background: #10b981; color: #fff; border: none; }
+.btn-export:hover { background: #059669; }
 
 /* Table */
 .table-wrap { background: var(--surface); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); border: 1px solid var(--border-soft); overflow: hidden; }
@@ -477,7 +607,7 @@ onMounted(async () => {
 .fstat-confirmed strong { color: #15803d; }
 .fstat-pending { background: #fef3c7; }
 .fstat-pending strong { color: #b45309; }
-.table-scroll { overflow-x: hidden; }
+.table-scroll { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; font-size: 12px; table-layout: fixed; }
 thead th {
   background: var(--surface-2); color: var(--text-2); font-size: 11px; font-weight: 700;
@@ -516,15 +646,6 @@ tbody tr:hover { background: var(--surface-2); }
 .snapshot small { font-size: 11px; color: var(--text-3); }
 .th-check, .td-check { text-align: center; padding: 0 !important; }
 .row-cb { width: 15px; height: 15px; cursor: pointer; accent-color: var(--primary); }
-.btn-export-sel {
-  display: inline-flex; align-items: center; gap: 6px;
-  height: 30px; padding: 0 14px;
-  background: var(--primary-soft); color: var(--primary-text);
-  border: 1px solid var(--primary); border-radius: 999px;
-  font-size: 12px; font-weight: 700; cursor: pointer;
-  transition: background 0.15s;
-}
-.btn-export-sel:hover { background: var(--primary); color: var(--primary-on); }
 .icon-btn {
   display: inline-flex; align-items: center; justify-content: center;
   width: 30px; height: 30px; border-radius: var(--radius-sm); font-size: 14px;
@@ -590,14 +711,55 @@ tbody tr:hover { background: var(--surface-2); }
 .conf-delete:hover:not(:disabled) { background: #b91c1c; }
 .conf-delete:disabled { opacity: 0.5; cursor: not-allowed; }
 
+/* Export modal */
+.export-modal { background: var(--surface); border-radius: var(--radius-xl, 14px); box-shadow: 0 24px 60px rgba(0,0,0,0.18); width: min(520px, calc(100vw - 48px)); max-height: calc(100vh - 64px); display: flex; flex-direction: column; overflow: hidden; }
+.export-modal-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 22px 24px 18px; border-bottom: 1px solid var(--border-soft); flex-shrink: 0; }
+.export-modal-title { font-size: 17px; font-weight: 800; color: var(--text-1); }
+.export-modal-sub   { font-size: 12.5px; color: var(--text-3); margin: 3px 0 0; }
+.export-modal-body  { padding: 20px 24px; display: flex; flex-direction: column; gap: 18px; overflow-y: auto; flex: 1 1 auto; min-height: 0; }
+.export-modal-footer { display: flex; flex-direction: column; gap: 12px; padding: 16px 24px 20px; border-top: 1px solid var(--border-soft); background: var(--surface-2, #f8f9ff); flex-shrink: 0; }
+.export-footer-count { font-size: 13px; color: var(--text-3); margin: 0; }
+.export-footer-count strong { color: var(--primary); }
+.export-action-stack { display: flex; flex-direction: column; gap: 10px; }
+.export-dl-btn { width: 100%; display: flex; align-items: flex-start; gap: 12px; padding: 13px 16px; border-radius: var(--radius, 10px); border: none; cursor: pointer; text-align: left; transition: opacity 0.15s, transform 0.08s; }
+.export-dl-btn:hover:not(:disabled) { opacity: 0.88; transform: translateY(-1px); }
+.export-dl-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.export-dl-icon { width: 20px; height: 20px; flex-shrink: 0; margin-top: 2px; }
+.export-dl-text { display: flex; flex-direction: column; gap: 2px; }
+.export-dl-label { font-size: 14px; font-weight: 700; line-height: 1.2; }
+.export-dl-desc  { font-size: 12px; opacity: 0.82; line-height: 1.3; }
+.export-dl-xls { background: #10b981; color: #fff; }
+.export-dl-csv { background: var(--surface); border: 1.5px solid var(--border) !important; color: var(--text-1); }
+.export-cancel-btn { width: 100%; padding: 10px 16px; border: none; border-radius: var(--radius-sm, 6px); background: none; cursor: pointer; font-size: 13.5px; font-weight: 500; color: var(--text-3); transition: background 0.12s, color 0.12s; }
+.export-cancel-btn:hover { background: var(--border-soft); color: var(--text-2); }
+.export-section { display: flex; flex-direction: column; gap: 10px; }
+.export-section-label { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-3); margin-bottom: 2px; }
+.export-cols-head    { display: flex; align-items: center; justify-content: space-between; margin-bottom: 2px; }
+.export-cols-actions { display: flex; align-items: center; gap: 4px; }
+.export-link-btn { background: none; border: none; cursor: pointer; font-size: 12px; font-weight: 700; color: var(--primary); padding: 2px 4px; border-radius: 4px; }
+.export-link-btn:hover { text-decoration: underline; }
+.export-dot-sep { color: var(--text-3); font-size: 12px; }
+.export-cols-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px 12px; }
+.export-col-check { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; color: var(--text-2); font-weight: 500; padding: 6px 10px; border-radius: var(--radius-sm, 6px); border: 1px solid var(--border-soft); transition: background 0.12s, border-color 0.12s; }
+.export-col-check:hover { background: var(--primary-soft, #dbeafe); border-color: var(--primary); }
+.export-col-check input[type="checkbox"] { accent-color: var(--primary); width: 14px; height: 14px; flex-shrink: 0; cursor: pointer; }
+
 @media (max-width: 768px) {
-  .page { padding: 16px 12px; }
+  .page { padding: 20px 16px; }
   .page-head { flex-direction: column; align-items: flex-start; gap: 12px; }
 }
 @media (max-width: 640px) {
-  .page { padding: 12px 8px; }
+  .page { padding: 16px 12px; }
   .filter-group { flex: 1 1 45%; }
   .filter-group.wide { flex: 1 1 100%; }
   .filter-group.wide input { width: 100%; }
 }
+
+/* ── Overlay + modal animation ── */
+@keyframes overlay-fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes modal-spring-in { from { opacity: 0; transform: scale(0.92) translateY(10px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+.remark-overlay { position: fixed; inset: 0; background: rgba(15,23,42,0.55); backdrop-filter: blur(4px); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 16px; animation: overlay-fade-in 0.18s ease; }
+.remark-overlay > * { animation: modal-spring-in 0.26s cubic-bezier(0.34, 1.4, 0.64, 1); }
+.remark-close { background: none; border: none; cursor: pointer; color: var(--text-3); padding: 4px; border-radius: 6px; display: flex; align-items: center; justify-content: center; transition: color 0.12s, background 0.12s; }
+.remark-close:hover { color: var(--text-1); background: var(--surface-2); }
 </style>

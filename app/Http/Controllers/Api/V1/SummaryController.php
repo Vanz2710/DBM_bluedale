@@ -37,12 +37,12 @@ class SummaryController extends Controller
             ->orderBy('todo_date')
             ->get();
 
-        // Build map: contact_id => month => latest done todo
+        // Build map: contact_id => month => array of all done todos (chronological)
         $taskMap = [];
         foreach ($todoRows as $t) {
             $month = (int) $t->todo_date->format('n');
-            $taskMap[$t->contact_id][$month] = [
-                'date'   => $t->todo_date->format('d-m-y'),
+            $taskMap[$t->contact_id][$month][] = [
+                'date'   => $t->todo_date->format('d-m-Y'),
                 'task'   => $t->task->name ?? '',
                 'remark' => $t->todo_remark ?? '',
                 'status' => $t->completion_status,

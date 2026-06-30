@@ -204,48 +204,134 @@ class GlobalTodoController extends Controller
 
     public function export(Request $request)
     {
-        $ids = $request->input('ids', '');
-        $date = $request->input('date', now()->toDateString());
+        $ALLOWED = ['no','todo_date','date_created','status','type','company','user','task','remark','completion'];
+        $LABELS  = [
+            'no' => 'No', 'todo_date' => 'To Do Date', 'date_created' => 'Date Created',
+            'status' => 'Status', 'type' => 'Type', 'company' => 'Company',
+            'user' => 'User', 'task' => 'Task', 'remark' => 'Remark', 'completion' => 'Completion',
+        ];
+        $WIDTHS = [
+            'no' => 28, 'todo_date' => 80, 'date_created' => 80, 'status' => 90,
+            'type' => 60, 'company' => 200, 'user' => 100, 'task' => 110,
+            'remark' => 200, 'completion' => 80,
+        ];
 
-        $query = ToDo::with(['contact.status', 'contact.type', 'task', 'user']);
+        $requested = array_filter(explode(',', $request->input('cols', '')));
+        $selected  = !empty($requested) ? array_values(array_intersect($ALLOWED, $requested)) : $ALLOWED;
+        $format    = $request->input('format') === 'csv' ? 'csv' : 'xls';
+        $ids       = $request->input('ids', '');
+
+        $query = ToDo::with(['contact.status', 'contact.type', 'task', 'user'])
+            ->orderByDesc('todo_date')->orderByDesc('id');
 
         if ($ids) {
             $query->whereIn('id', explode(',', $ids));
         } else {
-            $query->whereDate('todo_date', $date);
+            $view      = $request->input('view', 'DateRange');
+            $fromDate  = $request->input('from_date', now()->toDateString());
+            $toDate    = $request->input('to_date', now()->toDateString());
+            $fromMonth = $request->input('from_month');
+            $toMonth   = $request->input('to_month');
+
+            if ($view === 'MonthRange' && $fromMonth && $toMonth) {
+                $query->whereBetween('todo_date', [
+                    $fromMonth . '-01',
+                    date('Y-m-t', strtotime($toMonth . '-01')),
+                ]);
+            } else {
+                $query->whereBetween('todo_date', [$fromDate, $toDate]);
+            }
+
+            if ($search = $request->input('search')) {
+                $query->whereHas('contact', fn($q) => $q->where('name', 'like', "%{$search}%"));
+            }
+            if ($userId = $request->input('user_id')) {
+                $query->where('user_id', $userId);
+            }
+            if ($completionStatus = $request->input('completion_status')) {
+                $query->where('completion_status', $completionStatus);
+            }
+            if ($contactId = $request->input('contact_id')) {
+                $query->where('contact_id', $contactId);
+            }
+            if ($statusId = $request->input('status_id')) {
+                $query->whereHas('contact', fn($q) => $q->where('status_id', $statusId));
+            }
+            if ($typeId = $request->input('type_id')) {
+                $query->whereHas('contact', fn($q) => $q->where('type_id', $typeId));
+            }
+            if ($taskId = $request->input('task_id')) {
+                $query->where('task_id', $taskId);
+            }
         }
 
-        $todos = $query->orderByDesc('todo_date')->orderByDesc('id')->limit(10000)->get();
-
-        $filename = 'ToDo_Export_' . now()->format('Y-m-d') . '.csv';
-
-        $headers = [
-            'Content-Type'        => 'text/csv; charset=utf-8',
-            'Content-Disposition' => "attachment; filename={$filename}",
-        ];
-
-        $callback = function () use ($todos) {
-            $out = fopen('php://output', 'w');
-            // BOM for Excel UTF-8
-            fputs($out, chr(0xEF) . chr(0xBB) . chr(0xBF));
-            fputcsv($out, ['NO', 'TO DO DATE', 'DATE CREATED', 'STATUS', 'TYPE', 'COMPANY NAME', 'USER', 'TASK', 'REMARK']);
-            $no = 1;
-            foreach ($todos as $t) {
-                fputcsv($out, [
-                    $no++,
-                    $t->todo_date?->format('d-m-Y') ?? '-',
-                    $t->date_created?->format('d-m-Y') ?? '-',
-                    $t->contact?->status?->name ?? '-',
-                    $t->contact?->type?->name ?? '-',
-                    $t->contact?->name ?? '-',
-                    $t->user?->name ?? '-',
-                    $t->task?->name ?? '-',
-                    $t->todo_remark ?? '',
-                ]);
-            }
-            fclose($out);
+        $getVal = fn($t, $col) => match ($col) {
+            'no'          => null,
+            'todo_date'   => $t->todo_date?->format('d-m-Y') ?? '',
+            'date_created'=> $t->date_created?->format('d-m-Y') ?? '',
+            'status'      => $t->contact?->status?->name ?? '',
+            'type'        => $t->contact?->type?->name ?? '',
+            'company'     => $t->contact?->name ?? '',
+            'user'        => $t->user?->name ?? '',
+            'task'        => $t->task?->name ?? '',
+            'remark'      => $t->todo_remark ?? '',
+            'completion'  => $t->completion_status ?? '',
+            default       => '',
         };
 
-        return response()->stream($callback, 200, $headers);
+        $filename = 'ToDo_Export_' . now()->format('Y-m-d') . '.' . $format;
+
+        if ($format === 'csv') {
+            return response()->stream(function () use ($query, $selected, $LABELS, $getVal) {
+                $h = fopen('php://output', 'w');
+                fwrite($h, "\xEF\xBB\xBF");
+                fputcsv($h, array_map(fn($k) => $LABELS[$k] ?? $k, $selected));
+                $no = 1;
+                $query->chunk(300, function ($todos) use ($h, $selected, $getVal, &$no) {
+                    foreach ($todos as $t) {
+                        $row = [];
+                        foreach ($selected as $col) { $row[] = $col === 'no' ? $no : $getVal($t, $col); }
+                        fputcsv($h, $row);
+                        $no++;
+                    }
+                });
+                fclose($h);
+            }, 200, [
+                'Content-Type'        => 'text/csv; charset=UTF-8',
+                'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+                'X-Accel-Buffering'   => 'no',
+            ]);
+        }
+
+        return response()->stream(function () use ($query, $selected, $LABELS, $WIDTHS, $getVal) {
+            $esc     = fn($v) => htmlspecialchars((string) ($v ?? ''), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+            $thStyle = 'font-family:Arial,sans-serif;font-size:10pt;font-weight:bold;color:#000000;background:#ffffff;border:1pt solid #000000;padding:6pt 9pt;white-space:nowrap;text-align:left;';
+            $tdStyle = 'font-family:Arial,sans-serif;font-size:10pt;color:#000000;border:1pt solid #000000;padding:5pt 9pt;vertical-align:top;';
+            echo "\xEF\xBB\xBF";
+            echo '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">';
+            echo '<head><meta charset="UTF-8"><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>ToDos</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]--></head>';
+            echo '<body><table style="border-collapse:collapse;"><colgroup>';
+            foreach ($selected as $col) { echo '<col style="width:' . ($WIDTHS[$col] ?? 100) . 'pt">'; }
+            echo '</colgroup><thead><tr>';
+            foreach ($selected as $col) { echo '<th style="' . $thStyle . '">' . $esc($LABELS[$col] ?? $col) . '</th>'; }
+            echo '</tr></thead><tbody>';
+            $no = 1;
+            $query->chunk(300, function ($todos) use (&$no, $selected, $esc, $tdStyle, $getVal) {
+                foreach ($todos as $t) {
+                    echo '<tr>';
+                    foreach ($selected as $col) {
+                        $val = $col === 'no' ? $no : $getVal($t, $col);
+                        echo '<td style="' . $tdStyle . '">' . $esc($val) . '</td>';
+                    }
+                    echo '</tr>';
+                    $no++;
+                }
+            });
+            echo '</tbody></table></body></html>';
+        }, 200, [
+            'Content-Type'        => 'application/vnd.ms-excel; charset=UTF-8',
+            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+            'X-Accel-Buffering'   => 'no',
+        ]);
     }
 }
