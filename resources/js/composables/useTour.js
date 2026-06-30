@@ -665,7 +665,7 @@ export const PAGE_TOURS = {
     {
       target: '.staged-section',
       title: 'Staged for Client Review',
-      body: 'When you use Save as Draft + Print PDF during product registration, the site is held here as a draft. Once the client approves, click Confirm to add it to the active availability list. Click Discard to remove it without saving.',
+      body: 'When you use Save as Draft + Print PDF during product registration, the site is held here as a draft. Tick one or more staged sites (or the header checkbox to select all) to generate a proposal covering them. Once the client approves, click Confirm to add it to the active availability list, or Discard to remove it.',
       position: 'bottom',
     },
   ],
@@ -875,7 +875,12 @@ export function useTour() {
   // Pass a route name to run the page-specific tour; omit to run the global app tour.
   function start(routeName) {
     const pageTour = routeName && PAGE_TOURS[routeName];
-    _activeSteps.value = pageTour || TOUR_STEPS;
+    const steps = pageTour || TOUR_STEPS;
+    // Drop steps whose target isn't currently rendered (e.g. booking bars when
+    // there are no bookings, or the staged section when nothing is staged) —
+    // otherwise the tooltip floats mispositioned over empty space.
+    const visible = steps.filter((s) => !s.target || document.querySelector(s.target));
+    _activeSteps.value = visible.length ? visible : steps;
     currentIndex.value = 0;
     active.value = true;
   }

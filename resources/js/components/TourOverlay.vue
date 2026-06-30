@@ -19,8 +19,8 @@
             :key="'tip-' + currentIndex"
             ref="tooltipEl"
           >
-            <!-- Arrow -->
-            <div class="tour-arrow" :class="'arrow-' + (currentStep.position ?? 'right')"></div>
+            <!-- Arrow — hidden in the centered fallback (no spotlight target) -->
+            <div v-if="spotlightStyle" class="tour-arrow" :class="'arrow-' + (currentStep.position ?? 'right')"></div>
 
             <div class="tour-header">
               <span class="tour-step-badge">{{ currentIndex + 1 }} / {{ activeSteps.length }}</span>
