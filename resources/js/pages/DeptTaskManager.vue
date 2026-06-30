@@ -183,9 +183,6 @@
           <span v-html="showClosed ? ICO.eyeOff : ICO.eye"></span>
           {{ showClosed ? 'Hide closed' : 'Show closed' }}
         </button>
-        <button v-if="isAdmin" class="btn-primary sm" @click="openTaskModal(null, boardFilters.department_id || null)">
-          <span v-html="ICO.plus"></span> New Task
-        </button>
       </div>
 
       <div v-if="boardLoading" class="view-loading">
@@ -231,6 +228,145 @@
             <div v-if="boardByStatus[col.status].length === 0" class="kanban-empty">
               No tasks yet
             </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── People (tasks by user, Notion-style) ────────────────────────────── -->
+    <div v-else-if="currentView === 'people'" class="dtm-section">
+
+      <!-- Filter bar -->
+      <div class="people-filter-bar">
+        <input v-model="peopleSearch" placeholder="Filter tasks by name…" class="field-input pf-search" />
+        <select v-model="peopleFilters.user_id" class="field-input sm">
+          <option value="">All People</option>
+          <option v-for="u in users" :key="u.id" :value="u.id">{{ u.name }}</option>
+        </select>
+        <select v-model="peopleFilters.department_id" class="field-input sm">
+          <option value="">All Departments</option>
+          <option v-for="d in departments" :key="d.id" :value="d.id">{{ d.name }}</option>
+        </select>
+        <select v-model="peopleFilters.status" class="field-input sm">
+          <option value="">All Statuses</option>
+          <option value="pending">Pending</option>
+          <option value="in_progress">In Progress</option>
+          <option value="waiting_approval">Waiting Approval</option>
+          <option value="completed">Completed</option>
+          <option value="overdue">Overdue</option>
+        </select>
+        <span class="pf-count">{{ peopleGroups.length }} {{ peopleGroups.length === 1 ? 'person' : 'people' }}</span>
+        <div class="pv-toggle">
+          <button class="pv-btn" :class="peopleViewMode === 'list' && 'active'" @click="peopleViewMode = 'list'" title="List view" v-html="ICO.list"></button>
+          <button class="pv-btn" :class="peopleViewMode === 'cards' && 'active'" @click="peopleViewMode = 'cards'" title="Cards view" v-html="ICO.grid"></button>
+        </div>
+      </div>
+
+      <div v-if="peopleLoading" class="view-loading"><div class="spinner"></div></div>
+
+      <div v-else-if="!peopleGroups.length" class="empty-state">
+        <span class="empty-icon" v-html="ICO.users"></span>
+        <p>No tasks match your filters.</p>
+      </div>
+
+      <div v-else-if="peopleViewMode === 'list'" class="people-list">
+        <div v-for="grp in peopleGroups" :key="grp.key" class="pg-block">
+
+          <!-- Group header -->
+          <button class="pg-head" @click="togglePeopleUser(grp.key)">
+            <div class="pg-head-left">
+              <span class="pg-chevron" :class="!peopleCollapsed[grp.key] && 'open'" v-html="ICO.chevronR"></span>
+              <div class="pg-avatar" :style="grp.user ? { background: userAvatarColor(grp.user.id) } : {}">
+                {{ grp.user ? initials(grp.user.name) : '?' }}
+              </div>
+              <span class="pg-name">{{ grp.user?.name ?? 'Unassigned' }}</span>
+              <span v-if="grp.overdue" class="pg-chip pg-chip--danger">{{ grp.overdue }} overdue</span>
+              <span class="pg-chip pg-chip--neutral">{{ grp.active }} active</span>
+              <span v-if="grp.done" class="pg-chip pg-chip--done">{{ grp.done }} done</span>
+            </div>
+            <div class="pg-head-right">
+              <div class="pg-progress-wrap">
+                <div class="pg-progress-bar">
+                  <div class="pg-progress-fill"
+                    :style="{ width: grp.total ? (grp.done / grp.total * 100).toFixed(1) + '%' : '0%' }">
+                  </div>
+                </div>
+                <span class="pg-progress-txt">{{ grp.done }}/{{ grp.total }}</span>
+              </div>
+            </div>
+          </button>
+
+          <!-- Expanded task list -->
+          <div v-show="!peopleCollapsed[grp.key]" class="pg-task-area">
+            <!-- Column labels -->
+            <div class="pg-col-labels">
+              <span>Task</span>
+              <span>Department</span>
+              <span>Due Date</span>
+              <span>Status</span>
+            </div>
+            <!-- Task rows -->
+            <div v-for="task in grp.tasks" :key="task.id"
+              class="pg-task-row"
+              :class="task.is_overdue && 'pg-task-row--ov'"
+              :style="{ borderLeftColor: priorityColor(task.priority) }"
+              @click="openTaskDetail(task)">
+              <div class="pg-task-info">
+                <span class="pg-task-name">{{ task.title }}</span>
+                <span v-if="task.description" class="pg-task-hint">{{ task.description.slice(0, 80) }}{{ task.description.length > 80 ? '…' : '' }}</span>
+              </div>
+              <div class="pg-task-dept-cell">
+                <span v-if="task.department" class="dept-pill"
+                  :style="{ background: task.department.color + '22', color: task.department.color }">
+                  {{ task.department.name }}
+                </span>
+                <span v-else class="pg-task-empty">—</span>
+              </div>
+              <span class="pg-task-due" :class="task.is_overdue && 'text-danger'">
+                {{ task.due_date_fmt || '—' }}
+              </span>
+              <span :class="['status-badge', 'st-' + task.status, task.is_overdue && 'st-overdue']">
+                {{ task.is_overdue ? 'Overdue' : statusLabel(task.status) }}
+              </span>
+            </div>
+            <div v-if="!grp.tasks.length" class="pg-no-tasks">No tasks match your filters.</div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Cards view -->
+      <div v-else class="people-cards">
+        <div v-for="grp in peopleGroups" :key="grp.key" class="pc-card">
+          <div class="pc-card-head">
+            <div class="pg-avatar" :style="grp.user ? { background: userAvatarColor(grp.user.id) } : {}">
+              {{ grp.user ? initials(grp.user.name) : '?' }}
+            </div>
+            <div class="pc-head-info">
+              <div class="pc-name">{{ grp.user?.name ?? 'Unassigned' }}</div>
+              <div class="pc-chips">
+                <span v-if="grp.overdue" class="pg-chip pg-chip--danger">{{ grp.overdue }} overdue</span>
+                <span class="pg-chip pg-chip--neutral">{{ grp.active }} active</span>
+                <span v-if="grp.done" class="pg-chip pg-chip--done">{{ grp.done }} done</span>
+              </div>
+            </div>
+            <span class="pc-progress-txt-top">{{ grp.done }}/{{ grp.total }}</span>
+          </div>
+          <div class="pc-progress">
+            <div class="pc-progress-fill" :style="{ width: grp.total ? (grp.done / grp.total * 100).toFixed(1) + '%' : '0%' }"></div>
+          </div>
+          <div class="pc-tasks">
+            <div v-for="task in grp.tasks" :key="task.id"
+              class="pc-task"
+              :class="task.is_overdue && 'pc-task--ov'"
+              :style="{ borderLeftColor: priorityColor(task.priority) }"
+              @click="openTaskDetail(task)">
+              <span class="pc-task-title">{{ task.title }}</span>
+              <span :class="['status-badge', 'st-' + task.status, task.is_overdue && 'st-overdue']">
+                {{ task.is_overdue ? 'Overdue' : statusLabel(task.status) }}
+              </span>
+            </div>
+            <div v-if="!grp.tasks.length" class="pc-empty">No tasks</div>
           </div>
         </div>
       </div>
@@ -527,6 +663,107 @@
       </div>
     </div>
 
+    <!-- ── Files / Attachments ───────────────────────────────────────────────── -->
+    <div v-else-if="currentView === 'files'" class="dtm-section">
+
+      <div class="fm-toolbar">
+        <div class="filter-search" style="flex:1;max-width:320px">
+          <input v-model="attachmentsSearch" @input="debouncedAttachmentSearch"
+            placeholder="Search by filename…" class="field-input" />
+        </div>
+        <select v-model="filesSort" class="field-input fm-sort-select">
+          <option value="date">Newest first</option>
+          <option value="name">Name A–Z</option>
+          <option value="size">Largest first</option>
+        </select>
+        <div class="fm-view-toggle">
+          <button :class="['fm-vt-btn', filesViewMode === 'grid' && 'active']"
+            @click="setFilesView('grid')" title="Grid view" v-html="ICO.grid"></button>
+          <button :class="['fm-vt-btn', filesViewMode === 'list' && 'active']"
+            @click="setFilesView('list')" title="List view" v-html="ICO.list"></button>
+        </div>
+        <span class="af-count">{{ attachmentsTotal }} file{{ attachmentsTotal !== 1 ? 's' : '' }}</span>
+      </div>
+
+      <div v-if="attachmentsLoading" class="view-loading"><div class="spinner"></div></div>
+
+      <template v-else>
+        <div v-if="!sortedAttachments.length" class="empty-state">
+          <span class="empty-icon" v-html="ICO.folder"></span>
+          <p>No attachments found.</p>
+        </div>
+
+        <!-- Grid view -->
+        <div v-else-if="filesViewMode === 'grid'" class="fm-grid">
+          <div v-for="a in sortedAttachments" :key="a.id" class="fm-card">
+            <div class="fm-icon-wrap">
+              <span class="fm-ext-icon"
+                :style="{ background: fileExtStyle(a.filename)[0], color: fileExtStyle(a.filename)[1] }">
+                {{ fileExtLabel(a.filename) }}
+              </span>
+              <div class="fm-card-overlay">
+                <a :href="a.url" target="_blank" class="fm-overlay-btn" title="Download" v-html="ICO.download"></a>
+                <button class="fm-overlay-btn" @click.stop="openRename(a)" title="Rename" v-html="ICO.edit"></button>
+                <button class="fm-overlay-btn danger" @click.stop="deleteAttachmentFromTab(a)" title="Delete" v-html="ICO.trash"></button>
+              </div>
+            </div>
+            <div class="fm-card-foot">
+              <div class="fm-card-name" :title="a.filename">{{ a.filename }}</div>
+              <div class="fm-card-meta">{{ formatFileSize(a.size) }} · {{ a.created_at }}</div>
+              <button v-if="a.task" class="fm-task-link" @click="openTaskDetail(a.task)">
+                {{ a.task.title }}
+              </button>
+              <div v-if="a.task?.department" class="fm-dept-row">
+                <span class="dept-pill fm-dept-pill"
+                  :style="{ background: a.task.department.color + '22', color: a.task.department.color }">
+                  {{ a.task.department.name }}
+                </span>
+                <span v-if="isAdmin && a.user" class="fm-by">{{ a.user.name }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- List view -->
+        <div v-else class="fm-list">
+          <div v-for="a in sortedAttachments" :key="a.id" class="fm-list-row">
+            <span class="fm-list-badge"
+              :style="{ background: fileExtStyle(a.filename)[0], color: fileExtStyle(a.filename)[1] }">
+              {{ fileExtLabel(a.filename) }}
+            </span>
+            <div class="fm-list-main">
+              <a :href="a.url" target="_blank" class="fm-list-name" :title="a.filename">{{ a.filename }}</a>
+              <div class="fm-list-sub">
+                <span v-if="a.task?.department" class="dept-pill fm-dept-pill"
+                  :style="{ background: a.task.department.color + '22', color: a.task.department.color }">
+                  {{ a.task.department.name }}
+                </span>
+                <button v-if="a.task" class="fm-task-link-inline" @click="openTaskDetail(a.task)">
+                  {{ a.task.title }}
+                </button>
+                <span v-if="isAdmin && a.user" class="fm-list-meta">{{ a.user.name }}</span>
+              </div>
+            </div>
+            <span class="fm-list-meta">{{ formatFileSize(a.size) }}</span>
+            <span class="fm-list-meta">{{ a.created_at }}</span>
+            <div class="fm-list-actions" @click.stop>
+              <button class="btn-icon" @click="openRename(a)" title="Rename" v-html="ICO.edit"></button>
+              <button class="btn-icon danger" @click="deleteAttachmentFromTab(a)" title="Delete" v-html="ICO.trash"></button>
+            </div>
+          </div>
+        </div>
+
+        <div v-if="attachmentsLastPage > 1" class="pagination-bar">
+          <span class="page-info">Page {{ attachmentsPage }} of {{ attachmentsLastPage }} · {{ attachmentsTotal }} files</span>
+          <div class="page-btns">
+            <button class="btn-ghost sm" @click="attachmentsPage--; loadAllAttachments()" :disabled="attachmentsPage <= 1">Prev</button>
+            <span class="page-num">{{ attachmentsPage }} / {{ attachmentsLastPage }}</span>
+            <button class="btn-ghost sm" @click="attachmentsPage++; loadAllAttachments()" :disabled="attachmentsPage >= attachmentsLastPage">Next</button>
+          </div>
+        </div>
+      </template>
+    </div>
+
     <!-- ── Task Detail Panel (right slide-in) ──────────────────────────────── -->
     <transition name="slide-panel">
       <div v-if="selectedTask" class="panel-overlay">
@@ -584,8 +821,11 @@
           <div class="dp-actions">
             <!-- Row 1: Workflow actions -->
             <div class="dp-action-row">
-              <!-- Approver acting on a submitted task -->
+              <!-- Approver: submitted task is awaiting their review -->
               <template v-if="canApprove(selectedTask) && selectedTask.status === 'waiting_approval'">
+                <span class="dp-approval-notice">
+                  <span v-html="ICO.clock"></span> Awaiting your review
+                </span>
                 <button class="btn-primary sm" @click="approveTask">
                   <span v-html="ICO.check"></span> Approve
                 </button>
@@ -598,27 +838,39 @@
                 <button v-else-if="selectedTask.status === 'in_progress' && selectedTask.requires_approval" class="btn-primary sm" @click="detailAdvance('waiting_approval')">Submit for approval</button>
                 <button v-else-if="selectedTask.status === 'in_progress'" class="btn-primary sm" @click="detailAdvance('completed')">Mark complete</button>
                 <span v-else-if="selectedTask.status === 'waiting_approval'" class="mw-chip-wait">Awaiting approval</span>
+                <span v-else-if="selectedTask.status === 'completed'" class="dp-status-note dp-status-note--done"><span v-html="ICO.check"></span> Task completed</span>
+                <span v-else-if="selectedTask.status === 'cancelled'" class="dp-status-note">Task cancelled</span>
               </template>
 
+              <!-- Approver: assignee hasn't submitted yet -->
               <span v-else-if="canApprove(selectedTask) && selectedTask.status === 'in_progress' && selectedTask.requires_approval" class="dp-no-action dp-no-action--waiting">
                 Awaiting submission from assignee
               </span>
-              <span v-else class="dp-no-action">No action required</span>
+
+              <!-- Closed states -->
+              <span v-else-if="selectedTask.status === 'completed'" class="dp-status-note dp-status-note--done"><span v-html="ICO.check"></span> Task completed</span>
+              <span v-else-if="selectedTask.status === 'cancelled'" class="dp-status-note">Task cancelled</span>
+
+              <span v-else class="dp-no-action">No action available</span>
             </div>
 
             <!-- Row 2: Admin / creator utilities -->
             <div v-if="isAdmin || selectedTask.created_by === currentUserId" class="dp-util-row">
-              <select v-if="isAdmin" v-model="quickStatus" @change="quickUpdateStatus" class="field-input sm" aria-label="Change task status">
-                <option value="pending">Pending</option>
-                <option value="in_progress">In Progress</option>
-                <option value="waiting_approval">Waiting Approval</option>
-                <option value="completed">Completed</option>
-                <option value="cancelled">Cancelled</option>
-              </select>
+              <span class="dp-util-badge">Admin</span>
+              <template v-if="isAdmin">
+                <span class="dp-util-lbl">Status</span>
+                <select v-model="quickStatus" @change="quickUpdateStatus" class="field-input sm" aria-label="Override task status">
+                  <option value="pending">Pending</option>
+                  <option value="in_progress">In Progress</option>
+                  <option value="waiting_approval">Waiting Approval</option>
+                  <option value="completed">Completed</option>
+                  <option value="cancelled">Cancelled</option>
+                </select>
+              </template>
               <button class="btn-ghost sm" @click="openTaskModal(selectedTask)">
                 <span v-html="ICO.edit"></span> Edit
               </button>
-              <button v-if="isAdmin" class="btn-ghost sm danger" @click="deleteTask(selectedTask.id)">
+              <button v-if="isAdmin" class="btn-ghost sm danger dp-delete-btn" @click="deleteTask(selectedTask.id)">
                 <span v-html="ICO.trash"></span> Delete
               </button>
             </div>
@@ -628,11 +880,13 @@
             <div class="dp-section-title">
               Attachments ({{ (selectedTask.attachments || []).length }})
               <label class="attach-upload-btn" :class="attachmentUploading && 'uploading'">
-                <input type="file" @change="uploadAttachment" style="display:none" />
+                <input type="file" @change="uploadAttachment" style="display:none"
+                  accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.jpg,.jpeg,.png,.gif,.webp,.zip" />
                 <span v-html="ICO.paperclip"></span>
                 {{ attachmentUploading ? 'Uploading…' : 'Attach File' }}
               </label>
             </div>
+            <div class="attach-size-hint">PDF, Word, Excel, PowerPoint, images, ZIP · Max 20 MB</div>
             <div class="attachment-list">
               <div v-for="a in (selectedTask.attachments || [])" :key="a.id" class="attachment-item">
                 <a :href="a.url" target="_blank" class="attach-name" :title="a.filename">{{ a.filename }}</a>
@@ -702,7 +956,7 @@
                 <div class="field-input field-readonly">{{ currentUserName }}</div>
               </div>
             </div>
-            <div class="field-row two-col">
+            <div class="field-row three-col">
               <div>
                 <label class="field-label">Priority *</label>
                 <select v-model="form.priority" class="field-input">
@@ -722,10 +976,10 @@
                   <option v-if="editTask && isAdmin" value="cancelled">Cancelled</option>
                 </select>
               </div>
-            </div>
-            <div class="field-row">
-              <label class="field-label">Due Date</label>
-              <input type="date" v-model="form.due_date" class="field-input" />
+              <div>
+                <label class="field-label">Due Date</label>
+                <input type="date" v-model="form.due_date" class="field-input" />
+              </div>
             </div>
             <div class="field-row">
               <label class="checkbox-label">
@@ -768,6 +1022,32 @@
           <div class="modal-footer">
             <button @click="showDeleteConfirm = false" class="btn-ghost">Cancel</button>
             <button @click="confirmDelete" class="btn-danger">Delete</button>
+          </div>
+        </div>
+      </div>
+    </transition>
+
+    <!-- ── Rename Attachment Modal ─────────────────────────────────────────────── -->
+    <transition name="modal-fade">
+      <div v-if="renameModal.show" class="modal-backdrop">
+        <div class="modal-box modal-sm">
+          <div class="modal-header">
+            <h3 class="modal-title">Rename File</h3>
+            <button class="btn-icon" @click="renameModal.show = false" v-html="ICO.x"></button>
+          </div>
+          <div class="modal-body">
+            <div class="field-row">
+              <label class="field-label">Filename</label>
+              <input v-model="renameModal.filename" class="field-input"
+                placeholder="Enter new filename…"
+                @keydown.enter="saveRename" />
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button @click="renameModal.show = false" class="btn-ghost">Cancel</button>
+            <button @click="saveRename" class="btn-primary" :disabled="renameModal.saving">
+              {{ renameModal.saving ? 'Saving…' : 'Rename' }}
+            </button>
           </div>
         </div>
       </div>
@@ -823,6 +1103,9 @@ const ICO = {
   lock:      _i('<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>'),
   eye:       _i('<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>'),
   eyeOff:    _i('<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>'),
+  users:     _i('<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>'),
+  grid:      _i('<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/>'),
+  folder:    _i('<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>'),
 };
 
 // ─── View state ───────────────────────────────────────────────────────────────
@@ -831,16 +1114,19 @@ const _authUserInit = JSON.parse(localStorage.getItem('crm_user') || '{}');
 const _isAdminInit  = (_authUserInit.roles || []).some(r => ['admin', 'super-admin'].includes(r));
 
 const ADMIN_VIEWS = [
-  { id: 'board',     label: 'Board',      icon: ICO.kanban },
-  { id: 'dashboard', label: 'Dashboard',  icon: ICO.chart },
-  { id: 'table',     label: 'Table',      icon: ICO.list },
-  { id: 'weekly',    label: 'This Week',  icon: ICO.calendar },
-  { id: 'reports',   label: 'History',    icon: ICO.trending },
+  { id: 'board',       label: 'Board',      icon: ICO.kanban },
+  { id: 'people',      label: 'People',     icon: ICO.users },
+  { id: 'dashboard',   label: 'Dashboard',  icon: ICO.chart },
+  { id: 'table',       label: 'Table',      icon: ICO.list },
+  { id: 'weekly',      label: 'This Week',  icon: ICO.calendar },
+  { id: 'reports',     label: 'History',    icon: ICO.trending },
+  { id: 'files',       label: 'Files',      icon: ICO.folder },
 ];
 const USER_VIEWS = [
   { id: 'mywork',   label: 'List',    icon: ICO.list },
   { id: 'board',    label: 'Board',   icon: ICO.kanban },
   { id: 'reports',  label: 'History', icon: ICO.trending },
+  { id: 'files',    label: 'Files',   icon: ICO.folder },
 ];
 const views = computed(() => (isAdmin.value ? ADMIN_VIEWS : USER_VIEWS));
 const currentView = ref(_isAdminInit ? 'board' : 'mywork');
@@ -864,6 +1150,41 @@ const notifCount    = ref(0);
 const toasts        = ref([]);
 const boardLoading  = ref(false);
 const dashLoading   = ref(false);
+const peopleTasks    = ref([]);
+const peopleLoading  = ref(false);
+const peopleSearch   = ref('');
+const peopleFilters  = reactive({ department_id: '', status: '', user_id: '' });
+const peopleCollapsed = reactive({});
+const peopleViewMode  = ref('list');
+
+// ─── Attachments tab ──────────────────────────────────────────────────────────
+const allAttachments       = ref([]);
+const attachmentsLoading   = ref(false);
+const attachmentsSearch    = ref('');
+const attachmentsPage      = ref(1);
+const attachmentsLastPage  = ref(1);
+const attachmentsTotal     = ref(0);
+const renameModal   = reactive({ show: false, id: null, filename: '', saving: false });
+const filesViewMode = ref(localStorage.getItem('dtm_files_view') || 'grid');
+const filesSort     = ref('date');
+
+const sortedAttachments = computed(() => {
+  const list = [...allAttachments.value];
+  list.sort((a, b) => {
+    if (filesSort.value === 'name') {
+      const av = (a.filename || '').toLowerCase(), bv = (b.filename || '').toLowerCase();
+      return av < bv ? -1 : av > bv ? 1 : 0;
+    }
+    if (filesSort.value === 'size') return (b.size || 0) - (a.size || 0);
+    return (b.created_at || '') < (a.created_at || '') ? -1 : 1;
+  });
+  return list;
+});
+
+function setFilesView(mode) {
+  filesViewMode.value = mode;
+  localStorage.setItem('dtm_files_view', mode);
+}
 
 // ─── Auth state ───────────────────────────────────────────────────────────────
 const authUser        = computed(() => JSON.parse(localStorage.getItem('crm_user') || '{}'));
@@ -1103,6 +1424,54 @@ const bucketGroups = computed(() => [
 
 const activeCount = computed(() => bucketGroups.value.reduce((n, g) => n + g.tasks.length, 0));
 
+// ─── People view: tasks grouped by assignee ────────────────────────────────────
+const PRIO_RANK_P = { critical: 0, high: 1, medium: 2, low: 3 };
+const peopleGroups = computed(() => {
+  let tasks = peopleTasks.value;
+
+  if (peopleFilters.user_id)
+    tasks = tasks.filter(t => t.assigned_to == peopleFilters.user_id);
+  if (peopleFilters.department_id)
+    tasks = tasks.filter(t => t.department_id == peopleFilters.department_id);
+  if (peopleFilters.status === 'overdue')
+    tasks = tasks.filter(t => t.is_overdue);
+  else if (peopleFilters.status)
+    tasks = tasks.filter(t => t.status === peopleFilters.status);
+  if (peopleSearch.value.trim()) {
+    const q = peopleSearch.value.trim().toLowerCase();
+    tasks = tasks.filter(t => t.title.toLowerCase().includes(q));
+  }
+
+  const map = new Map();
+  for (const task of tasks) {
+    const uid = task.assigned_to ?? '__none__';
+    if (!map.has(uid)) map.set(uid, { user: task.assignee ?? null, tasks: [] });
+    map.get(uid).tasks.push(task);
+  }
+
+  const sortTasks = arr => [...arr].sort((a, b) => {
+    if (a.is_overdue !== b.is_overdue) return a.is_overdue ? -1 : 1;
+    const pd = (PRIO_RANK_P[a.priority] ?? 9) - (PRIO_RANK_P[b.priority] ?? 9);
+    if (pd !== 0) return pd;
+    return (a.due_date || '') < (b.due_date || '') ? -1 : 1;
+  });
+
+  const result = [];
+  for (const [uid, grp] of map) {
+    const active  = grp.tasks.filter(t => !['completed','cancelled'].includes(t.status)).length;
+    const done    = grp.tasks.filter(t => t.status === 'completed').length;
+    const overdue = grp.tasks.filter(t => t.is_overdue).length;
+    result.push({ key: uid, user: grp.user, tasks: sortTasks(grp.tasks), active, done, overdue, total: grp.tasks.length });
+  }
+
+  result.sort((a, b) => {
+    if (!a.user) return -1;
+    if (!b.user) return 1;
+    return (a.user.name || '').localeCompare(b.user.name || '');
+  });
+  return result;
+});
+
 // ─── Workflow rules (mirror of backend assertCanTransition) ────────────────────
 // Approver = an admin who is NOT the task's assignee (no self-approval).
 function canApprove(task) {
@@ -1138,6 +1507,7 @@ async function advanceStatus(task) {
     await api.put(`/v1/dept/tasks/${task.id}/status`, { status: next });
     task.status = next;
     showToast(next === 'in_progress' ? 'Task started' : 'Submitted for approval');
+    refreshCurrentView(true);
   } catch (e) {
     showToast(e.response?.data?.message || 'Could not update task', 'error');
   }
@@ -1151,6 +1521,7 @@ async function completeTask(task) {
     await api.put(`/v1/dept/tasks/${task.id}/status`, { status: target });
     task.status = target;
     showToast(target === 'completed' ? 'Task completed' : 'Submitted for approval');
+    refreshCurrentView(true);
   } catch (e) {
     showToast(e.response?.data?.message || 'Could not update task', 'error');
   }
@@ -1218,8 +1589,8 @@ async function loadDashboard() {
   buildCharts();
 }
 
-async function loadBoardTasks() {
-  boardLoading.value = true;
+async function loadBoardTasks(silent = false) {
+  if (!silent) boardLoading.value = true;
   try {
     const params = { all: true };
     if (boardFilters.department_id) params.department_id = boardFilters.department_id;
@@ -1227,7 +1598,7 @@ async function loadBoardTasks() {
     const res = await api.get('/v1/dept/tasks', { params });
     boardTasks.value = res.data;
   } finally {
-    boardLoading.value = false;
+    if (!silent) boardLoading.value = false;
   }
 }
 
@@ -1368,7 +1739,7 @@ async function quickUpdateStatus() {
     await api.put(`/v1/dept/tasks/${selectedTask.value.id}/status`, { status: quickStatus.value });
     selectedTask.value.status = quickStatus.value;
     showToast('Status updated');
-    refreshCurrentView();
+    refreshCurrentView(true);
   } catch (e) {
     quickStatus.value = prev; // revert the select
     showToast(e.response?.data?.message || 'Could not update status', 'error');
@@ -1387,7 +1758,7 @@ async function detailAdvance(status) {
       waiting_approval: 'Submitted for approval',
       completed:        'Task completed',
     }[status] || 'Status updated');
-    refreshCurrentView();
+    refreshCurrentView(true);
   } catch (e) {
     showToast(e.response?.data?.message || 'Could not update status', 'error');
   }
@@ -1401,7 +1772,7 @@ async function approveTask() {
     selectedTask.value.status = 'completed';
     quickStatus.value = 'completed';
     showToast('Task approved');
-    refreshCurrentView();
+    refreshCurrentView(true);
   } catch (e) {
     showToast(e.response?.data?.message || 'Could not approve task', 'error');
   }
@@ -1415,7 +1786,7 @@ async function rejectTask() {
     selectedTask.value.status = 'in_progress';
     quickStatus.value = 'in_progress';
     showToast('Sent back for changes');
-    refreshCurrentView();
+    refreshCurrentView(true);
   } catch (e) {
     showToast(e.response?.data?.message || 'Could not update task', 'error');
   }
@@ -1449,9 +1820,16 @@ function deleteComment(commentId) {
 }
 
 // ─── Attachments ──────────────────────────────────────────────────────────────
+const MAX_ATTACHMENT_BYTES = 20 * 1024 * 1024; // 20 MB — must match Laravel max:20480 and .user.ini
+
 async function uploadAttachment(event) {
   const file = event.target.files?.[0];
   if (!file || !selectedTask.value) return;
+  if (file.size > MAX_ATTACHMENT_BYTES) {
+    showToast(`File too large (${formatFileSize(file.size)}). Maximum is 20 MB.`, 'error');
+    event.target.value = '';
+    return;
+  }
   const fd = new FormData();
   fd.append('file', file);
   attachmentUploading.value = true;
@@ -1476,6 +1854,98 @@ function formatFileSize(bytes) {
   if (bytes < 1024) return bytes + ' B';
   if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
   return (bytes / 1048576).toFixed(1) + ' MB';
+}
+
+// ─── File extension helpers ───────────────────────────────────────────────────
+const _EXT_STYLES = {
+  pdf:  ['#fee2e2','#991b1b'],
+  doc:  ['#dbeafe','#1d4ed8'], docx: ['#dbeafe','#1d4ed8'],
+  xls:  ['#dcfce7','#15803d'], xlsx: ['#dcfce7','#15803d'], csv: ['#dcfce7','#15803d'],
+  ppt:  ['#fff7ed','#c2410c'], pptx: ['#fff7ed','#c2410c'],
+  jpg:  ['#ede9fe','#6d28d9'], jpeg: ['#ede9fe','#6d28d9'],
+  png:  ['#ede9fe','#6d28d9'], gif:  ['#ede9fe','#6d28d9'], webp: ['#ede9fe','#6d28d9'],
+  zip:  ['#fef3c7','#92400e'],
+  txt:  ['var(--surface-2)','var(--text-2)'],
+};
+function fileExtStyle(filename) {
+  const ext = (filename || '').split('.').pop().toLowerCase();
+  return _EXT_STYLES[ext] ?? ['var(--surface-2)', 'var(--text-2)'];
+}
+function fileExtLabel(filename) {
+  const ext = (filename || '').split('.').pop().toUpperCase();
+  return ext || 'FILE';
+}
+
+const _AVATAR_PALETTE = ['#1d4ed8','#7c3aed','#db2777','#d97706','#059669','#0891b2','#78350f','#dc2626'];
+function userAvatarColor(uid) {
+  return _AVATAR_PALETTE[(uid ?? 0) % _AVATAR_PALETTE.length];
+}
+
+// ─── Attachments tab ─────────────────────────────────────────────────────────
+async function loadAllAttachments() {
+  attachmentsLoading.value = true;
+  try {
+    const params = { page: attachmentsPage.value };
+    if (attachmentsSearch.value) params.search = attachmentsSearch.value;
+    const res = await api.get('/v1/dept/attachments', { params });
+    allAttachments.value      = res.data.data;
+    attachmentsLastPage.value = res.data.last_page;
+    attachmentsTotal.value    = res.data.total;
+  } finally {
+    attachmentsLoading.value = false;
+  }
+}
+
+let attachmentSearchTimer = null;
+function debouncedAttachmentSearch() {
+  clearTimeout(attachmentSearchTimer);
+  attachmentSearchTimer = setTimeout(() => { attachmentsPage.value = 1; loadAllAttachments(); }, 350);
+}
+
+function openRename(a) {
+  renameModal.show     = true;
+  renameModal.id       = a.id;
+  renameModal.filename = a.filename;
+  renameModal.saving   = false;
+}
+
+async function saveRename() {
+  if (!renameModal.filename.trim() || !renameModal.id) return;
+  renameModal.saving = true;
+  try {
+    await api.put(`/v1/dept/attachments/${renameModal.id}`, { filename: renameModal.filename.trim() });
+    const a = allAttachments.value.find(x => x.id === renameModal.id);
+    if (a) a.filename = renameModal.filename.trim();
+    renameModal.show = false;
+    showToast('File renamed');
+  } catch (e) {
+    showToast(e.response?.data?.message || 'Could not rename', 'error');
+  } finally {
+    renameModal.saving = false;
+  }
+}
+
+function deleteAttachmentFromTab(a) {
+  triggerDeleteConfirm(`Delete "${a.filename}"? This cannot be undone.`, async () => {
+    await api.delete(`/v1/dept/attachments/${a.id}`);
+    allAttachments.value   = allAttachments.value.filter(x => x.id !== a.id);
+    attachmentsTotal.value = Math.max(0, attachmentsTotal.value - 1);
+    showToast('Attachment deleted', 'error');
+  });
+}
+
+async function loadPeopleTasks(silent = false) {
+  if (!silent) peopleLoading.value = true;
+  try {
+    const res = await api.get('/v1/dept/tasks', { params: { all: true } });
+    peopleTasks.value = res.data;
+  } finally {
+    if (!silent) peopleLoading.value = false;
+  }
+}
+
+function togglePeopleUser(key) {
+  peopleCollapsed[key] = !peopleCollapsed[key];
 }
 
 // ─── Drag & drop ──────────────────────────────────────────────────────────────
@@ -1752,13 +2222,15 @@ function tableFilterChange() {
 }
 
 // ─── Refresh current view ─────────────────────────────────────────────────────
-function refreshCurrentView() {
-  if (currentView.value === 'mywork')    loadBoardTasks();
+function refreshCurrentView(silent = false) {
+  if (currentView.value === 'mywork')    loadBoardTasks(silent);
   if (currentView.value === 'dashboard') loadDashboard();
-  if (currentView.value === 'board')     loadBoardTasks();
+  if (currentView.value === 'board')     loadBoardTasks(silent);
+  if (currentView.value === 'people')    loadPeopleTasks(silent);
   if (currentView.value === 'table')     loadTableTasks();
   if (currentView.value === 'weekly')    loadWeeklyData();
   if (currentView.value === 'reports')   loadReport();
+  if (currentView.value === 'files')     loadAllAttachments();
 }
 
 // ─── Charts (Chart.js) ────────────────────────────────────────────────────────
@@ -1816,15 +2288,18 @@ watch(currentView, (v) => {
   if (v === 'mywork')    loadBoardTasks();
   if (v === 'dashboard') loadDashboard();
   if (v === 'board')     loadBoardTasks();
+  if (v === 'people')    loadPeopleTasks();
   if (v === 'table')     loadTableTasks();
   if (v === 'weekly')    loadWeeklyData();
   if (v === 'reports')   loadReport();
+  if (v === 'files')     loadAllAttachments();
 });
 
 // ─── Lifecycle ────────────────────────────────────────────────────────────────
 onUnmounted(() => {
   destroyCharts();
   clearTimeout(searchTimer);
+  clearTimeout(attachmentSearchTimer);
 });
 
 onMounted(async () => {
@@ -2213,6 +2688,35 @@ select.field-input { cursor: pointer; }
 .dp-util-row    { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding: 10px 22px 12px; border-top: 1px solid var(--border); background: var(--surface-2); }
 .dp-no-action           { font-size: 13px; color: var(--text-3); font-style: italic; }
 .dp-no-action--waiting  { color: #92400e; background: #fef3c7; border-radius: var(--radius-sm); padding: 4px 10px; font-style: normal; font-weight: 500; }
+
+/* Approval notice chip (approver row) */
+.dp-approval-notice {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 12px; font-weight: 600; color: #92400e;
+  background: #fef3c7; border: 1px solid #fcd34d;
+  padding: 4px 10px; border-radius: 999px; margin-right: 4px;
+}
+.dp-approval-notice svg { width: 13px; height: 13px; }
+
+/* Task closed / done state notes */
+.dp-status-note {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 13px; color: var(--text-3); font-style: italic;
+}
+.dp-status-note--done { color: #15803d; background: #dcfce7; padding: 4px 10px; border-radius: 999px; font-style: normal; font-weight: 500; }
+.dp-status-note--done svg { width: 13px; height: 13px; }
+
+/* Admin utility row labels */
+.dp-util-badge {
+  font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
+  background: var(--primary-soft); color: var(--primary);
+  padding: 2px 8px; border-radius: 999px; flex-shrink: 0;
+}
+.dp-util-lbl {
+  font-size: 12px; font-weight: 600; color: var(--text-2); flex-shrink: 0; white-space: nowrap;
+}
+/* Push delete to the far right so it's separated from Edit */
+.dp-delete-btn { margin-left: auto; }
 .dp-comments    { padding: 16px 22px; display: flex; flex-direction: column; }
 .dp-section-title { font-size: 13px; font-weight: 700; color: var(--text-1); margin-bottom: 14px; display: flex; align-items: center; justify-content: space-between; }
 .comment-list   { flex: 1; display: flex; flex-direction: column; gap: 12px; margin-bottom: 14px; max-height: 320px; overflow-y: auto; }
@@ -2255,8 +2759,11 @@ select.field-input { cursor: pointer; }
 .modal-body     { padding: 20px 22px; display: flex; flex-direction: column; gap: 16px; }
 .modal-footer   { padding: 16px 22px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 10px; }
 .field-row      { display: flex; flex-direction: column; gap: 6px; }
-.field-row.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-.field-label    { font-size: 12px; font-weight: 600; color: var(--text-2); }
+.field-row.two-col   { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.field-row.three-col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+.field-row.two-col > div,
+.field-row.three-col > div { display: flex; flex-direction: column; gap: 6px; }
+.field-label    { font-size: 12px; font-weight: 600; color: var(--text-2); display: block; }
 .checkbox-label { display: flex; align-items: center; gap: 8px; font-size: 13.5px; color: var(--text-1); cursor: pointer; }
 .checkbox-label input { width: 16px; height: 16px; }
 .field-hint { font-size: 11.5px; color: var(--text-3); margin-top: 6px; line-height: 1.5; }
@@ -2291,6 +2798,7 @@ select.field-input { cursor: pointer; }
 .attach-upload-btn { display: inline-flex; align-items: center; gap: 5px; margin-left: auto; padding: 4px 10px; border-radius: var(--radius-sm); border: 1px dashed var(--border); color: var(--text-2); font-size: 12px; cursor: pointer; transition: border-color 0.15s, color 0.15s; }
 .attach-upload-btn:hover { border-color: var(--primary); color: var(--primary); }
 .attach-upload-btn.uploading { opacity: 0.6; pointer-events: none; }
+.attach-size-hint { font-size: 11px; color: var(--text-3); margin-top: 4px; }
 
 /* ── Form error / Confirm modal ───────────────────────────────────────────── */
 .form-error { font-size: 13px; color: var(--danger, #dc2626); background: rgba(220,38,38,0.08); border: 1px solid rgba(220,38,38,0.25); border-radius: var(--radius-sm); padding: 8px 12px; }
@@ -2337,6 +2845,238 @@ select.field-input { cursor: pointer; }
 
 /* ── Chart empty state ────────────────────────────────────────────────────── */
 .chart-empty { display: flex; align-items: center; justify-content: center; height: 180px; color: var(--text-3); font-size: 13px; }
+
+/* ── People view (Notion-style, tasks by user) ────────────────────────────── */
+.people-filter-bar {
+  display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 20px;
+  padding: 12px 16px; background: var(--surface);
+  border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-xs);
+}
+.pf-search  { width: 200px; }
+.pf-count   { font-size: 12.5px; color: var(--text-3); }
+
+.people-list { display: flex; flex-direction: column; gap: 12px; }
+
+/* ── View toggle ─────────────────────────────────────────────────────────── */
+.pv-toggle { display: flex; margin-left: auto; border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; }
+.pv-btn { padding: 5px 10px; background: transparent; border: none; color: var(--text-3); cursor: pointer; display: flex; align-items: center; transition: background 0.12s, color 0.12s; }
+.pv-btn.active { background: var(--primary-soft); color: var(--primary); }
+.pv-btn:hover:not(.active) { background: var(--surface-2); color: var(--text-1); }
+
+/* ── People: Cards view ──────────────────────────────────────────────────── */
+.people-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 16px; align-items: start; }
+.pc-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-sm); overflow: hidden; }
+.pc-card-head { padding: 14px 16px 12px; display: flex; align-items: center; gap: 10px; }
+.pc-head-info { flex: 1; min-width: 0; }
+.pc-name { font-size: 13.5px; font-weight: 700; color: var(--text-1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pc-chips { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 4px; }
+.pc-progress-txt-top { font-size: 11px; font-weight: 600; color: var(--text-3); white-space: nowrap; }
+.pc-progress { height: 3px; background: var(--border); margin: 0 16px 0; border-radius: 999px; }
+.pc-progress-fill { height: 100%; background: #22c55e; border-radius: 999px; transition: width 0.4s; }
+.pc-tasks { max-height: 300px; overflow-y: auto; border-top: 1px solid var(--border-soft); margin-top: 10px; }
+.pc-task { display: flex; align-items: center; gap: 8px; padding: 9px 14px; border-bottom: 1px solid var(--border-soft); border-left: 3px solid transparent; cursor: pointer; transition: background 0.12s; }
+.pc-task:last-child { border-bottom: none; }
+.pc-task:hover { background: var(--surface-2); }
+.pc-task--ov { background: #fff0f0; }
+.pc-task--ov:hover { background: #fee2e2; }
+.pc-task-title { flex: 1; font-size: 12.5px; color: var(--text-1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pc-empty { padding: 18px 16px; text-align: center; font-size: 12px; color: var(--text-3); }
+
+.pg-block {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-sm);
+}
+
+.pg-head {
+  width: 100%; display: flex; align-items: center; justify-content: space-between;
+  padding: 13px 18px; background: none; border: none; cursor: pointer; gap: 16px;
+  transition: background 0.12s; text-align: left;
+}
+.pg-head:hover { background: var(--surface-2); }
+
+.pg-head-left  { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; overflow: hidden; }
+.pg-head-right { flex-shrink: 0; }
+
+.pg-chevron { display: inline-flex; color: var(--text-3); transition: transform 0.2s; flex-shrink: 0; }
+.pg-chevron.open { transform: rotate(90deg); }
+
+.pg-avatar {
+  width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0;
+  background: var(--primary); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.3px; text-transform: uppercase;
+}
+
+.pg-name { font-size: 14.5px; font-weight: 700; color: var(--text-1); white-space: nowrap; }
+
+.pg-chip {
+  display: inline-block; padding: 2px 9px; border-radius: 999px;
+  font-size: 11px; font-weight: 600; white-space: nowrap; flex-shrink: 0;
+}
+.pg-chip--danger  { background: #fee2e2; color: #991b1b; }
+.pg-chip--neutral { background: var(--surface-2); color: var(--text-2); border: 1px solid var(--border); }
+.pg-chip--done    { background: #dcfce7; color: #15803d; }
+
+.pg-progress-wrap { display: flex; align-items: center; gap: 8px; }
+.pg-progress-bar  { width: 90px; height: 5px; background: var(--border); border-radius: 999px; overflow: hidden; flex-shrink: 0; }
+.pg-progress-fill { height: 100%; background: #10b981; border-radius: 999px; transition: width 0.4s ease; }
+.pg-progress-txt  { font-size: 11.5px; color: var(--text-3); white-space: nowrap; min-width: 28px; text-align: right; }
+
+.pg-task-area { border-top: 1px solid var(--border-soft); }
+
+.pg-col-labels {
+  display: grid; grid-template-columns: 1fr 155px 105px 148px;
+  gap: 12px; padding: 7px 20px 7px 22px;
+  background: var(--surface-2); border-bottom: 1px solid var(--border-soft);
+  font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-3);
+}
+
+.pg-task-row {
+  display: grid; grid-template-columns: 1fr 155px 105px 148px;
+  align-items: center; gap: 12px; padding: 11px 20px 11px 22px;
+  border-left: 3px solid var(--border); border-bottom: 1px solid var(--border-soft);
+  cursor: pointer; transition: background 0.12s;
+}
+.pg-task-row:last-child { border-bottom: none; }
+.pg-task-row:hover { background: #f6f9ff; }
+.pg-task-row--ov { background: #fef9f9; }
+.pg-task-row--ov:hover { background: #fef2f2; }
+
+.pg-task-info { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.pg-task-name { font-size: 13.5px; font-weight: 600; color: var(--text-1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pg-task-hint { font-size: 11.5px; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.pg-task-dept-cell { display: flex; align-items: center; }
+.pg-task-empty { color: var(--text-3); font-size: 13px; }
+
+.pg-task-due { font-size: 12.5px; color: var(--text-2); white-space: nowrap; }
+
+.pg-no-tasks { padding: 20px 22px; color: var(--text-3); font-size: 13px; text-align: center; }
+
+@media (max-width: 900px) {
+  .pg-col-labels { grid-template-columns: 1fr 120px 130px; }
+  .pg-task-row   { grid-template-columns: 1fr 120px 130px; }
+  .pg-col-labels span:nth-child(3),
+  .pg-task-row .pg-task-due { display: none; }
+}
+@media (max-width: 640px) {
+  .pg-col-labels { grid-template-columns: 1fr 130px; }
+  .pg-task-row   { grid-template-columns: 1fr 130px; }
+  .pg-col-labels span:nth-child(2), .pg-col-labels span:nth-child(3),
+  .pg-task-row .pg-task-dept-cell, .pg-task-row .pg-task-due { display: none; }
+  .pg-progress-bar { width: 60px; }
+  .pg-chip { display: none; }
+  .pg-chip--danger { display: inline-block; }
+}
+
+/* ── File Manager ────────────────────────────────────────────────────────── */
+.af-count { font-size: 12.5px; color: var(--text-3); margin-left: auto; white-space: nowrap; }
+.fm-toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; flex-wrap: wrap; }
+.fm-sort-select { width: auto; min-width: 140px; }
+
+.fm-view-toggle { display: flex; border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; flex-shrink: 0; }
+.fm-vt-btn {
+  background: none; border: none; cursor: pointer; padding: 6px 10px;
+  color: var(--text-3); display: flex; align-items: center; justify-content: center;
+  transition: background 0.15s, color 0.15s; line-height: 1;
+}
+.fm-vt-btn:hover { background: var(--surface-2); color: var(--text-1); }
+.fm-vt-btn.active { background: var(--primary); color: #fff; }
+
+/* ── Grid ── */
+.fm-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(152px, 1fr));
+  gap: 14px;
+}
+.fm-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); overflow: hidden;
+  transition: box-shadow 0.18s, transform 0.18s;
+  cursor: default;
+}
+.fm-card:hover { box-shadow: 0 6px 20px rgba(0,0,0,0.10); transform: translateY(-2px); }
+
+.fm-icon-wrap {
+  position: relative; height: 100px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--surface-2); overflow: hidden;
+}
+.fm-ext-icon {
+  font-size: 22px; font-weight: 800; letter-spacing: 0.5px;
+  padding: 14px 20px; border-radius: var(--radius);
+  user-select: none;
+}
+.fm-card-overlay {
+  position: absolute; inset: 0;
+  background: rgba(15,20,30,0.62); backdrop-filter: blur(3px);
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  opacity: 0; transition: opacity 0.16s;
+}
+.fm-card:hover .fm-card-overlay { opacity: 1; }
+.fm-overlay-btn {
+  background: rgba(255,255,255,0.14); border: 1px solid rgba(255,255,255,0.22);
+  border-radius: var(--radius-sm); padding: 7px; cursor: pointer; color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.12s; text-decoration: none;
+}
+.fm-overlay-btn:hover { background: rgba(255,255,255,0.28); }
+.fm-overlay-btn.danger:hover { background: rgba(220,38,38,0.75); border-color: transparent; }
+
+.fm-card-foot { padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 3px; }
+.fm-card-name {
+  font-size: 12.5px; font-weight: 600; color: var(--text-1);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.fm-card-meta { font-size: 11px; color: var(--text-3); }
+.fm-task-link {
+  background: none; border: none; padding: 0; cursor: pointer;
+  font-size: 11.5px; color: var(--primary); text-align: left;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  display: block; width: 100%; margin-top: 1px;
+}
+.fm-task-link:hover { text-decoration: underline; }
+.fm-dept-row { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; margin-top: 3px; }
+.fm-dept-pill { font-size: 10px !important; padding: 1px 7px !important; }
+.fm-by { font-size: 10.5px; color: var(--text-3); }
+
+/* ── List ── */
+.fm-list {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); overflow: hidden;
+}
+.fm-list-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 16px; border-bottom: 1px solid var(--border);
+  transition: background 0.1s;
+}
+.fm-list-row:last-child { border-bottom: none; }
+.fm-list-row:hover { background: var(--surface-2); }
+.fm-list-badge {
+  font-size: 10px; font-weight: 700; padding: 3px 8px;
+  border-radius: 6px; white-space: nowrap; flex-shrink: 0; letter-spacing: 0.3px;
+}
+.fm-list-main { flex: 1; min-width: 0; }
+.fm-list-name {
+  display: block; color: var(--text-1); text-decoration: none;
+  font-size: 13px; font-weight: 500;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.fm-list-name:hover { color: var(--primary); }
+.fm-list-sub { display: flex; align-items: center; gap: 6px; margin-top: 2px; flex-wrap: wrap; }
+.fm-task-link-inline {
+  background: none; border: none; padding: 0; cursor: pointer;
+  font-size: 11.5px; color: var(--text-2); text-align: left;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.fm-task-link-inline:hover { color: var(--primary); text-decoration: underline; }
+.fm-list-meta { font-size: 12px; color: var(--text-3); white-space: nowrap; flex-shrink: 0; }
+.fm-list-actions { display: flex; gap: 2px; flex-shrink: 0; }
+
+.file-ext-badge {
+  font-size: 10px; font-weight: 700; padding: 2px 7px;
+  border-radius: 999px; white-space: nowrap; display: inline-block; letter-spacing: 0.3px;
+}
 
 /* ── Notification overlay (click-outside) ────────────────────────────────── */
 .notif-overlay { position: fixed; inset: 0; z-index: 199; }

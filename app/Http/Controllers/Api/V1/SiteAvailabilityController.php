@@ -123,7 +123,7 @@ class SiteAvailabilityController extends Controller
     {
         $request->validate([
             'kind'  => ['required', Rule::in(['site_photo', 'site_map_photo'])],
-            'photo' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
+            'photo' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:20480'],
         ]);
 
         $kind = $request->input('kind');

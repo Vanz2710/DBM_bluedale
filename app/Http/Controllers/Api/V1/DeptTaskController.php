@@ -535,7 +535,9 @@ class DeptTaskController extends Controller
             abort(403, 'You can only attach files to tasks you are involved in.');
         }
 
-        $request->validate(['file' => 'required|file|max:10240']);
+        $request->validate([
+            'file' => 'required|file|max:20480|mimes:pdf,doc,docx,xls,xlsx,ppt,pptx,txt,csv,jpg,jpeg,png,gif,webp,zip',
+        ]);
 
         $file = $request->file('file');
         $path = $file->store("dept-attachments/{$taskId}", 'public');
@@ -566,6 +568,74 @@ class DeptTaskController extends Controller
         $user  = $request->user();
         $query = DeptTaskAttachment::where('task_id', $taskId)->where('id', $attachmentId);
         if (!$user->hasAnyRole(['admin', 'super-admin'])) {
+            $query->where('user_id', $user->id);
+        }
+        $attachment = $query->firstOrFail();
+        Storage::disk('public')->delete($attachment->path);
+        $attachment->delete();
+        return response()->json(['ok' => true]);
+    }
+
+    public function listAttachments(Request $request): JsonResponse
+    {
+        $user    = $request->user();
+        $isAdmin = $this->isAdmin($request);
+
+        $query = DeptTaskAttachment::with([
+            'user:id,name',
+            'task:id,title,department_id',
+            'task.department:id,name,color',
+        ]);
+
+        if (!$isAdmin) {
+            $query->whereHas('task', function ($q) use ($user) {
+                $q->where('assigned_to', $user->id)
+                  ->orWhere('created_by',  $user->id);
+            });
+        }
+
+        if ($request->filled('search')) {
+            $query->where('filename', 'like', '%' . $request->search . '%');
+        }
+
+        $rows = $query->orderByDesc('created_at')->paginate(30);
+
+        return response()->json($rows->through(fn($a) => [
+            'id'        => $a->id,
+            'filename'  => $a->filename,
+            'size'      => $a->size,
+            'mime_type' => $a->mime_type,
+            'url'       => Storage::url($a->path),
+            'created_at'=> $a->created_at->format('d M Y, H:i'),
+            'user'      => $a->user ? ['id' => $a->user->id, 'name' => $a->user->name] : null,
+            'task'      => $a->task ? [
+                'id'         => $a->task->id,
+                'title'      => $a->task->title,
+                'department' => $a->task->department
+                    ? ['name' => $a->task->department->name, 'color' => $a->task->department->color]
+                    : null,
+            ] : null,
+        ]));
+    }
+
+    public function renameAttachment(Request $request, int $attachmentId): JsonResponse
+    {
+        $user  = $request->user();
+        $query = DeptTaskAttachment::where('id', $attachmentId);
+        if (!$this->isAdmin($request)) {
+            $query->where('user_id', $user->id);
+        }
+        $attachment = $query->firstOrFail();
+        $request->validate(['filename' => 'required|string|max:255']);
+        $attachment->update(['filename' => trim($request->filename)]);
+        return response()->json(['ok' => true, 'filename' => $attachment->filename]);
+    }
+
+    public function deleteAttachmentDirect(Request $request, int $attachmentId): JsonResponse
+    {
+        $user  = $request->user();
+        $query = DeptTaskAttachment::where('id', $attachmentId);
+        if (!$this->isAdmin($request)) {
             $query->where('user_id', $user->id);
         }
         $attachment = $query->firstOrFail();

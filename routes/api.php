@@ -396,6 +396,9 @@ Route::middleware(['auth:sanctum', 'maintenance'])->group(function () {
             Route::delete('tasks/{taskId}/comments/{commentId}',             [DeptTaskController::class, 'deleteComment']);
             Route::post('tasks/{taskId}/attachments',                          [DeptTaskController::class, 'storeAttachment']);
             Route::delete('tasks/{taskId}/attachments/{attachmentId}',         [DeptTaskController::class, 'deleteAttachment']);
+            Route::get('attachments',                                          [DeptTaskController::class, 'listAttachments']);
+            Route::put('attachments/{attachmentId}',                           [DeptTaskController::class, 'renameAttachment']);
+            Route::delete('attachments/{attachmentId}',                        [DeptTaskController::class, 'deleteAttachmentDirect']);
         });
     });
 });

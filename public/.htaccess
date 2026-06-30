@@ -1,3 +1,15 @@
+# PHP upload limits (mod_php / Apache only — PHP-FPM uses public/.user.ini instead).
+# These directives are silently ignored when PHP runs as FPM, so they are safe
+# to keep here for both environments.
+<IfModule mod_php.c>
+    php_value upload_max_filesize 20M
+    php_value post_max_size       22M
+</IfModule>
+<IfModule mod_php8.c>
+    php_value upload_max_filesize 20M
+    php_value post_max_size       22M
+</IfModule>
+
 <IfModule mod_mime.c>
     AddType application/javascript .js .mjs
     AddType text/css .css

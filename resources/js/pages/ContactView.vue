@@ -119,7 +119,7 @@
 
         <!-- Right: Monthly Activity -->
         <div>
-          <div class="card">
+          <div class="card" data-tour="contact-activity-card">
             <div class="card-title-row">
               <span class="card-title">Monthly Activity</span>
               <select v-model="actYear" class="year-sel">
@@ -219,7 +219,7 @@
       </div>
 
       <!-- Forecasts -->
-      <div class="card">
+      <div class="card" data-tour="contact-forecast-card">
         <div class="card-title-row">
           <span class="card-title">Forecast History ({{ contact.forecasts?.length ?? 0 }})</span>
           <button v-if="can('create forecasts')" class="btn btn-sm btn-info" @click="openForecastAdd">+ Add Forecast</button>

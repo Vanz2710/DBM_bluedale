@@ -647,15 +647,18 @@
               <div class="landmark-label-row">
                 <label style="margin:0">
                   Nearest Landmarks
-                  <span v-if="landmarkFetching" class="landmark-fetch-status"><span class="lm-spinner"></span> Searching...</span>
-                  <span v-else-if="landmarkFetched" class="landmark-fetch-status landmark-fetch-ok">Auto-filled</span>
+                  <span v-if="landmarkFetched && !landmarkFetching" class="landmark-fetch-status landmark-fetch-ok">Filled</span>
                 </label>
                 <button
-                  v-if="registerForm.coordinate && !landmarkFetching"
+                  v-if="registerForm.coordinate"
                   type="button"
                   class="btn-refresh-landmarks"
+                  :disabled="landmarkFetching"
                   @click="refreshLandmarks"
-                >&#8635; Refresh</button>
+                >
+                  <span v-if="landmarkFetching"><span class="lm-spinner"></span> Searching...</span>
+                  <span v-else>Auto Search Landmarks</span>
+                </button>
               </div>
               <table class="register-landmark-table">
                 <thead>
@@ -2507,6 +2510,13 @@ async function onPhotoSelectedFor(event, product, kind) {
 
 async function uploadPhoto(product, kind, file, fromWizard = false) {
   error.value = '';
+
+  const MAX_BYTES = 20 * 1024 * 1024; // 20 MB — matches server .htaccess / .user.ini
+  if (file.size > MAX_BYTES) {
+    error.value = `Photo is too large (${(file.size / 1024 / 1024).toFixed(1)} MB). Maximum allowed size is 20 MB.`;
+    return;
+  }
+
   if (fromWizard) {
     if (!uploadingPhotoFor.value[product.id]) uploadingPhotoFor.value[product.id] = {};
     uploadingPhotoFor.value[product.id][kind] = true;
@@ -2522,8 +2532,15 @@ async function uploadPhoto(product, kind, file, fromWizard = false) {
     const { path, url } = res.data.data;
     applyPhotoUpdate(product.id, kind, path, url);
   } catch (e) {
+    const status = e.response?.status;
     const errors = e.response?.data?.errors;
-    error.value = errors ? Object.values(errors).flat().join(' ') : 'Failed to upload photo.';
+    if (errors) {
+      error.value = Object.values(errors).flat().join(' ');
+    } else if (status === 413 || !e.response) {
+      error.value = 'Photo upload failed — the file is too large for the server. Try a smaller image (under 20 MB).';
+    } else {
+      error.value = 'The photo failed to upload. Please try again.';
+    }
   } finally {
     if (fromWizard) {
       uploadingPhotoFor.value[product.id][kind] = false;
@@ -3179,7 +3196,6 @@ function onLocationInput() {
     const direct = parseMapsLink(val);
     if (direct) {
       registerForm.value.coordinate = `${direct.lat.toFixed(6)}, ${direct.lng.toFixed(6)}`;
-      fetchNearestLandmarks(direct.lat, direct.lng);
       return;
     }
     if (val.length > 15) {
@@ -3201,7 +3217,6 @@ async function resolveMapsUrl(url) {
     const lat = parseFloat(res.data.lat);
     const lng = parseFloat(res.data.lng);
     registerForm.value.coordinate = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
-    fetchNearestLandmarks(lat, lng);
   } catch (e) {
     locationError.value = e.response?.data?.error ?? 'Could not extract coordinates from this link.';
   } finally {
@@ -3230,7 +3245,6 @@ function selectLocationResult(result) {
   registerForm.value.coordinate = `${lat}, ${lng}`;
   locationInput.value = result.display_name;
   locationResults.value = [];
-  fetchNearestLandmarks(parseFloat(lat), parseFloat(lng));
 }
 
 function refreshLandmarks() {
@@ -4382,10 +4396,12 @@ onMounted(() => {
 .landmark-fetch-status { margin-left: 8px; font-size: 10px; font-weight: 700; text-transform: none; letter-spacing: 0; color: var(--text-3); }
 .landmark-fetch-ok { color: #16a34a; }
 .btn-refresh-landmarks {
-  flex-shrink: 0; height: 28px; padding: 0 10px; border: 1.5px solid var(--border); border-radius: var(--radius-sm);
-  background: var(--surface-2); color: var(--text-2); font-size: 11px; font-weight: 700; cursor: pointer;
+  flex-shrink: 0; height: 30px; padding: 0 14px; border: none; border-radius: var(--radius-sm);
+  background: var(--primary); color: #fff; font-size: 11px; font-weight: 700; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 5px; transition: opacity 0.15s;
 }
-.btn-refresh-landmarks:hover { background: var(--surface); border-color: var(--primary); color: var(--primary); }
+.btn-refresh-landmarks:hover:not(:disabled) { opacity: 0.88; }
+.btn-refresh-landmarks:disabled { opacity: 0.55; cursor: not-allowed; }
 .register-landmark-table { width: 100%; border-collapse: collapse; margin-top: 0; table-layout: fixed; }
 .register-landmark-table th {
   font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
