@@ -44,7 +44,10 @@
               <tr v-for="(item, idx) in items" :key="item.id">
                 <td class="num">{{ idx + 1 }}</td>
                 <td>
-                  <input v-if="editId === item.id" v-model="editName" class="edit-input" @keyup.enter="saveEdit(item)" @keyup.escape="cancelEdit">
+                  <template v-if="editId === item.id">
+                    <input v-model="editName" class="edit-input" @keyup.enter="saveEdit(item)" @keyup.escape="cancelEdit">
+                    <span v-if="editError" class="edit-inline-error">{{ editError }}</span>
+                  </template>
                   <span v-else class="item-name">{{ item.name }}</span>
                 </td>
                 <td class="usage-cell">
@@ -149,6 +152,7 @@ const newName   = ref('');
 const addError  = ref('');
 const editId    = ref(null);
 const editName  = ref('');
+const editError = ref('');
 
 const deleteModal = reactive({ open: false, item: null, loading: false });
 function openDeleteModal(item) { deleteModal.item = item; deleteModal.open = true; }
@@ -197,11 +201,13 @@ async function addItem() {
 function startEdit(item) {
   editId.value   = item.id;
   editName.value = item.name;
+  editError.value = '';
 }
 
 function cancelEdit() {
   editId.value   = null;
   editName.value = '';
+  editError.value = '';
 }
 
 async function saveEdit(item) {
@@ -215,7 +221,7 @@ async function saveEdit(item) {
     cancelEdit();
   } catch (e) {
     const errors = e.response?.data?.errors;
-    addError.value = errors
+    editError.value = errors
       ? Object.values(errors).flat().join(' ')
       : (e.response?.data?.message ?? 'Failed to update item.');
   }
@@ -298,6 +304,7 @@ tbody tr:hover { background: var(--surface-2); }
 .badge-unused { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 700; background: var(--surface-2); color: var(--text-3); }
 
 .edit-input { width: 100%; height: 34px; padding: 0 12px; border: 1.5px solid var(--primary); border-radius: 8px; font-size: 13px; outline: none; background: var(--surface); }
+.edit-inline-error { display: block; margin-top: 4px; font-size: 11.5px; font-weight: 600; color: var(--danger); }
 .act-btn { height: 28px; padding: 0 12px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; border: none; margin-left: 4px; transition: background 0.12s; }
 .act-btn:first-child { margin-left: 0; }
 .act-edit:not(:disabled)   { background: #fefce8; color: #92400e; }

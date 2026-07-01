@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Models\Admin\Role;
+use App\Models\AdminAuditLog;
 use Illuminate\Http\Request;
 
 class RoleController extends Controller
@@ -27,6 +28,9 @@ class RoleController extends Controller
             'guard_name'  => 'web',
         ]);
 
+        $this->audit('created', 'role', $role->id, $role->name,
+            null, ['name' => $role->name, 'description' => $role->description], $request);
+
         return response()->json(['status' => 'success', 'data' => $role], 201);
     }
 
@@ -43,19 +47,27 @@ class RoleController extends Controller
             return response()->json(['message' => 'System roles cannot be renamed.'], 422);
         }
 
+        $old = $role->only('name', 'description');
+
         $role->update([
             'name'        => $request->name,
             'description' => $request->description,
         ]);
 
+        $this->audit('updated', 'role', $role->id, $role->name,
+            $old, ['name' => $role->name, 'description' => $role->description], $request);
+
         return response()->json(['status' => 'success', 'data' => $role]);
     }
 
-    public function destroy(Role $role)
+    public function destroy(Request $request, Role $role)
     {
         if (in_array($role->name, ['super-admin', 'admin'])) {
             return response()->json(['message' => 'System roles cannot be deleted.'], 422);
         }
+
+        $this->audit('deleted', 'role', $role->id, $role->name,
+            ['name' => $role->name, 'description' => $role->description], null, $request);
 
         $role->delete();
         return response()->json(['status' => 'success']);
@@ -68,11 +80,31 @@ class RoleController extends Controller
             'permissions.*' => 'string|exists:permissions,name',
         ]);
 
+        $old = $role->permissions()->pluck('name')->toArray();
         $role->syncPermissions($request->permissions);
+
+        $this->audit('updated', 'role_permissions', $role->id, $role->name,
+            ['permissions' => $old], ['permissions' => $request->permissions], $request);
 
         return response()->json([
             'status' => 'success',
             'data'   => $role->load('permissions:id,name'),
+        ]);
+    }
+
+    private function audit(
+        string $action, string $entityType, int $entityId, ?string $entityName,
+        ?array $old, ?array $new, Request $request
+    ): void {
+        AdminAuditLog::create([
+            'user_id'     => $request->user()?->id,
+            'action'      => $action,
+            'entity_type' => $entityType,
+            'entity_id'   => (string) $entityId,
+            'entity_name' => $entityName,
+            'old_values'  => $old,
+            'new_values'  => $new,
+            'ip_address'  => $request->ip(),
         ]);
     }
 }

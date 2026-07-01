@@ -30,7 +30,7 @@
           <button
             v-for="item in navItems"
             :key="item.tab"
-            v-show="item.tab !== 'admin' || isAdmin"
+            v-if="item.tab !== 'admin' || isAdmin"
             :class="['nav-item', { active: tab === item.tab }]"
             @click="tab = item.tab"
           >

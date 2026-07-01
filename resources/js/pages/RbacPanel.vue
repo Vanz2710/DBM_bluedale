@@ -221,14 +221,26 @@
             <span>Show deleted</span>
           </label>
         </div>
+        <div v-if="selectedUserIds.size > 0" class="bulk-actions-bar">
+          <span class="bulk-count">{{ selectedUserIds.size }} selected</span>
+          <button class="btn-bulk act-purple" @click="openBulkRoleModal">Assign Role</button>
+          <button class="btn-bulk act-red" @click="openBulkDeleteModal">Delete Selected</button>
+          <button class="btn-bulk-clear" @click="clearSelection">Clear</button>
+        </div>
         <LoadingSpinner v-if="loading" />
         <table v-else>
           <thead>
-            <tr><th>#</th><th>Name</th><th>Username</th><th>Roles</th><th>Status</th><th>Logins</th><th>Last Login</th><th>Joined</th><th>Actions</th></tr>
+            <tr>
+              <th class="checkbox-col"><input type="checkbox" :checked="allSelectableSelected" @change="toggleSelectAll"></th>
+              <th>#</th><th>Name</th><th>Username</th><th>Roles</th><th>Status</th><th>Logins</th><th>Last Login</th><th>Joined</th><th>Actions</th>
+            </tr>
           </thead>
           <tbody>
-            <tr v-if="displayedUsers.length === 0"><td colspan="9" class="empty-state">{{ userSearch ? 'No users match your search.' : 'No users yet.' }}</td></tr>
+            <tr v-if="displayedUsers.length === 0"><td colspan="10" class="empty-state">{{ userSearch ? 'No users match your search.' : 'No users yet.' }}</td></tr>
             <tr v-for="(user, idx) in displayedUsers" :key="user.id" :class="{ 'row-deleted': user.deleted_at }">
+              <td class="checkbox-col">
+                <input v-if="!user.deleted_at" type="checkbox" :checked="selectedUserIds.has(user.id)" @change="toggleUserSelected(user.id)">
+              </td>
               <td class="num">{{ idx + 1 }}</td>
               <td class="user-name-cell">{{ user.name }}</td>
               <td><code class="username-code">{{ user.username }}</code></td>
@@ -263,6 +275,7 @@
                 </template>
                 <template v-else-if="user.inactivity_flagged_at">
                   <button class="act-btn act-green" @click="restoreAccess(user)">Restore Access</button>
+                  <button class="act-btn act-edit" @click="openEditUserModal(user)">Edit</button>
                   <button class="act-btn act-key" @click="openResetPwModal(user)">Set Pwd</button>
                   <button class="act-btn act-red" @click="deleteUser(user)">Delete</button>
                 </template>
@@ -352,6 +365,68 @@
             <button class="btn btn-ghost" @click="reassignModal.open = false">Cancel</button>
             <button class="btn btn-danger" @click="confirmReassign" :disabled="reassignModal.loading">
               {{ reassignModal.loading ? 'Reassigning…' : 'Yes, Reassign' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
+    <!-- RESTORE USER CONFIRM MODAL -->
+    <Teleport to="body">
+      <div v-if="restoreUserModal.open" class="overlay">
+        <div class="modal">
+          <div class="modal-head">
+            <div>
+              <div class="modal-title">Restore User</div>
+              <div class="modal-sub">The user will be able to log in again.</div>
+            </div>
+            <button class="modal-close" @click="closeRestoreUserModal"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+          </div>
+          <div class="modal-body" style="align-items:center; text-align:center;">
+            <svg class="modal-warn-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+              <polyline points="22 4 12 14.01 9 11.01"/>
+            </svg>
+            <p class="modal-confirm-text">
+              Restore <strong>{{ restoreUserModal.user?.name }}</strong>?<br>
+              Their account will be reactivated immediately.
+            </p>
+          </div>
+          <div class="modal-foot">
+            <button class="btn btn-ghost" @click="closeRestoreUserModal">Cancel</button>
+            <button class="btn btn-primary" @click="confirmRestoreUser" :disabled="restoreUserModal.loading">
+              {{ restoreUserModal.loading ? 'Restoring…' : 'Yes, Restore' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
+    <!-- APPROVE USER CONFIRM MODAL -->
+    <Teleport to="body">
+      <div v-if="approveUserModal.open" class="overlay">
+        <div class="modal">
+          <div class="modal-head">
+            <div>
+              <div class="modal-title">Approve User</div>
+              <div class="modal-sub">This will unblock their access to the system.</div>
+            </div>
+            <button class="modal-close" @click="closeApproveUserModal"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+          </div>
+          <div class="modal-body" style="align-items:center; text-align:center;">
+            <svg class="modal-warn-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+              <polyline points="22 4 12 14.01 9 11.01"/>
+            </svg>
+            <p class="modal-confirm-text">
+              Approve <strong>{{ approveUserModal.user?.name }}</strong>?<br>
+              They will be able to log in immediately.
+            </p>
+          </div>
+          <div class="modal-foot">
+            <button class="btn btn-ghost" @click="closeApproveUserModal">Cancel</button>
+            <button class="btn btn-primary" @click="confirmApproveUser" :disabled="approveUserModal.loading">
+              {{ approveUserModal.loading ? 'Approving…' : 'Yes, Approve' }}
             </button>
           </div>
         </div>
@@ -788,6 +863,82 @@
     </div>
   </Teleport>
 
+  <!-- Bulk assign role confirm modal -->
+  <Teleport to="body">
+    <div v-if="bulkRoleModal.open" class="overlay">
+      <div class="modal">
+        <div class="modal-head">
+          <div>
+            <div class="modal-title">Assign Role to {{ bulkRoleModal.userIds.length }} User{{ bulkRoleModal.userIds.length !== 1 ? 's' : '' }}</div>
+            <div class="modal-sub">This replaces each selected user's roles with the one you pick.</div>
+          </div>
+          <button class="modal-close" @click="closeBulkRoleModal"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+        </div>
+        <div class="modal-body" style="gap: 14px;">
+          <div class="bulk-user-list">
+            <span v-for="u in bulkRoleModal.userIds" :key="u" class="tag tag-purple">{{ userNameById(u) }}</span>
+          </div>
+          <select v-model="bulkRoleModal.role" class="reassign-select">
+            <option value="">Select a role…</option>
+            <option v-for="r in roles" :key="r.id" :value="r.name">{{ r.name }}</option>
+          </select>
+          <div v-if="bulkRoleModal.error" class="form-error" style="width: 100%;">{{ bulkRoleModal.error }}</div>
+          <div v-if="bulkRoleModal.result" class="bulk-result">
+            <div v-if="bulkRoleModal.result.updated.length" class="bulk-result-ok">Updated {{ bulkRoleModal.result.updated.length }} user(s).</div>
+            <div v-if="bulkRoleModal.result.skipped.length" class="bulk-result-skip">
+              Skipped {{ bulkRoleModal.result.skipped.length }}:
+              <div v-for="s in bulkRoleModal.result.skipped" :key="s.id">{{ s.name ?? ('#' + s.id) }} — {{ s.reason }}</div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-foot">
+          <button class="btn btn-ghost" @click="closeBulkRoleModal">{{ bulkRoleModal.result ? 'Close' : 'Cancel' }}</button>
+          <button v-if="!bulkRoleModal.result" class="btn btn-primary" @click="confirmBulkRole" :disabled="bulkRoleModal.loading || !bulkRoleModal.role">
+            {{ bulkRoleModal.loading ? 'Assigning…' : 'Assign Role' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </Teleport>
+
+  <!-- Bulk delete confirm modal -->
+  <Teleport to="body">
+    <div v-if="bulkDeleteModal.open" class="overlay">
+      <div class="modal">
+        <div class="modal-head">
+          <div>
+            <div class="modal-title">Delete {{ bulkDeleteModal.userIds.length }} User{{ bulkDeleteModal.userIds.length !== 1 ? 's' : '' }}</div>
+            <div class="modal-sub">Reversible — deleted users can be restored later.</div>
+          </div>
+          <button class="modal-close" @click="closeBulkDeleteModal"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+        </div>
+        <div class="modal-body" style="gap: 14px; align-items: center;">
+          <svg class="modal-warn-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+            <line x1="12" y1="9" x2="12" y2="13"/><circle cx="12" cy="17" r="1" fill="#f59e0b" stroke="none"/>
+          </svg>
+          <div class="bulk-user-list">
+            <span v-for="u in bulkDeleteModal.userIds" :key="u" class="tag tag-red">{{ userNameById(u) }}</span>
+          </div>
+          <p class="modal-confirm-text">Users who still own contacts, deals, projects, forecasts, or to-dos will be skipped — delete those individually so their work can be reassigned.</p>
+          <div v-if="bulkDeleteModal.result" class="bulk-result">
+            <div v-if="bulkDeleteModal.result.deleted.length" class="bulk-result-ok">Deleted {{ bulkDeleteModal.result.deleted.length }} user(s).</div>
+            <div v-if="bulkDeleteModal.result.skipped.length" class="bulk-result-skip">
+              Skipped {{ bulkDeleteModal.result.skipped.length }}:
+              <div v-for="s in bulkDeleteModal.result.skipped" :key="s.id">{{ s.name ?? ('#' + s.id) }} — {{ s.reason }}</div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-foot">
+          <button class="btn btn-ghost" @click="closeBulkDeleteModal">{{ bulkDeleteModal.result ? 'Close' : 'Cancel' }}</button>
+          <button v-if="!bulkDeleteModal.result" class="btn btn-danger" @click="confirmBulkDelete" :disabled="bulkDeleteModal.loading">
+            {{ bulkDeleteModal.loading ? 'Deleting…' : 'Yes, Delete' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </Teleport>
+
   </div>
 </template>
 
@@ -827,6 +978,27 @@ const displayedUsers = computed(() => {
     (u.email && u.email.toLowerCase().includes(q))
   )
 });
+
+// ── Bulk user selection ──
+const selectedUserIds = ref(new Set());
+const selectableUsers = computed(() => displayedUsers.value.filter(u => !u.deleted_at));
+const allSelectableSelected = computed(() =>
+  selectableUsers.value.length > 0 && selectableUsers.value.every(u => selectedUserIds.value.has(u.id))
+);
+function toggleUserSelected(id) {
+  const next = new Set(selectedUserIds.value);
+  if (next.has(id)) next.delete(id); else next.add(id);
+  selectedUserIds.value = next;
+}
+function toggleSelectAll() {
+  if (allSelectableSelected.value) {
+    selectedUserIds.value = new Set();
+  } else {
+    selectedUserIds.value = new Set(selectableUsers.value.map(u => u.id));
+  }
+}
+function clearSelection() { selectedUserIds.value = new Set(); }
+function userNameById(id) { return users.value.find(u => u.id === id)?.name ?? `#${id}`; }
 
 const roleForm     = reactive({ name: '', description: '' });
 const userForm     = reactive({ name: '', username: '', email: '', password: '', password_confirmation: '', role: '' });
@@ -969,24 +1141,44 @@ async function switchTab(key) {
 }
 
 // --- Approve ---
-async function approveUser(user) {
+const approveUserModal = reactive({ open: false, user: null, loading: false });
+function openApproveUserModal(user) { approveUserModal.user = user; approveUserModal.open = true; }
+function closeApproveUserModal() { approveUserModal.open = false; approveUserModal.user = null; approveUserModal.loading = false; }
+
+function approveUser(user) { openApproveUserModal(user); }
+
+async function confirmApproveUser() {
+  if (!approveUserModal.user) return;
+  approveUserModal.loading = true;
   try {
-    const res = await api.put(`/v1/rbac/users/${user.id}/approve`);
+    const res = await api.put(`/v1/rbac/users/${approveUserModal.user.id}/approve`);
     // Remove from pending list
-    pending.value = pending.value.filter(u => u.id !== user.id);
+    pending.value = pending.value.filter(u => u.id !== approveUserModal.user.id);
     // Update in users list if loaded
-    const idx = users.value.findIndex(u => u.id === user.id);
+    const idx = users.value.findIndex(u => u.id === approveUserModal.user.id);
     if (idx !== -1) users.value[idx] = { ...users.value[idx], ...res.data.data };
-  } catch (e) { handleError(e); }
+    closeApproveUserModal();
+  } catch (e) { handleError(e); closeApproveUserModal(); }
+  finally { approveUserModal.loading = false; }
 }
 
 // --- Restore deleted user ---
-async function restoreUser(user) {
+const restoreUserModal = reactive({ open: false, user: null, loading: false });
+function openRestoreUserModal(user) { restoreUserModal.user = user; restoreUserModal.open = true; }
+function closeRestoreUserModal() { restoreUserModal.open = false; restoreUserModal.user = null; restoreUserModal.loading = false; }
+
+function restoreUser(user) { openRestoreUserModal(user); }
+
+async function confirmRestoreUser() {
+  if (!restoreUserModal.user) return;
+  restoreUserModal.loading = true;
   try {
-    const res = await api.post(`/v1/rbac/users/${user.id}/restore`);
-    const idx = users.value.findIndex(u => u.id === user.id);
+    const res = await api.post(`/v1/rbac/users/${restoreUserModal.user.id}/restore`);
+    const idx = users.value.findIndex(u => u.id === restoreUserModal.user.id);
     if (idx !== -1) users.value[idx] = { ...users.value[idx], ...res.data.data, deleted_at: null };
-  } catch (e) { handleError(e); }
+    closeRestoreUserModal();
+  } catch (e) { handleError(e); closeRestoreUserModal(); }
+  finally { restoreUserModal.loading = false; }
 }
 
 function isTempLocked(user) {
@@ -1148,6 +1340,73 @@ async function confirmDeleteUser() {
     deleteUserModal.error = e.response?.data?.message ?? 'Could not delete user. Please try again.';
   }
   finally { deleteUserModal.loading = false; }
+}
+
+// ── Bulk assign role ──
+const bulkRoleModal = reactive({ open: false, userIds: [], role: '', loading: false, error: '', result: null });
+function openBulkRoleModal() {
+  bulkRoleModal.userIds = Array.from(selectedUserIds.value);
+  bulkRoleModal.role    = '';
+  bulkRoleModal.error   = '';
+  bulkRoleModal.result  = null;
+  bulkRoleModal.open    = true;
+}
+function closeBulkRoleModal() {
+  bulkRoleModal.open   = false;
+  bulkRoleModal.loading = false;
+  if (bulkRoleModal.result) clearSelection();
+}
+async function confirmBulkRole() {
+  if (!bulkRoleModal.role || bulkRoleModal.userIds.length === 0) return;
+  bulkRoleModal.loading = true;
+  bulkRoleModal.error   = '';
+  try {
+    const res = await api.post('/v1/rbac/users/bulk-roles', {
+      user_ids: bulkRoleModal.userIds,
+      role: bulkRoleModal.role,
+    });
+    for (const updatedUser of res.data.data) {
+      const idx = users.value.findIndex(u => u.id === updatedUser.id);
+      if (idx !== -1) users.value[idx] = updatedUser;
+    }
+    bulkRoleModal.result = { updated: res.data.updated, skipped: res.data.skipped };
+  } catch (e) {
+    bulkRoleModal.error = e.response?.data?.message ?? 'Could not assign role. Please try again.';
+  } finally {
+    bulkRoleModal.loading = false;
+  }
+}
+
+// ── Bulk delete ──
+const bulkDeleteModal = reactive({ open: false, userIds: [], loading: false, result: null });
+function openBulkDeleteModal() {
+  bulkDeleteModal.userIds = Array.from(selectedUserIds.value);
+  bulkDeleteModal.result  = null;
+  bulkDeleteModal.open    = true;
+}
+function closeBulkDeleteModal() {
+  bulkDeleteModal.open    = false;
+  bulkDeleteModal.loading = false;
+  if (bulkDeleteModal.result) clearSelection();
+}
+async function confirmBulkDelete() {
+  if (bulkDeleteModal.userIds.length === 0) return;
+  bulkDeleteModal.loading = true;
+  try {
+    const res = await api.post('/v1/rbac/users/bulk-delete', { user_ids: bulkDeleteModal.userIds });
+    const deletedIds = new Set(res.data.deleted);
+    if (showDeleted.value) {
+      users.value = users.value.map(u => deletedIds.has(u.id) ? { ...u, deleted_at: new Date().toISOString() } : u);
+    } else {
+      users.value = users.value.filter(u => !deletedIds.has(u.id));
+    }
+    bulkDeleteModal.result = { deleted: res.data.deleted, skipped: res.data.skipped };
+  } catch (e) {
+    handleError(e);
+    closeBulkDeleteModal();
+  } finally {
+    bulkDeleteModal.loading = false;
+  }
 }
 
 async function deleteUser(user) { openDeleteUserModal(user); }
@@ -1384,6 +1643,30 @@ onMounted(() => switchTab('pending'));
 .user-search:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--focus-ring); }
 .toggle-deleted { margin-left: 12px; display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-3); cursor: pointer; }
 .toggle-deleted input { accent-color: var(--primary); }
+
+/* ── Bulk selection ── */
+.checkbox-col { width: 32px; text-align: center; }
+.checkbox-col input { accent-color: var(--primary); cursor: pointer; }
+.bulk-actions-bar {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 22px; background: var(--surface-2); border-bottom: 1px solid var(--border-soft);
+}
+.bulk-count { font-size: 12.5px; font-weight: 700; color: var(--text-1); }
+.btn-bulk {
+  height: 28px; padding: 0 12px; border-radius: 6px; font-size: 12px; font-weight: 600;
+  cursor: pointer; border: none; transition: all 0.12s;
+}
+.btn-bulk-clear {
+  height: 28px; padding: 0 10px; border-radius: 6px; font-size: 12px; font-weight: 600;
+  cursor: pointer; border: 1.5px solid var(--border); background: var(--surface); color: var(--text-2);
+  margin-left: auto;
+}
+.btn-bulk-clear:hover { background: var(--app-bg); }
+.bulk-user-list { display: flex; flex-wrap: wrap; gap: 6px; width: 100%; }
+.bulk-result { width: 100%; font-size: 12.5px; }
+.bulk-result-ok { color: #15803d; font-weight: 600; margin-bottom: 6px; }
+.bulk-result-skip { color: var(--text-2); }
+.bulk-result-skip div { padding: 2px 0; }
 
 /* ── Forms ── */
 .form-grid   { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 20px; padding: 20px 24px; }

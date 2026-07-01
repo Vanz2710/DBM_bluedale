@@ -54,7 +54,10 @@ class RolesAndPermissionsSeeder extends Seeder
             ['name' => 'view data-health', 'description' => 'Access the data health and quality audit page.'],
             ['name' => 'view performance', 'description' => 'View individual and team performance KPIs and targets.'],
             // Admin-managed entities
-            ['name' => 'manage lookups',     'description' => 'Add, edit, and delete lookup values (statuses, types, categories, industries, areas).'],
+            ['name' => 'manage lookups',       'description' => 'Add, edit, and delete lookup values (statuses, types, categories, industries, areas).'],
+            ['name' => 'manage announcements', 'description' => 'Create, edit, and delete company-wide announcements.'],
+            ['name' => 'manage duplicates',    'description' => 'Access the duplicate contact finder and merge duplicate contact records.'],
+            ['name' => 'manage system',        'description' => 'View and update global system settings (e.g. admin notification email).'],
             // Marketing & media features
             ['name' => 'manage social-media',       'description' => 'View and manage social media reminder entries.'],
             ['name' => 'manage posting-calendar',   'description' => 'View and manage the social media posting calendar.'],

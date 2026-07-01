@@ -498,11 +498,11 @@ const ALL_GROUPS = [
     items: [
       { key: 'admin-panel',     to: '/admin',                  icon: SVGI.gear,     label: 'Lookup Settings', activeRoutes: ['admin'],           permission: 'manage lookups' },
       { key: 'rbac',            to: '/admin/rbac',             icon: SVGI.shield,   label: 'Access Control',  activeRoutes: ['rbac'],            permission: 'manage users' },
-      { key: 'system-settings', to: '/admin/system-settings',  icon: SVGI.mail,     label: 'System Settings', activeRoutes: ['system-settings'], permission: 'manage users' },
+      { key: 'system-settings', to: '/admin/system-settings',  icon: SVGI.mail,     label: 'System Settings', activeRoutes: ['system-settings'], permission: 'manage system' },
       { key: 'user-activity',   to: '/admin/user-activity',   icon: SVGI.activity, label: 'User Activity',   activeRoutes: ['user-activity'],   permission: 'manage users' },
       { key: 'audit-log',            to: '/admin/audit-log',            icon: SVGI.list,      label: 'Audit Log',           activeRoutes: ['audit-log'],            permission: 'manage users' },
-      { key: 'contact-duplicates',   to: '/admin/contact-duplicates',   icon: SVGI.layers,    label: 'Duplicate Contacts',  activeRoutes: ['contact-duplicates'] },
-      { key: 'announcements',        to: '/admin/announcements',        icon: SVGI.megaphone, label: 'Announcements',       activeRoutes: ['announcements'] },
+      { key: 'contact-duplicates',   to: '/admin/contact-duplicates',   icon: SVGI.layers,    label: 'Duplicate Contacts',  activeRoutes: ['contact-duplicates'],   permission: 'manage duplicates' },
+      { key: 'announcements',        to: '/admin/announcements',        icon: SVGI.megaphone, label: 'Announcements',       activeRoutes: ['announcements'],        permission: 'manage announcements' },
     ],
   },
   // section: 'account' — not rendered in sidebar (only 'main'/'tools' are); included in search only

@@ -4,16 +4,21 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Models\AdminAuditLog;
+use App\Models\Contact;
 use App\Models\ContactArea;
 use App\Models\ContactCategory;
 use App\Models\ContactIndustry;
 use App\Models\ContactStatus;
 use App\Models\ContactType;
+use App\Models\Forecast;
 use App\Models\ForecastProduct;
 use App\Models\ForecastResult;
 use App\Models\ForecastType;
+use App\Models\PerformanceTarget;
 use App\Models\SocialMediaPackage;
+use App\Models\SocialMediaReminder;
 use App\Models\Task;
+use App\Models\ToDo;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -34,19 +39,22 @@ class AdminController extends Controller
         'packages'          => [SocialMediaPackage::class, 'name'],
     ];
 
+    // Referencing model classes (resolved to table names via getTable() at call time)
+    // instead of hardcoded table-name strings, so renaming a model's table can't
+    // silently desync this map from the schema.
     private static array $usageMap = [
-        'statuses'          => [['contacts', 'status_id']],
-        'types'             => [['contacts', 'type_id']],
-        'industries'        => [['contacts', 'industry_id']],
-        'categories'        => [['contacts', 'category_id']],
-        'areas'             => [['contacts', 'area_id']],
-        'tasks'             => [['to_dos', 'task_id'], ['performance_targets', 'task_id']],
-        'forecast-products' => [['forecasts', 'product_id']],
-        'forecast-types'    => [['forecasts', 'forecast_type_id']],
-        'forecast-results'  => [['forecasts', 'result_id']],
+        'statuses'          => [[Contact::class, 'status_id']],
+        'types'             => [[Contact::class, 'type_id']],
+        'industries'        => [[Contact::class, 'industry_id']],
+        'categories'        => [[Contact::class, 'category_id']],
+        'areas'             => [[Contact::class, 'area_id']],
+        'tasks'             => [[ToDo::class, 'task_id'], [PerformanceTarget::class, 'task_id']],
+        'forecast-products' => [[Forecast::class, 'product_id']],
+        'forecast-types'    => [[Forecast::class, 'forecast_type_id']],
+        'forecast-results'  => [[Forecast::class, 'result_id']],
         // 3rd element = parent column to match on (defaults to 'id').
         // social_media_reminders.package stores the package name, not a FK id.
-        'packages'          => [['social_media_reminders', 'package', 'name']],
+        'packages'          => [[SocialMediaReminder::class, 'package', 'name']],
     ];
 
     public function index(string $entity)
@@ -56,8 +64,9 @@ class AdminController extends Controller
         $sources    = self::$usageMap[$entity];
 
         $subParts = array_map(function ($src) use ($modelTable) {
-            $parentCol = $src[2] ?? 'id';
-            return "(SELECT COUNT(*) FROM {$src[0]} WHERE {$src[1]} = {$modelTable}.{$parentCol})";
+            $childTable = (new $src[0])->getTable();
+            $parentCol  = $src[2] ?? 'id';
+            return "(SELECT COUNT(*) FROM {$childTable} WHERE {$src[1]} = {$modelTable}.{$parentCol})";
         }, $sources);
         $usageExpr = implode(' + ', $subParts);
 
@@ -115,9 +124,10 @@ class AdminController extends Controller
 
             $count = 0;
             foreach (self::$usageMap[$entity] as $src) {
-                [$table, $col] = $src;
+                [$childModel, $col] = $src;
+                $childTable = (new $childModel)->getTable();
                 $matchValue = isset($src[2]) ? $item->{$src[2]} : $id;
-                $count += DB::table($table)->where($col, $matchValue)->count();
+                $count += DB::table($childTable)->where($col, $matchValue)->count();
             }
 
             if ($count > 0) {

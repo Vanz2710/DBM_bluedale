@@ -123,7 +123,15 @@ class UserManagementController extends Controller
         $user->update($data);
 
         Cache::forget('lookups_v2');
-        $this->audit('updated', 'user', $user->id, $user->name, $old, $request->only('name', 'username', 'email'), $request);
+
+        $profileFields = $request->only('name', 'username', 'email');
+        $oldProfile    = array_intersect_key($old, $profileFields);
+        if (!empty($profileFields) && $profileFields != $oldProfile) {
+            $this->audit('updated', 'user', $user->id, $user->name, $old, $profileFields, $request);
+        }
+        if ($request->filled('password')) {
+            $this->audit('updated_password', 'user', $user->id, $user->name, null, null, $request);
+        }
 
         return response()->json([
             'status' => 'success',
@@ -178,6 +186,61 @@ class UserManagementController extends Controller
         $user->delete();
 
         return response()->json(['status' => 'success']);
+    }
+
+    public function bulkDelete(Request $request)
+    {
+        $request->validate([
+            'user_ids'   => 'required|array|min:1',
+            'user_ids.*' => 'integer|exists:users,id',
+        ]);
+
+        $actorId = $request->user()->id;
+        $deleted = [];
+        $skipped = [];
+
+        foreach ($request->user_ids as $userId) {
+            $user = User::find($userId);
+            if (!$user) {
+                $skipped[] = ['id' => $userId, 'name' => null, 'reason' => 'User not found.'];
+                continue;
+            }
+
+            if ($user->id === $actorId) {
+                $skipped[] = ['id' => $user->id, 'name' => $user->name, 'reason' => 'You cannot delete your own account.'];
+                continue;
+            }
+
+            // Same ownership check as the single-user delete — bulk delete intentionally
+            // does NOT support reassignment (too ambiguous to pick a target per user in a
+            // batch); an admin who owns work must be deleted individually instead.
+            $ownsWork = $user->contacts()->count()
+                + $user->deals()->count()
+                + $user->projects()->count()
+                + $user->forecasts()->count()
+                + ToDo::where('user_id', $user->id)->count();
+
+            if ($ownsWork > 0) {
+                $skipped[] = ['id' => $user->id, 'name' => $user->name, 'reason' => 'Owns records — delete individually to reassign their work first.'];
+                continue;
+            }
+
+            $this->audit('deleted', 'user', $user->id, $user->name,
+                ['name' => $user->name, 'username' => $user->username], null, $request);
+
+            $user->delete();
+            $deleted[] = $user->id;
+        }
+
+        if (!empty($deleted)) {
+            Cache::forget('lookups_v2');
+        }
+
+        return response()->json([
+            'status'  => 'success',
+            'deleted' => $deleted,
+            'skipped' => $skipped,
+        ]);
     }
 
     public function restore(Request $request, int $id)
@@ -268,6 +331,64 @@ class UserManagementController extends Controller
         return response()->json([
             'status' => 'success',
             'data'   => $user->load('roles:id,name'),
+        ]);
+    }
+
+    public function bulkAssignRole(Request $request)
+    {
+        $request->validate([
+            'user_ids'   => 'required|array|min:1',
+            'user_ids.*' => 'integer|exists:users,id',
+            'role'       => 'required|string|exists:roles,name',
+        ]);
+
+        $actor        = $request->user();
+        $actorIsSuper = $actor->hasRole('super-admin');
+        $role         = $request->role;
+        $willBeSuper  = $role === 'super-admin';
+
+        $updated = [];
+        $skipped = [];
+
+        foreach ($request->user_ids as $userId) {
+            $user = User::find($userId);
+            if (!$user) {
+                $skipped[] = ['id' => $userId, 'name' => null, 'reason' => 'User not found.'];
+                continue;
+            }
+
+            $wasSuper = $user->hasRole('super-admin');
+
+            // Same protection as the single-user syncRoles(): only a super-admin may
+            // grant OR revoke the super-admin role.
+            if (!$actorIsSuper && ($willBeSuper || $wasSuper)) {
+                $skipped[] = ['id' => $user->id, 'name' => $user->name, 'reason' => 'Only a super-admin can grant or change the super-admin role.'];
+                continue;
+            }
+
+            $isLastSuperAdmin = $wasSuper
+                && !$willBeSuper
+                && User::role('super-admin')->where('id', '!=', $user->id)->count() === 0;
+
+            if ($isLastSuperAdmin) {
+                $skipped[] = ['id' => $user->id, 'name' => $user->name, 'reason' => 'Cannot remove super-admin from the last super-admin account.'];
+                continue;
+            }
+
+            $old = $user->getRoleNames()->toArray();
+            $user->syncRoles([$role]);
+
+            $this->audit('updated', 'user_roles', $user->id, $user->name,
+                ['roles' => $old], ['roles' => [$role]], $request);
+
+            $updated[] = $user->id;
+        }
+
+        return response()->json([
+            'status'  => 'success',
+            'updated' => $updated,
+            'skipped' => $skipped,
+            'data'    => User::whereIn('id', $updated)->with('roles:id,name')->get(),
         ]);
     }
 

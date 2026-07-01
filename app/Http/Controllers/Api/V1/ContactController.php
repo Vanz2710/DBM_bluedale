@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Models\AdminAuditLog;
 use App\Models\Contact;
 use App\Models\ContactEditGrant;
 use Illuminate\Http\Request;
@@ -452,7 +453,10 @@ class ContactController extends Controller
     public function merge(Request $request)
     {
         $user = Auth::user();
-        if (!$user->hasRole(['admin', 'super-admin'])) {
+        // Admin/super-admin always allowed; a non-admin needs the specific delegated
+        // permission (see ContactDuplicates.vue) rather than plain "edit contacts" —
+        // merging permanently deletes contact records, so it stays behind its own gate.
+        if (!$user->hasRole(['admin', 'super-admin']) && !$user->can('manage duplicates')) {
             return response()->json(['message' => 'Forbidden'], 403);
         }
 
@@ -469,6 +473,9 @@ class ContactController extends Controller
             return response()->json(['status' => 'success', 'merged' => 0]);
         }
 
+        $keptContact    = Contact::find($keepId);
+        $mergedContacts = Contact::whereIn('id', $mergeIds)->get(['id', 'name']);
+
         DB::transaction(function () use ($keepId, $mergeIds) {
             DB::table('contact_incharges')->whereIn('contact_id', $mergeIds)->update(['contact_id' => $keepId]);
             DB::table('to_dos')->whereIn('contact_id', $mergeIds)->update(['contact_id' => $keepId]);
@@ -477,6 +484,17 @@ class ContactController extends Controller
             DB::table('forecasts')->whereIn('contact_id', $mergeIds)->update(['contact_id' => $keepId]);
             Contact::whereIn('id', $mergeIds)->delete();
         });
+
+        AdminAuditLog::create([
+            'user_id'     => $request->user()?->id,
+            'action'      => 'merged',
+            'entity_type' => 'contact',
+            'entity_id'   => (string) $keepId,
+            'entity_name' => $keptContact?->name,
+            'old_values'  => ['merged_contacts' => $mergedContacts->map(fn ($c) => ['id' => $c->id, 'name' => $c->name])->all()],
+            'new_values'  => ['kept_contact' => ['id' => $keepId, 'name' => $keptContact?->name]],
+            'ip_address'  => $request->ip(),
+        ]);
 
         return response()->json(['status' => 'success', 'merged' => count($mergeIds)]);
     }

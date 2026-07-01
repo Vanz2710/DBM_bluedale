@@ -85,10 +85,10 @@ Route::middleware(['auth:sanctum', 'maintenance'])->group(function () {
         Route::get('reminders', [ReminderController::class, 'index']);
         Route::post('reminders/read', [ReminderController::class, 'markRead']);
 
-        // Announcements — all users can read; admin can manage
+        // Announcements — all users can read; delegated admins can manage
         Route::get('announcements', [AnnouncementController::class, 'index']);
         Route::post('announcements/{announcement}/read', [AnnouncementController::class, 'markRead']);
-        Route::middleware('role:admin|super-admin')->group(function () {
+        Route::middleware('can:manage announcements')->group(function () {
             Route::get('announcements/admin/all', [AnnouncementController::class, 'adminIndex']);
             Route::post('announcements', [AnnouncementController::class, 'store']);
             Route::put('announcements/{announcement}', [AnnouncementController::class, 'update']);
@@ -193,7 +193,6 @@ Route::middleware(['auth:sanctum', 'maintenance'])->group(function () {
             Route::get('contacts/daily', [ContactController::class, 'daily']);
             Route::get('contacts/export', [ContactController::class, 'export']);
             Route::get('contacts/check-duplicate', [ContactController::class, 'checkDuplicate']);
-            Route::get('contacts/find-duplicates', [ContactController::class, 'findDuplicates']);
             Route::get('contacts', [ContactController::class, 'index']);
             Route::get('contacts/{contact}', [ContactController::class, 'show']);
             // Contact sub-resources (reads)
@@ -202,6 +201,8 @@ Route::middleware(['auth:sanctum', 'maintenance'])->group(function () {
             Route::get('contacts/{contact}/emails', [ContactEmailController::class, 'index']);
             Route::get('contacts/{contact}/calls', [ContactCallController::class, 'index']);
         });
+        // Bulk duplicate finder — its own delegable permission, distinct from plain "view contacts"
+        Route::get('contacts/find-duplicates', [ContactController::class, 'findDuplicates'])->middleware('can:manage duplicates');
         Route::post('contacts/merge', [ContactController::class, 'merge'])->middleware('can:edit contacts');
         Route::post('contacts/bulk-reassign', [ContactController::class, 'bulkReassign'])->middleware('can:edit contacts');
         Route::post('contacts', [ContactController::class, 'store'])->middleware('can:create contacts');
@@ -329,6 +330,8 @@ Route::middleware(['auth:sanctum', 'maintenance'])->group(function () {
         // Admin audit log — must be registered before the admin/{entity} wildcard
         Route::get('admin/audit-log', [AdminAuditLogController::class, 'index'])
             ->middleware('can:manage users');
+        Route::get('admin/audit-log/export', [AdminAuditLogController::class, 'export'])
+            ->middleware('can:manage users');
 
         // Admin lookup CRUD
         Route::middleware('can:manage lookups')->group(function () {
@@ -347,11 +350,12 @@ Route::middleware(['auth:sanctum', 'maintenance'])->group(function () {
             Route::put('rbac/roles/{role}/permissions', [RoleController::class, 'syncPermissions']);
         });
 
-        Route::middleware('can:manage permissions')->group(function () {
-            Route::get('rbac/permissions', [PermissionController::class, 'index']);
-            Route::post('rbac/permissions', [PermissionController::class, 'store']);
-            Route::put('rbac/permissions/{permission}', [PermissionController::class, 'update']);
-            Route::delete('rbac/permissions/{permission}', [PermissionController::class, 'destroy']);
+        // Permissions are code-defined and read-only via the UI — see PermissionController.
+        Route::get('rbac/permissions', [PermissionController::class, 'index'])->middleware('can:manage permissions');
+
+        Route::middleware('can:manage system')->group(function () {
+            Route::get('system-settings', [SystemSettingsController::class, 'index']);
+            Route::put('system-settings', [SystemSettingsController::class, 'update']);
         });
 
         Route::middleware('can:manage users')->group(function () {
@@ -359,15 +363,15 @@ Route::middleware(['auth:sanctum', 'maintenance'])->group(function () {
             Route::post('contact-edit-grants', [ContactEditGrantController::class, 'store']);
             Route::delete('contact-edit-grants/{id}', [ContactEditGrantController::class, 'destroy']);
 
-            Route::get('system-settings', [SystemSettingsController::class, 'index']);
-            Route::put('system-settings', [SystemSettingsController::class, 'update']);
-
             Route::get('user-activity/overview', [UserActivityController::class, 'overview']);
             Route::get('user-activity/security-events', [UserActivityController::class, 'securityEvents']);
 
             Route::get('rbac/users', [UserManagementController::class, 'index']);
             Route::get('rbac/users/pending', [UserManagementController::class, 'pendingApprovals']);
             Route::post('rbac/users', [UserManagementController::class, 'store']);
+            // Bulk routes — must be registered before the {user} wildcard routes below.
+            Route::post('rbac/users/bulk-roles', [UserManagementController::class, 'bulkAssignRole']);
+            Route::post('rbac/users/bulk-delete', [UserManagementController::class, 'bulkDelete']);
             Route::put('rbac/users/{user}', [UserManagementController::class, 'update']);
             Route::delete('rbac/users/{user}', [UserManagementController::class, 'destroy']);
             Route::post('rbac/users/{id}/restore', [UserManagementController::class, 'restore']);

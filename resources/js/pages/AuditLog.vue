@@ -15,11 +15,11 @@
       </div>
       <select v-model="filterAction" class="filter-select">
         <option value="">All actions</option>
-        <option v-for="a in availableActions" :key="a" :value="a">{{ a }}</option>
+        <option v-for="a in KNOWN_ACTIONS" :key="a" :value="a">{{ a }}</option>
       </select>
       <select v-model="filterEntity" class="filter-select">
         <option value="">All types</option>
-        <option v-for="e in availableEntities" :key="e" :value="e">{{ e }}</option>
+        <option v-for="e in KNOWN_ENTITIES" :key="e" :value="e">{{ e }}</option>
       </select>
       <select v-model="filterDays" class="filter-select">
         <option value="7">Last 7 days</option>
@@ -27,12 +27,16 @@
         <option value="90">Last 90 days</option>
         <option value="">All time</option>
       </select>
+      <button class="btn-export" @click="exportLogs">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Export
+      </button>
     </div>
 
     <div class="table-wrap">
       <div class="table-header-bar">
         <span class="table-header-title">Admin Actions</span>
-        <span class="count-badge">{{ filtered.length }}</span>
+        <span class="count-badge">{{ total }} total</span>
         <span v-if="loading" class="loading-hint">Loading…</span>
       </div>
 
@@ -42,7 +46,7 @@
 
       <div v-else-if="error" class="error-banner">{{ error }}</div>
 
-      <div v-else-if="filtered.length === 0" class="empty-banner">
+      <div v-else-if="logs.length === 0" class="empty-banner">
         <div class="empty-title">No entries found</div>
         <div class="empty-sub">Try adjusting your filters.</div>
       </div>
@@ -60,7 +64,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="log in filtered" :key="log.id" :class="['log-row', `action-${log.action}`]">
+          <tr v-for="log in logs" :key="log.id" :class="['log-row', `action-${log.action}`]">
             <td class="time-cell">
               <span class="date-part">{{ formatDate(log.created_at) }}</span>
               <span class="time-part">{{ formatTime(log.created_at) }}</span>
@@ -87,6 +91,17 @@
           </tr>
         </tbody>
       </table>
+      <div v-if="lastPage > 1" class="pagination-bar">
+        <button class="page-btn" :disabled="page <= 1 || loading" @click="loadLogs(page - 1)">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+          Prev
+        </button>
+        <span class="page-info">Page {{ page }} of {{ lastPage }}</span>
+        <button class="page-btn" :disabled="page >= lastPage || loading" @click="loadLogs(page + 1)">
+          Next
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+      </div>
     </div>
 
     <!-- Detail modal -->
@@ -171,12 +186,16 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import api from '../api.js';
 
 const logs    = ref([]);
 const loading = ref(false);
 const error   = ref('');
+
+const page     = ref(1);
+const total    = ref(0);
+const lastPage = ref(1);
 
 const search       = ref('');
 const filterAction = ref('');
@@ -185,35 +204,17 @@ const filterDays   = ref('30');
 
 const diffModal = ref({ open: false, log: null });
 
-const availableActions = computed(() => {
-  const s = new Set(logs.value.map(l => l.action));
-  return [...s].sort();
-});
+const KNOWN_ACTIONS = [
+  'approved', 'created', 'deleted', 'merged', 'restored', 'restored_access',
+  'unlocked', 'updated', 'updated_password',
+];
 
-const availableEntities = computed(() => {
-  const s = new Set(logs.value.map(l => l.entity_type));
-  return [...s].sort();
-});
-
-const filtered = computed(() => {
-  const q        = search.value.trim().toLowerCase();
-  const cutoff   = filterDays.value ? Date.now() - parseInt(filterDays.value) * 86400000 : 0;
-
-  return logs.value.filter(l => {
-    if (filterAction.value && l.action !== filterAction.value) return false;
-    if (filterEntity.value && l.entity_type !== filterEntity.value) return false;
-    if (cutoff && new Date(l.created_at).getTime() < cutoff) return false;
-    if (q) {
-      const actorName   = l.actor?.name?.toLowerCase() ?? '';
-      const entityName  = (l.entity_name ?? '').toLowerCase();
-      const entityType  = l.entity_type.toLowerCase();
-      const action      = l.action.toLowerCase();
-      const ip          = (l.ip_address ?? '').toLowerCase();
-      if (!actorName.includes(q) && !entityName.includes(q) && !entityType.includes(q) && !action.includes(q) && !ip.includes(q)) return false;
-    }
-    return true;
-  });
-});
+const KNOWN_ENTITIES = [
+  'user', 'user_roles', 'role', 'role_permissions', 'contact',
+  'lookup:statuses', 'lookup:types', 'lookup:industries', 'lookup:categories',
+  'lookup:areas', 'lookup:tasks', 'lookup:forecast-products',
+  'lookup:forecast-types', 'lookup:forecast-results', 'lookup:packages',
+];
 
 function formatDate(iso) {
   if (!iso) return '—';
@@ -278,6 +279,7 @@ const summaryText = computed(() => {
   if (action === 'restored_access') return `${actor} restored login access for "${name}".`;
   if (action === 'approved') return `${actor} approved "${name}".`;
   if (action === 'unlocked') return `${actor} unlocked "${name}".`;
+  if (action === 'merged')   return `${actor} merged one or more ${entity.toLowerCase()}s into "${name}".`;
   if (action === 'updated_password') return `${actor} changed the password for "${name}".`;
   if (action === 'updated') {
     const parts = [];
@@ -298,12 +300,21 @@ function openDiff(log) {
   diffModal.value = { open: true, log };
 }
 
-async function loadLogs() {
+async function loadLogs(goToPage = 1) {
+  page.value    = goToPage;
   loading.value = true;
   error.value   = '';
   try {
-    const res = await api.get('/v1/admin/audit-log');
-    logs.value = res.data.data ?? [];
+    const params = { page: page.value, per_page: 50 };
+    if (filterDays.value)    params.days        = filterDays.value;
+    if (filterAction.value)  params.action      = filterAction.value;
+    if (filterEntity.value)  params.entity_type = filterEntity.value;
+    if (search.value.trim()) params.q           = search.value.trim();
+
+    const res      = await api.get('/v1/admin/audit-log', { params });
+    logs.value     = res.data.data ?? [];
+    total.value    = res.data.meta?.total ?? 0;
+    lastPage.value = res.data.meta?.last_page ?? 1;
   } catch (e) {
     error.value = e.response?.data?.message ?? 'Failed to load audit log.';
   } finally {
@@ -311,7 +322,25 @@ async function loadLogs() {
   }
 }
 
-onMounted(loadLogs);
+function exportLogs() {
+  const token = localStorage.getItem('crm_token');
+  const params = { _token: token };
+  if (filterDays.value)    params.days        = filterDays.value;
+  if (filterAction.value)  params.action      = filterAction.value;
+  if (filterEntity.value)  params.entity_type = filterEntity.value;
+  if (search.value.trim()) params.q           = search.value.trim();
+  const qs = new URLSearchParams(params).toString();
+  window.location.href = `/api/v1/admin/audit-log/export?${qs}`;
+}
+
+let searchTimer;
+watch([filterAction, filterEntity, filterDays], () => loadLogs(1));
+watch(search, () => {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => loadLogs(1), 350);
+});
+
+onMounted(() => loadLogs(1));
 </script>
 
 <style scoped>
@@ -368,6 +397,23 @@ onMounted(loadLogs);
   transition: border-color 0.15s;
 }
 .filter-select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--focus-ring); }
+.btn-export {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 14px;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: white;
+  background: var(--success);
+  cursor: pointer;
+  transition: opacity 0.15s;
+  flex-shrink: 0;
+}
+.btn-export:hover { opacity: 0.88; }
 
 /* ── Table wrap ── */
 .table-wrap {
@@ -587,6 +633,22 @@ tbody tr:hover { background: var(--app-bg); }
   padding: 28px; text-align: center; font-size: 13px; color: var(--text-3);
   border: 1px dashed var(--border); border-radius: var(--radius-sm);
 }
+
+/* ── Pagination ── */
+.pagination-bar {
+  display: flex; align-items: center; justify-content: center; gap: 16px;
+  padding: 14px 22px; border-top: 1px solid var(--border-soft);
+}
+.page-btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  height: 32px; padding: 0 14px;
+  border: 1.5px solid var(--border); border-radius: 8px;
+  font-size: 12px; font-weight: 600; color: var(--text-2);
+  background: var(--surface); cursor: pointer; transition: all 0.15s;
+}
+.page-btn:hover:not(:disabled) { border-color: var(--primary); color: var(--primary); background: rgba(29,78,216,0.04); }
+.page-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.page-info { font-size: 12px; color: var(--text-3); }
 
 @media (max-width: 768px) { .page { padding: 20px 16px; } }
 @media (max-width: 640px) { .page { padding: 16px 12px; } }

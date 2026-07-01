@@ -36,6 +36,15 @@
         </div>
       </div>
 
+      <div class="status-legend">
+        <span class="legend-label">What do these mean?</span>
+        <span
+          v-for="f in statusFilters.filter(f => f.value !== 'all')" :key="'legend-' + f.value"
+          class="badge" :class="statusBadgeClass(f.value)"
+          :title="statusTooltip(f.value)"
+        >{{ f.label }}</span>
+      </div>
+
       <div v-if="loadingUsers" class="loading-wrap"><LoadingSpinner /></div>
       <div v-else class="table-wrap">
         <table class="data-table">
@@ -72,7 +81,7 @@
                 <span v-for="r in u.roles" :key="r" class="badge badge-purple">{{ r }}</span>
                 <span v-if="!u.roles.length" class="muted">—</span>
               </td>
-              <td><span :class="['badge', statusBadgeClass(u.status)]">{{ statusLabel(u.status) }}</span></td>
+              <td><span :class="['badge', statusBadgeClass(u.status)]" :title="statusTooltip(u.status)">{{ statusLabel(u.status) }}</span></td>
               <td>
                 <span v-if="u.last_login_at" class="login-date">
                   {{ u.last_login_at }}<br>
@@ -154,6 +163,16 @@ function statusBadgeClass(s) {
   return { active: 'badge-green', at_risk: 'badge-amber', dormant: 'badge-red', locked: 'badge-red', never_logged_in: 'badge-gray' }[s] ?? 'badge-gray';
 }
 
+function statusTooltip(s) {
+  return {
+    active: 'Logged in within the last 14 days.',
+    at_risk: 'Last login was 14–29 days ago.',
+    dormant: 'Last login was 30+ days ago.',
+    locked: 'Account flagged for inactivity and locked out (login blocked until an admin restores access).',
+    never_logged_in: 'This user has never logged in.',
+  }[s] ?? '';
+}
+
 function eventBadgeClass(t) {
   return { password_change: 'badge-amber', restored_access: 'badge-green', approved: 'badge-blue', created: 'badge-purple', deleted: 'badge-red', restored: 'badge-blue' }[t] ?? 'badge-gray';
 }
@@ -226,6 +245,14 @@ onMounted(loadOverview);
 
 .toolbar-right { display: flex; align-items: center; gap: 8px; }
 .period-select { width: auto; height: 34px; padding: 0 10px; cursor: pointer; }
+
+/* Status legend */
+.status-legend {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+.legend-label { font-size: 12px; font-weight: 600; color: var(--text-3); margin-right: 2px; }
+.status-legend .badge { cursor: help; }
 
 /* Table */
 .table-wrap { overflow-x: auto; border-radius: var(--radius); border: 1px solid var(--border); }
