@@ -130,7 +130,7 @@
           <input
             v-model="summaryFilters.search"
             @input="onSummarySearchInput"
-            @keyup.enter="applySummaryFilters; summaryShowSuggestions = false"
+            @keyup.enter="applySummaryFilters(); summaryShowSuggestions = false"
             @keydown.esc="summaryShowSuggestions = false"
             @blur="onSummarySearchBlur"
             @focus="summaryFilters.search.trim() && summarySuggestions.length && (summaryShowSuggestions = true)"
@@ -652,7 +652,7 @@
             </div>
             <div class="add-modal-actions">
               <button type="button" class="btn btn-clear" @click="closeTaskFuModal">Cancel</button>
-              <button type="submit" class="btn-followup-submit" :disabled="!taskFuForm.followup_date || taskFuModal.saving">
+              <button type="submit" class="btn btn-followup-submit" :disabled="!taskFuForm.followup_date || taskFuModal.saving">
                 {{ taskFuModal.saving ? 'Saving…' : 'Log Follow-Up' }}
               </button>
             </div>
@@ -820,7 +820,15 @@
                 <th class="col-user">User</th>
                 <th class="col-status">Status</th>
                 <th class="col-type">Type</th>
-                <th class="col-industry">Industry</th>
+                <th class="col-industry th-filter">
+                  <div class="col-head">
+                    <span>Industry</span>
+                    <select v-model="industryId" @change="load(1)" class="col-filter-sel">
+                      <option value="">All</option>
+                      <option v-for="i in lookups.industries" :key="i.id" :value="i.id">{{ i.name }}</option>
+                    </select>
+                  </div>
+                </th>
                 <th class="col-name">Company Name</th>
                 <th class="col-category">Category</th>
                 <th class="col-remark">Remarks</th>
@@ -1400,6 +1408,7 @@ const userId      = ref('');
 const statusId    = ref('');
 const typeId      = ref('');
 const categoryId  = ref('');
+const industryId  = ref('');
 const sort        = ref('desc');
 const contacts            = ref([]);
 const meta                = ref({});
@@ -1568,7 +1577,7 @@ const drawerMonthMap = computed(() => {
 });
 
 // ── Computed ──
-const hasFilters = computed(() => dateFrom.value || dateTo.value || search.value || userId.value || statusId.value || typeId.value || categoryId.value);
+const hasFilters = computed(() => dateFrom.value || dateTo.value || search.value || userId.value || statusId.value || typeId.value || categoryId.value || industryId.value);
 
 const pageNumbers = computed(() => {
   const total = meta.value.last_page ?? 1;
@@ -1651,7 +1660,8 @@ async function load(page = 1) {
     if (userId.value)     params.user_id      = userId.value;
     if (statusId.value)   params.status_id    = statusId.value;
     if (typeId.value)     params.type_id      = typeId.value;
-    if (categoryId.value) params.category_id  = categoryId.value;
+    if (categoryId.value)  params.category_id  = categoryId.value;
+    if (industryId.value)  params.industry_id  = industryId.value;
     const res = await api.get('/v1/contacts/daily', { params });
     contacts.value = res.data.data;
     meta.value = res.data.meta ?? {
@@ -1667,7 +1677,7 @@ async function load(page = 1) {
 
 function clearFilters() {
   dateFrom.value = ''; dateTo.value = ''; search.value = '';
-  userId.value = ''; statusId.value = ''; typeId.value = ''; categoryId.value = '';
+  userId.value = ''; statusId.value = ''; typeId.value = ''; categoryId.value = ''; industryId.value = '';
   sort.value = 'desc';
   contactsPerPage.value = 25;
   suggestions.value = []; showSuggestions.value = false;
@@ -2700,6 +2710,11 @@ thead th {
   white-space: nowrap;
 }
 thead th:last-child { border-right: none; }
+.th-filter { white-space: normal !important; overflow: visible !important; vertical-align: top !important; padding: 8px 10px !important; }
+.col-head { display: flex; flex-direction: column; gap: 5px; }
+.col-head span { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.55px; color: var(--text-2); white-space: nowrap; }
+.col-filter-sel { width: 100%; height: 22px; font-size: 11px; padding: 0 4px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text-1); cursor: pointer; }
+.col-filter-sel:focus { outline: 1px solid var(--primary); }
 tbody td {
   padding: 13px 14px;
   border-bottom: 1px solid var(--border-soft);

@@ -19,28 +19,6 @@
         <input type="text" v-model="filters.q" @keyup.enter="applyFilters" placeholder="Company, product, user…">
       </div>
       <div class="filter-group">
-        <label>Product</label>
-        <select v-model="filters.product_id" @change="applyFilters">
-          <option value="">All Products</option>
-          <option v-for="p in lookups.forecast_products" :key="p.id" :value="p.id">{{ p.name }}</option>
-        </select>
-      </div>
-      <div class="filter-group">
-        <label>Type</label>
-        <select v-model="filters.forecast_type_id" @change="applyFilters">
-          <option value="">All Types</option>
-          <option v-for="t in lookups.forecast_types" :key="t.id" :value="t.id">{{ t.name }}</option>
-        </select>
-      </div>
-      <div class="filter-group">
-        <label>Result</label>
-        <select v-model="filters.result_id" @change="applyFilters">
-          <option value="">All Results</option>
-          <option value="none">No Result</option>
-          <option v-for="r in resultOptions" :key="r.id" :value="r.id">{{ r.name }}</option>
-        </select>
-      </div>
-      <div class="filter-group">
         <label>Snapshot</label>
         <select v-model="filters.contact_status_id" @change="applyFilters">
           <option value="">All Statuses</option>
@@ -93,12 +71,12 @@
           <colgroup>
             <col style="width:36px">    <!-- checkbox -->
             <col>                        <!-- company -->
-            <col style="width:110px">   <!-- product -->
+            <col style="width:140px">   <!-- product -->
             <col style="width:92px">    <!-- type -->
             <col style="width:132px">   <!-- snapshot -->
             <col style="width:120px">   <!-- amount -->
             <col style="width:112px">   <!-- forecast date -->
-            <col style="width:102px">   <!-- result -->
+            <col style="width:140px">   <!-- result -->
             <col style="width:82px">    <!-- assigned -->
             <col style="width:100px">   <!-- updated -->
             <col style="width:76px">    <!-- actions -->
@@ -107,12 +85,37 @@
             <tr>
               <th class="th-check"><input type="checkbox" class="row-cb" :checked="allSelected" :indeterminate.prop="someSelected" @change="toggleAll"></th>
               <th>Company</th>
-              <th>Product</th>
-              <th>Type</th>
+              <th class="th-filter">
+                <div class="col-head">
+                  <span>Product</span>
+                  <select v-model="filters.product_id" @change="page = 1; load(); loadSummary()" class="col-filter-sel">
+                    <option value="">All</option>
+                    <option v-for="p in lookups.forecast_products" :key="p.id" :value="p.id">{{ p.name }}</option>
+                  </select>
+                </div>
+              </th>
+              <th class="th-filter">
+                <div class="col-head">
+                  <span>Type</span>
+                  <select v-model="filters.forecast_type_id" @change="page = 1; load(); loadSummary()" class="col-filter-sel">
+                    <option value="">All</option>
+                    <option v-for="t in lookups.forecast_types" :key="t.id" :value="t.id">{{ t.name }}</option>
+                  </select>
+                </div>
+              </th>
               <th>Snapshot</th>
               <th class="sortable" @click="changeSort('amount')">Amount <span class="sort-icon" v-html="sortIcon('amount')"></span></th>
               <th class="sortable" @click="changeSort('forecast_date')">Forecast Date <span class="sort-icon" v-html="sortIcon('forecast_date')"></span></th>
-              <th>Result</th>
+              <th class="th-filter">
+                <div class="col-head">
+                  <span>Result</span>
+                  <select v-model="filters.result_id" @change="page = 1; load(); loadSummary()" class="col-filter-sel">
+                    <option value="">All</option>
+                    <option value="none">No Result</option>
+                    <option v-for="r in resultOptions" :key="r.id" :value="r.id">{{ r.name }}</option>
+                  </select>
+                </div>
+              </th>
               <th>Assigned</th>
               <th class="sortable" @click="changeSort('forecast_updatedate')">Updated <span class="sort-icon" v-html="sortIcon('forecast_updatedate')"></span></th>
               <th>Actions</th>
@@ -128,7 +131,7 @@
                 <router-link v-if="f.contact_id" :to="`/contacts/${f.contact_id}`" class="company-link">{{ f.contact_name }}</router-link>
                 <span v-else class="muted">—</span>
               </td>
-              <td>{{ f.product_name ?? '—' }}</td>
+              <td class="td-product">{{ f.product_name ?? '—' }}</td>
               <td><span class="type-badge">{{ f.forecast_type_name ?? '—' }}</span></td>
               <td>
                 <div class="snapshot">
@@ -138,7 +141,12 @@
               </td>
               <td class="amount-cell">{{ fmtValue(f.amount) }}</td>
               <td><span class="date-text">{{ fmtDate(f.forecast_date) }}</span></td>
-              <td><span class="result-badge" :class="resultClass(f.result_name)">{{ f.result_name ?? 'No Result' }}</span></td>
+              <td class="result-cell">
+                <div class="result-inner">
+                  <span class="result-text" :class="resultClass(f.result_name)">{{ f.result_name ?? 'No Result' }}</span>
+                  <button v-if="can('edit forecasts') && f.can_edit" class="result-edit-btn" title="Update result" @click="openResultModal(f)" v-html="CI.edit"></button>
+                </div>
+              </td>
               <td>{{ f.user_name ?? '—' }}</td>
               <td><span class="date-text">{{ fmtDate(f.forecast_updatedate) }}</span></td>
               <td class="actions-cell">
@@ -250,6 +258,37 @@
       </div>
     </Teleport>
 
+    <!-- Update Result Modal -->
+    <Teleport to="body">
+      <div v-if="resultModal.open" class="remark-overlay" @mousedown.self="closeResultModal">
+        <div class="conf-modal">
+          <div class="conf-head">
+            <div>
+              <p class="conf-title">Update Result</p>
+              <p class="conf-sub">{{ resultModal.forecast?.contact_name }}</p>
+            </div>
+            <button class="conf-close" @click="closeResultModal"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+          </div>
+          <div class="result-body">
+            <div v-if="resultModal.error" class="result-error">{{ resultModal.error }}</div>
+            <div class="result-field">
+              <label>Result</label>
+              <select v-model="resultModal.selectedId">
+                <option value="">No Result</option>
+                <option v-for="r in resultOptions" :key="r.id" :value="r.id">{{ r.name }}</option>
+              </select>
+            </div>
+          </div>
+          <div class="conf-foot">
+            <button class="conf-cancel" @click="closeResultModal">Cancel</button>
+            <button class="conf-save" :disabled="resultModal.saving" @click="saveResult">
+              {{ resultModal.saving ? 'Saving…' : 'Save' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
     <ForecastFormModal
       :open="formModal.open"
       :mode="formModal.mode"
@@ -279,6 +318,10 @@ const CI = {
   edit:  _si('<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>'),
   trash: _si('<polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>'),
 };
+
+function toast(message, type = 'success') {
+  window.dispatchEvent(new CustomEvent('crm-toast', { detail: { message, type } }));
+}
 
 const currentUser = ref(JSON.parse(localStorage.getItem('crm_user') || 'null'));
 const isAdmin = computed(() => {
@@ -517,6 +560,42 @@ async function doDelete() {
   }
 }
 
+// Inline result editor
+const resultModal = ref({ open: false, saving: false, error: '', forecast: null, selectedId: '' });
+
+function openResultModal(f) {
+  resultModal.value = { open: true, saving: false, error: '', forecast: f, selectedId: f.result_id ?? '' };
+}
+function closeResultModal() { resultModal.value.open = false; }
+
+async function saveResult() {
+  const f = resultModal.value.forecast;
+  if (!f) return;
+  resultModal.value.saving = true;
+  resultModal.value.error  = '';
+  try {
+    await api.put(`/v1/forecasts/${f.id}`, {
+      contact_id:       f.contact_id,
+      product_id:       f.product_id,
+      forecast_type_id: f.forecast_type_id,
+      amount:           f.amount,
+      forecast_date:    f.forecast_date,
+      result_id:        resultModal.value.selectedId || null,
+    });
+    const hit = resultModal.value.selectedId
+      ? lookups.value?.forecast_results?.find(r => String(r.id) === String(resultModal.value.selectedId))
+      : null;
+    f.result_id   = resultModal.value.selectedId || null;
+    f.result_name = hit?.name ?? null;
+    closeResultModal();
+    toast('Result updated.');
+  } catch (e) {
+    resultModal.value.error = e.response?.data?.message ?? 'Failed to update. Please try again.';
+  } finally {
+    resultModal.value.saving = false;
+  }
+}
+
 onMounted(async () => {
   await Promise.all([loadLookups(), load(), loadSummary()]);
 });
@@ -551,12 +630,13 @@ onMounted(async () => {
 }
 .btn-light-pill {
   display: inline-flex; align-items: center;
-  background: var(--surface); color: var(--text-2);
-  border: 1px solid var(--border); border-radius: 999px; padding: 10px 18px;
-  font-size: 13px; font-weight: 600; cursor: pointer; text-decoration: none;
-  transition: border-color 0.15s, color 0.15s;
+  background: var(--primary-soft); color: var(--primary);
+  border: 1.5px solid var(--primary); border-radius: 999px; padding: 10px 18px;
+  font-size: 13px; font-weight: 700; cursor: pointer; text-decoration: none;
+  transition: background 0.15s, color 0.15s, transform 0.06s;
 }
-.btn-light-pill:hover { border-color: var(--primary); color: var(--primary); }
+.btn-light-pill:hover { background: var(--primary); color: var(--primary-on); }
+.btn-light-pill:active { transform: translateY(1px); }
 
 /* Toolbar */
 .toolbar {
@@ -619,11 +699,17 @@ thead th:last-child { border-right: none; }
 thead th.sortable { cursor: pointer; user-select: none; }
 thead th.sortable:hover { color: var(--text-1); background: var(--border-soft); }
 .sort-icon { display: inline-flex; vertical-align: middle; margin-left: 3px; color: var(--primary); }
+.th-filter { white-space: normal !important; overflow: visible !important; vertical-align: top !important; padding: 8px 10px !important; }
+.col-head { display: flex; flex-direction: column; gap: 5px; }
+.col-head span { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.55px; color: var(--text-2); white-space: nowrap; }
+.col-filter-sel { width: 100%; height: 22px; font-size: 11px; padding: 0 4px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text-1); cursor: pointer; }
+.col-filter-sel:focus { outline: 1px solid var(--primary); }
 tbody td { padding: 8px 12px; border-bottom: 1px solid var(--border-soft); border-right: 1px solid var(--border-soft); color: var(--text-1); vertical-align: middle; font-size: 13px; white-space: nowrap; overflow: hidden; }
 tbody td:last-child { border-right: none; }
 tbody tr:last-child td { border-bottom: none; }
 tbody tr:hover { background: var(--surface-2); }
-.td-company { white-space: normal !important; word-break: break-word; overflow: visible !important; }
+.td-company  { white-space: normal !important; word-break: break-word; overflow: visible !important; }
+.td-product  { white-space: normal !important; word-break: break-word; overflow: visible !important; }
 
 .row-num {
   display: inline-flex; align-items: center; justify-content: center;
@@ -635,11 +721,11 @@ tbody tr:hover { background: var(--surface-2); }
 .company-link:hover { color: var(--primary); }
 .muted { color: var(--text-3); }
 .type-badge { background: #e0f2fe; color: #0369a1; font-size: 11.5px; font-weight: 600; padding: 3px 10px; border-radius: 999px; white-space: nowrap; }
-.result-badge { font-size: 11.5px; font-weight: 600; padding: 3px 10px; border-radius: 999px; white-space: nowrap; }
-.result-confirmed { background: #dcfce7; color: #15803d; }
-.result-pending   { background: #fef3c7; color: #b45309; }
-.result-rejected  { background: #fee2e2; color: #b91c1c; }
-.result-no-result { background: var(--surface-2); color: var(--text-3); }
+.result-text      { font-size: 13px; font-weight: 600; white-space: nowrap; }
+.result-confirmed { color: #15803d; }
+.result-pending   { color: #b45309; }
+.result-rejected  { color: #b91c1c; }
+.result-no-result { color: var(--text-3); font-weight: 400; }
 .amount-cell { font-weight: 800; color: #0369a1; white-space: nowrap; }
 .snapshot { display: flex; flex-direction: column; gap: 2px; }
 .snapshot span { font-size: 12.5px; font-weight: 600; color: var(--text-1); }
@@ -694,7 +780,8 @@ tbody tr:hover { background: var(--surface-2); }
 .pager-rows-sel:focus { border-color: var(--primary); }
 
 /* Confirm / delete modal */
-.conf-overlay { position: fixed; inset: 0; background: rgba(15,23,42,0.5); z-index: 900; display: flex; align-items: center; justify-content: center; padding: 16px; }
+.conf-overlay { position: fixed; inset: 0; background: rgba(15,23,42,0.55); backdrop-filter: blur(4px); z-index: 900; display: flex; align-items: center; justify-content: center; padding: 16px; animation: overlay-fade-in 0.18s ease; }
+.conf-overlay > .conf-modal { animation: modal-spring-in 0.26s cubic-bezier(0.34, 1.4, 0.64, 1); }
 .conf-modal { background: var(--surface); border-radius: var(--radius-lg); width: 100%; max-width: 420px; box-shadow: var(--shadow-lg); border: 1px solid var(--border-soft); overflow: hidden; }
 .conf-head { display: flex; justify-content: space-between; align-items: flex-start; padding: 18px 22px 14px; border-bottom: 1px solid var(--border-soft); }
 .conf-title { font-size: 15px; font-weight: 700; color: var(--text-1); margin: 0 0 2px; }
@@ -710,6 +797,31 @@ tbody tr:hover { background: var(--surface-2); }
 .conf-delete { height: 38px; padding: 0 18px; background: var(--danger); color: #fff; border: none; border-radius: var(--radius-sm); font-size: 13px; font-weight: 700; cursor: pointer; }
 .conf-delete:hover:not(:disabled) { background: #b91c1c; }
 .conf-delete:disabled { opacity: 0.5; cursor: not-allowed; }
+.conf-save { height: 38px; padding: 0 18px; background: var(--primary); color: var(--primary-on); border: none; border-radius: var(--radius-sm); font-size: 13px; font-weight: 700; cursor: pointer; }
+.conf-save:hover:not(:disabled) { background: var(--primary-hover); }
+.conf-save:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Inline result editor */
+.result-cell { white-space: normal !important; overflow: hidden !important; }
+.result-inner { display: flex; align-items: center; gap: 5px; }
+.result-inner .result-badge { cursor: default; }
+.result-inner:has(.result-edit-btn) .result-badge { cursor: pointer; }
+.result-edit-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 26px; height: 26px; border-radius: var(--radius-sm);
+  border: 1px solid var(--border); background: var(--surface);
+  color: var(--text-3); cursor: pointer;
+  transition: background 0.12s, color 0.12s, transform 0.06s;
+  flex-shrink: 0;
+}
+.result-edit-btn:hover { background: var(--surface-2); color: var(--text-1); border-color: var(--border); }
+.result-edit-btn:active { transform: scale(0.92); }
+.result-body { padding: 18px 22px; display: flex; flex-direction: column; gap: 12px; }
+.result-error { background: #fee2e2; color: #b91c1c; border-radius: var(--radius-sm); padding: 8px 12px; font-size: 13px; }
+.result-field { display: flex; flex-direction: column; gap: 5px; }
+.result-field label { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.7px; color: var(--text-3); padding-left: 2px; }
+.result-field select { height: 38px; padding: 0 14px; border: 1px solid var(--border); border-radius: 999px; font-size: 13px; outline: none; background: var(--surface); color: var(--text-1); transition: border-color 0.15s, box-shadow 0.15s; }
+.result-field select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--focus-ring); }
 
 /* Export modal */
 .export-modal { background: var(--surface); border-radius: var(--radius-xl, 14px); box-shadow: 0 24px 60px rgba(0,0,0,0.18); width: min(520px, calc(100vw - 48px)); max-height: calc(100vh - 64px); display: flex; flex-direction: column; overflow: hidden; }

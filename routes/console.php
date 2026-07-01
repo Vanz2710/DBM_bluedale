@@ -13,3 +13,6 @@ Schedule::command('dept:notify-overdue')->dailyAt('09:00');
 Schedule::command('dept:prune-notifications')->dailyAt('02:00');
 Schedule::command('email:dispatch-scheduled')->everyMinute();
 Schedule::command('users:purge-deleted')->dailyAt('03:00');
+// Delete personal access tokens that have been expired for 24h+ so the
+// personal_access_tokens table doesn't accumulate dead rows over time.
+Schedule::command('sanctum:prune-expired --hours=24')->dailyAt('04:00');

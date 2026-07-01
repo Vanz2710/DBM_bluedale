@@ -99,14 +99,19 @@ class ForecastController extends Controller
             ]);
         }
 
-        $rows = (clone $base)->orderBy('forecast_date')->get();
+        $perPage  = min((int) $request->input('per_page', 25), 500);
+        $paginated = (clone $base)->orderBy('forecast_date')->paginate($perPage);
 
         return response()->json([
             'data' => [
                 'totals' => $totals,
                 'months' => $months,
-                'rows'   => $rows->map(fn(Forecast $forecast) => $this->format($forecast))->values(),
+                'rows'   => $paginated->getCollection()->map(fn(Forecast $forecast) => $this->format($forecast))->values(),
             ],
+            'current_page' => $paginated->currentPage(),
+            'last_page'    => $paginated->lastPage(),
+            'total'        => $paginated->total(),
+            'per_page'     => $paginated->perPage(),
         ]);
     }
 

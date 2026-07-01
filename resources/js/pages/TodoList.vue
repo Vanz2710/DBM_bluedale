@@ -86,20 +86,20 @@
       </div>
       <div class="filter-group">
         <label>User</label>
-        <select v-model="userId" @change="load">
+        <select v-model="userId" @change="page = 1; load()">
           <option value="">All Users</option>
           <option v-for="u in users" :key="u.id" :value="u.id">{{ u.name }}</option>
         </select>
       </div>
       <div class="filter-group">
-        <label>Status</label>
-        <select v-model="statusFilter" @change="load">
+        <label>Completion</label>
+        <select v-model="statusFilter" @change="page = 1; load()">
           <option value="">All</option>
           <option value="pending">Pending</option>
           <option value="completed">Completed</option>
         </select>
       </div>
-      <button class="btn btn-primary" @click="load">Search</button>
+      <button class="btn btn-primary" @click="page = 1; load()">Search</button>
       <button v-if="hasFilters" class="btn btn-clear" @click="clearFilters">Clear</button>
     </div>
 
