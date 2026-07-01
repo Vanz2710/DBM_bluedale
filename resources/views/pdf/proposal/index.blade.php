@@ -44,10 +44,20 @@
 @endif
 
 @foreach ($products as $product)
-    @include('pdf.proposal.site_sheet', [
-        'product'   => $product,
-        'logo_data' => $logo_data ?? null,
-    ])
+    @if(($sheet_orientation ?? 'landscape') === 'portrait')
+        @include('pdf.proposal.site_sheet_portrait', [
+            'product'       => $product,
+            'logo_data'     => $logo_data ?? null,
+            'company'       => $company,
+            'signatory'     => $signatory,
+            'portrait_meta' => $portrait_meta ?? [],
+        ])
+    @else
+        @include('pdf.proposal.site_sheet', [
+            'product'   => $product,
+            'logo_data' => $logo_data ?? null,
+        ])
+    @endif
 @endforeach
 
 </body>

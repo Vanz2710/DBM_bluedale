@@ -336,7 +336,10 @@
                         @change="item.field === 'coordinate' ? onDetailCoordChange($event.target.value) : undefined"
                       >
                       <a v-else-if="item.href" :href="item.href" target="_blank" rel="noopener">{{ item.value }}</a>
-                      <span v-else>{{ item.value }}</span>
+                      <span v-else>
+                        {{ item.value }}
+                        <span v-if="item.hint" class="detail-cell-hint">{{ item.hint }}</span>
+                      </span>
                     </td>
                   </tr>
                 </tbody>
@@ -970,11 +973,74 @@
 
           </div>
 
+          <!-- ── WHAT TO GENERATE ──────────────────────────────────────── -->
+          <div class="output-settings-section">
+            <div class="output-settings-label">What to generate</div>
+            <div class="print-mode-group">
+              <button type="button" :class="['print-mode-btn', { active: proposalForm.print_mode === 'both' }]" @click="proposalForm.print_mode = 'both'">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                Proposal + Site Sheets
+              </button>
+              <button type="button" :class="['print-mode-btn', { active: proposalForm.print_mode === 'proposal_only' }]" @click="proposalForm.print_mode = 'proposal_only'">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                Proposal Only
+              </button>
+              <button type="button" :class="['print-mode-btn', { active: proposalForm.print_mode === 'sheets_only' }]" @click="proposalForm.print_mode = 'sheets_only'">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+                Site Sheets Only
+              </button>
+            </div>
+          </div>
+
         </div>
 
         <!-- Step 2: Per-product photo check -->
         <div v-else-if="wizardStep === 'sheets'" class="wizard-body">
+
+          <!-- ── SHEET SETTINGS ─────────────────────────────────────────── -->
+          <div class="sheets-settings-bar">
+            <div class="sheets-orient-row">
+              <span class="sheets-settings-label">Sheet orientation</span>
+              <div class="orientation-group">
+                <button type="button"
+                  :class="['orient-btn', { active: proposalForm.sheet_orientation === 'landscape' }]"
+                  @click="proposalForm.sheet_orientation = 'landscape'"
+                  title="Landscape — photos stacked, info on the right">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/></svg>
+                  Landscape
+                </button>
+                <button type="button"
+                  :class="['orient-btn', { active: proposalForm.sheet_orientation === 'portrait' }]"
+                  @click="proposalForm.sheet_orientation = 'portrait'"
+                  title="Portrait — full standalone page per site with client header">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/></svg>
+                  Portrait
+                </button>
+              </div>
+            </div>
+            <div v-if="proposalForm.sheet_orientation === 'portrait'" class="addl-fee-field">
+              <label class="addl-fee-label">Skin replacement fee</label>
+              <input
+                v-model="proposalForm.additional_fee"
+                type="text"
+                class="addl-fee-input"
+                placeholder="RM500"
+              >
+            </div>
+          </div>
+
           <p class="wizard-note">Confirm each site has a photo and map. Paste (Ctrl+V) an image anywhere on this step to upload it.</p>
+
+          <!-- Photo completeness indicator -->
+          <div class="wizard-completeness">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+            Photo coverage:
+            <strong>{{ photoReadySites }} / {{ selectedProducts.length }}</strong> sites have both photos
+            <span class="wizard-comp-badge" :class="photoReadySites === selectedProducts.length ? 'comp-ok' : 'comp-partial'">
+              {{ photoReadySites === selectedProducts.length ? 'All ready' : `${selectedProducts.length - photoReadySites} missing` }}
+            </span>
+          </div>
+
           <div class="wizard-sites">
             <article v-for="product in selectedProducts" :key="product.id" class="wizard-site">
               <header>
@@ -984,6 +1050,22 @@
                 </div>
                 <button type="button" class="btn-mini" @click="openProductDetail(product)">Edit Details</button>
               </header>
+
+              <!-- Sheet title inline edit — shows what will appear in red in the PDF header -->
+              <div class="wizard-sheet-title-row">
+                <label class="wizard-sheet-title-label">Sheet Title</label>
+                <input
+                  v-model="wizardSheetTitles[product.id]"
+                  :placeholder="productTypeLabelFor(product.product_type)"
+                  @blur="saveWizardSheetTitle(product)"
+                  :disabled="savingSheetTitle[product.id]"
+                  class="wizard-sheet-title-input"
+                  :aria-label="`Sheet title for ${product.site_name}`"
+                >
+                <span class="wizard-sheet-title-live" :title="'Will print as: ' + effectiveSheetTitle(product)">
+                  {{ effectiveSheetTitle(product) }}
+                </span>
+              </div>
               <!-- Per-site piece count — bunting only -->
               <div v-if="product.product_type === 'Lamp Post Bunting' && siteQuantities[product.id]" class="wizard-pcs-row">
                 <div class="wizard-pcs-field">
@@ -1047,21 +1129,15 @@
         <!-- Step 3: Review -->
         <div v-else-if="wizardStep === 'review'" class="wizard-body review-body">
 
-          <!-- Top bar: print mode + site count -->
+          <!-- Summary bar — read-only confirmation of choices made in steps 1 & 2 -->
           <div class="review-topbar">
-            <div class="print-mode-group">
-              <button type="button" :class="['print-mode-btn', { active: proposalForm.print_mode === 'both' }]" @click="proposalForm.print_mode = 'both'">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-                Proposal + Site Sheets
-              </button>
-              <button type="button" :class="['print-mode-btn', { active: proposalForm.print_mode === 'proposal_only' }]" @click="proposalForm.print_mode = 'proposal_only'">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                Proposal Only
-              </button>
-              <button type="button" :class="['print-mode-btn', { active: proposalForm.print_mode === 'sheets_only' }]" @click="proposalForm.print_mode = 'sheets_only'">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
-                Site Sheets Only
-              </button>
+            <div class="review-summary">
+              <span class="review-summary-chip">
+                {{ proposalForm.print_mode === 'both' ? 'Proposal + Site Sheets' : proposalForm.print_mode === 'proposal_only' ? 'Proposal Only' : 'Site Sheets Only' }}
+              </span>
+              <span v-if="proposalForm.print_mode !== 'proposal_only'" class="review-summary-chip">
+                {{ proposalForm.sheet_orientation === 'portrait' ? 'Portrait' : 'Landscape' }}
+              </span>
             </div>
             <div class="review-site-count">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
@@ -1095,6 +1171,7 @@
           <ul class="review-sites">
             <li v-for="p in selectedProducts" :key="p.id">
               <strong>{{ p.site_name }}</strong>
+              <span class="review-sheet-title" :title="'PDF header: ' + effectiveSheetTitle(p)">{{ effectiveSheetTitle(p) }}</span>
               <span :class="['photo-status', p.site_photo ? 'ok' : 'missing']">
                 <svg v-if="p.site_photo" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                 <svg v-else width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -1286,6 +1363,8 @@ const generatingProposal = ref(false);
 const previewBlob = ref(null);
 const previewUrl = ref(null);
 const previewLoading = ref(false);
+const wizardSheetTitles = ref({});
+const savingSheetTitle  = ref({});
 const phoneCountries = [
   { code: '+60',  short: 'MY', name: 'Malaysia' },
   { code: '+65',  short: 'SG', name: 'Singapore' },
@@ -1554,6 +1633,8 @@ const proposalForm = ref({
   promo_until: '',
   re_line: '',
   print_mode: 'both',
+  sheet_orientation: 'portrait',
+  additional_fee: 'RM500',
   signatory_name:         '',
   signatory_title:        '',
   signatory_mobile_code:  '+60',
@@ -1741,6 +1822,12 @@ const detailRows = computed(() => {
     rows.push({ label: 'Illumination', value: selectedProduct.value.illumination || '—', field: 'illumination', options: ILLUMINATION_OPTIONS })
     rows.push({ label: 'Facing', value: selectedProduct.value.facing || '—', field: 'facing', options: FACING_OPTIONS })
   }
+  rows.push({
+    label: 'Sheet Title',
+    value: selectedProduct.value.sheet_type_label || '—',
+    field: 'sheet_type_label',
+    hint: !selectedProduct.value.sheet_type_label ? `Default: ${productTypeLabelFor(selectedProduct.value.product_type)}` : null,
+  })
   rows.push({ label: 'Location', value: productLocation(selectedProduct.value), field: 'location' })
   rows.push({ label: 'State & City', value: selectedProduct.value.state_city || inferredStateCity(selectedProduct.value.site_name), field: 'state_city' })
   rows.push({
@@ -1760,6 +1847,45 @@ const landmarkRows = computed(() => {
 const activeLandmarkRows = computed(() => (editingLandmarks.value ? landmarkForm.value : landmarkRows.value));
 const isBuntingOnly = computed(() => selectedProducts.value.length > 0 && selectedProducts.value.every(p => p.product_type === 'Lamp Post Bunting'))
 const hasBunting    = computed(() => selectedProducts.value.some(p => p.product_type === 'Lamp Post Bunting'))
+const photoReadySites = computed(() => selectedProducts.value.filter(p => p.site_photo && p.site_map_photo).length)
+
+// Mirrors the PHP productTypeLabel() fallback so the UI shows the same label the PDF will use.
+function productTypeLabelFor(type) {
+  if (type === 'Temp Board') return 'Mini Billboard (Without Light)';
+  if (type === 'Lamp Post Bunting') return 'Lamp Post Bunting';
+  return type || 'Billboard';
+}
+
+// Returns the label that will actually appear in red in the PDF header.
+// Checks the in-wizard editable title first (wizardSheetTitles), then the DB value, then the computed default.
+function effectiveSheetTitle(product) {
+  const inWizard = (wizardSheetTitles.value[product.id] ?? '').trim();
+  if (inWizard) return inWizard;
+  const saved = (product.sheet_type_label ?? '').trim();
+  if (saved) return saved;
+  return productTypeLabelFor(product.product_type);
+}
+
+async function saveWizardSheetTitle(product) {
+  const newVal = (wizardSheetTitles.value[product.id] ?? '').trim();
+  const oldVal = (product.sheet_type_label ?? '').trim();
+  if (newVal === oldVal) return;
+  savingSheetTitle.value = { ...savingSheetTitle.value, [product.id]: true };
+  try {
+    const res = await api.put(`/v1/site-availability/products/${product.id}`, {
+      sheet_type_label: newVal || null,
+    });
+    const prepared = normalizeRow(res.data.data);
+    const idx = rows.value.findIndex(r => r.id === prepared.id);
+    if (idx !== -1) rows.value[idx] = prepared;
+    wizardSheetTitles.value = { ...wizardSheetTitles.value, [product.id]: newVal };
+  } catch (_) {
+    showToast('Failed to save sheet title');
+    wizardSheetTitles.value = { ...wizardSheetTitles.value, [product.id]: oldVal };
+  } finally {
+    savingSheetTitle.value = { ...savingSheetTitle.value, [product.id]: false };
+  }
+}
 
 const visibleWizardSteps = computed(() =>
   wizardSteps.filter(s => !(s.id === 'sheets' && proposalForm.value.print_mode === 'proposal_only'))
@@ -1788,6 +1914,14 @@ watch(() => proposalForm.value.print_mode, (newMode) => {
   if (newMode === 'proposal_only' && wizardStep.value === 'sheets') {
     wizardStep.value = 'review';
   }
+  if (wizardStep.value === 'review') generatePreview();
+});
+
+watch(() => proposalForm.value.sheet_orientation, () => {
+  if (wizardStep.value === 'review') generatePreview();
+});
+
+watch(() => proposalForm.value.additional_fee, () => {
   if (wizardStep.value === 'review') generatePreview();
 });
 
@@ -1949,6 +2083,7 @@ function emptyDetailForm() {
     size: '',
     illumination: '',
     facing: '',
+    sheet_type_label: '',
     location: '',
     state_city: '',
     coordinate: '',
@@ -1963,6 +2098,7 @@ function startDetailEdit() {
     size: selectedProduct.value.size || defaultProductSize(selectedProduct.value),
     illumination: selectedProduct.value.illumination || '',
     facing: selectedProduct.value.facing || '',
+    sheet_type_label: selectedProduct.value.sheet_type_label || '',
     location: productLocation(selectedProduct.value),
     state_city: selectedProduct.value.state_city || inferredStateCity(selectedProduct.value.site_name),
     coordinate: selectedProduct.value.coordinate || '',
@@ -2002,9 +2138,10 @@ async function saveDetails() {
       site_name:   buildSiteNameFromDetails(),
       site_code:   detailForm.value.site_code.trim() || null,
       size:        detailForm.value.size.trim() || null,
-      illumination:detailForm.value.illumination || null,
-      facing:      detailForm.value.facing || null,
-      state_city:  detailForm.value.state_city.trim() || null,
+      illumination:      detailForm.value.illumination || null,
+      facing:            detailForm.value.facing || null,
+      sheet_type_label:  detailForm.value.sheet_type_label.trim() || null,
+      state_city:        detailForm.value.state_city.trim() || null,
       coordinate:  detailForm.value.coordinate.trim() || null,
     });
     const prepared = normalizeRow(res.data.data);
@@ -2197,6 +2334,8 @@ function buildProposalPayload() {
     re_line:               (f.re_line || '').trim() || null,
     include_site_sheets:   f.print_mode !== 'proposal_only',
     include_proposal_page: f.print_mode !== 'sheets_only',
+    sheet_orientation:     f.print_mode !== 'proposal_only' ? f.sheet_orientation : 'landscape',
+    additional_fee:        (f.additional_fee || '').trim() || 'RM500',
     billboard_composites:  Object.keys(billboardComposites.value).length > 0 ? billboardComposites.value : undefined,
     rows,
     client_designation:    (f.client_designation || '').trim() || null,
@@ -2307,6 +2446,10 @@ function openProposalWizard() {
     if (p.product_type === 'Lamp Post Bunting') qty[p.id] = { pcs: 10, poles: 5 }
   })
   siteQuantities.value = qty
+  // Initialise inline sheet-title overrides for wizard Step 2
+  const titles = {}
+  selectedProducts.value.forEach(p => { titles[p.id] = p.sheet_type_label || '' })
+  wizardSheetTitles.value = titles
   sigLoaded.value = false; // allow watch to fire loadSavedSig for this session
   loadPreparedByProfile();
   proposalWizardOpen.value = true;
@@ -2322,6 +2465,8 @@ function closeProposalWizard() {
   wizardStep.value = 'info';
   pasteTargetId.value = null;
   siteQuantities.value = {};
+  wizardSheetTitles.value = {};
+  savingSheetTitle.value = {};
   sigSaved.value = false;
   sigLoaded.value = false;
   if (previewUrl.value) { window.URL.revokeObjectURL(previewUrl.value); previewUrl.value = null; }
@@ -2332,7 +2477,7 @@ function closeProposalWizard() {
     attention_phone_code: '+60', attention_phone_local: '', reference: '',
     duration: 1, duration_label: '', normal_price: null, price_per_unit: null,
     quantity_size: '', sst_rate: 0.08, promo_until: '', re_line: '',
-    print_mode: 'both',
+    print_mode: 'both', sheet_orientation: 'portrait', additional_fee: 'RM500',
     signatory_name: '', signatory_title: '',
     signatory_mobile_code: '+60', signatory_mobile_local: '',
     signatory_label: '', signatory_signature: '',
@@ -4366,9 +4511,64 @@ onMounted(() => {
 .btn-mini input { display: none; }
 .btn-mini:hover { background: #f1f5f9; }
 .review-body { padding: 16px 20px; }
+/* ── Step 1 output settings section ────────────────────────────── */
+.output-settings-section {
+  margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border);
+}
+.output-settings-label {
+  font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px;
+  color: var(--text-3); margin-bottom: 10px;
+}
+
+/* ── Step 2 sheet settings bar ──────────────────────────────────── */
+.sheets-settings-bar {
+  display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+  padding: 10px 14px; background: var(--surface-2);
+  border: 1px solid var(--border); border-radius: var(--radius-sm); margin-bottom: 14px;
+}
+.sheets-orient-row {
+  display: flex; align-items: center; gap: 10px;
+}
+.sheets-settings-label {
+  font-size: 11px; font-weight: 700; color: var(--text-2); white-space: nowrap;
+}
+
+/* Orientation toggle (used in Step 2) */
+.orientation-group {
+  display: flex; gap: 0; border: 1.5px solid var(--border); border-radius: var(--radius-sm); overflow: hidden;
+}
+.orient-btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 6px 11px; border: none; border-right: 1px solid var(--border);
+  background: var(--surface); color: var(--text-2); font-size: 12px; font-weight: 600;
+  cursor: pointer; transition: background 0.15s, color 0.15s;
+}
+.orient-btn:last-child { border-right: none; }
+.orient-btn:hover { background: var(--surface-2); color: var(--text-1); }
+.orient-btn.active { background: var(--primary); color: var(--primary-on); }
+
+/* Replacement fee field (inside sheets-settings-bar) */
+.addl-fee-field { display: flex; align-items: center; gap: 6px; }
+.addl-fee-label { font-size: 11px; font-weight: 700; color: var(--text-2); white-space: nowrap; }
+.addl-fee-input {
+  width: 72px; height: 30px; border: 1.5px solid var(--border); border-radius: var(--radius-sm);
+  padding: 0 8px; font-size: 12px; color: var(--text-1); background: var(--surface);
+  outline: none; text-align: center;
+}
+.addl-fee-input:focus { border-color: var(--primary); }
+
+/* ── Step 3 review topbar ───────────────────────────────────────── */
 .review-topbar {
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
   margin-bottom: 14px;
+}
+.review-summary {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+}
+.review-summary-chip {
+  display: inline-flex; align-items: center; font-size: 11px; font-weight: 700;
+  color: var(--text-2); background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: 999px; padding: 3px 10px; white-space: nowrap;
 }
 .review-site-count {
   display: flex; align-items: center; gap: 5px;
@@ -4407,9 +4607,66 @@ onMounted(() => {
 @keyframes spin { to { transform: rotate(360deg); } }
 .spin { animation: spin 0.9s linear infinite; }
 
+/* ── Wizard Step 2 improvements ─────────────────────────────────── */
+/* Photo completeness bar */
+.wizard-completeness {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 8px 14px;
+  font-size: 12px; font-weight: 600; color: var(--text-2);
+  margin-bottom: 14px;
+}
+.wizard-completeness strong { color: var(--text-1); }
+.wizard-comp-badge {
+  margin-left: auto; font-size: 11px; font-weight: 700;
+  padding: 2px 9px; border-radius: 999px; white-space: nowrap;
+}
+.comp-ok { background: #dcfce7; color: #166534; }
+.comp-partial { background: #fef9c3; color: #854d0e; }
+
+/* Per-site sheet title row in wizard card */
+.wizard-sheet-title-row {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 7px 12px 8px; background: #fff5f5;
+  border-top: 1px solid #fecaca; border-bottom: 1px solid #fecaca;
+  margin-bottom: 10px;
+}
+.wizard-sheet-title-label {
+  font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px;
+  color: #b91c1c; white-space: nowrap; min-width: 68px;
+}
+.wizard-sheet-title-input {
+  flex: 1; min-width: 120px; height: 28px; border: 1px solid #fca5a5;
+  border-radius: var(--radius-sm); padding: 0 8px;
+  font-size: 12px; color: var(--text-1); background: var(--surface); outline: none;
+}
+.wizard-sheet-title-input:focus { border-color: #dc2626; box-shadow: 0 0 0 2px rgba(220,38,38,0.12); }
+.wizard-sheet-title-input::placeholder { color: #94a3b8; font-style: italic; }
+.wizard-sheet-title-input:disabled { opacity: 0.55; cursor: not-allowed; }
+.wizard-sheet-title-live {
+  font-size: 11px; font-weight: 800; color: #cc0000; white-space: nowrap;
+  max-width: 180px; overflow: hidden; text-overflow: ellipsis;
+  background: rgba(204,0,0,0.08); border-radius: 4px; padding: 2px 7px;
+}
+
+/* Review step: sheet title chip per site */
+.review-sheet-title {
+  display: inline-flex; align-items: center; overflow: hidden;
+  font-size: 10px; font-weight: 700; color: #cc0000;
+  background: #fff5f5; border: 1px solid #fecaca;
+  border-radius: 999px; padding: 1px 8px;
+  max-width: 160px; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* Product detail table: hint text under empty value */
+.detail-cell-hint {
+  display: block; font-size: 11px; font-weight: 500; color: var(--text-3);
+  margin-top: 3px; font-style: italic;
+}
+
 .review-sites { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 5px; }
 .review-sites li {
-  display: grid; grid-template-columns: 1fr auto auto; gap: 10px; align-items: center;
+  display: grid; grid-template-columns: 1fr auto auto auto; gap: 8px; align-items: center;
   padding: 8px 10px; background: var(--surface); border: 1px solid var(--border); border-radius: 6px;
   font-size: 12px;
 }

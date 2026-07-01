@@ -254,29 +254,23 @@ export const PAGE_TOURS = {
     },
   ],
 
-  followups: [
+  'list-followups': [
     {
-      target: '.page-head',
-      title: 'Follow-Ups',
-      body: 'Follow-ups are actions logged against tasks. This page consolidates all follow-up records across every contact so you can track outcomes in one view.',
+      target: '.view-tabs',
+      title: 'Follow-Ups Tab',
+      body: 'You\'re on the Follow-Ups tab — a cross-contact view of every follow-up action logged against a to-do. Switch tabs anytime to return to the contact list, check tasks, or view the forecast pipeline.',
       position: 'bottom',
     },
     {
       target: '.toolbar',
-      title: 'Date Filters',
-      body: 'Switch between Date Range (specific from/to dates) or Month Range (whole months at a time). Use the User filter to browse another team member\'s follow-ups.',
+      title: 'Filter Follow-Ups',
+      body: 'Switch between Date Range (specific from/to dates) and Month Range (whole months at a time). Narrow results by Action Type (Call, Email, Meeting…), completion Status, or search by company name. Hit Search to apply.',
       position: 'bottom',
-    },
-    {
-      target: '[data-tour="add-followup-btn"]',
-      title: 'Add a Follow-Up',
-      body: 'Click here to log a new follow-up. Select the contact, choose the task it belongs to, then set the follow-up date and completion status.',
-      position: 'bottom-left',
     },
     {
       target: '.table-wrap',
       title: 'Follow-Up Records',
-      body: 'Each row shows the follow-up date, linked task, company, and status. Use the Edit button to update details or mark it as completed.',
+      body: 'Each row shows the date, action type, company, status, type, assigned user, task, and note. Use the column header dropdowns to filter within the current results. The checkmark marks a follow-up complete; undo reverts it to pending. Use the pencil to edit or Export to download the current view.',
       position: 'bottom',
     },
   ],

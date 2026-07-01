@@ -104,9 +104,10 @@ class SiteAvailabilityController extends Controller
             'product_type' => ['sometimes', 'required', Rule::in(self::PRODUCTS)],
             'site_code'   => ['sometimes', 'nullable', 'string', 'max:255'],
             'size'        => ['sometimes', 'nullable', 'string', 'max:255'],
-            'illumination'=> ['sometimes', 'nullable', 'string', 'max:100'],
-            'facing'      => ['sometimes', 'nullable', 'string', 'max:100'],
-            'state_city'  => ['sometimes', 'nullable', 'string', 'max:255'],
+            'illumination'      => ['sometimes', 'nullable', 'string', 'max:100'],
+            'facing'            => ['sometimes', 'nullable', 'string', 'max:100'],
+            'sheet_type_label'  => ['sometimes', 'nullable', 'string', 'max:200'],
+            'state_city'        => ['sometimes', 'nullable', 'string', 'max:255'],
             'coordinate'  => ['sometimes', 'nullable', 'string', 'max:255'],
             'contact_name'   => ['sometimes', 'nullable', 'string', 'max:255'],
             'contact_mobile' => ['sometimes', 'nullable', 'string', 'max:50'],
@@ -348,6 +349,8 @@ class SiteAvailabilityController extends Controller
             'promo_until'      => ['nullable', 'string', 'max:50'],
             'include_site_sheets'   => ['nullable', 'boolean'],
             'include_proposal_page' => ['nullable', 'boolean'],
+            'sheet_orientation'     => ['nullable', Rule::in(['landscape', 'portrait'])],
+            'additional_fee'        => ['nullable', 'string', 'max:50'],
             'billboard_composites'  => ['nullable', 'array'],
             'billboard_composites.*'=> ['nullable', 'string'],
             'rows'             => ['nullable', 'array'],
@@ -411,6 +414,7 @@ class SiteAvailabilityController extends Controller
 
         $includeSheets = (bool) ($validated['include_site_sheets'] ?? true);
         $includeCover  = (bool) ($validated['include_proposal_page'] ?? true);
+        $orientation   = $validated['sheet_orientation'] ?? 'landscape';
 
         $defaultSignatory = config('proposal.signatory');
         $signatory = [
@@ -421,12 +425,15 @@ class SiteAvailabilityController extends Controller
             'signature_img'   => $validated['signatory_signature'] ?? null,
         ];
 
+        $resolvedRef  = $validated['reference'] ?? ('AEMC/PROPOSAL/' . now()->format('m-y/His'));
+        $resolvedDate = now()->format('jS F Y');
+
         $data = [
             'company'         => config('proposal.company'),
             'signatory'       => $signatory,
             'logo_data'       => $this->logoDataUri(),
-            'date'            => now()->format('jS F Y'),
-            'reference'       => $validated['reference'] ?? ('AEMC/PROPOSAL/' . now()->format('m-y/His')),
+            'date'            => $resolvedDate,
+            'reference'       => $resolvedRef,
             'client_name'     => $validated['client_name'] ?? '',
             'attention'          => $validated['attention'] ?? '',
             'attention_phone'    => $validated['attention_phone'] ?? '',
@@ -444,14 +451,34 @@ class SiteAvailabilityController extends Controller
             'grand_total'     => $grandTotal,
             'sst_total'       => $sstTotal,
             'terms'           => $terms,
-            'products'        => $includeSheets ? $this->preparedSiteSheets($products, $validated['billboard_composites'] ?? []) : [],
+            'products'        => $includeSheets ? $this->preparedSiteSheets($products, $validated['billboard_composites'] ?? [], $orientation) : [],
             'include_cover'   => $includeCover,
+            'sheet_orientation' => $orientation,
+            'portrait_meta'   => [
+                'date'               => $resolvedDate,
+                'reference'          => $resolvedRef,
+                'client_name'        => $validated['client_name'] ?? '',
+                'attention'          => $validated['attention'] ?? '',
+                'attention_phone'    => $validated['attention_phone'] ?? '',
+                're_line'            => $reLine,
+                'client_designation' => $validated['client_designation'] ?? '',
+                'normal_price'       => $normalPrice,
+                'normal_price_unit'  => $perUnitLabel,
+                'additional_fee'     => $validated['additional_fee'] ?? 'RM500',
+            ],
         ];
 
         $filename = 'proposal-' . now()->format('Ymd-His') . '.pdf';
 
-        // No site sheets — portrait cover only
+        // No site sheets — portrait cover only (orientation doesn't affect the cover-only case)
         if (!$includeSheets || empty($data['products'])) {
+            return Pdf::loadView('pdf.proposal.index', $data)
+                ->setPaper('A4', 'portrait')
+                ->download($filename);
+        }
+
+        // Portrait site sheets: all pages are portrait — no FPDI merge required.
+        if ($orientation === 'portrait') {
             return Pdf::loadView('pdf.proposal.index', $data)
                 ->setPaper('A4', 'portrait')
                 ->download($filename);
@@ -546,20 +573,29 @@ class SiteAvailabilityController extends Controller
         return $parts[1] ?? $product->site_name;
     }
 
-    private function preparedSiteSheets($products, array $composites = []): array
+    private function preparedSiteSheets($products, array $composites = [], string $orientation = 'landscape'): array
     {
-        // Pre-size both photos to the same dimensions so they render at equal height in the PDF.
-        // Height matches the `height:287px` in site_sheet.blade.php (see that file's header comment
-        // for the measured landscape geometry — 287px leaves a clean gap above the remark block).
-        $photoW = 640;
-        $photoH = 287;
+        // Landscape: both photos are the same size, stacked (287px each, 60% column).
+        // Portrait:  photos are side-by-side — site photo is wider (62% col), map narrower (38% col).
+        //            Both get height 320px to fill the larger portrait canvas.
+        if ($orientation === 'portrait') {
+            $sitePhotoW = 460;
+            $mapPhotoW  = 280;
+            $photoH     = 320;
+        } else {
+            $sitePhotoW = $mapPhotoW = 640;
+            $photoH     = 287;
+        }
 
-        return $products->map(function ($product) use ($composites, $photoW, $photoH) {
+        return $products->map(function ($product) use ($composites, $sitePhotoW, $mapPhotoW, $photoH) {
             $composite = $composites[(string) $product->id] ?? null;
             return [
                 'id'                 => $product->id,
                 'product_type'       => $product->product_type,
-                'product_type_label' => $this->productTypeLabel($product->product_type),
+                'product_type_label' => ($product->sheet_type_label && trim($product->sheet_type_label) !== '')
+                    ? trim($product->sheet_type_label)
+                    : $this->productTypeLabel($product->product_type),
+                'site_name'          => $product->site_name,
                 'site_code'          => $product->site_code,
                 'size'               => $product->size,
                 'illumination'       => $product->illumination,
@@ -579,10 +615,10 @@ class SiteAvailabilityController extends Controller
                     ->values()
                     ->all(),
                 'site_photo_data'    => $this->resizeForPdfFrame(
-                    $composite ?? $this->photoDataUri($product->site_photo), $photoW, $photoH
+                    $composite ?? $this->photoDataUri($product->site_photo), $sitePhotoW, $photoH
                 ),
                 'site_map_photo_data'=> $this->resizeForPdfFrame(
-                    $this->photoDataUri($product->site_map_photo), $photoW, $photoH
+                    $this->photoDataUri($product->site_map_photo), $mapPhotoW, $photoH
                 ),
             ];
         })->all();
