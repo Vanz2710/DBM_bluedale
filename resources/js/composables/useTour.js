@@ -11,15 +11,15 @@ export const TOUR_STEPS = [
     position: 'right',
   },
   {
-    target: '[data-tour="nav-crm-contacts"]',
+    target: '[data-tour="nav-crm-pipeline"]',
     title: 'Contacts',
-    body: 'The heart of the CRM. Add companies, assign owners, log calls and emails, schedule todos and follow-ups, and track deals — all from one contact record.',
+    body: 'The heart of the CRM. Add companies, assign owners, schedule todos and follow-ups, and track deals and forecasts — all from one contact record.',
     position: 'right',
   },
   {
-    target: '[data-tour="nav-tasks"]',
-    title: 'Performance & Tasks',
-    body: 'Track your todos, follow-ups, and KPI targets. Monitor how you and your team are performing against goals over any time period.',
+    target: '[data-tour="nav-activity"]',
+    title: 'Activity & Tasks',
+    body: 'Track your todos, follow-ups, notifications, and the team task manager. Stay on top of your daily workload from here.',
     position: 'right',
   },
   {
@@ -166,6 +166,12 @@ export const PAGE_TOURS = {
       position: 'bottom',
     },
     {
+      target: '[data-tour="add-todo-btn"]',
+      title: 'Add a To-Do',
+      body: 'Click here to create a new to-do. Choose a company, task type, and due date, and add an optional remark — it appears here and on that contact\'s record.',
+      position: 'bottom-left',
+    },
+    {
       target: '.table-wrap',
       title: 'To-Do Records',
       body: 'Each row shows the due date, company, task type, and remark. Use the checkmark to mark a task complete, or the undo button to revert it to pending.',
@@ -227,29 +233,123 @@ export const PAGE_TOURS = {
     },
   ],
 
-  todos: [
+  // ── Contact-scoped forms ──────────────────────────────────────────────────
+  'contact-add': [
     {
-      target: '.page-head',
-      title: 'To Do List',
-      body: 'All tasks across every contact in one place. Tasks can also be created here without being tied to a specific contact.',
+      target: '.page-header',
+      title: 'Add a New Contact',
+      body: 'A quick two-step form — company details first, then classification. Required fields are marked; everything else can be filled in later from the contact record.',
       position: 'bottom',
     },
     {
-      target: '.toolbar',
-      title: 'Filter Tasks',
-      body: 'Filter by date range, company name, assigned user, or completion status. Hit Search to apply — Clear removes all active filters.',
+      target: '.form-group',
+      title: 'Company Information',
+      body: 'Start with the company name and basic details, then click Next for Step 2 — owner, status, type, and category.',
+      position: 'bottom',
+    },
+  ],
+
+  'contact-edit': [
+    {
+      target: '.page-header',
+      title: 'Edit Company',
+      body: 'Update any company detail — name, contact info, or classification. This doesn\'t affect the to-dos, follow-ups, or forecasts already logged against this contact.',
       position: 'bottom',
     },
     {
-      target: '[data-tour="add-todo-btn"]',
-      title: 'Add a Task',
-      body: 'Click here to create a new task. Choose a contact, task type, due date, and an optional remark. It will appear here and on the linked contact\'s record.',
-      position: 'bottom-left',
+      target: '.form-group',
+      title: 'Update and Save',
+      body: 'Change any field, then click Save at the bottom to apply your changes.',
+      position: 'bottom',
+    },
+  ],
+
+  'task-add': [
+    {
+      target: '.page-banner',
+      title: 'Add Reminder',
+      body: 'Schedule a reminder tied directly to this contact — task type, due date, and an optional note.',
+      position: 'bottom',
     },
     {
-      target: '.table-wrap',
-      title: 'Task Records',
-      body: 'Each row shows the due date, status, company, and task type. The Follow-Ups column shows how many follow-ups are logged — click any row to edit or complete it.',
+      target: '.form-group',
+      title: 'Fill In the Details',
+      body: 'Once saved, it appears on both this contact\'s record and the main To-Do list.',
+      position: 'bottom',
+    },
+  ],
+
+  'todo-add': [
+    {
+      target: '.page-header',
+      title: 'Add To-Do',
+      body: 'Create a to-do for any contact — task type, due date, and an optional remark.',
+      position: 'bottom',
+    },
+    {
+      target: '.form-group',
+      title: 'Fill In the Details',
+      body: 'Pick the company this to-do belongs to, then save — it\'ll show up on the To-Do list and the contact\'s record.',
+      position: 'bottom',
+    },
+  ],
+
+  'task-edit': [
+    {
+      target: '.page-header',
+      title: 'Edit Reminder',
+      body: 'Update the due date, task type, remark, or completion status of this to-do — you can also change the linked company\'s status from here.',
+      position: 'bottom',
+    },
+    {
+      target: '.form-group',
+      title: 'Update and Save',
+      body: 'Make your changes and click Save to apply them.',
+      position: 'bottom',
+    },
+  ],
+
+  'todo-view': [
+    {
+      target: '.page-header',
+      title: 'To-Do Details',
+      body: 'A read-only summary of this to-do, with quick actions to mark it complete or add a follow-up.',
+      position: 'bottom',
+    },
+    {
+      target: '.detail-card',
+      title: 'Review and Act',
+      body: 'Check the details, then use the action buttons to complete the to-do or log a follow-up against it.',
+      position: 'bottom',
+    },
+  ],
+
+  'followup-add': [
+    {
+      target: '.page-banner',
+      title: 'Add Follow-Up',
+      body: 'Log a follow-up action against an existing to-do — the action type, date, and a note on what happened.',
+      position: 'bottom',
+    },
+    {
+      target: '.form-group',
+      title: 'Fill In the Details',
+      body: 'Once saved, it appears in the Follow-Ups tab and on the linked contact\'s record.',
+      position: 'bottom',
+    },
+  ],
+
+  'followup-edit': [
+    {
+      target: '.page-header',
+      title: 'Edit Follow-Up',
+      body: 'Change the date, action type, or note on this follow-up, or update its completion status.',
+      position: 'bottom',
+    },
+    {
+      target: '.form-group',
+      title: 'Update and Save',
+      body: 'Make your changes and click Save to apply them.',
       position: 'bottom',
     },
   ],
@@ -296,23 +396,156 @@ export const PAGE_TOURS = {
     },
   ],
 
-  forecasts: [
+  'forecast-summary': [
     {
       target: '.page-head',
-      title: 'Forecasts',
-      body: 'Track your sales pipeline. Each forecast entry links to a contact and captures the product, quantity, value, and expected close date.',
+      title: 'Forecast Summary',
+      body: 'Every forecast entry logged across all contacts, in one exportable report — useful for reviewing pipeline activity beyond a single contact record.',
       position: 'bottom',
     },
     {
       target: '.toolbar',
-      title: 'Filter Forecasts',
-      body: 'Filter by date range, user, status, or product type. Use Export to download the filtered forecast data.',
+      title: 'Filter the Report',
+      body: 'Narrow the report by date range, company, assigned user, product, or result before exporting.',
       position: 'bottom',
     },
     {
       target: '.table-wrap',
-      title: 'Forecast Records',
-      body: 'Each row is a deal in your pipeline. Status can be Open, Won, or Lost. Click a row to edit the forecast or update its outcome.',
+      title: 'Forecast Rows',
+      body: 'Each row shows the company, product, amount, date, and result badge (Successful / Unsuccessful / Pending). Use the pager at the bottom to move through results.',
+      position: 'bottom',
+    },
+    {
+      target: '.btn-export',
+      title: 'Export',
+      body: 'Pick which columns to include, then export the current filtered view to Excel.',
+      position: 'bottom-left',
+    },
+  ],
+
+  // ── Projects & Deals ────────────────────────────────────────────────────────
+  projects: [
+    {
+      target: '.page-banner',
+      title: 'Projects',
+      body: 'Track standalone projects linked to a contact — separate from day-to-day to-dos and follow-ups.',
+      position: 'bottom',
+    },
+    {
+      target: '.toolbar',
+      title: 'Filter Projects',
+      body: 'Search the list, or click a column header to sort.',
+      position: 'bottom',
+    },
+    {
+      target: '.btn-add',
+      title: 'Add a Project',
+      body: 'Click here to link a new project to a contact, with a start and end date and an optional remark.',
+      position: 'bottom-left',
+    },
+    {
+      target: '.table-wrap',
+      title: 'Project List',
+      body: 'Each row is a project. Click the remark icon to view the full note.',
+      position: 'bottom',
+    },
+  ],
+
+  'project-add': [
+    {
+      target: '.page-banner',
+      title: 'Add Project',
+      body: 'Link a new project to a contact, with a name, start and end date, and an optional remark.',
+      position: 'bottom',
+    },
+    {
+      target: '.form-group',
+      title: 'Fill In the Details',
+      body: 'Pick the contact this project belongs to, then save.',
+      position: 'bottom',
+    },
+  ],
+
+  'project-edit': [
+    {
+      target: '.page-banner',
+      title: 'Edit Project',
+      body: 'Update the project name, dates, or remark.',
+      position: 'bottom',
+    },
+    {
+      target: '.form-group',
+      title: 'Update and Save',
+      body: 'Make your changes and click Save to apply them.',
+      position: 'bottom',
+    },
+  ],
+
+  deals: [
+    {
+      target: '.header',
+      title: 'Sales Pipeline',
+      body: 'Track deals from lead to close — separate from the Forecast tab on the Contacts page. The stat strip shows open count, open value, won, and lost totals.',
+      position: 'bottom',
+    },
+    {
+      target: '.view-toggle',
+      title: 'Pipeline / List View',
+      body: 'Switch between the Pipeline (kanban) view and a flat List view of every deal.',
+      position: 'bottom-left',
+    },
+    {
+      target: '.filter-bar',
+      title: 'Filter Deals',
+      body: 'Narrow deals by stage, status, or assigned user, or search by title and company.',
+      position: 'bottom',
+    },
+    {
+      target: '.kanban-board',
+      title: 'Pipeline Board',
+      body: 'Drag a deal card between stage columns to update it. Each card shows the value and assigned owner.',
+      position: 'bottom',
+    },
+    {
+      target: '.table-wrap',
+      title: 'Deal List',
+      body: 'Every deal in a sortable table — title, stage, status, value, probability, and close date. Click a row to edit it.',
+      position: 'bottom',
+    },
+    {
+      target: '.btn-add',
+      title: 'Add a Deal',
+      body: 'Click here to log a new deal against a contact.',
+      position: 'bottom-left',
+    },
+  ],
+
+  'deal-add': [
+    {
+      target: '.page-banner',
+      title: 'Add Deal',
+      body: 'Log a new deal against a contact — title, value, stage, and expected close date.',
+      position: 'bottom',
+    },
+    {
+      target: '.form-group',
+      title: 'Fill In the Details',
+      body: 'Pick the contact this deal belongs to, then save.',
+      position: 'bottom',
+    },
+  ],
+
+  'deal-edit': [
+    {
+      target: '.page-banner',
+      title: 'Edit Deal',
+      body: 'Update the deal\'s stage, value, probability, or status — mark it Won or Lost once it closes.',
+      position: 'bottom',
+    },
+    {
+      target: '.form-group',
+      title: 'Update and Save',
+      body: 'Make your changes and click Save to apply them.',
       position: 'bottom',
     },
   ],
@@ -469,7 +702,7 @@ export const PAGE_TOURS = {
     {
       target: '.table-wrap',
       title: 'Add, Edit, Delete',
-      body: 'Type a new value in the input at the top and click Add. Click Edit on any row to rename it inline. The "In Use" count shows how many records reference it — items in use cannot be deleted.',
+      body: 'Type a new value in the input at the top and click Add. Click Edit on any row to rename it inline. The "In Use" count shows how many records reference it — items in use cannot be deleted. Need to consolidate old values? Tick 2+ checkboxes and click Merge Selected to combine them into one (an existing value or a brand-new name) — every record using the old values is automatically reassigned.',
       position: 'bottom',
     },
   ],
@@ -601,6 +834,55 @@ export const PAGE_TOURS = {
       title: 'Merging Duplicates',
       body: 'When groups appear, each card lists all records with the same name — showing the owner, status, phone, and creation date. Tick the radio button on the record to keep, then click Merge Group. All todos, deals, projects, and forecasts transfer to the kept record before the rest are deleted.',
       position: 'bottom-left',
+    },
+  ],
+
+  // ── Data tools ──────────────────────────────────────────────────────────────
+  'data-health': [
+    {
+      target: '.page-header',
+      title: 'Data Health Report',
+      body: 'A system-wide check on data quality — missing fields, duplicate names, and overdue activity — so you know where the CRM data needs cleanup.',
+      position: 'bottom',
+    },
+    {
+      target: '.stats-row',
+      title: 'Headline Numbers',
+      body: 'Total contacts, PICs, to-dos, and follow-ups, with overdue counts called out underneath.',
+      position: 'bottom',
+    },
+    {
+      target: '.missing-grid',
+      title: 'Missing Required Links',
+      body: 'How many contacts are missing key fields like an assigned user, status, or type — worth fixing before reports rely on that data.',
+      position: 'bottom',
+    },
+    {
+      target: '.table-wrap',
+      title: 'Duplicate Contacts',
+      body: 'Contacts sharing the exact same name. Click Merge to combine records — all to-dos, deals, projects, and forecasts transfer to the one you keep.',
+      position: 'bottom',
+    },
+  ],
+
+  import: [
+    {
+      target: '.page-header',
+      title: 'Import Data',
+      body: 'Bulk-load contacts from a spreadsheet. Three steps: upload the file, map its columns to CRM fields, then review the results.',
+      position: 'bottom',
+    },
+    {
+      target: '.stepper',
+      title: 'Step Indicator',
+      body: 'Tracks where you are in the process. The app auto-matches columns where it can — you\'ll only need to fix the ones it couldn\'t guess.',
+      position: 'bottom',
+    },
+    {
+      target: '.drop-zone',
+      title: 'Upload Your File',
+      body: 'Drag a CSV or Excel file here, or click to browse.',
+      position: 'bottom',
     },
   ],
 
@@ -820,6 +1102,27 @@ export const PAGE_TOURS = {
       target: '.stat-grid',
       title: 'Dashboard Stats',
       body: 'The Dashboard opens first with headline numbers — total campaigns, contacts, and average open and click rates — plus your most recent campaigns below.',
+      position: 'bottom',
+    },
+  ],
+
+  profile: [
+    {
+      target: '.profile-hero',
+      title: 'Your Profile',
+      body: 'Your avatar, name, job title, and assigned roles at a glance.',
+      position: 'bottom',
+    },
+    {
+      target: '.card--accent',
+      title: 'Personal Information',
+      body: 'Update your name, phone number, and job title here, then click Save.',
+      position: 'bottom',
+    },
+    {
+      target: '.col-side',
+      title: 'Security & Sessions',
+      body: 'Change your password, review your account details, and see every device currently logged into your account — revoke any session you don\'t recognise.',
       position: 'bottom',
     },
   ],

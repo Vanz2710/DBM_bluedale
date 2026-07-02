@@ -509,7 +509,7 @@
     </div>
 
     <!-- ══ Open Deals ══════════════════════════════════════════════════════════════ -->
-    <div class="pi-card">
+    <div class="pi-card" data-tour="pi-deals">
       <div class="pi-card-head">
         <div class="pi-card-title-wrap">
           <svg class="pi-card-icon pi-card-icon--success" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">

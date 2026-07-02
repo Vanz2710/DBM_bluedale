@@ -100,8 +100,16 @@ export default routes;
 
 export function setupGuard(router) {
     router.beforeEach((to, from, next) => {
-        const token    = localStorage.getItem('crm_token');
-        const user     = JSON.parse(localStorage.getItem('crm_user') || 'null');
+        const token = localStorage.getItem('crm_token');
+        // A corrupted crm_user value must never throw here — this guard runs as
+        // part of the initial navigation, and app.mount() (app.js) waits on
+        // router.isReady(); an uncaught error leaves the whole SPA blank forever.
+        let user = null;
+        try {
+            user = JSON.parse(localStorage.getItem('crm_user') || 'null');
+        } catch {
+            localStorage.removeItem('crm_user');
+        }
         const isPublic     = to.meta?.public     === true;
         const isStandalone = to.meta?.standalone === true;
 

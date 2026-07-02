@@ -340,7 +340,19 @@ function handleKeydown(e) {
   }
 }
 
-const currentUser = ref(JSON.parse(localStorage.getItem('crm_user') || 'null'));
+// A corrupted crm_user value would otherwise throw during app setup and
+// permanently blank the whole SPA (mount is gated on the first navigation
+// resolving) — self-heal instead of crashing.
+function getStoredUser() {
+  try {
+    return JSON.parse(localStorage.getItem('crm_user') || 'null');
+  } catch {
+    localStorage.removeItem('crm_user');
+    return null;
+  }
+}
+
+const currentUser = ref(getStoredUser());
 
 // ─── Maintenance mode overlay ─────────────────────────────────────────────────
 const maintenanceActive = ref(false);
@@ -371,7 +383,7 @@ onMounted(() => {
   _modalObserver.observe(document.body, { childList: true, subtree: true });
 
   window.addEventListener('user-profile-updated', () => {
-    currentUser.value = JSON.parse(localStorage.getItem('crm_user') || 'null');
+    currentUser.value = getStoredUser();
   });
   window.addEventListener('crm-maintenance', (e) => {
     maintenanceActive.value = true;
@@ -386,7 +398,7 @@ onMounted(() => {
     // since the last login (crm_user is otherwise only written at login time).
     api.get('/auth/me').then(res => {
       const fresh  = res.data.user;
-      const stored = JSON.parse(localStorage.getItem('crm_user') || '{}');
+      const stored = getStoredUser() || {};
       const merged = { ...stored, ...fresh };
       localStorage.setItem('crm_user', JSON.stringify(merged));
       currentUser.value = merged;
@@ -604,7 +616,7 @@ function toggleGroup(key) {
 // Auto-open the group that owns the current route
 watch(route, (newRoute) => {
   mobileOpen.value = false;
-  currentUser.value = JSON.parse(localStorage.getItem('crm_user') || 'null');
+  currentUser.value = getStoredUser();
   const name = newRoute.name ?? '';
   const tab = name === 'list' ? (newRoute.query?.tab ?? 'contacts') : null;
   for (const group of ALL_GROUPS) {

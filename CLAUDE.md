@@ -34,6 +34,13 @@ The global CSS (`resources/css/app.css`) is imported by `app.js` line 1 and bund
 2. `resources/js/app.js` uses `VITE_APP_BASE` for the router: `createWebHistory(import.meta.env.VITE_APP_BASE ?? '/')`
 3. Run `npm run build` after changing `.env`.
 
+### Completely blank white page (no sidebar, no error, nothing renders)
+**Root cause:** `app.js` defers `app.mount('#app')` until `router.isReady()` resolves (so a protected page never flashes before the login redirect fires). The router guard in `router/index.js` (`setupGuard`) and `App.vue`'s initial `currentUser` ref both parse `localStorage.getItem('crm_user')` with `JSON.parse`. If that value is ever not valid JSON (partial write, manual edit, stale value from a past bug), the parse throws inside the guard, the initial navigation rejects, and — with no `.catch()` — `app.mount()` is simply never called. Nothing renders, and there's no error UI for the user to act on.
+
+**Fix already in place:** both `router/index.js` and `App.vue` wrap the `crm_user` parse in try/catch and self-heal (clear the corrupted key, fall back to `null`) instead of throwing; `app.js` also mounts on `router.isReady()` rejection as a last-resort fallback. If this resurfaces, check that any *new* code reading `crm_user` from `localStorage` uses the same guarded pattern — a raw `JSON.parse(localStorage.getItem('crm_user'))` anywhere in the startup path (before first render) can reintroduce this.
+
+**User-facing unblock:** DevTools console → `localStorage.clear()` → reload → log in again.
+
 ## Development Commands
 
 **Start all services (Laravel + Vite HMR + queue + log tail):**
@@ -126,7 +133,7 @@ Lookup models (ContactStatus, ContactType, ContactCategory, ContactIndustry, Con
 
 Model domains (all flat in `app/Models/`):
 - **Entities:** Contact, User, Deal, Project, Forecast, FollowUp, ToDo, Territory
-- **Contact sub-resources:** ContactEmail, ContactCall, ContactIncharge
+- **Contact sub-resources:** ContactIncharge
 - **Lookup/config:** ContactStatus, ContactType, ContactCategory, ContactIndustry, ContactArea, Task
 - **Forecast:** ForecastProduct, ForecastResult, ForecastType
 - **Marketing:** SocialMediaReminder, PostingCalendarReminder, AdvertisingProduct, AdvertisingProductBooking, EmailCampaign
@@ -164,7 +171,7 @@ The app has a step-by-step spotlight tour for new users. It auto-starts on first
 ### RBAC & Permission Patterns
 Spatie roles: `super-admin`, `admin`, regular user. Admin-only routes are grouped under `Route::middleware('role:admin|super-admin')`. The `RolesAndPermissionsSeeder` seeds all permissions and default roles.
 
-Sub-resource access (todos, emails, calls on a Contact) is gated on the parent Contact permission (`view contacts`), not per-sub-resource permissions. Deals and Projects use granular `view`/`create`/`edit`/`delete` permissions per action. Territories use `manage territories` for write operations only.
+Sub-resource access (todos on a Contact) is gated on the parent Contact permission (`view contacts`), not per-sub-resource permissions. Deals and Projects use granular `view`/`create`/`edit`/`delete` permissions per action. Territories use `manage territories` for write operations only.
 
 **Every new feature MUST complete all four of these steps — no exceptions:**
 
