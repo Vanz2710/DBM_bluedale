@@ -10,6 +10,7 @@ use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use setasign\Fpdi\Fpdi;
 
@@ -70,6 +71,7 @@ class SiteAvailabilityController extends Controller
         ]);
 
         $bookingMonths = $this->bookingMonths($validated);
+        $groupId = (string) Str::uuid();
 
         foreach ($bookingMonths as $bookingMonth) {
             AdvertisingProductBooking::updateOrCreate(
@@ -79,6 +81,7 @@ class SiteAvailabilityController extends Controller
                     'month' => $bookingMonth['month'],
                 ],
                 [
+                    'booking_group' => $groupId,
                     'contact_id' => $validated['contact_id'] ?? null,
                     'company_name' => $validated['company_name'],
                     'start_date' => $validated['start_date'] ?? null,
@@ -165,6 +168,14 @@ class SiteAvailabilityController extends Controller
         return response()->json(['status' => 'success']);
     }
 
+    /**
+     * A multi-month booking is stored as one row per calendar month (unique per
+     * product+year+month), tied together by a shared booking_group. Editing the
+     * date range here must resync the whole group — not just the row that was
+     * clicked — otherwise extending/shrinking a booking leaves stale rows behind
+     * in months that are no longer covered, or fails to create rows for newly
+     * covered months.
+     */
     public function updateBooking(Request $request, AdvertisingProductBooking $booking)
     {
         $validated = $request->validate([
@@ -172,18 +183,93 @@ class SiteAvailabilityController extends Controller
             'contact_id' => ['nullable', 'exists:contacts,id'],
             'start_date' => ['nullable', 'date'],
             'end_date' => ['nullable', 'date', Rule::when($request->filled('start_date'), ['after_or_equal:start_date'])],
-            'year' => ['sometimes', 'required', 'integer', 'min:2020', 'max:2100'],
-            'month' => ['sometimes', 'required', 'integer', 'min:1', 'max:12'],
         ]);
 
-        $booking->update($validated);
+        $productId = $booking->advertising_product_id;
+        $groupId = $booking->booking_group ?? (string) Str::uuid();
 
-        return response()->json(['status' => 'success', 'data' => $booking->fresh()]);
+        if (!empty($validated['start_date']) && !empty($validated['end_date'])) {
+            $months = $this->bookingMonths([
+                'start_date' => $validated['start_date'],
+                'end_date' => $validated['end_date'],
+            ]);
+
+            // Guard against silently overwriting a different company's booking in a
+            // month that's newly entering this range.
+            $conflict = AdvertisingProductBooking::where('advertising_product_id', $productId)
+                ->where('booking_group', '!=', $groupId)
+                ->where(function ($q) use ($months) {
+                    foreach ($months as $m) {
+                        $q->orWhere(fn ($qq) => $qq->where('year', $m['year'])->where('month', $m['month']));
+                    }
+                })
+                ->first();
+
+            if ($conflict) {
+                return response()->json([
+                    'message' => "Cannot extend — {$conflict->company_name} already has this site booked for {$conflict->month}/{$conflict->year}.",
+                ], 422);
+            }
+
+            // Drop sibling rows that fall outside the new range.
+            AdvertisingProductBooking::where('advertising_product_id', $productId)
+                ->where('booking_group', $groupId)
+                ->get()
+                ->each(function ($sibling) use ($months) {
+                    $stillInRange = collect($months)->contains(
+                        fn ($m) => $m['year'] === $sibling->year && $m['month'] === $sibling->month
+                    );
+                    if (!$stillInRange) {
+                        $sibling->delete();
+                    }
+                });
+
+            // Upsert every month the new range covers.
+            foreach ($months as $m) {
+                AdvertisingProductBooking::updateOrCreate(
+                    [
+                        'advertising_product_id' => $productId,
+                        'year' => $m['year'],
+                        'month' => $m['month'],
+                    ],
+                    [
+                        'booking_group' => $groupId,
+                        'contact_id' => $validated['contact_id'] ?? $booking->contact_id,
+                        'company_name' => $validated['company_name'],
+                        'start_date' => $validated['start_date'],
+                        'end_date' => $validated['end_date'],
+                    ]
+                );
+            }
+        } else {
+            $booking->update([
+                'booking_group' => $groupId,
+                'company_name' => $validated['company_name'],
+                'contact_id' => $validated['contact_id'] ?? $booking->contact_id,
+                'start_date' => $validated['start_date'] ?? null,
+                'end_date' => $validated['end_date'] ?? null,
+            ]);
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'data' => AdvertisingProductBooking::where('advertising_product_id', $productId)
+                ->orderBy('year')->orderBy('month')->get(),
+        ]);
     }
 
     public function destroyBooking(AdvertisingProductBooking $booking)
     {
-        $booking->delete();
+        // Delete every row belonging to the same logical booking, not just the
+        // single month's row — otherwise deleting a multi-month booking leaves
+        // its other months behind.
+        if ($booking->booking_group) {
+            AdvertisingProductBooking::where('advertising_product_id', $booking->advertising_product_id)
+                ->where('booking_group', $booking->booking_group)
+                ->delete();
+        } else {
+            $booking->delete();
+        }
 
         return response()->json(['status' => 'success']);
     }
@@ -236,8 +322,6 @@ class SiteAvailabilityController extends Controller
 
     public function discardProduct(AdvertisingProduct $product)
     {
-        abort_if(! $product->is_pending, 422, 'Only pending products can be discarded.');
-
         foreach (['site_photo', 'site_map_photo'] as $kind) {
             if ($product->$kind && Storage::disk('public')->exists($product->$kind)) {
                 Storage::disk('public')->delete($product->$kind);
@@ -280,11 +364,21 @@ class SiteAvailabilityController extends Controller
             // fall through with original URL
         }
 
+        // Order matters — first match wins:
+        // 1. Street View share links encode the camera position as @lat,lng,<N>a,<h>h,<t>t
+        //    (the "a" = altitude/pitch suffix, vs a normal map link's "z" = zoom level). If the
+        //    user reached that spot via a place search first, the URL can still carry a
+        //    leftover !3d!4d for that ORIGINAL place, which may not be where the camera is
+        //    actually pointed — so for a Street View link, @ is the coordinate that matters.
+        // 2. Otherwise, !3d!4d (Google's precise pinned-marker data params) is more reliable
+        //    than a bare @lat,lng, which is just the viewport center and can drift from the
+        //    actual pin once the map has been panned/zoomed after searching.
         $patterns = [
+            '/@(-?\d{1,3}\.\d+),(-?\d{1,3}\.\d+),\d+(?:\.\d+)?a,/',
+            '/!3d(-?\d{1,3}\.\d+)!4d(-?\d{1,3}\.\d+)/',
             '/@(-?\d{1,3}\.\d+),(-?\d{1,3}\.\d+)/',
             '/[?&]q=(-?\d{1,3}\.\d+),(-?\d{1,3}\.\d+)/',
             '/[?&]ll=(-?\d{1,3}\.\d+),(-?\d{1,3}\.\d+)/',
-            '/!3d(-?\d{1,3}\.\d+)!4d(-?\d{1,3}\.\d+)/',
             '/\/search\/(-?\d{1,3}\.\d+),(-?\d{1,3}\.\d+)/',
             '/\/(-?\d{1,3}\.\d{4,}),(-?\d{1,3}\.\d{4,})/',
         ];

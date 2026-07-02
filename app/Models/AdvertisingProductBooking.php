@@ -8,6 +8,7 @@ class AdvertisingProductBooking extends Model
 {
     protected $fillable = [
         'advertising_product_id',
+        'booking_group',
         'contact_id',
         'company_name',
         'year',
