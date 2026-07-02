@@ -518,6 +518,7 @@ tbody tr:hover { background: var(--app-bg); }
 .action-badge-unlocked      { background: #ecfdf5; color: #047857; }
 .action-badge-restored_access { background: #fef3c7; color: #92400e; }
 .action-badge-updated_password { background: #e0e7ff; color: #3730a3; }
+.action-badge-merged        { background: #ede9fe; color: #5b21b6; }
 
 /* fallback for any other action */
 .action-badge:not([class*="action-badge-"]) { background: var(--surface-2); color: var(--text-2); }

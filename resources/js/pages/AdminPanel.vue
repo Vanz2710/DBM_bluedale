@@ -1,5 +1,8 @@
 ﻿<template>
   <div class="page">
+    <Transition name="toast">
+      <div v-if="toast" class="toast-msg" role="status">{{ toast }}</div>
+    </Transition>
 
     <div class="page-head">
       <div class="page-head-left">
@@ -32,16 +35,25 @@
           </div>
           <div v-if="addError" class="inline-error">{{ addError }}</div>
         </div>
+        <div v-if="selectedIds.length >= 2" class="merge-bar">
+          <span class="merge-bar-count">{{ selectedIds.length }} selected</span>
+          <button class="btn-merge-selected" @click="openMergeModal">Merge Selected</button>
+          <button class="btn-clear-selection" @click="selectedIds = []">Clear</button>
+        </div>
         <div class="table-scroll">
           <table>
             <thead>
-              <tr><th>#</th><th>Name</th><th>In Use</th><th>Action</th></tr>
+              <tr>
+                <th class="check-col"><input type="checkbox" v-if="items.length" :checked="allSelected" @change="toggleSelectAll"></th>
+                <th>#</th><th>Name</th><th>In Use</th><th>Action</th>
+              </tr>
             </thead>
             <tbody>
               <tr v-if="items.length === 0">
-                <td colspan="4" class="empty-state">No items yet.</td>
+                <td colspan="5" class="empty-state">No items yet.</td>
               </tr>
               <tr v-for="(item, idx) in items" :key="item.id">
+                <td class="check-col"><input type="checkbox" :value="item.id" v-model="selectedIds"></td>
                 <td class="num">{{ idx + 1 }}</td>
                 <td>
                   <template v-if="editId === item.id">
@@ -103,6 +115,58 @@
       </div>
     </div>
   </Teleport>
+
+  <Teleport to="body">
+    <div v-if="mergeModal.open" class="conf-overlay">
+      <div class="conf-modal merge-modal">
+        <div class="conf-head">
+          <div>
+            <p class="conf-title">Merge {{ mergeModal.items.length }} Items</p>
+            <p class="conf-sub">Combine these into one — this cannot be undone.</p>
+          </div>
+          <button class="conf-close" @click="closeMergeModal"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+        </div>
+        <div class="merge-body">
+          <table class="merge-table">
+            <thead><tr><th class="check-col"></th><th>Name</th><th>In Use</th></tr></thead>
+            <tbody>
+              <tr v-for="it in mergeModal.items" :key="it.id">
+                <td class="check-col">
+                  <input type="radio" :value="it.id" v-model="mergeModal.keepId" :disabled="mergeModal.useNewName">
+                </td>
+                <td>{{ it.name }}</td>
+                <td><span :class="it.usage_count > 0 ? 'badge-used' : 'badge-unused'">{{ it.usage_count }}</span></td>
+              </tr>
+            </tbody>
+          </table>
+
+          <label class="new-name-toggle">
+            <input type="checkbox" v-model="mergeModal.useNewName">
+            Use a new name instead of keeping one of the above
+          </label>
+          <input
+            v-if="mergeModal.useNewName"
+            v-model="mergeModal.newName"
+            class="edit-input merge-new-name-input"
+            placeholder="New name..."
+          >
+
+          <p class="merge-hint">
+            <strong>{{ mergeTotalUsage }}</strong> record(s) will be reassigned to
+            <strong>{{ mergeModal.useNewName ? (mergeModal.newName.trim() || '—') : (keepItemName || '—') }}</strong>,
+            and {{ mergeRemovedCount }} item(s) will be permanently removed.
+          </p>
+          <p v-if="mergeModal.error" class="edit-inline-error">{{ mergeModal.error }}</p>
+        </div>
+        <div class="conf-foot">
+          <button class="conf-cancel" @click="closeMergeModal">Cancel</button>
+          <button class="conf-delete" :disabled="!canConfirmMerge || mergeModal.loading" @click="confirmMerge">
+            {{ mergeModal.loading ? 'Merging…' : 'Merge' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </Teleport>
 </template>
 
 <script setup>
@@ -153,10 +217,67 @@ const addError  = ref('');
 const editId    = ref(null);
 const editName  = ref('');
 const editError = ref('');
+const toast     = ref('');
 
 const deleteModal = reactive({ open: false, item: null, loading: false });
 function openDeleteModal(item) { deleteModal.item = item; deleteModal.open = true; }
 function closeDeleteModal() { deleteModal.open = false; deleteModal.item = null; deleteModal.loading = false; }
+
+const selectedIds = ref([]);
+const allSelected = computed(() => items.value.length > 0 && selectedIds.value.length === items.value.length);
+function toggleSelectAll() {
+  selectedIds.value = allSelected.value ? [] : items.value.map(i => i.id);
+}
+
+const mergeModal = reactive({ open: false, items: [], keepId: null, useNewName: false, newName: '', loading: false, error: '' });
+const keepItemName = computed(() => mergeModal.items.find(i => i.id === mergeModal.keepId)?.name ?? '');
+const mergeTotalUsage = computed(() => mergeModal.items
+  .filter(i => mergeModal.useNewName || i.id !== mergeModal.keepId)
+  .reduce((sum, i) => sum + (i.usage_count || 0), 0));
+const canConfirmMerge = computed(() => mergeModal.useNewName ? mergeModal.newName.trim().length > 0 : !!mergeModal.keepId);
+const mergeRemovedCount = computed(() => mergeModal.useNewName ? mergeModal.items.length : mergeModal.items.length - 1);
+
+function openMergeModal() {
+  mergeModal.items      = items.value.filter(i => selectedIds.value.includes(i.id));
+  mergeModal.keepId     = mergeModal.items[0]?.id ?? null;
+  mergeModal.useNewName = false;
+  mergeModal.newName    = '';
+  mergeModal.error      = '';
+  mergeModal.loading    = false;
+  mergeModal.open       = true;
+}
+function closeMergeModal() { mergeModal.open = false; }
+
+function showToast(msg) {
+  toast.value = msg;
+  setTimeout(() => { toast.value = ''; }, 3000);
+}
+
+async function confirmMerge() {
+  if (!canConfirmMerge.value) return;
+  mergeModal.error   = '';
+  mergeModal.loading = true;
+  try {
+    const allIds = mergeModal.items.map(i => i.id);
+    const payload = mergeModal.useNewName
+      ? { new_name: mergeModal.newName.trim(), merge_ids: allIds }
+      : { keep_id: mergeModal.keepId, merge_ids: allIds.filter(id => id !== mergeModal.keepId) };
+    const res = await api.post(`/v1/admin/${activeTab.value}/merge`, payload);
+    const name        = res.data.data?.name ?? '';
+    const mergedCount = res.data.merged ?? 0;
+    mergeModal.open   = false;
+    selectedIds.value = [];
+    await loadItems();
+    showToast(`Merged ${mergedCount} item(s) into "${name}".`);
+  } catch (e) {
+    const errors = e.response?.data?.errors;
+    mergeModal.error = errors
+      ? Object.values(errors).flat().join(' ')
+      : (e.response?.data?.message ?? 'Failed to merge items.');
+  } finally {
+    mergeModal.loading = false;
+  }
+}
 
 const currentTab = computed(() => tabs.find(t => t.key === activeTab.value));
 
@@ -177,8 +298,9 @@ async function loadItems() {
 }
 
 function switchTab(key) {
-  activeTab.value = key;
-  newName.value   = '';
+  activeTab.value    = key;
+  newName.value      = '';
+  selectedIds.value  = [];
   loadItems();
 }
 
@@ -234,6 +356,7 @@ async function confirmDeleteItem() {
   try {
     await api.delete(`/v1/admin/${activeTab.value}/${deleteModal.item.id}`);
     items.value = items.value.filter(i => i.id !== deleteModal.item.id);
+    selectedIds.value = selectedIds.value.filter(id => id !== deleteModal.item.id);
     closeDeleteModal();
   } catch (e) {
     addError.value = e.response?.data?.message ?? 'Failed to delete item.';
@@ -353,4 +476,45 @@ tbody tr:hover { background: var(--surface-2); }
 .conf-delete { height: 38px; padding: 0 18px; background: var(--danger); color: #fff; border: none; border-radius: var(--radius-sm); font-size: 13px; font-weight: 700; cursor: pointer; }
 .conf-delete:hover:not(:disabled) { background: #b91c1c; }
 .conf-delete:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ── Multi-select + merge ── */
+.check-col { width: 36px; }
+.check-col input { width: 15px; height: 15px; cursor: pointer; }
+
+.merge-bar {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 22px; background: color-mix(in srgb, var(--primary) 8%, transparent);
+  border-bottom: 1px solid var(--border-soft);
+}
+.merge-bar-count { font-size: 12.5px; font-weight: 600; color: var(--text-2); }
+.btn-merge-selected {
+  height: 32px; padding: 0 16px; background: var(--primary); color: var(--primary-on);
+  border: none; border-radius: var(--radius-sm); font-size: 12.5px; font-weight: 700; cursor: pointer;
+}
+.btn-merge-selected:hover { background: var(--primary-hover); }
+.btn-clear-selection {
+  height: 32px; padding: 0 12px; background: none; border: 1px solid var(--border);
+  border-radius: var(--radius-sm); font-size: 12.5px; font-weight: 600; color: var(--text-2); cursor: pointer;
+}
+.btn-clear-selection:hover { background: var(--surface-2); }
+
+.merge-modal { max-width: 460px; }
+.merge-body { padding: 18px 24px; display: flex; flex-direction: column; gap: 12px; }
+.merge-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.merge-table th { text-align: left; font-size: 11px; font-weight: 600; color: var(--text-3); padding: 0 8px 6px; }
+.merge-table td { padding: 6px 8px; border-bottom: 1px solid var(--border-soft); color: var(--text-1); }
+.merge-table tr:last-child td { border-bottom: none; }
+.new-name-toggle { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--text-2); cursor: pointer; }
+.new-name-toggle input { width: 14px; height: 14px; cursor: pointer; }
+.merge-new-name-input { width: 100%; box-sizing: border-box; }
+.merge-hint { font-size: 12.5px; color: var(--text-2); margin: 0; line-height: 1.5; text-align: left; }
+
+/* ── Toast ── */
+.toast-msg {
+  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+  background: var(--text-1); color: var(--surface); padding: 10px 20px;
+  border-radius: var(--radius); font-size: 13px; z-index: 950; white-space: nowrap;
+}
+.toast-enter-active, .toast-leave-active { transition: opacity 0.25s, transform 0.25s; }
+.toast-enter-from, .toast-leave-to { opacity: 0; transform: translateX(-50%) translateY(8px); }
 </style>

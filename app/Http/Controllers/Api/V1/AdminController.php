@@ -19,6 +19,7 @@ use App\Models\SocialMediaPackage;
 use App\Models\SocialMediaReminder;
 use App\Models\Task;
 use App\Models\ToDo;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -43,8 +44,8 @@ class AdminController extends Controller
     // instead of hardcoded table-name strings, so renaming a model's table can't
     // silently desync this map from the schema.
     private static array $usageMap = [
-        'statuses'          => [[Contact::class, 'status_id']],
-        'types'             => [[Contact::class, 'type_id']],
+        'statuses'          => [[Contact::class, 'status_id'], [Forecast::class, 'contact_status_id']],
+        'types'             => [[Contact::class, 'type_id'], [Forecast::class, 'contact_type_id']],
         'industries'        => [[Contact::class, 'industry_id']],
         'categories'        => [[Contact::class, 'category_id']],
         'areas'             => [[Contact::class, 'area_id']],
@@ -141,6 +142,82 @@ class AdminController extends Controller
 
             $item->delete();
             return response()->json(['status' => 'success']);
+        });
+    }
+
+    public function merge(Request $request, string $entity)
+    {
+        [$model] = $this->resolve($entity);
+        $table = (new $model)->getTable();
+
+        $validated = $request->validate([
+            'keep_id'     => "nullable|integer|exists:{$table},id",
+            'new_name'    => 'nullable|string|max:255',
+            'merge_ids'   => 'required|array|min:1',
+            'merge_ids.*' => "integer|exists:{$table},id",
+        ]);
+
+        if (empty($validated['keep_id']) && empty($validated['new_name'])) {
+            throw ValidationException::withMessages([
+                'keep_id' => ['Choose an item to keep, or provide a new name.'],
+            ]);
+        }
+
+        return DB::transaction(function () use ($model, $entity, $validated, $request) {
+            // If both are given, new_name wins — mint a fresh row rather than reuse an existing one.
+            if (!empty($validated['new_name'])) {
+                if ($model::where('name', $validated['new_name'])->exists()) {
+                    throw ValidationException::withMessages(['new_name' => ['This entry already exists.']]);
+                }
+                $keep = $model::create(['name' => $validated['new_name']]);
+            } else {
+                $keep = $model::lockForUpdate()->findOrFail($validated['keep_id']);
+            }
+
+            $mergeIds = array_values(array_unique(array_filter(
+                $validated['merge_ids'],
+                fn ($id) => (int) $id !== (int) $keep->id
+            )));
+
+            if (empty($mergeIds)) {
+                return response()->json(['status' => 'success', 'merged' => 0, 'data' => $keep]);
+            }
+
+            $mergedItems = $model::whereIn('id', $mergeIds)->lockForUpdate()->get(['id', 'name']);
+
+            try {
+                foreach (self::$usageMap[$entity] as $src) {
+                    [$childModel, $col] = $src;
+                    $childTable = (new $childModel)->getTable();
+                    $parentCol  = $src[2] ?? 'id';
+
+                    $sourceValues = $mergedItems->pluck($parentCol)->all();
+                    if (empty($sourceValues)) {
+                        continue;
+                    }
+                    DB::table($childTable)->whereIn($col, $sourceValues)->update([$col => $keep->{$parentCol}]);
+                }
+            } catch (QueryException $e) {
+                throw ValidationException::withMessages([
+                    'merge_ids' => ['Merge failed because it would create a duplicate record (for example, a KPI target for the same user already existing on both items). Resolve the conflict and try again.'],
+                ]);
+            }
+
+            $model::whereIn('id', $mergeIds)->delete();
+
+            Cache::forget('lookups_v2');
+
+            $this->audit(
+                'merged',
+                $entity,
+                $keep->id,
+                $keep->name,
+                ['merged_items' => $mergedItems->map(fn ($i) => ['id' => $i->id, 'name' => $i->name])->all()],
+                ['kept_item' => ['id' => $keep->id, 'name' => $keep->name]],
+                $request
+            );
+
+            return response()->json(['status' => 'success', 'merged' => count($mergeIds), 'data' => $keep]);
         });
     }
 
