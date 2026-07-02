@@ -20,8 +20,6 @@ use App\Http\Controllers\Api\V1\DealController;
 use App\Http\Controllers\Api\V1\ProjectController;
 use App\Http\Controllers\Api\V1\ReminderController;
 use App\Http\Controllers\Api\V1\ToDoController;
-use App\Http\Controllers\Api\V1\ContactEmailController;
-use App\Http\Controllers\Api\V1\ContactCallController;
 use App\Http\Controllers\Api\V1\ProfileController;
 use App\Http\Controllers\Api\V1\UserSettingsController;
 use App\Http\Controllers\Api\V1\UserManagementController;
@@ -198,8 +196,6 @@ Route::middleware(['auth:sanctum', 'maintenance'])->group(function () {
             // Contact sub-resources (reads)
             Route::get('contacts/{contact}/incharges', [ContactInchargeController::class, 'index']);
             Route::get('contacts/{contact}/todos', [ToDoController::class, 'index']);
-            Route::get('contacts/{contact}/emails', [ContactEmailController::class, 'index']);
-            Route::get('contacts/{contact}/calls', [ContactCallController::class, 'index']);
         });
         // Bulk duplicate finder — its own delegable permission, distinct from plain "view contacts"
         Route::get('contacts/find-duplicates', [ContactController::class, 'findDuplicates'])->middleware('can:manage duplicates');
@@ -219,10 +215,6 @@ Route::middleware(['auth:sanctum', 'maintenance'])->group(function () {
             Route::post('contacts/{contact}/todos', [ToDoController::class, 'store']);
             Route::put('contacts/{contact}/todos/{todo}', [ToDoController::class, 'update']);
             Route::delete('contacts/{contact}/todos/{todo}', [ToDoController::class, 'destroy']);
-            Route::post('contacts/{contact}/emails', [ContactEmailController::class, 'store']);
-            Route::delete('contacts/{contact}/emails/{email}', [ContactEmailController::class, 'destroy']);
-            Route::post('contacts/{contact}/calls', [ContactCallController::class, 'store']);
-            Route::delete('contacts/{contact}/calls/{call}', [ContactCallController::class, 'destroy']);
         });
 
         // Import
@@ -339,6 +331,7 @@ Route::middleware(['auth:sanctum', 'maintenance'])->group(function () {
             Route::post('admin/{entity}', [AdminController::class, 'store']);
             Route::put('admin/{entity}/{id}', [AdminController::class, 'update']);
             Route::delete('admin/{entity}/{id}', [AdminController::class, 'destroy']);
+            Route::post('admin/{entity}/merge', [AdminController::class, 'merge']);
         });
 
         // RBAC

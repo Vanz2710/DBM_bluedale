@@ -254,148 +254,6 @@
         </table>
       </div>
 
-      <!-- Email Log -->
-      <div class="card">
-        <div class="card-title-row">
-          <span class="card-title">Email Log ({{ emails.length }})</span>
-          <button v-if="canLog" class="btn btn-sm btn-info" @click="toggleEmailForm">
-            {{ emailFormOpen ? 'Cancel' : '+ Log Email' }}
-          </button>
-        </div>
-
-        <div v-if="emailFormOpen" class="inline-form">
-          <div class="if-row">
-            <div class="if-field">
-              <label>Direction</label>
-              <div class="seg">
-                <button type="button" :class="{ on: emailForm.direction === 'sent' }" @click="emailForm.direction = 'sent'">Sent</button>
-                <button type="button" :class="{ on: emailForm.direction === 'received' }" @click="emailForm.direction = 'received'">Received</button>
-              </div>
-            </div>
-            <div class="if-field">
-              <label>Date <span class="req">*</span></label>
-              <input type="date" v-model="emailForm.emailed_at">
-            </div>
-          </div>
-          <div class="if-field">
-            <label>Subject <span class="req">*</span></label>
-            <input v-model="emailForm.subject" maxlength="255" placeholder="e.g. Quotation for Q3 billboard campaign">
-          </div>
-          <div class="if-field">
-            <label>Details</label>
-            <textarea v-model="emailForm.body" rows="2" placeholder="Optional summary or outcome…"></textarea>
-          </div>
-          <div v-if="emailError" class="if-error">{{ emailError }}</div>
-          <div class="if-actions">
-            <button class="btn btn-sm btn-outline" @click="emailFormOpen = false">Cancel</button>
-            <button class="btn btn-sm btn-primary" :disabled="!emailForm.subject.trim() || !emailForm.emailed_at || emailSaving" @click="submitEmail">
-              {{ emailSaving ? 'Saving…' : 'Save Email' }}
-            </button>
-          </div>
-        </div>
-
-        <p v-if="!emails.length" class="empty-text">No emails logged yet.</p>
-        <table v-else class="data-table">
-          <thead>
-            <tr><th>Date</th><th>Direction</th><th>Subject</th><th>Logged By</th><th class="log-act-col"></th></tr>
-          </thead>
-          <tbody>
-            <tr v-for="em in emails" :key="em.id">
-              <td class="date-cell">{{ fmtDate(em.emailed_at) }}</td>
-              <td>
-                <span class="dir-badge" :class="em.direction === 'sent' ? 'dir-out' : 'dir-in'">
-                  <svg v-if="em.direction === 'sent'" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg>
-                  <svg v-else width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="17" y1="7" x2="7" y2="17"/><polyline points="17 17 7 17 7 7"/></svg>
-                  {{ em.direction === 'sent' ? 'Sent' : 'Received' }}
-                </span>
-              </td>
-              <td>
-                <div class="log-subject">{{ em.subject }}</div>
-                <div v-if="em.body" class="log-body">{{ em.body }}</div>
-              </td>
-              <td>{{ em.user?.name ?? '—' }}</td>
-              <td class="log-act-col">
-                <template v-if="em._confirmDel">
-                  <button class="inline-btn confirm-btn" @click="deleteEmail(em)">Confirm</button>
-                  <button class="inline-btn cancel-btn" @click="em._confirmDel = false">Cancel</button>
-                </template>
-                <button v-else-if="canLog" class="inline-btn del-btn" @click="em._confirmDel = true">Del</button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <!-- Call Log -->
-      <div class="card">
-        <div class="card-title-row">
-          <span class="card-title">Call Log ({{ calls.length }})</span>
-          <button v-if="canLog" class="btn btn-sm btn-info" @click="toggleCallForm">
-            {{ callFormOpen ? 'Cancel' : '+ Log Call' }}
-          </button>
-        </div>
-
-        <div v-if="callFormOpen" class="inline-form">
-          <div class="if-row">
-            <div class="if-field">
-              <label>Direction</label>
-              <div class="seg">
-                <button type="button" :class="{ on: callForm.direction === 'outbound' }" @click="callForm.direction = 'outbound'">Outbound</button>
-                <button type="button" :class="{ on: callForm.direction === 'inbound' }" @click="callForm.direction = 'inbound'">Inbound</button>
-              </div>
-            </div>
-            <div class="if-field">
-              <label>Date <span class="req">*</span></label>
-              <input type="date" v-model="callForm.called_at">
-            </div>
-          </div>
-          <div class="if-field">
-            <label>Duration (minutes)</label>
-            <input type="number" min="1" max="9999" v-model="callForm.duration" placeholder="e.g. 15">
-          </div>
-          <div class="if-field">
-            <label>Notes</label>
-            <textarea v-model="callForm.notes" rows="2" placeholder="What was discussed, next steps…"></textarea>
-          </div>
-          <div v-if="callError" class="if-error">{{ callError }}</div>
-          <div class="if-actions">
-            <button class="btn btn-sm btn-outline" @click="callFormOpen = false">Cancel</button>
-            <button class="btn btn-sm btn-primary" :disabled="!callForm.called_at || callSaving" @click="submitCall">
-              {{ callSaving ? 'Saving…' : 'Save Call' }}
-            </button>
-          </div>
-        </div>
-
-        <p v-if="!calls.length" class="empty-text">No calls logged yet.</p>
-        <table v-else class="data-table">
-          <thead>
-            <tr><th>Date</th><th>Direction</th><th>Duration</th><th>Notes</th><th>Logged By</th><th class="log-act-col"></th></tr>
-          </thead>
-          <tbody>
-            <tr v-for="c in calls" :key="c.id">
-              <td class="date-cell">{{ fmtDate(c.called_at) }}</td>
-              <td>
-                <span class="dir-badge" :class="c.direction === 'outbound' ? 'dir-out' : 'dir-in'">
-                  <svg v-if="c.direction === 'outbound'" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg>
-                  <svg v-else width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="17" y1="7" x2="7" y2="17"/><polyline points="17 17 7 17 7 7"/></svg>
-                  {{ c.direction === 'outbound' ? 'Outbound' : 'Inbound' }}
-                </span>
-              </td>
-              <td>{{ c.duration ? c.duration + ' min' : '—' }}</td>
-              <td class="remark-cell">{{ c.notes || '—' }}</td>
-              <td>{{ c.user?.name ?? '—' }}</td>
-              <td class="log-act-col">
-                <template v-if="c._confirmDel">
-                  <button class="inline-btn confirm-btn" @click="deleteCall(c)">Confirm</button>
-                  <button class="inline-btn cancel-btn" @click="c._confirmDel = false">Cancel</button>
-                </template>
-                <button v-else-if="canLog" class="inline-btn del-btn" @click="c._confirmDel = true">Del</button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
     </template>
     <div v-else class="not-found">Contact not found.</div>
 
@@ -817,84 +675,6 @@ const SOURCE_LABELS = {
 };
 function sourceLabel(src) { return SOURCE_LABELS[src] ?? src; }
 
-// ── Email & Call logs ──────────────────────────────────────────────────────
-const emails = ref([]);
-const calls  = ref([]);
-const canLog = computed(() => can('edit contacts') && !!contact.value?.can_edit);
-const todayStr = () => new Date().toISOString().slice(0, 10);
-
-function logErr(e) {
-  const errs = e.response?.data?.errors;
-  return errs ? Object.values(errs).flat().join(' ') : (e.response?.data?.message ?? 'Could not save. Please try again.');
-}
-
-const emailFormOpen = ref(false);
-const emailSaving   = ref(false);
-const emailError    = ref('');
-const emailForm     = ref({ direction: 'sent', subject: '', body: '', emailed_at: todayStr() });
-
-function toggleEmailForm() {
-  emailFormOpen.value = !emailFormOpen.value;
-  if (emailFormOpen.value) {
-    emailForm.value = { direction: 'sent', subject: '', body: '', emailed_at: todayStr() };
-    emailError.value = '';
-  }
-}
-async function submitEmail() {
-  if (!emailForm.value.subject.trim()) return;
-  emailSaving.value = true; emailError.value = '';
-  try {
-    const res = await api.post(`/v1/contacts/${id}/emails`, {
-      direction:  emailForm.value.direction,
-      subject:    emailForm.value.subject.trim(),
-      body:       emailForm.value.body || null,
-      emailed_at: emailForm.value.emailed_at,
-    });
-    emails.value.unshift({ ...res.data.data, _confirmDel: false });
-    emailFormOpen.value = false;
-  } catch (e) { emailError.value = logErr(e); }
-  finally { emailSaving.value = false; }
-}
-async function deleteEmail(em) {
-  try {
-    await api.delete(`/v1/contacts/${id}/emails/${em.id}`);
-    emails.value = emails.value.filter(x => x.id !== em.id);
-  } catch (e) { emailError.value = logErr(e); em._confirmDel = false; }
-}
-
-const callFormOpen = ref(false);
-const callSaving   = ref(false);
-const callError    = ref('');
-const callForm     = ref({ direction: 'outbound', duration: '', notes: '', called_at: todayStr() });
-
-function toggleCallForm() {
-  callFormOpen.value = !callFormOpen.value;
-  if (callFormOpen.value) {
-    callForm.value = { direction: 'outbound', duration: '', notes: '', called_at: todayStr() };
-    callError.value = '';
-  }
-}
-async function submitCall() {
-  callSaving.value = true; callError.value = '';
-  try {
-    const res = await api.post(`/v1/contacts/${id}/calls`, {
-      direction: callForm.value.direction,
-      duration:  callForm.value.duration ? Number(callForm.value.duration) : null,
-      notes:     callForm.value.notes || null,
-      called_at: callForm.value.called_at,
-    });
-    calls.value.unshift({ ...res.data.data, _confirmDel: false });
-    callFormOpen.value = false;
-  } catch (e) { callError.value = logErr(e); }
-  finally { callSaving.value = false; }
-}
-async function deleteCall(c) {
-  try {
-    await api.delete(`/v1/contacts/${id}/calls/${c.id}`);
-    calls.value = calls.value.filter(x => x.id !== c.id);
-  } catch (e) { callError.value = logErr(e); c._confirmDel = false; }
-}
-
 onMounted(async () => {
   try {
     const [contactRes, lookupRes] = await Promise.all([
@@ -906,16 +686,6 @@ onMounted(async () => {
   } finally {
     loading.value = false;
   }
-
-  // Communication logs are non-critical — load after, don't block the page if they fail
-  try {
-    const [emailRes, callRes] = await Promise.all([
-      api.get(`/v1/contacts/${id}/emails`),
-      api.get(`/v1/contacts/${id}/calls`),
-    ]);
-    emails.value = (emailRes.data.data ?? []).map(e => ({ ...e, _confirmDel: false }));
-    calls.value  = (callRes.data.data ?? []).map(c => ({ ...c, _confirmDel: false }));
-  } catch (_) { /* logs unavailable — leave empty */ }
 });
 </script>
 
@@ -1137,25 +907,6 @@ onMounted(async () => {
 .edit-btn:hover { background: var(--warning); color: #fff; }
 .del-btn  { background: var(--danger-soft);  color: var(--danger); }
 .del-btn:hover  { background: var(--danger);  color: #fff; }
-
-/* ── Communication logs (Email / Call) ── */
-.seg { display: inline-flex; border: 1.5px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; }
-.seg button { padding: 8px 16px; font-size: 12.5px; font-weight: 600; border: none; background: var(--surface); color: var(--text-2); cursor: pointer; transition: background 0.15s, color 0.15s; }
-.seg button + button { border-left: 1.5px solid var(--border); }
-.seg button.on { background: var(--primary); color: var(--primary-on); }
-
-.dir-badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; border-radius: 999px; font-size: 10.5px; font-weight: 700; white-space: nowrap; }
-.dir-out { background: var(--info-soft); color: var(--info); }
-.dir-in  { background: var(--success-soft); color: var(--success); }
-
-.log-subject { font-size: 13px; color: var(--text-1); font-weight: 500; }
-.log-body { font-size: 11.5px; color: var(--text-3); margin-top: 2px; white-space: pre-line; }
-
-.log-act-col { width: 130px; text-align: right; white-space: nowrap; }
-.confirm-btn { background: var(--danger); color: #fff; margin-right: 4px; }
-.confirm-btn:hover { background: #b91c1c; }
-.cancel-btn { background: var(--surface-2); color: var(--text-2); border: 1px solid var(--border); }
-.cancel-btn:hover { background: var(--border); color: var(--text-1); }
 
 /* Inline Add Task form */
 .inline-form {

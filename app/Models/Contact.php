@@ -94,16 +94,6 @@ class Contact extends Model
         return $this->hasMany(ToDo::class)->orderByDesc('todo_date');
     }
 
-    public function emails()
-    {
-        return $this->hasMany(ContactEmail::class)->orderByDesc('emailed_at');
-    }
-
-    public function calls()
-    {
-        return $this->hasMany(ContactCall::class)->orderByDesc('called_at');
-    }
-
     public function forecasts()
     {
         return $this->hasMany(Forecast::class)->orderByDesc('forecast_date');
