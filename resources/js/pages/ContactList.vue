@@ -220,7 +220,7 @@
               <!-- Secondary: open the full record, edit, or change status -->
               <div class="daction-secondary">
                 <router-link :to="`/contacts/${drawer.contact.id}`" class="dlink"><span v-html="CI.eye"></span> Open Full Page</router-link>
-                <router-link v-if="can('edit contacts') && drawer.contact.can_edit" :to="`/contacts/${drawer.contact.id}/edit`" class="dlink"><span v-html="CI.edit"></span> Edit Details</router-link>
+                <button v-if="can('edit contacts') && drawer.contact.can_edit" type="button" class="dlink" @click="openEditContactModal(drawer.contact)"><span v-html="CI.edit"></span> Edit Details</button>
                 <button
                   v-if="can('edit contacts') && drawer.contact.can_edit"
                   type="button"
@@ -793,6 +793,43 @@
               </button>
             </div>
           </form>
+
+          <div v-if="!editContactModal.loading" class="pic-manager">
+            <div class="pic-manager-head">
+              <span class="pic-manager-title">Persons in Charge ({{ editContactModal.incharges.length }})</span>
+              <button type="button" class="pic-add-btn" @click="addEditPicDraft">+ Add Person</button>
+            </div>
+            <div v-if="editContactModal.picError" class="add-error-box">{{ editContactModal.picError }}</div>
+            <p v-if="!editContactModal.incharges.length && !editPicDrafts.length" class="pic-empty-text">No persons in charge yet.</p>
+            <div class="pic-rows">
+              <div v-for="pic in editContactModal.incharges" :key="pic.id" class="pic-row">
+                <input v-model="pic.name" placeholder="Name *" class="pic-input" />
+                <input v-model="pic.phone_mobile" placeholder="Mobile" class="pic-input" />
+                <input v-model="pic.email" placeholder="Email" class="pic-input" />
+                <div class="pic-row-actions">
+                  <button type="button" class="pic-btn pic-btn-save" :disabled="!pic.name?.trim() || pic._saving" @click="saveEditPic(pic)">
+                    {{ pic._saving ? 'Saving…' : 'Save' }}
+                  </button>
+                  <template v-if="pic._confirmDel">
+                    <button type="button" class="pic-btn pic-btn-confirm" :disabled="pic._saving" @click="removeEditPic(pic)">Confirm</button>
+                    <button type="button" class="pic-btn pic-btn-ghost" @click="pic._confirmDel = false">Cancel</button>
+                  </template>
+                  <button v-else type="button" class="pic-btn pic-btn-del" @click="pic._confirmDel = true">Remove</button>
+                </div>
+              </div>
+              <div v-for="(d, idx) in editPicDrafts" :key="'edit-draft-' + idx" class="pic-row pic-row-draft">
+                <input v-model="d.name" placeholder="Name *" class="pic-input" />
+                <input v-model="d.phone_mobile" placeholder="Mobile" class="pic-input" />
+                <input v-model="d.email" placeholder="Email" class="pic-input" />
+                <div class="pic-row-actions">
+                  <button type="button" class="pic-btn pic-btn-save" :disabled="!d.name.trim() || d._saving" @click="saveEditPicDraft(idx)">
+                    {{ d._saving ? 'Adding…' : 'Add' }}
+                  </button>
+                  <button type="button" class="pic-btn pic-btn-ghost" @click="editPicDrafts.splice(idx, 1)">Discard</button>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -1544,8 +1581,9 @@ const addTaskModal     = ref({ open: false, contact: null, saving: false, error:
 const addTaskModalForm = ref({ task_id: '', todo_date: '', todo_remark: '' });
 
 // ── Quick Edit Contact modal (from row action) ──
-const editContactModal = ref({ open: false, contactId: null, contactName: '', loading: false, saving: false, error: '', dupError: '' });
+const editContactModal = ref({ open: false, contactId: null, contactName: '', loading: false, saving: false, error: '', dupError: '', incharges: [], picError: '' });
 const editContactForm  = ref({ name: '', status_id: '', type_id: '', industry_id: '', category_id: '', address: '', lead_source: '', remark: '', user_id: '' });
+const editPicDrafts    = ref([]);
 let editDupTimer = null;
 
 // ── Add Contact modal ──
@@ -2277,10 +2315,14 @@ async function submitAddTaskModal() {
 async function openEditContactModal(c) {
   editContactModal.value = {
     open: true, contactId: c.id, contactName: c.name,
-    loading: true, saving: false, error: '', dupError: '',
+    loading: true, saving: false, error: '', dupError: '', incharges: [], picError: '',
   };
+  editPicDrafts.value = [];
   try {
-    const res = await api.get(`/v1/contacts/${c.id}`);
+    const [res, picRes] = await Promise.all([
+      api.get(`/v1/contacts/${c.id}`),
+      api.get(`/v1/contacts/${c.id}/incharges`),
+    ]);
     const contact = res.data.data;
     editContactForm.value = {
       name:        contact.name        ?? '',
@@ -2293,12 +2335,75 @@ async function openEditContactModal(c) {
       remark:      contact.remark      ?? '',
       user_id:     contact.user_id     ?? '',
     };
+    editContactModal.value.incharges = (picRes.data.data ?? []).map(p => ({ ...p, _saving: false, _confirmDel: false }));
   } finally {
     editContactModal.value.loading = false;
   }
 }
 
-function closeEditContactModal() { editContactModal.value.open = false; }
+function closeEditContactModal() { editContactModal.value.open = false; editPicDrafts.value = []; }
+
+function picErrMsg(e) {
+  const errors = e.response?.data?.errors;
+  return errors ? Object.values(errors).flat().join(' ') : (e.response?.data?.message ?? 'Could not save. Please try again.');
+}
+
+function syncDrawerIncharges() {
+  if (drawer.value.open && drawer.value.contact?.id === editContactModal.value.contactId) {
+    drawer.value.contact.incharges = editContactModal.value.incharges.map(p => ({ ...p }));
+  }
+}
+
+function addEditPicDraft() {
+  editPicDrafts.value.push({ name: '', phone_mobile: '', email: '', _saving: false });
+}
+
+async function saveEditPicDraft(idx) {
+  const d = editPicDrafts.value[idx];
+  if (!d.name.trim()) return;
+  d._saving = true;
+  editContactModal.value.picError = '';
+  try {
+    const res = await api.post(`/v1/contacts/${editContactModal.value.contactId}/incharges`, {
+      name: d.name.trim(), phone_mobile: d.phone_mobile || null, email: d.email || null,
+    });
+    editContactModal.value.incharges.push({ ...res.data.data, _saving: false, _confirmDel: false });
+    editPicDrafts.value.splice(idx, 1);
+    syncDrawerIncharges();
+  } catch (e) {
+    editContactModal.value.picError = picErrMsg(e);
+    d._saving = false;
+  }
+}
+
+async function saveEditPic(pic) {
+  if (!pic.name?.trim()) return;
+  pic._saving = true;
+  editContactModal.value.picError = '';
+  try {
+    await api.put(`/v1/contacts/${editContactModal.value.contactId}/incharges/${pic.id}`, {
+      name: pic.name.trim(), phone_mobile: pic.phone_mobile || null, email: pic.email || null,
+    });
+    syncDrawerIncharges();
+  } catch (e) {
+    editContactModal.value.picError = picErrMsg(e);
+  } finally {
+    pic._saving = false;
+  }
+}
+
+async function removeEditPic(pic) {
+  pic._saving = true;
+  editContactModal.value.picError = '';
+  try {
+    await api.delete(`/v1/contacts/${editContactModal.value.contactId}/incharges/${pic.id}`);
+    editContactModal.value.incharges = editContactModal.value.incharges.filter(p => p.id !== pic.id);
+    syncDrawerIncharges();
+  } catch (e) {
+    editContactModal.value.picError = picErrMsg(e);
+    pic._saving = false;
+  }
+}
 
 function checkEditDuplicate() {
   clearTimeout(editDupTimer);
@@ -2320,6 +2425,9 @@ async function submitEditContact() {
     await api.put(`/v1/contacts/${editContactModal.value.contactId}`, editContactForm.value);
     closeEditContactModal();
     load();
+    if (drawer.value.open && drawer.value.contact?.id === editContactModal.value.contactId) {
+      await openDrawer(drawer.value.contact);
+    }
     showToast('Contact updated');
   } catch (e) {
     const errors = e.response?.data?.errors;
@@ -3715,6 +3823,38 @@ tbody tr:last-child td { border-bottom: none; }
 .add-modal-actions { display: flex; gap: 10px; margin-top: 10px; justify-content: flex-end; }
 .add-modal-actions .btn { height: 42px; padding: 0 22px; }
 .add-modal-actions .btn-primary { min-width: 160px; justify-content: center; }
+
+/* Persons in Charge manager (Quick Edit modal) */
+.pic-manager { margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--border-soft); }
+.pic-manager-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.pic-manager-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--text-3); }
+.pic-add-btn { height: 32px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--primary); background: var(--primary-soft); color: var(--primary-text); font-size: 12px; font-weight: 700; cursor: pointer; transition: background 0.15s, color 0.15s; }
+.pic-add-btn:hover { background: var(--primary); color: var(--primary-on); }
+.pic-empty-text { font-size: 12.5px; color: var(--text-3); font-style: italic; margin: 4px 0 8px; }
+.pic-rows { display: flex; flex-direction: column; gap: 10px; }
+.pic-row { display: grid; grid-template-columns: 1.3fr 1fr 1.3fr auto; gap: 8px; align-items: center; }
+.pic-row-draft { background: var(--surface-2); border-radius: var(--radius); padding: 8px; }
+.pic-input {
+  height: 36px; padding: 0 12px; border: 1px solid var(--border); border-radius: 999px;
+  font-size: 12.5px; color: var(--text-1); background: var(--surface); outline: none;
+  box-sizing: border-box; width: 100%; transition: border-color 0.15s, box-shadow 0.15s;
+}
+.pic-input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--focus-ring); }
+.pic-row-actions { display: flex; gap: 6px; align-items: center; }
+.pic-btn { height: 32px; padding: 0 12px; border-radius: 999px; font-size: 11.5px; font-weight: 700; cursor: pointer; border: 1px solid transparent; white-space: nowrap; transition: background 0.15s, color 0.15s; }
+.pic-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.pic-btn-save { background: var(--primary); color: var(--primary-on); }
+.pic-btn-save:hover:not(:disabled) { background: var(--primary-hover); }
+.pic-btn-del { background: var(--surface-2); color: var(--danger); border-color: var(--border); }
+.pic-btn-del:hover { background: var(--danger-soft); }
+.pic-btn-confirm { background: var(--danger); color: #fff; }
+.pic-btn-confirm:hover:not(:disabled) { background: #b91c1c; }
+.pic-btn-ghost { background: var(--surface-2); color: var(--text-2); border-color: var(--border); }
+.pic-btn-ghost:hover { background: var(--border); color: var(--text-1); }
+@media (max-width: 640px) {
+  .pic-row { grid-template-columns: 1fr; }
+  .pic-row-actions { justify-content: flex-end; }
+}
 
 /* Forecast tab */
 .btn-add-forecast { background: #0ea5e9; }
