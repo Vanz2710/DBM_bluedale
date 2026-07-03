@@ -205,7 +205,10 @@
       "Bash(awk '/^<script setup>/{flag=1; next} /^<\\\\/script>/{flag=0} flag' resources/js/components/SignaturePad.vue)",
       "Bash(node --check /tmp/sigpad_script.mjs)",
       "Bash(git commit -m ' *)",
-      "Bash(git commit *)"
+      "Bash(git commit *)",
+      "Bash(tar --force-local -czf crm-update-2026-07-02.tar.gz app/Http/Controllers/Api/V1/AdminAuditLogController.php app/Http/Controllers/Api/V1/AdminController.php app/Http/Controllers/Api/V1/ContactController.php app/Http/Controllers/Api/V1/PermissionController.php app/Http/Controllers/Api/V1/RoleController.php app/Http/Controllers/Api/V1/SiteAvailabilityController.php app/Http/Controllers/Api/V1/SystemSettingsController.php app/Http/Controllers/Api/V1/UserManagementController.php app/Models/AdvertisingProduct.php app/Models/AdvertisingProductBooking.php app/Models/Contact.php database/migrations/2026_07_01_000002_add_sheet_type_label_to_advertising_products_table.php database/migrations/2026_07_01_000003_drop_contact_emails_and_contact_calls_tables.php database/migrations/2026_07_02_000001_add_booking_group_to_advertising_product_bookings_table.php database/seeders/RolesAndPermissionsSeeder.php resources/views/pdf/proposal/index.blade.php resources/views/pdf/proposal/site_sheet_portrait.blade.php routes/api.php public/build/)",
+      "Bash(tar -tzf crm-update-2026-07-02.tar.gz)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost/library_crm_v2/public/)"
     ],
     "additionalDirectories": [
       "\\tmp\\ammar_crm\\app\\Http\\Controllers\\Api\\V1",
