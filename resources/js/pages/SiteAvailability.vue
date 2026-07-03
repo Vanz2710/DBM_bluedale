@@ -1938,19 +1938,27 @@ function buildProposalPayload() {
   };
 }
 
+// Bumped on every call so an in-flight request that resolves after a newer one
+// started can recognise it's stale and discard itself — otherwise rapid toggling
+// of orientation/print-mode/fee on the Review step can let an older, slower
+// response overwrite a newer preview with one that no longer matches the form.
+let previewRequestId = 0;
+
 async function generatePreview() {
   if (selectedProductIds.value.length === 0) return;
+  const requestId = ++previewRequestId;
   previewLoading.value = true;
   if (previewUrl.value) { window.URL.revokeObjectURL(previewUrl.value); previewUrl.value = null; }
   previewBlob.value = null;
   try {
     const res = await api.post('/v1/site-availability/proposal', buildProposalPayload(), { responseType: 'blob' });
+    if (requestId !== previewRequestId) return; // superseded by a newer request
     previewBlob.value = new Blob([res.data], { type: 'application/pdf' });
     previewUrl.value = window.URL.createObjectURL(previewBlob.value);
   } catch (_) {
     // preview failure is non-fatal — user can still download directly
   } finally {
-    previewLoading.value = false;
+    if (requestId === previewRequestId) previewLoading.value = false;
   }
 }
 
@@ -2328,8 +2336,12 @@ async function onCellDateChange(event, field) {
   const value = event.target.value;
   const { row, month } = cellMenu.value;
   await updateBookingDate(row, month, field, value);
-  // Refresh local cellMenu.booking to latest
-  cellMenu.value.booking = bookingFor(row, month) ?? null;
+  // Refresh local cellMenu.booking to latest — clone into a fresh object so Vue
+  // always detects the change and resets the native date input's displayed value,
+  // even when the update was rejected and the underlying booking is unchanged
+  // (same object reference would otherwise be a same-reference no-op).
+  const latest = bookingFor(row, month);
+  cellMenu.value.booking = latest ? { ...latest } : null;
 }
 
 function monthLabel(value) {
@@ -2353,7 +2365,6 @@ async function updateBookingDate(row, month, field, value) {
   if (!value) {
     error.value = 'Date cannot be cleared — pick a new date or delete the booking instead.';
     showToast(error.value);
-    load();
     return;
   }
 
@@ -2362,7 +2373,6 @@ async function updateBookingDate(row, month, field, value) {
   if (next.end < next.start) {
     error.value = 'End rent date must be same as or after start rent date.';
     showToast(error.value);
-    load();
     return;
   }
 
@@ -2834,10 +2844,19 @@ const weekMonthGroups = computed(() => {
   return groups;
 });
 
+// A bare "YYYY-MM-DD" is parsed as UTC by `new Date()`, while `week.start`/`week.end`
+// are built with the local-time constructor — an 8-hour (MY/UTC+8) mismatch that made
+// a booking starting exactly on a week's last day fail the overlap check below. Parse
+// the components directly so both sides are constructed the same (local) way.
+function parseLocalDate(dateStr) {
+  const [y, m, d] = dateStr.split('T')[0].split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+
 function bookingForWeek(row, week) {
   return row.bookings.find(b => {
     if (b.start_date && b.end_date) {
-      return new Date(b.start_date) <= week.end && new Date(b.end_date) >= week.start;
+      return parseLocalDate(b.start_date) <= week.end && parseLocalDate(b.end_date) >= week.start;
     }
     // fallback: month overlap
     const wm1 = week.start.getMonth() + 1;
@@ -2907,7 +2926,14 @@ function monthSlots(row) {
       let lastBooking = booking;
       while (i + span < months.length) {
         const next = bookingFor(row, months[i + span].value);
-        if (next && next.company_name === booking.company_name) {
+        // Prefer the exact booking_group so two separate, coincidentally-adjacent
+        // bookings by the same company don't visually merge into one bar (matches
+        // how weekSlots merges by exact booking id). Fall back to company_name only
+        // for legacy rows saved before booking_group existed.
+        const sameBooking = next && (booking.booking_group && next.booking_group
+          ? next.booking_group === booking.booking_group
+          : next.company_name === booking.company_name);
+        if (sameBooking) {
           lastBooking = next;
           span++;
         } else break;

@@ -162,20 +162,17 @@ function selectFirstCompany() {
   if (companyResults.value.length > 0) selectCompany(companyResults.value[0]);
 }
 
-function applyPlaceDefaults() {
-  const selected = props.placeOptions.find((place) => place.site_name === form.value.site_name);
-  if (!selected) return;
-
-  form.value.status = selected.status;
-  form.value.type = selected.type;
-  form.value.product_type = selected.product_type;
-}
-
 function selectPlace(place) {
   form.value.site_name = place.site_name;
   placeSearch.value = place.site_name;
   showPlaceDrop.value = false;
-  applyPlaceDefaults();
+  // Apply this exact clicked place's own status/type/product_type — not a re-lookup
+  // by site_name, since two existing products can legitimately share the same name
+  // with a different product_type (the backend keys on the pair together), and a
+  // by-name re-lookup would silently resolve to whichever one happens to be first.
+  form.value.status = place.status;
+  form.value.type = place.type;
+  form.value.product_type = place.product_type;
 }
 
 function onPlaceBlur() {
