@@ -452,11 +452,16 @@
                 </label>
                 <button v-if="selectedProduct.site_photo" type="button" class="btn-remove-photo" @click="removePhoto('site_photo')">Remove</button>
               </div>
-              <div class="photo-preview" style="position:relative;">
+              <div class="photo-preview paste-drop-zone"
+                   :class="{ 'paste-active': pasteTargetId === 'modal_site_photo' }"
+                   style="position:relative; cursor:pointer;"
+                   @click="setPasteTarget('modal_site_photo')"
+                   :title="pasteTargetId === 'modal_site_photo' ? 'Active — Ctrl+V to paste' : 'Click to set as paste target'">
                 <img v-if="billboardComposites[selectedProduct?.id]" :src="billboardComposites[selectedProduct.id]" alt="Billboard composite">
                 <img v-else-if="selectedProduct.site_photo_url" :src="selectedProduct.site_photo_url" alt="Site photo">
-                <span v-else class="photo-placeholder">No site photo uploaded</span>
+                <span v-else class="photo-placeholder">No site photo uploaded — click then Ctrl+V</span>
                 <span v-if="billboardComposites[selectedProduct?.id]" class="composite-tag">Billboard Preview</span>
+                <span v-if="pasteTargetId === 'modal_site_photo'" class="paste-ready-tag">Ready to paste</span>
               </div>
               <div v-if="isBillboardType(selectedProduct?.product_type) && selectedProduct?.site_photo_url" class="billboard-overlay-bar">
                 <span class="billboard-overlay-hint">Billboard overlay</span>
@@ -475,9 +480,14 @@
                 </label>
                 <button v-if="selectedProduct.site_map_photo" type="button" class="btn-remove-photo" @click="removePhoto('site_map_photo')">Remove</button>
               </div>
-              <div class="photo-preview">
+              <div class="photo-preview paste-drop-zone"
+                   :class="{ 'paste-active': pasteTargetId === 'modal_site_map_photo' }"
+                   style="position:relative; cursor:pointer;"
+                   @click="setPasteTarget('modal_site_map_photo')"
+                   :title="pasteTargetId === 'modal_site_map_photo' ? 'Active — Ctrl+V to paste' : 'Click to set as paste target'">
                 <img v-if="selectedProduct.site_map_photo_url" :src="selectedProduct.site_map_photo_url" alt="Map photo">
-                <span v-else class="photo-placeholder">No map photo uploaded</span>
+                <span v-else class="photo-placeholder">No map photo uploaded — click then Ctrl+V</span>
+                <span v-if="pasteTargetId === 'modal_site_map_photo'" class="paste-ready-tag">Ready to paste</span>
               </div>
             </div>
           </div>
@@ -1588,6 +1598,7 @@ function openProductDetail(row) {
   landmarkForm.value = [];
   editingContact.value = false;
   contactForm.value = { contact_name: '', contact_mobile: '' };
+  pasteTargetId.value = null;
 }
 
 function closeProductDetail() {
@@ -1598,6 +1609,7 @@ function closeProductDetail() {
   landmarkForm.value = [];
   editingContact.value = false;
   contactForm.value = { contact_name: '', contact_mobile: '' };
+  pasteTargetId.value = null;
 }
 
 function startContactEdit() {
@@ -1975,13 +1987,24 @@ function setPasteTarget(id) {
 }
 
 function handleGlobalPaste(e) {
-  if (!pasteTargetId.value || wizardStep.value !== 'sheets') return
+  if (!pasteTargetId.value) return
   const items = e.clipboardData?.items
   if (!items) return
   for (const item of items) {
     if (!item.type.startsWith('image/')) continue
     const file = item.getAsFile()
     if (!file) continue
+
+    // Paste target set from the site detail modal (single product, no wizard involved)
+    if (pasteTargetId.value.startsWith('modal_')) {
+      if (!selectedProduct.value) return
+      const field = pasteTargetId.value === 'modal_site_map_photo' ? 'site_map_photo' : 'site_photo'
+      uploadPhoto(selectedProduct.value, field, file)
+      pasteTargetId.value = null
+      break
+    }
+
+    if (wizardStep.value !== 'sheets') return
     // pasteTargetId format: "{productId}_site_photo" or "{productId}_site_map_photo"
     const isMap = pasteTargetId.value.endsWith('_site_map_photo')
     const field = isMap ? 'site_map_photo' : 'site_photo'
