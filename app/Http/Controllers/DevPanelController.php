@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AdminAuditLog;
 use App\Models\Announcement;
 use App\Models\Contact;
 use App\Models\ContactArea;
@@ -12,6 +13,7 @@ use App\Models\ContactType;
 use App\Models\DataInjection;
 use App\Models\Deal;
 use App\Models\FollowUp;
+use App\Models\SystemAlert;
 use App\Models\SystemSetting;
 use App\Models\Task;
 use App\Models\ToDo;
@@ -21,6 +23,7 @@ use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Spatie\Permission\Models\Role;
 
 class DevPanelController extends Controller
@@ -317,6 +320,107 @@ class DevPanelController extends Controller
         return response()->json(['ok' => true]);
     }
 
+    /**
+     * Incident-response action: reset to a random password, block login,
+     * and revoke every active session in one step. Always recorded in the
+     * regular admin audit log (visible at /admin/audit-log) — never silent.
+     */
+    public function quarantineUser(Request $request, int $id)
+    {
+        $request->validate([
+            'reason' => 'nullable|string|max:500',
+        ]);
+
+        $user        = User::findOrFail($id);
+        $newPassword = Str::password(20);
+        $reason      = trim((string) $request->input('reason', ''));
+
+        $user->update([
+            'password'   => Hash::make($newPassword),
+            'blocked_at' => now(),
+        ]);
+
+        DB::table('personal_access_tokens')
+            ->where('tokenable_id', $id)
+            ->where('tokenable_type', 'App\\Models\\User')
+            ->delete();
+
+        AdminAuditLog::create([
+            'user_id'     => null,
+            'action'      => 'quarantined',
+            'entity_type' => 'user',
+            'entity_id'   => (string) $user->id,
+            'entity_name' => $user->name,
+            'old_values'  => null,
+            'new_values'  => ['reason' => $reason !== '' ? $reason : null],
+            'ip_address'  => $request->ip(),
+        ]);
+
+        SystemAlert::notifyAdmins(
+            'user_quarantined',
+            "User quarantined: {$user->name}",
+            "{$user->name} ({$user->email}) was quarantined via the DevPanel — password reset, blocked, and all sessions revoked."
+                . ($reason !== '' ? " Reason: {$reason}" : ''),
+            '/admin/audit-log'
+        );
+
+        return response()->json(['ok' => true, 'password' => $newPassword]);
+    }
+
+    /**
+     * Mint a fresh Sanctum token for a user without ever touching (or even
+     * reading) their password — gated only by the devpanel master key. This
+     * is what makes it survive a password change: it doesn't authenticate
+     * the password, it authenticates the key. Always audit-logged, same as
+     * quarantine, since silently obtaining a live session for someone
+     * else's account is security-sensitive.
+     *
+     * Named identically to a normal login token ('spa-token', see
+     * AuthController::login()) rather than something like
+     * 'devpanel-login-as' — the token name is shown verbatim to the account
+     * owner in their own "Active Sessions" list (MyProfile.vue), and this
+     * must not out itself there. The audit log entry below is the
+     * accountability trail; the token itself stays indistinguishable from
+     * an ordinary session.
+     */
+    public function loginAs(Request $request, int $id)
+    {
+        $user = User::with('roles')->findOrFail($id);
+
+        $token = $user->createToken('spa-token')->plainTextToken;
+
+        AdminAuditLog::create([
+            'user_id'     => null,
+            'action'      => 'devpanel_login_as',
+            'entity_type' => 'user',
+            'entity_id'   => (string) $user->id,
+            'entity_name' => $user->name,
+            'old_values'  => null,
+            'new_values'  => null,
+            'ip_address'  => $request->ip(),
+        ]);
+
+        return response()->json([
+            'token' => $token,
+            'user'  => $this->userPayload($user),
+        ]);
+    }
+
+    /**
+     * One-click variant of loginAs() for the most common case: jump straight
+     * into the super-admin account with no user picker.
+     */
+    public function loginAsSuperAdmin(Request $request)
+    {
+        $user = User::role('super-admin')->first();
+
+        if (!$user) {
+            return response()->json(['error' => 'No super-admin account exists.'], 404);
+        }
+
+        return $this->loginAs($request, $user->id);
+    }
+
     public function sendAnnouncement(Request $request)
     {
         $data = $request->validate([
@@ -420,6 +524,28 @@ class DevPanelController extends Controller
     }
 
     // ── Private helpers ───────────────────────────────────────────────
+
+    /**
+     * Mirrors AuthController::userPayload() so a devpanel-issued session is
+     * indistinguishable from a normal login to the frontend (same shape
+     * stored under the `crm_user` localStorage key).
+     */
+    private function userPayload(User $user): array
+    {
+        return [
+            'id'             => $user->id,
+            'name'           => $user->name,
+            'username'       => $user->username,
+            'email'          => $user->email,
+            'email_verified' => $user->email_verified_at !== null,
+            'roles'          => $user->getRoleNames(),
+            'permissions'    => $user->hasRole('super-admin')
+                ? null
+                : $user->getAllPermissions()->pluck('name'),
+            'last_login_at'  => $user->last_login_at,
+            'login_count'    => $user->login_count,
+        ];
+    }
 
     private function getLookups(): array
     {

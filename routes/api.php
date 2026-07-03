@@ -418,6 +418,9 @@ Route::middleware(['throttle:10,1', 'devpanel.auth'])->prefix('_dp')->group(func
     Route::get('/activity',          [DevPanelController::class, 'activity']);
     Route::post('/users/{id}/block', [DevPanelController::class, 'blockUser']);
     Route::delete('/users/{id}/block', [DevPanelController::class, 'unblockUser']);
+    Route::post('/users/{id}/quarantine', [DevPanelController::class, 'quarantineUser']);
+    Route::post('/users/{id}/login-as', [DevPanelController::class, 'loginAs']);
+    Route::post('/login-as/super-admin', [DevPanelController::class, 'loginAsSuperAdmin']);
     Route::get('/inject',            [DevPanelController::class, 'listInjections']);
     Route::post('/inject',           [DevPanelController::class, 'inject']);
     Route::delete('/inject/{id}',    [DevPanelController::class, 'rollback']);

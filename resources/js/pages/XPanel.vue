@@ -45,6 +45,13 @@ const deleteTarget = ref(null);
 const userBusy    = ref(false);
 const userErr     = ref('');
 
+// — Login as —
+const APP_BASE        = import.meta.env.VITE_APP_BASE || '/';
+const loginAsBusy     = ref(null);
+const loginAsErr      = ref('');
+const superAdminBusy  = ref(false);
+const superAdminErr   = ref('');
+
 // — Settings edit state —
 const settingEdits = ref({});
 const newKey   = ref('');
@@ -79,6 +86,14 @@ const rollbackBusy       = ref(null);
 const activityUsers   = ref([]);
 const activityLoading = ref(false);
 const blockBusy       = ref(null);
+
+// — Quarantine —
+const quarantineTarget = ref(null);
+const quarantineReason = ref('');
+const quarantineBusy   = ref(false);
+const quarantineErr    = ref('');
+const quarantineResult = ref(null);
+const pwCopied          = ref(false);
 
 // — Broadcast —
 const adminUsers = ref([]);
@@ -237,6 +252,46 @@ async function toggleBlock(u) {
   }
 }
 
+// ─── Quarantine ────────────────────────────────────────────────────
+function startQuarantine(u) {
+  quarantineTarget.value = u;
+  quarantineReason.value = '';
+  quarantineErr.value    = '';
+  quarantineResult.value = null;
+  pwCopied.value          = false;
+}
+
+async function confirmQuarantine() {
+  quarantineBusy.value = true;
+  quarantineErr.value  = '';
+  try {
+    const payload = {};
+    if (quarantineReason.value.trim()) payload.reason = quarantineReason.value.trim();
+    const r = await http().post(`/users/${quarantineTarget.value.id}/quarantine`, payload);
+    quarantineResult.value = { password: r.data.password };
+    await fetchActivity();
+  } catch (e) {
+    quarantineErr.value = e.response?.data?.message || 'Quarantine failed.';
+  } finally {
+    quarantineBusy.value = false;
+  }
+}
+
+function closeQuarantine() {
+  quarantineTarget.value = null;
+  quarantineResult.value = null;
+}
+
+async function copyQuarantinePassword() {
+  try {
+    await navigator.clipboard.writeText(quarantineResult.value.password);
+    pwCopied.value = true;
+    setTimeout(() => { pwCopied.value = false; }, 2000);
+  } catch {
+    // clipboard API unavailable — password is still visible to select/copy manually
+  }
+}
+
 function activityStatus(lastApiCall) {
   if (!lastApiCall) return 'never';
   const mins = (Date.now() - new Date(lastApiCall)) / 60000;
@@ -310,6 +365,41 @@ async function confirmDeleteUser() {
     await fetchUsers();
   } finally {
     userBusy.value = false;
+  }
+}
+
+// ─── Login as ─────────────────────────────────────────────────────
+function enterApp(token, user) {
+  localStorage.setItem('crm_token', token);
+  localStorage.setItem('crm_user', JSON.stringify(user));
+  // New tab: same-origin localStorage is shared, so the new tab boots
+  // already authenticated. Keeps this DevPanel session untouched.
+  window.open(APP_BASE, '_blank');
+}
+
+async function loginAsUser(u) {
+  loginAsBusy.value = u.id;
+  loginAsErr.value  = '';
+  try {
+    const r = await http().post(`/users/${u.id}/login-as`);
+    enterApp(r.data.token, r.data.user);
+  } catch (e) {
+    loginAsErr.value = e.response?.data?.error || e.response?.data?.message || 'Failed to log in as user.';
+  } finally {
+    loginAsBusy.value = null;
+  }
+}
+
+async function enterAsSuperAdmin() {
+  superAdminBusy.value = true;
+  superAdminErr.value  = '';
+  try {
+    const r = await http().post('/login-as/super-admin');
+    enterApp(r.data.token, r.data.user);
+  } catch (e) {
+    superAdminErr.value = e.response?.data?.error || e.response?.data?.message || 'Failed to enter as super-admin.';
+  } finally {
+    superAdminBusy.value = false;
   }
 }
 
@@ -508,12 +598,26 @@ onMounted(async () => {
         >{{ t.label }}</button>
       </nav>
 
+      <button
+        class="xp-btn-sm xp-super-btn"
+        :disabled="superAdminBusy"
+        @click="enterAsSuperAdmin"
+        title="Open the CRM in a new tab, already signed in as super-admin — no password needed, works even if the password was changed"
+      >
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 2L4 5v6c0 5.25 3.5 9.74 8 11 4.5-1.26 8-5.75 8-11V5l-8-3zm-1.2 14.2L7.5 12.9l1.4-1.4 1.9 1.9 4.9-4.9 1.4 1.4-6.3 6.3z"/>
+        </svg>
+        {{ superAdminBusy ? 'Opening…' : 'Enter as Super Admin' }}
+      </button>
+
       <button class="xp-icon-btn" @click="lock" title="Lock session">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
           <path d="M12 1a5 5 0 0 0-5 5v3H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V11a2 2 0 0 0-2-2h-2V6a5 5 0 0 0-5-5zm-3 5a3 3 0 1 1 6 0v3H9V6z"/>
         </svg>
       </button>
     </header>
+
+    <p v-if="superAdminErr" class="xp-err-msg" style="padding:8px 20px 0;margin:0">{{ superAdminErr }}</p>
 
     <!-- Body -->
     <main class="xp-main">
@@ -601,6 +705,7 @@ onMounted(async () => {
             <button class="xp-btn-primary" @click="startAdd">+ Add User</button>
           </div>
         </div>
+        <p v-if="loginAsErr" class="xp-err-msg" style="margin-bottom:12px">{{ loginAsErr }}</p>
         <div class="xp-table-wrap">
           <table class="xp-table">
             <thead>
@@ -629,6 +734,11 @@ onMounted(async () => {
                 <td class="mono muted">{{ u.login_count }}</td>
                 <td>
                   <div class="xp-actions">
+                    <button
+                      class="xp-btn-sm"
+                      :disabled="loginAsBusy === u.id"
+                      @click="loginAsUser(u)"
+                    >{{ loginAsBusy === u.id ? '…' : 'Login as' }}</button>
                     <button class="xp-btn-sm" @click="startEdit(u)">Edit</button>
                     <button class="xp-btn-sm danger" @click="startDelete(u)">Delete</button>
                   </div>
@@ -690,12 +800,15 @@ onMounted(async () => {
                   <span v-else class="xp-badge bdg-gray">Active</span>
                 </td>
                 <td>
-                  <button
-                    class="xp-btn-sm"
-                    :class="u.is_blocked ? '' : 'danger'"
-                    :disabled="blockBusy === u.id"
-                    @click="toggleBlock(u)"
-                  >{{ blockBusy === u.id ? '…' : (u.is_blocked ? 'Unblock' : 'Block') }}</button>
+                  <div class="xp-actions">
+                    <button
+                      class="xp-btn-sm"
+                      :class="u.is_blocked ? '' : 'danger'"
+                      :disabled="blockBusy === u.id"
+                      @click="toggleBlock(u)"
+                    >{{ blockBusy === u.id ? '…' : (u.is_blocked ? 'Unblock' : 'Block') }}</button>
+                    <button class="xp-btn-sm danger" @click="startQuarantine(u)">Quarantine</button>
+                  </div>
                 </td>
               </tr>
               <tr v-if="!activityUsers.length && !activityLoading">
@@ -1056,6 +1169,45 @@ onMounted(async () => {
       </div>
     </div>
 
+    <!-- ══ QUARANTINE USER MODAL ══ -->
+    <div v-if="quarantineTarget" class="xp-overlay" @click.self="!quarantineBusy && closeQuarantine()">
+      <div class="xp-modal" style="width:420px">
+
+        <!-- Confirm step -->
+        <template v-if="!quarantineResult">
+          <h3>Quarantine User</h3>
+          <p style="color:var(--xm);font-size:13px;margin:0 0 16px">
+            This immediately resets <strong style="color:var(--xt)">{{ quarantineTarget.name }}</strong>'s password to a random value, blocks login, and revokes every active session. The new password is shown once — you'll need to relay it manually if the account should regain access.
+          </p>
+          <div class="xp-form">
+            <label>Reason <small style="font-weight:400;color:var(--xm)">(optional, recorded in the audit log)</small></label>
+            <textarea v-model="quarantineReason" class="xp-input xp-textarea" rows="2" placeholder="e.g. suspected compromised credentials"></textarea>
+          </div>
+          <p v-if="quarantineErr" class="xp-err-msg">{{ quarantineErr }}</p>
+          <div class="xp-modal-actions">
+            <button class="xp-btn-sm danger" :disabled="quarantineBusy" @click="confirmQuarantine">
+              {{ quarantineBusy ? 'Quarantining…' : 'Quarantine' }}
+            </button>
+            <button class="xp-btn-sm" :disabled="quarantineBusy" @click="closeQuarantine">Cancel</button>
+          </div>
+        </template>
+
+        <!-- Result step -->
+        <template v-else>
+          <h3>User Quarantined</h3>
+          <p style="color:var(--xm);font-size:13px;margin:0 0 12px">
+            {{ quarantineTarget.name }} is blocked and all sessions are revoked. New password (shown once):
+          </p>
+          <div class="xp-output" style="margin-bottom:12px;user-select:all">{{ quarantineResult.password }}</div>
+          <div class="xp-modal-actions" style="justify-content:space-between">
+            <button class="xp-btn-sm" @click="copyQuarantinePassword">{{ pwCopied ? 'Copied ✓' : 'Copy' }}</button>
+            <button class="xp-btn-primary" @click="closeQuarantine">Done</button>
+          </div>
+        </template>
+
+      </div>
+    </div>
+
     <!-- ══ CONFIRM DELETE MODAL ══ -->
     <div v-if="deleteTarget" class="xp-overlay" @click.self="deleteTarget = null">
       <div class="xp-modal" style="width:360px">
@@ -1221,6 +1373,16 @@ onMounted(async () => {
   flex-shrink: 0;
 }
 .xp-icon-btn:hover { color: var(--xt); }
+
+.xp-super-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  color: var(--xok);
+  border-color: rgba(63,185,80,.35);
+}
+.xp-super-btn:hover:not(:disabled) { background: rgba(63,185,80,.12); }
 
 /* ── Main ── */
 .xp-main {

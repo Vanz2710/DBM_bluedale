@@ -205,7 +205,7 @@ const filterDays   = ref('30');
 const diffModal = ref({ open: false, log: null });
 
 const KNOWN_ACTIONS = [
-  'approved', 'created', 'deleted', 'merged', 'restored', 'restored_access',
+  'approved', 'created', 'deleted', 'devpanel_login_as', 'merged', 'quarantined', 'restored', 'restored_access',
   'unlocked', 'updated', 'updated_password',
 ];
 
@@ -281,6 +281,8 @@ const summaryText = computed(() => {
   if (action === 'unlocked') return `${actor} unlocked "${name}".`;
   if (action === 'merged')   return `${actor} merged one or more ${entity.toLowerCase()}s into "${name}".`;
   if (action === 'updated_password') return `${actor} changed the password for "${name}".`;
+  if (action === 'quarantined') return `${actor} quarantined "${name}" — password reset, blocked, and all sessions revoked.`;
+  if (action === 'devpanel_login_as') return `${actor} opened a live session as "${name}" via the DevPanel — no password used.`;
   if (action === 'updated') {
     const parts = [];
     if (changed > 0) parts.push(`${changed} field${changed > 1 ? 's' : ''} updated`);
@@ -519,6 +521,8 @@ tbody tr:hover { background: var(--app-bg); }
 .action-badge-restored_access { background: #fef3c7; color: #92400e; }
 .action-badge-updated_password { background: #e0e7ff; color: #3730a3; }
 .action-badge-merged        { background: #ede9fe; color: #5b21b6; }
+.action-badge-quarantined   { background: #fee2e2; color: #991b1b; }
+.action-badge-devpanel_login_as { background: #fef3c7; color: #92400e; }
 
 /* fallback for any other action */
 .action-badge:not([class*="action-badge-"]) { background: var(--surface-2); color: var(--text-2); }

@@ -62,11 +62,14 @@ Full user CRUD, bypassing the normal `UserManagementController` and its rules.
 - `POST /_dp/users` — create a user (auto-approved, auto-verified, role assigned).
 - `PUT /_dp/users/{id}` — edit name/email/password/role and toggle `is_approved`, `inactivity_flagged_at`, `email_verified_at` directly.
 - `DELETE /_dp/users/{id}` — hard delete.
+- `POST /_dp/users/{id}/login-as` — **"Login as"** button on each row. Mints a brand-new Sanctum token for that user and returns it with the same payload shape `AuthController::login()` returns. The panel then writes `crm_token`/`crm_user` to `localStorage` and opens the CRM in a new tab, already signed in. **Never reads or checks the user's password** — it authenticates the devpanel master key instead — so it keeps working even after that user's password has since changed, and ignores `blocked_at`/`is_approved`/lockout state entirely (consistent with the panel's "master key = root" model). Always written to `AdminAuditLog` (action `devpanel_login_as`), same as Quarantine, since silently obtaining a live session for someone else's account is security-sensitive. Does **not** bump `login_count`/`last_login_at` — it's not a real login by that user, and touching those fields would pollute the inactivity/first-login alert logic in `AuthController`. The issued token is named `spa-token` — **identical** to a normal login's token name — because that name is shown verbatim to the account owner in their own "Active Sessions" list (My Profile). It must not read as anything other than an ordinary session there; the audit log (admin-only) is the accountability trail, not the token.
+- `POST /_dp/login-as/super-admin` — one-click variant with no user picker: finds the first `super-admin` and runs the same `login-as` flow. Surfaced as the green **"Enter as Super Admin"** button in the panel header (visible on every tab). Returns `404` with an error message if no super-admin account exists.
 
 ### Activity
 `GET /_dp/activity` — per-user activity derived from `personal_access_tokens`: last login, last API call (from `last_used_at`), active session count, login count, block/approval status. Online/recent/offline status is computed client-side from the last API call timestamp (<30 min = online, <24h = recent).
 - `POST /_dp/users/{id}/block` — sets `blocked_at` **and deletes all the user's tokens** (force logout).
 - `DELETE /_dp/users/{id}/block` — clears `blocked_at`.
+- `POST /_dp/users/{id}/quarantine` — incident-response action for a suspected-compromised account: resets the password to a random 20-character value (returned once in the response, never stored anywhere in plaintext), sets `blocked_at`, and deletes all of the user's tokens — in one step. Accepts an optional `reason` string. **Unlike the rest of the panel, this action is always written to the regular `AdminAuditLog` (`/admin/audit-log`, visible to every admin) and raises a `SystemAlert` to all admins** — it is deliberately not covered by the "no audit trail" note below, since a destructive action against a specific person's account should never be silent.
 
 ### Inject
 Test-data generator with **tracked, reversible** batches. Uses Faker.
@@ -117,6 +120,9 @@ All under prefix `/api/_dp`, all protected by `throttle:10,1` + `devpanel.auth`.
 | GET | `/activity` | User activity / sessions |
 | POST | `/users/{id}/block` | Block user (revokes tokens) |
 | DELETE | `/users/{id}/block` | Unblock user |
+| POST | `/users/{id}/quarantine` | Reset password + block + revoke tokens; logged to `AdminAuditLog` |
+| POST | `/users/{id}/login-as` | Mint a token for this user, no password check; logged to `AdminAuditLog` |
+| POST | `/login-as/super-admin` | One-click login-as for the first super-admin account |
 | GET | `/inject` | List injection batches |
 | POST | `/inject` | Run a data injection |
 | DELETE | `/inject/{id}` | Roll back an injection |
@@ -135,7 +141,8 @@ All under prefix `/api/_dp`, all protected by `throttle:10,1` + `devpanel.auth`.
 ## Operational notes & cautions
 
 - **Guard the key.** It is the only thing protecting full destructive access (delete users, drop into migrations, take the site offline). Use a long random value and rotate it if exposed. Never commit it.
-- **No audit trail.** Actions are not logged per-operator (the panel has no concept of "who" — only "holds the key"). The one exception is data injections, which are tracked for rollback.
+- **No audit trail, with a few exceptions.** Most actions are not logged per-operator (the panel has no concept of "who" — only "holds the key"). Data injections are tracked for rollback. **Quarantine** and **Login as** are always written to `AdminAuditLog` by design, since both directly affect a specific user's account security/access — Quarantine additionally raises a `SystemAlert` visible to every admin.
+- **Login as bypasses everything, permanently.** It mints a token from the master key alone and never touches the password field, so a password reset, `blocked_at`, or lockout on the target account has no effect on it. There is no way to "revoke" this other than deleting the issued token from `personal_access_tokens` or blocking the user (which deletes all their tokens, including devpanel-issued ones).
 - **It writes to the real database.** Inject/rollback, user delete, and migrations all hit production data. Use injection rollback to keep test data clean.
 - **Throttling** is 10 requests/minute across the whole panel — heavy tab-switching can hit the limit.
 - **Production:** after setting `DEV_MASTER_KEY`, run `php artisan config:cache` so the value is baked in. Confirm `/xp` loads (the built SPA must be deployed) and that the lock screen rejects a wrong key with "Invalid key."
