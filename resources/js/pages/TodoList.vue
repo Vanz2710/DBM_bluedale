@@ -128,7 +128,7 @@
           </colgroup>
           <thead>
             <tr>
-              <th><input type="checkbox" @change="toggleAll" ref="selectAllRef"></th>
+              <th><input type="checkbox" :checked="allSelected" :indeterminate.prop="someSelected" @change="toggleAll"></th>
               <th>To Do Date</th>
               <th class="th-filter">
                 <div class="col-head">
@@ -169,32 +169,32 @@
             <tr v-if="todos.length === 0">
               <td colspan="11" class="empty-state">No to-dos found for this period.</td>
             </tr>
-            <tr v-for="(t, idx) in todos" :key="t.id" :class="{ 'row-done': t.completion_status === 'completed' }">
-              <td><input type="checkbox" :value="t.id" v-model="selectedIds"></td>
+            <tr v-for="(t, idx) in todos" :key="t.id" :class="{ 'row-done': t.completion_status === 'completed', 'row-clickable': t.contact_id }" @click="openContactRow(t)">
+              <td @click.stop><input type="checkbox" :value="t.id" v-model="selectedIds"></td>
               <td><span class="date-text">{{ t.todo_date }}</span></td>
               <td>
                 <span v-if="t.status" class="status-chip">{{ t.status }}</span>
                 <span v-else class="muted">—</span>
               </td>
               <td>{{ t.type ?? '—' }}</td>
-              <td class="td-company">
+              <td class="td-company" @click.stop>
                 <router-link :to="`/contacts/${t.contact_id}`" class="company-link">{{ t.contact_name }}</router-link>
               </td>
               <td>{{ t.user ?? '—' }}</td>
-              <td class="td-task">
+              <td class="td-task" @click.stop>
                 <div class="task-chip-wrap">
                   <span v-if="t.task" class="task-chip">{{ t.task }}</span>
                   <span v-else class="muted">—</span>
-                  <button v-if="can('edit todos') && t.can_edit" class="task-edit-btn" title="Change task" @click="openTaskChangeModal(t)" v-html="CI.edit"></button>
+                  <button v-if="can('edit todos') && t.can_edit" class="task-edit-btn" title="Change task" aria-label="Change task" @click="openTaskChangeModal(t)" v-html="CI.edit"></button>
                 </div>
               </td>
-              <td class="remark-cell">
+              <td class="remark-cell" @click.stop>
                 <div class="remark-inner">
                   <span class="remark-text" @click="openRemarkModal(t)" :title="t.todo_remark || 'No remark'">{{ t.todo_remark || 'No remark' }}</span>
-                  <button v-if="can('edit todos') && t.can_edit" class="remark-edit-btn" title="Edit remark" @click="openRemarkModal(t)" v-html="CI.edit"></button>
+                  <button v-if="can('edit todos') && t.can_edit" class="remark-edit-btn" title="Edit remark" aria-label="Edit remark" @click="openRemarkModal(t)" v-html="CI.edit"></button>
                 </div>
               </td>
-              <td>
+              <td @click.stop>
                 <router-link v-if="t.followups_count > 0"
                              :to="`/followups?todo_id=${t.id}`"
                              class="followup-count" title="View follow-ups for this to-do">
@@ -206,11 +206,11 @@
                 <span v-if="t.last_followup_date" class="date-text">{{ t.last_followup_date }}</span>
                 <span v-else class="muted">—</span>
               </td>
-              <td>
+              <td @click.stop>
                 <div class="actions-cell">
                   <button v-if="can('create followups') && t.can_edit" class="fu-add-btn" title="Add a follow-up for this to-do" @click="openFollowUpModal(t)">+ F/U</button>
-                  <button v-if="can('edit todos') && t.can_edit" class="icon-btn btn-edit" title="Edit" @click="openEditModal(t)" v-html="CI.edit"></button>
-                  <button v-if="can('delete todos') && t.can_edit" class="icon-btn btn-delete" title="Delete to-do" @click="openDeleteTodoModal(t)" v-html="CI.trash"></button>
+                  <button v-if="can('edit todos') && t.can_edit" class="icon-btn btn-edit" title="Edit" aria-label="Edit to-do" @click="openEditModal(t)" v-html="CI.edit"></button>
+                  <button v-if="can('delete todos') && t.can_edit" class="icon-btn btn-delete" title="Delete to-do" aria-label="Delete to-do" @click="openDeleteTodoModal(t)" v-html="CI.trash"></button>
                 </div>
               </td>
             </tr>
@@ -633,6 +633,10 @@ const { can } = usePermissions();
 const route  = useRoute();
 const router = useRouter();
 
+function openContactRow(t) {
+  if (t.contact_id) router.push(`/contacts/${t.contact_id}`);
+}
+
 const _si = (p, sz = 14) => `<svg width="${sz}" height="${sz}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
 const CI = {
   check: _si('<polyline points="20 6 9 17 4 12"/>'),
@@ -672,7 +676,8 @@ const meta            = ref({});
 const loading         = ref(false);
 const users           = ref([]);
 const selectedIds     = ref([]);
-const selectAllRef    = ref(null);
+const allSelected     = computed(() => todos.value.length > 0 && selectedIds.value.length === todos.value.length);
+const someSelected    = computed(() => selectedIds.value.length > 0 && selectedIds.value.length < todos.value.length);
 
 // Task change modal
 const taskChangeModal = ref({ open: false, todo: null, selectedTaskId: '', saving: false });
@@ -1357,6 +1362,7 @@ tbody td.td-task { white-space: normal; overflow: visible; }
 tbody td:last-child { border-right: none; }
 tbody tr:last-child td { border-bottom: none; }
 tbody tr:hover { background: var(--surface-2); }
+.row-clickable { cursor: pointer; }
 
 .row-num {
   display: inline-flex; align-items: center; justify-content: center;
@@ -1708,7 +1714,7 @@ tbody tr:hover { background: var(--surface-2); }
 .export-modal-body  { padding: 20px 24px; display: flex; flex-direction: column; gap: 18px; overflow-y: auto; flex: 1 1 auto; min-height: 0; }
 .export-modal-footer {
   display: flex; flex-direction: column; gap: 12px;
-  padding: 16px 24px; border-top: 1px solid var(--border-soft); flex-shrink: 0;
+  padding: 16px 24px 20px; border-top: 1px solid var(--border-soft); background: var(--surface-2); flex-shrink: 0;
 }
 .export-footer-count { font-size: 13px; color: var(--text-3); margin: 0; }
 .export-footer-count strong { color: var(--primary); }

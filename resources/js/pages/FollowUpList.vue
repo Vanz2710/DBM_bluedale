@@ -60,13 +60,6 @@
       </template>
 
       <div class="filter-group">
-        <label>Action Type</label>
-        <select v-model="actionType">
-          <option value="">All Types</option>
-          <option v-for="t in ACTION_TYPES" :key="t" :value="t">{{ t }}</option>
-        </select>
-      </div>
-      <div class="filter-group">
         <label>Status</label>
         <select v-model="completionStatus" @change="load">
           <option value="pending">Pending</option>
@@ -107,7 +100,7 @@
           </colgroup>
           <thead>
             <tr>
-              <th><input type="checkbox" @change="toggleAll" ref="selectAllRef"></th>
+              <th><input type="checkbox" :checked="allSelected" :indeterminate.prop="someSelected" @change="toggleAll"></th>
               <th>Follow-Up Date</th>
               <th class="th-filter">
                 <div class="col-head">
@@ -155,14 +148,14 @@
             <tr v-if="followUps.length === 0">
               <td colspan="10" class="empty-state">No follow-ups found for this period.</td>
             </tr>
-            <tr v-for="(f, idx) in followUps" :key="f.id" :class="{ 'row-done': f.completion_status === 'completed', 'row-cancelled': f.completion_status === 'cancelled' }">
-              <td><input type="checkbox" :value="f.id" v-model="selectedIds"></td>
+            <tr v-for="(f, idx) in followUps" :key="f.id" :class="{ 'row-done': f.completion_status === 'completed', 'row-cancelled': f.completion_status === 'cancelled', 'row-clickable': f.contact_id }" @click="openContactRow(f)">
+              <td @click.stop><input type="checkbox" :value="f.id" v-model="selectedIds"></td>
               <td><span class="date-text">{{ f.followup_date }}</span></td>
               <td>
                 <span v-if="f.action_type" class="action-chip">{{ f.action_type }}</span>
                 <span v-else class="muted">—</span>
               </td>
-              <td class="td-company">
+              <td class="td-company" @click.stop>
                 <router-link v-if="f.contact_id" :to="`/contacts/${f.contact_id}`" class="company-link">
                   {{ f.contact_name }}
                 </router-link>
@@ -179,19 +172,19 @@
                 <span v-else class="muted">—</span>
               </td>
               <td class="note-cell">{{ f.note ?? '—' }}</td>
-              <td class="actions-cell">
+              <td class="actions-cell" @click.stop>
                 <button v-if="can('edit followups') && f.can_edit && f.completion_status === 'pending'"
-                  class="icon-btn btn-complete" title="Mark complete"
+                  class="icon-btn btn-complete" title="Mark complete" aria-label="Mark complete"
                   :disabled="completing === f.id"
                   @click="toggleStatus(f)" v-html="CI.check">
                 </button>
                 <button v-if="can('edit followups') && f.can_edit && f.completion_status !== 'pending'"
-                  class="icon-btn btn-undo" title="Mark pending"
+                  class="icon-btn btn-undo" title="Mark pending" aria-label="Mark pending"
                   :disabled="completing === f.id"
                   @click="toggleStatus(f)" v-html="CI.undo">
                 </button>
-                <button v-if="can('edit followups') && f.can_edit" class="icon-btn btn-edit" title="Edit" @click="openEditModal(f)" v-html="CI.edit"></button>
-                <button v-if="can('delete followups') && f.can_edit" class="icon-btn btn-del" title="Delete" @click="confirmDelete(f)" v-html="CI.trash"></button>
+                <button v-if="can('edit followups') && f.can_edit" class="icon-btn btn-edit" title="Edit" aria-label="Edit follow-up" @click="openEditModal(f)" v-html="CI.edit"></button>
+                <button v-if="can('delete followups') && f.can_edit" class="icon-btn btn-del" title="Delete" aria-label="Delete follow-up" @click="confirmDelete(f)" v-html="CI.trash"></button>
               </td>
             </tr>
           </tbody>
@@ -454,6 +447,10 @@ const router = useRouter();
 const todoFilter = ref(route.query.todo_id ? Number(route.query.todo_id) : null);
 const todoFilterInfo = ref(null); // { task, todo_date, contact_name }
 
+function openContactRow(f) {
+  if (f.contact_id) router.push(`/contacts/${f.contact_id}`);
+}
+
 const today = new Date().toISOString().slice(0, 10);
 const thisMonth = today.slice(0, 7);
 
@@ -464,7 +461,6 @@ const fromMonth  = ref(thisMonth);
 const toMonth    = ref(thisMonth);
 const PER_PAGE_OPTIONS = [20, 50, 100];
 
-const actionType       = ref('');
 const completionStatus = ref('pending');
 const search           = ref('');
 const perPage          = ref(50);
@@ -484,7 +480,8 @@ const followUps    = ref([]);
 const meta         = ref({});
 const loading      = ref(false);
 const selectedIds  = ref([]);
-const selectAllRef = ref(null);
+const allSelected  = computed(() => followUps.value.length > 0 && selectedIds.value.length === followUps.value.length);
+const someSelected = computed(() => selectedIds.value.length > 0 && selectedIds.value.length < followUps.value.length);
 const deleteTarget = ref(null);
 const deleting     = ref(false);
 
@@ -621,8 +618,7 @@ function buildParams() {
     p.from_date = fromDate.value;
     p.to_date   = toDate.value;
   }
-  const effectiveActionType = colActionFilter.value || actionType.value;
-  if (effectiveActionType)    p.action_type       = effectiveActionType;
+  if (colActionFilter.value)  p.action_type       = colActionFilter.value;
   if (completionStatus.value) p.completion_status = completionStatus.value;
   if (search.value)           p.search            = search.value;
   if (todoFilter.value)       p.todo_id           = todoFilter.value;
@@ -936,6 +932,7 @@ tbody td { padding: 8px 12px; border-bottom: 1px solid var(--border-soft); borde
 tbody td:last-child { border-right: none; }
 tbody tr:last-child td { border-bottom: none; }
 tbody tr:hover { background: var(--surface-2); }
+.row-clickable { cursor: pointer; }
 
 /* Column header filters */
 .th-filter { white-space: normal !important; overflow: visible !important; vertical-align: top !important; padding: 8px 10px !important; }
@@ -1148,12 +1145,14 @@ tbody tr:hover { background: var(--surface-2); }
 }
 .remark-close:hover { background: var(--danger-soft); color: var(--danger); }
 .btn-followup-submit {
-  flex: 1; background: #e11d48; color: #fff; justify-content: center;
+  flex: 1; background: var(--primary); color: var(--primary-on); justify-content: center;
   height: 42px; padding: 0 20px; border-radius: 8px;
   font-size: 14px; font-weight: 700; cursor: pointer; border: none;
   display: inline-flex; align-items: center;
+  box-shadow: 0 6px 18px -6px rgba(29,78,216,0.55);
 }
-.btn-followup-submit:disabled { background: #94a3b8; cursor: not-allowed; }
+.btn-followup-submit:hover:not(:disabled) { background: var(--primary-hover); }
+.btn-followup-submit:disabled { background: #94a3b8; cursor: not-allowed; box-shadow: none; }
 .req { color: #ef4444; }
 
 /* ── Export modal ── */
@@ -1170,7 +1169,7 @@ tbody tr:hover { background: var(--surface-2); }
 .export-modal-title { font-size: 17px; font-weight: 800; color: var(--text-1); }
 .export-modal-sub   { font-size: 12.5px; color: var(--text-3); margin: 3px 0 0; }
 .export-modal-body  { padding: 20px 24px; display: flex; flex-direction: column; gap: 18px; overflow-y: auto; flex: 1 1 auto; min-height: 0; }
-.export-modal-footer { display: flex; flex-direction: column; gap: 12px; padding: 16px 24px; border-top: 1px solid var(--border-soft); flex-shrink: 0; }
+.export-modal-footer { display: flex; flex-direction: column; gap: 12px; padding: 16px 24px 20px; border-top: 1px solid var(--border-soft); background: var(--surface-2); flex-shrink: 0; }
 .export-footer-count { font-size: 13px; color: var(--text-3); margin: 0; }
 .export-footer-count strong { color: var(--primary); }
 .export-action-stack { display: flex; flex-direction: column; gap: 10px; }

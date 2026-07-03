@@ -590,7 +590,7 @@ tbody tr:hover { background: var(--surface-2); }
 .export-link-btn { background: none; border: none; cursor: pointer; font-size: 12px; font-weight: 700; color: var(--primary); padding: 2px 4px; border-radius: 4px; }
 .export-link-btn:hover { text-decoration: underline; }
 .export-dot-sep { color: var(--text-3); font-size: 12px; }
-.export-cols-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px 12px; }
+.export-cols-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px 12px; }
 .export-col-check { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; color: var(--text-2); font-weight: 500; padding: 6px 10px; border-radius: var(--radius-sm); border: 1px solid var(--border-soft); transition: background 0.12s, border-color 0.12s; }
 .export-col-check:hover { background: var(--primary-soft); border-color: var(--primary); }
 .export-col-check input[type="checkbox"] { accent-color: var(--primary); width: 14px; height: 14px; flex-shrink: 0; cursor: pointer; }

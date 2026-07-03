@@ -964,7 +964,7 @@
           <table class="summary-table">
             <thead>
               <tr>
-                <th class="col-check"><input type="checkbox" @change="toggleAllSummary" ref="summarySelectAllRef"></th>
+                <th class="col-check"><input type="checkbox" @change="toggleAllSummary" ref="summarySelectAllRef" :indeterminate.prop="summarySomeSelected"></th>
                 <th class="sum-name-col">Company</th>
                 <th class="sum-user-col">User</th>
                 <th class="sum-status-col">Status</th>
@@ -1526,6 +1526,7 @@ const summaryContacts     = ref([]);
 const summaryLoading      = ref(false);
 const summaryFilters      = ref({ search: '', user_id: '', status_id: '', type_id: '', category_id: '', industry_id: '' });
 const summarySelectedIds  = ref([]);
+const summarySomeSelected = computed(() => summarySelectedIds.value.length > 0 && summarySelectedIds.value.length < summaryContacts.value.length);
 const summarySelectAllRef = ref(null);
 const summaryPage         = ref(1);
 const summaryPerPage      = ref(50);
@@ -3507,8 +3508,9 @@ tbody tr:last-child td { border-bottom: none; }
 }
 .btn-followup-save { background: #e11d48; color: #fff; border: none; border-radius: 6px; cursor: pointer; }
 .btn-followup-save:disabled { background: #94a3b8; cursor: not-allowed; }
-.btn-followup-submit { flex: 1; background: #e11d48; color: #fff; justify-content: center; height: 42px; padding: 0 20px; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; border: none; display: inline-flex; align-items: center; }
-.btn-followup-submit:disabled { background: #94a3b8; cursor: not-allowed; }
+.btn-followup-submit { flex: 1; background: var(--primary); color: var(--primary-on); justify-content: center; height: 42px; padding: 0 20px; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; border: none; display: inline-flex; align-items: center; box-shadow: 0 6px 18px -6px rgba(29,78,216,0.55); }
+.btn-followup-submit:hover:not(:disabled) { background: var(--primary-hover); }
+.btn-followup-submit:disabled { background: #94a3b8; cursor: not-allowed; box-shadow: none; }
 .todo-actions-cell { text-align: right; white-space: nowrap; display: flex; gap: 4px; justify-content: flex-end; align-items: center; }
 .todo-del-btn {
   display: inline-flex; align-items: center; justify-content: center;

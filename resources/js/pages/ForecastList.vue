@@ -125,9 +125,9 @@
             <tr v-if="forecasts.length === 0">
               <td colspan="11" class="empty-state">No forecasts found.</td>
             </tr>
-            <tr v-for="(f, idx) in forecasts" :key="f.id">
-              <td class="td-check"><input type="checkbox" class="row-cb" :checked="selectedIds.has(f.id)" @change="toggleSelect(f.id)"></td>
-              <td class="td-company">
+            <tr v-for="(f, idx) in forecasts" :key="f.id" :class="{ 'row-clickable': f.contact_id }" @click="openContactRow(f)">
+              <td class="td-check" @click.stop><input type="checkbox" class="row-cb" :checked="selectedIds.has(f.id)" @change="toggleSelect(f.id)"></td>
+              <td class="td-company" @click.stop>
                 <router-link v-if="f.contact_id" :to="`/contacts/${f.contact_id}`" class="company-link">{{ f.contact_name }}</router-link>
                 <span v-else class="muted">—</span>
               </td>
@@ -141,17 +141,17 @@
               </td>
               <td class="amount-cell">{{ fmtValue(f.amount) }}</td>
               <td><span class="date-text">{{ fmtDate(f.forecast_date) }}</span></td>
-              <td class="result-cell">
+              <td class="result-cell" @click.stop>
                 <div class="result-inner">
-                  <span class="result-text" :class="resultClass(f.result_name)">{{ f.result_name ?? 'No Result' }}</span>
-                  <button v-if="can('edit forecasts') && f.can_edit" class="result-edit-btn" title="Update result" @click="openResultModal(f)" v-html="CI.edit"></button>
+                  <span class="result-badge" :class="resultClass(f.result_name)">{{ f.result_name ?? 'No Result' }}</span>
+                  <button v-if="can('edit forecasts') && f.can_edit" class="result-edit-btn" title="Update result" aria-label="Update result" @click="openResultModal(f)" v-html="CI.edit"></button>
                 </div>
               </td>
               <td>{{ f.user_name ?? '—' }}</td>
               <td><span class="date-text">{{ fmtDate(f.forecast_updatedate) }}</span></td>
-              <td class="actions-cell">
-                <button v-if="can('edit forecasts') && f.can_edit" type="button" class="icon-btn btn-edit" title="Edit" @click="openEdit(f.id)" v-html="CI.edit"></button>
-                <button v-if="can('delete forecasts') && f.can_edit" class="icon-btn btn-del" title="Delete" @click="confirmDelete(f)" v-html="CI.trash"></button>
+              <td class="actions-cell" @click.stop>
+                <button v-if="can('edit forecasts') && f.can_edit" type="button" class="icon-btn btn-edit" title="Edit" aria-label="Edit forecast" @click="openEdit(f.id)" v-html="CI.edit"></button>
+                <button v-if="can('delete forecasts') && f.can_edit" class="icon-btn btn-del" title="Delete" aria-label="Delete forecast" @click="confirmDelete(f)" v-html="CI.trash"></button>
               </td>
             </tr>
           </tbody>
@@ -301,6 +301,7 @@
 
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue';
+import { useRouter } from 'vue-router';
 import api from '../api.js';
 import LoadingSpinner from '../components/LoadingSpinner.vue';
 import ForecastFormModal from '../components/ForecastFormModal.vue';
@@ -312,6 +313,11 @@ defineProps({ embedded: { type: Boolean, default: false } });
 
 const { can } = usePermissions();
 const { lookups, load: loadLookups } = useLookups();
+const router = useRouter();
+
+function openContactRow(f) {
+  if (f.contact_id) router.push(`/contacts/${f.contact_id}`);
+}
 
 const _si = (p, sz = 14) => `<svg width="${sz}" height="${sz}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
 const CI = {
@@ -708,6 +714,7 @@ tbody td { padding: 8px 12px; border-bottom: 1px solid var(--border-soft); borde
 tbody td:last-child { border-right: none; }
 tbody tr:last-child td { border-bottom: none; }
 tbody tr:hover { background: var(--surface-2); }
+.row-clickable { cursor: pointer; }
 .td-company  { white-space: normal !important; word-break: break-word; overflow: visible !important; }
 .td-product  { white-space: normal !important; word-break: break-word; overflow: visible !important; }
 
@@ -721,11 +728,11 @@ tbody tr:hover { background: var(--surface-2); }
 .company-link:hover { color: var(--primary); }
 .muted { color: var(--text-3); }
 .type-badge { background: #e0f2fe; color: #0369a1; font-size: 11.5px; font-weight: 600; padding: 3px 10px; border-radius: 999px; white-space: nowrap; }
-.result-text      { font-size: 13px; font-weight: 600; white-space: nowrap; }
-.result-confirmed { color: #15803d; }
-.result-pending   { color: #b45309; }
-.result-rejected  { color: #b91c1c; }
-.result-no-result { color: var(--text-3); font-weight: 400; }
+.result-badge     { font-size: 11.5px; font-weight: 600; padding: 3px 10px; border-radius: 999px; white-space: nowrap; }
+.result-confirmed { background: #dcfce7; color: #15803d; }
+.result-pending   { background: #fef3c7; color: #b45309; }
+.result-rejected  { background: #fee2e2; color: #b91c1c; }
+.result-no-result { background: var(--surface-2); color: var(--text-3); }
 .amount-cell { font-weight: 800; color: #0369a1; white-space: nowrap; }
 .snapshot { display: flex; flex-direction: column; gap: 2px; }
 .snapshot span { font-size: 12.5px; font-weight: 600; color: var(--text-1); }
@@ -829,7 +836,7 @@ tbody tr:hover { background: var(--surface-2); }
 .export-modal-title { font-size: 17px; font-weight: 800; color: var(--text-1); }
 .export-modal-sub   { font-size: 12.5px; color: var(--text-3); margin: 3px 0 0; }
 .export-modal-body  { padding: 20px 24px; display: flex; flex-direction: column; gap: 18px; overflow-y: auto; flex: 1 1 auto; min-height: 0; }
-.export-modal-footer { display: flex; flex-direction: column; gap: 12px; padding: 16px 24px 20px; border-top: 1px solid var(--border-soft); background: var(--surface-2, #f8f9ff); flex-shrink: 0; }
+.export-modal-footer { display: flex; flex-direction: column; gap: 12px; padding: 16px 24px 20px; border-top: 1px solid var(--border-soft); background: var(--surface-2); flex-shrink: 0; }
 .export-footer-count { font-size: 13px; color: var(--text-3); margin: 0; }
 .export-footer-count strong { color: var(--primary); }
 .export-action-stack { display: flex; flex-direction: column; gap: 10px; }
