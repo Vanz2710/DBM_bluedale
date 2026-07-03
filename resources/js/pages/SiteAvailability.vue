@@ -1641,9 +1641,11 @@ async function saveContact() {
     selectedProduct.value = prepared;
     editingContact.value = false;
     contactForm.value = { contact_name: '', contact_mobile: '' };
+    showToast('Contact details saved');
   } catch (e) {
     const errors = e.response?.data?.errors;
     error.value = errors ? Object.values(errors).flat().join(' ') : 'Failed to save contact details.';
+    showToast(error.value);
   } finally {
     savingContact.value = false;
   }
@@ -1722,9 +1724,11 @@ async function saveDetails() {
     selectedProduct.value = prepared;
     editingDetails.value = false;
     detailForm.value = emptyDetailForm();
+    showToast('Product details saved');
   } catch (e) {
     const errors = e.response?.data?.errors;
     error.value = errors ? Object.values(errors).flat().join(' ') : 'Failed to save product details.';
+    showToast(error.value);
   } finally {
     savingDetails.value = false;
   }
@@ -1782,9 +1786,11 @@ async function saveLandmarks() {
     selectedProduct.value = prepared;
     editingLandmarks.value = false;
     landmarkForm.value = [];
+    showToast('Nearest landmarks saved');
   } catch (e) {
     const errors = e.response?.data?.errors;
     error.value = errors ? Object.values(errors).flat().join(' ') : 'Failed to save nearest landmarks.';
+    showToast(error.value);
   } finally {
     savingLandmarks.value = false;
   }
@@ -1943,6 +1949,7 @@ async function generateProposal() {
   if (selectedProductIds.value.length === 0) return;
   if (hasStep1Errors.value) {
     error.value = 'Please fix the highlighted issues in Step 1 before generating.'
+    showToast(error.value)
     wizardStep.value = 'info'
     return
   }
@@ -2119,6 +2126,7 @@ async function uploadPhoto(product, kind, file, fromWizard = false) {
   const MAX_BYTES = 20 * 1024 * 1024; // 20 MB — matches server .htaccess / .user.ini
   if (file.size > MAX_BYTES) {
     error.value = `Photo is too large (${(file.size / 1024 / 1024).toFixed(1)} MB). Maximum allowed size is 20 MB.`;
+    showToast(error.value);
     return;
   }
 
@@ -2136,6 +2144,7 @@ async function uploadPhoto(product, kind, file, fromWizard = false) {
     const res = await api.post(`/v1/site-availability/products/${product.id}/photo`, fd);
     const { path, url } = res.data.data;
     applyPhotoUpdate(product.id, kind, path, url);
+    showToast('Photo uploaded');
   } catch (e) {
     const status = e.response?.status;
     const errors = e.response?.data?.errors;
@@ -2146,6 +2155,7 @@ async function uploadPhoto(product, kind, file, fromWizard = false) {
     } else {
       error.value = 'The photo failed to upload. Please try again.';
     }
+    showToast(error.value);
   } finally {
     if (fromWizard) {
       uploadingPhotoFor.value[product.id][kind] = false;
@@ -2169,9 +2179,10 @@ async function confirmRemovePhoto() {
     });
     applyPhotoUpdate(selectedProduct.value.id, removePhotoModal.kind, null, null);
     closeRemovePhotoModal();
+    showToast('Photo removed');
   } catch (e) {
     error.value = e.response?.data?.message ?? 'Failed to remove photo.';
-    closeRemovePhotoModal();
+    showToast(error.value);
   } finally {
     removePhotoModal.loading = false;
   }
@@ -2224,6 +2235,7 @@ async function addBooking() {
   } catch (e) {
     const errors = e.response?.data?.errors;
     error.value = errors ? Object.values(errors).flat().join(' ') : 'Failed to save booking.';
+    showToast(error.value);
   } finally {
     saving.value = false;
   }
@@ -2322,67 +2334,12 @@ function upsertRow(row) {
   }
 }
 
-async function saveProduct(row) {
-  error.value = '';
-  try {
-    await api.put(`/v1/site-availability/products/${row.id}`, {
-      site_name: row.site_name,
-      status: row.status,
-      type: row.type,
-      product_type: row.product_type,
-    });
-  } catch (e) {
-    error.value = e.response?.data?.message ?? 'Failed to update product row.';
-    load();
-  }
-}
-
-async function updateMonth(row, month, value) {
-  const companyName = value.trim();
-  const booking = bookingFor(row, month);
-
-  if (!companyName && booking) {
-    await deleteBooking(row, booking);
-    return;
-  }
-
-  if (!companyName) return;
-
-  try {
-    if (booking) {
-      const res = await api.put(`/v1/site-availability/bookings/${booking.id}`, {
-        company_name: companyName,
-        contact_id: booking.contact_id,
-        start_date: booking.start_date || null,
-        end_date: booking.end_date || null,
-      });
-      Object.assign(booking, res.data.data);
-      return;
-    }
-
-    const res = await api.post('/v1/site-availability', {
-      site_name: row.site_name,
-      status: row.status,
-      type: row.type,
-      product_type: row.product_type,
-      company_name: companyName,
-      start_date: null,
-      end_date: null,
-      year: year.value,
-      month,
-    });
-    upsertRow(res.data.data);
-  } catch (e) {
-    error.value = e.response?.data?.message ?? 'Failed to update month booking.';
-    load();
-  }
-}
-
 async function updateBookingDate(row, month, field, value) {
   const booking = bookingFor(row, month);
   if (!booking) return;
   if (!value) {
     error.value = 'Date cannot be cleared — pick a new date or delete the booking instead.';
+    showToast(error.value);
     load();
     return;
   }
@@ -2391,6 +2348,7 @@ async function updateBookingDate(row, month, field, value) {
 
   if (next.end < next.start) {
     error.value = 'End rent date must be same as or after start rent date.';
+    showToast(error.value);
     load();
     return;
   }
@@ -2417,6 +2375,7 @@ async function updateBookingDate(row, month, field, value) {
     showToast(`${booking.company_name}'s booking now runs ${formatDate(next.start)} → ${formatDate(next.end)}`);
   } catch (e) {
     error.value = e.response?.data?.message ?? 'Failed to update rental date.';
+    showToast(error.value);
     load();
   }
 }
@@ -2430,9 +2389,12 @@ async function deleteBooking(row, booking) {
     row.bookings = row.bookings.filter((item) =>
       groupId ? item.booking_group !== groupId : item.id !== booking.id
     );
+    return true;
   } catch (e) {
     error.value = e.response?.data?.message ?? 'Failed to remove booking.';
+    showToast(error.value);
     load();
+    return false;
   }
 }
 
@@ -2444,11 +2406,11 @@ async function confirmRemoveBooking() {
   if (!removeBookingModal.row || !removeBookingModal.booking) return;
   removeBookingModal.loading = true;
   try {
-    await deleteBooking(removeBookingModal.row, removeBookingModal.booking);
-    closeCellMenu();
-    closeRemoveBookingModal();
-  } catch {
-    closeRemoveBookingModal();
+    const ok = await deleteBooking(removeBookingModal.row, removeBookingModal.booking);
+    if (ok) {
+      closeCellMenu();
+      closeRemoveBookingModal();
+    }
   } finally {
     removeBookingModal.loading = false;
   }
@@ -2705,8 +2667,10 @@ async function confirmProductDirect(product) {
     const idx = rows.value.findIndex((r) => r.id === updated.id);
     if (idx !== -1) rows.value[idx] = updated;
     if (selectedProduct.value?.id === updated.id) selectedProduct.value = updated;
+    showToast('Product confirmed');
   } catch (e) {
     error.value = e.response?.data?.message ?? 'Failed to confirm product.';
+    showToast(error.value);
   }
 }
 
@@ -2727,8 +2691,10 @@ async function confirmPendingProduct() {
     const idx = rows.value.findIndex((r) => r.id === updated.id);
     if (idx !== -1) rows.value[idx] = updated;
     selectedProduct.value = updated;
+    showToast('Product confirmed');
   } catch (e) {
     error.value = e.response?.data?.message ?? 'Failed to confirm product.';
+    showToast(error.value);
   } finally {
     confirmingProduct.value = false;
   }
@@ -2759,9 +2725,10 @@ async function confirmDiscardProduct() {
     closeDiscardProductModal();
     closeProductDetail();
     if (showMapView.value) refreshMapMarkers();
+    showToast('Product discarded');
   } catch (e) {
     error.value = e.response?.data?.message ?? 'Failed to discard product.';
-    closeDiscardProductModal();
+    showToast(error.value);
   } finally {
     discardProductModal.loading = false;
   }
