@@ -54,6 +54,7 @@
             <div class="field">
               <label>Ad Format <span class="req-star">*</span></label>
               <select v-model="form.product_type">
+                <option value="" disabled>Select ad format...</option>
                 <option v-for="p in productOptions" :key="p" :value="p">{{ p }}</option>
               </select>
             </div>
@@ -147,10 +148,10 @@
           </p>
           <div class="register-footer-actions">
             <button type="button" class="btn-clear" @click="emit('close')">Cancel</button>
-            <button type="button" class="btn-stage-pdf" :disabled="saving || !form.site_name.trim()" @click="emit('stage')">
+            <button type="button" class="btn-stage-pdf" :disabled="saving || !form.site_name.trim() || !form.product_type" @click="emit('stage')">
               {{ saving ? 'Saving...' : 'Save as Draft + Print PDF' }}
             </button>
-            <button type="button" class="btn-add" :disabled="saving || !form.site_name.trim()" @click="emit('register')">
+            <button type="button" class="btn-add" :disabled="saving || !form.site_name.trim() || !form.product_type" @click="emit('register')">
               {{ saving ? 'Registering...' : 'Register Product' }}
             </button>
           </div>

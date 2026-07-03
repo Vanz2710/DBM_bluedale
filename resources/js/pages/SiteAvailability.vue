@@ -385,12 +385,13 @@
                     <th class="landmark-col-cat">Category</th>
                     <th class="landmark-col-dist">Distance</th>
                     <th>Place</th>
+                    <th class="landmark-col-remove"></th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-for="(landmark, index) in activeLandmarkRows" :key="`${landmark.category}-${index}`">
+                  <tr v-for="(landmark, index) in activeLandmarkRows" :key="index">
                     <th class="landmark-col-cat">
-                      <input v-if="editingLandmarks" v-model="landmarkForm[index].category" aria-label="Landmark category">
+                      <input v-if="editingLandmarks" v-model="landmarkForm[index].category" placeholder="e.g. Shopping Mall" aria-label="Landmark category">
                       <span v-else>{{ landmark.category }}</span>
                     </th>
                     <td v-if="editingLandmarks" class="landmark-col-dist">
@@ -402,9 +403,13 @@
                         <template v-if="landmark.distance">{{ landmark.distance }} to </template>{{ landmark.place }}
                       </span>
                     </td>
+                    <td v-if="editingLandmarks" class="landmark-col-remove">
+                      <button type="button" class="btn-remove-landmark" :disabled="savingLandmarks" @click="removeLandmarkRow(index)" aria-label="Remove landmark row">&times;</button>
+                    </td>
                   </tr>
                 </tbody>
               </table>
+              <button v-if="editingLandmarks" type="button" class="btn-add-landmark" :disabled="savingLandmarks" @click="addLandmarkRow">+ Add Landmark</button>
             </div>
           </div>
 
@@ -1282,7 +1287,7 @@ const registerSaving = ref(false);
 const registerError = ref('');
 const registerForm = ref({
   site_name: '',
-  product_type: 'Temp Board',
+  product_type: '',
   status: 'Existing',
   type: 'A1',
   illumination: '',
@@ -1745,7 +1750,7 @@ function buildSiteNameFromDetails() {
 
 function startLandmarkEdit() {
   landmarkForm.value = landmarkRows.value.map((landmark) => ({
-    category: landmark.category === 'Not set' ? '' : landmark.category,
+    category: landmark.category,
     distance: landmark.distance || '',
     place: landmark.place === 'Not set' ? '' : landmark.place,
   }));
@@ -1755,6 +1760,14 @@ function startLandmarkEdit() {
 function cancelLandmarkEdit() {
   editingLandmarks.value = false;
   landmarkForm.value = [];
+}
+
+function addLandmarkRow() {
+  landmarkForm.value.push({ category: '', distance: '', place: '' });
+}
+
+function removeLandmarkRow(index) {
+  landmarkForm.value.splice(index, 1);
 }
 
 async function saveLandmarks() {
@@ -2556,7 +2569,7 @@ function refreshMapMarkers() {
 function openRegisterModal() {
   registerForm.value = {
     site_name: '',
-    product_type: 'Temp Board',
+    product_type: '',
     status: 'Existing',
     type: 'A1',
     illumination: '',
@@ -3312,6 +3325,21 @@ onMounted(() => {
   outline: none; background: var(--surface);
 }
 .detail-table input:focus, .landmark-table input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); }
+.btn-remove-landmark {
+  width: 26px; height: 26px; border: none; border-radius: var(--radius-sm);
+  background: var(--danger-soft); color: var(--danger); font-size: 16px; line-height: 1;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+}
+.btn-remove-landmark:hover:not(:disabled) { filter: brightness(0.93); }
+.btn-remove-landmark:disabled, .btn-add-landmark:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-add-landmark {
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  width: calc(100% - 32px); margin: 10px 16px 14px; height: 34px;
+  border: 1.5px dashed var(--border); border-radius: var(--radius-sm);
+  background: transparent; color: var(--text-2); font-size: 12px; font-weight: 700; cursor: pointer;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+.btn-add-landmark:hover:not(:disabled) { border-color: var(--primary); color: var(--primary); background: var(--primary-soft); }
 .map-link {
   display: inline-flex; align-items: center; justify-content: center; min-height: 36px;
   padding: 0 14px; border-radius: var(--radius-sm); background: var(--primary); color: var(--primary-on); font-size: 12px;
@@ -3427,6 +3455,7 @@ onMounted(() => {
 /* Landmark distance column */
 .landmark-col-cat { width: 32% !important; }
 .landmark-col-dist { width: 24% !important; }
+.landmark-col-remove { width: 36px !important; padding: 10px 12px 10px 0 !important; }
 
 /* Wizard modal */
 .wizard-modal {

@@ -685,7 +685,14 @@ class SiteAvailabilityController extends Controller
             $photoH     = 287;
         }
 
-        return $products->map(function ($product) use ($composites, $sitePhotoW, $mapPhotoW, $photoH) {
+        // dompdf lays the page out at 96dpi, but embedding the raster at that same pixel
+        // count makes any text baked into the photo (map street labels, road signage)
+        // turn to mush once the PDF is zoomed or printed. Render the raster at a higher
+        // pixel density than the 96dpi CSS box it sits in — dompdf just scales it down to
+        // fit, so this only buys sharpness and never changes the on-page layout size.
+        $rasterScale = 2.5;
+
+        return $products->map(function ($product) use ($composites, $sitePhotoW, $mapPhotoW, $photoH, $rasterScale) {
             $composite = $composites[(string) $product->id] ?? null;
             return [
                 'id'                 => $product->id,
@@ -713,10 +720,14 @@ class SiteAvailabilityController extends Controller
                     ->values()
                     ->all(),
                 'site_photo_data'    => $this->resizeForPdfFrame(
-                    $composite ?? $this->photoDataUri($product->site_photo), $sitePhotoW, $photoH
+                    $composite ?? $this->photoDataUri($product->site_photo),
+                    (int) round($sitePhotoW * $rasterScale),
+                    (int) round($photoH * $rasterScale)
                 ),
                 'site_map_photo_data'=> $this->resizeForPdfFrame(
-                    $this->photoDataUri($product->site_map_photo), $mapPhotoW, $photoH
+                    $this->photoDataUri($product->site_map_photo),
+                    (int) round($mapPhotoW * $rasterScale),
+                    (int) round($photoH * $rasterScale)
                 ),
             ];
         })->all();
