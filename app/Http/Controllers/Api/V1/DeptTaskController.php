@@ -217,6 +217,135 @@ class DeptTaskController extends Controller
         return response()->json($paginated);
     }
 
+    public function export(Request $request)
+    {
+        $authUser = $request->user();
+        $isAdmin  = $this->isAdmin($request);
+
+        $ALLOWED = ['no', 'title', 'department', 'assigned_to', 'priority', 'status', 'due_date', 'created_by', 'created_at', 'description'];
+        $LABELS  = [
+            'no' => 'No', 'title' => 'Task', 'department' => 'Department',
+            'assigned_to' => 'Assigned To', 'priority' => 'Priority', 'status' => 'Status',
+            'due_date' => 'Due Date', 'created_by' => 'Created By', 'created_at' => 'Created On',
+            'description' => 'Description',
+        ];
+        $WIDTHS = [
+            'no' => 28, 'title' => 220, 'department' => 130, 'assigned_to' => 130,
+            'priority' => 70, 'status' => 100, 'due_date' => 75, 'created_by' => 130,
+            'created_at' => 75, 'description' => 260,
+        ];
+
+        $requested = array_filter(explode(',', $request->input('cols', '')));
+        $selected  = !empty($requested) ? array_values(array_intersect($ALLOWED, $requested)) : $ALLOWED;
+        $format    = $request->input('format') === 'csv' ? 'csv' : 'xls';
+
+        // Same filters as index() — export reflects whatever the Table tab is currently showing.
+        $q = DeptTask::with(['department', 'assignee:id,name,email', 'creator:id,name']);
+
+        if (!$isAdmin) {
+            $q->where('assigned_to', $authUser->id);
+        } elseif ($request->filled('assigned_to')) {
+            $q->where('assigned_to', $request->assigned_to);
+        }
+        if ($request->filled('department_id')) {
+            $q->where('department_id', $request->department_id);
+        }
+        if ($request->filled('status')) {
+            if ($request->status === 'overdue') {
+                $q->overdue();
+            } else {
+                $q->where('status', $request->status);
+            }
+        }
+        if ($request->filled('priority')) {
+            $q->where('priority', $request->priority);
+        }
+        if ($request->filled('search')) {
+            $q->where('title', 'like', '%'.$request->search.'%');
+        }
+        if ($request->filled('date_from')) {
+            $q->where('due_date', '>=', $request->date_from);
+        }
+        if ($request->filled('date_to')) {
+            $q->where('due_date', '<=', $request->date_to);
+        }
+
+        $sortBy  = in_array($request->sort_by, ['created_at', 'due_date', 'priority', 'title', 'status']) ? $request->sort_by : 'created_at';
+        $sortDir = $request->sort_dir === 'asc' ? 'asc' : 'desc';
+        $q->orderBy($sortBy, $sortDir);
+
+        $statusLabel = fn($s) => ['pending' => 'Pending', 'in_progress' => 'In Progress', 'waiting_approval' => 'Waiting Approval', 'completed' => 'Completed', 'cancelled' => 'Cancelled'][$s] ?? $s;
+
+        $getVal = fn($t, $col) => match ($col) {
+            'no'          => null,
+            'title'       => $t->title,
+            'department'  => $t->department?->name ?? '',
+            'assigned_to' => $t->assignee?->name ?? '',
+            'priority'    => ucfirst($t->priority),
+            'status'      => $t->is_overdue ? 'Overdue' : $statusLabel($t->status),
+            'due_date'    => $t->due_date?->format('d M Y') ?? '',
+            'created_by'  => $t->creator?->name ?? '',
+            'created_at'  => $t->created_at?->format('d M Y') ?? '',
+            'description' => $t->description ?? '',
+            default       => '',
+        };
+
+        $filename = 'Task_Export_' . now()->format('Y-m-d') . '.' . $format;
+
+        if ($format === 'csv') {
+            return response()->stream(function () use ($q, $selected, $LABELS, $getVal) {
+                $h = fopen('php://output', 'w');
+                fwrite($h, "\xEF\xBB\xBF");
+                fputcsv($h, array_map(fn($k) => $LABELS[$k] ?? $k, $selected));
+                $no = 1;
+                $q->chunk(300, function ($tasks) use ($h, $selected, $getVal, &$no) {
+                    foreach ($tasks as $t) {
+                        $row = [];
+                        foreach ($selected as $col) { $row[] = $col === 'no' ? $no : $getVal($t, $col); }
+                        fputcsv($h, $row);
+                        $no++;
+                    }
+                });
+                fclose($h);
+            }, 200, [
+                'Content-Type'        => 'text/csv; charset=UTF-8',
+                'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+                'X-Accel-Buffering'   => 'no',
+            ]);
+        }
+
+        return response()->stream(function () use ($q, $selected, $LABELS, $WIDTHS, $getVal) {
+            $esc     = fn($v) => htmlspecialchars((string) ($v ?? ''), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+            $thStyle = 'font-family:Arial,sans-serif;font-size:10pt;font-weight:bold;color:#000000;background:#ffffff;border:1pt solid #000000;padding:6pt 9pt;white-space:nowrap;text-align:left;';
+            $tdStyle = 'font-family:Arial,sans-serif;font-size:10pt;color:#000000;border:1pt solid #000000;padding:5pt 9pt;vertical-align:top;';
+            echo "\xEF\xBB\xBF";
+            echo '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">';
+            echo '<head><meta charset="UTF-8"><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>Tasks</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]--></head>';
+            echo '<body><table style="border-collapse:collapse;"><colgroup>';
+            foreach ($selected as $col) { echo '<col style="width:' . ($WIDTHS[$col] ?? 100) . 'pt">'; }
+            echo '</colgroup><thead><tr>';
+            foreach ($selected as $col) { echo '<th style="' . $thStyle . '">' . $esc($LABELS[$col] ?? $col) . '</th>'; }
+            echo '</tr></thead><tbody>';
+            $no = 1;
+            $q->chunk(300, function ($tasks) use (&$no, $selected, $esc, $tdStyle, $getVal) {
+                foreach ($tasks as $t) {
+                    echo '<tr>';
+                    foreach ($selected as $col) {
+                        $val = $col === 'no' ? $no : $getVal($t, $col);
+                        echo '<td style="' . $tdStyle . '">' . $esc($val) . '</td>';
+                    }
+                    echo '</tr>';
+                    $no++;
+                }
+            });
+            echo '</tbody></table></body></html>';
+        }, 200, [
+            'Content-Type'        => 'application/vnd.ms-excel; charset=UTF-8',
+            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+            'X-Accel-Buffering'   => 'no',
+        ]);
+    }
+
     public function store(Request $request): JsonResponse
     {
         // Task creation is admin-only for now. To let users create their own tasks,

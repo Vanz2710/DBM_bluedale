@@ -594,7 +594,7 @@ export const PAGE_TOURS = {
     {
       target: '.tab-bar',
       title: 'Task Manager — Seven Views',
-      body: 'Seven tabs cover every angle: Board (kanban drag-and-drop), People (tasks grouped by assignee), Dashboard (stats & charts), Table (searchable list), This Week (weekly report), History (audit log), and Files (all attached documents). Click any tab to switch.',
+      body: 'Seven tabs cover every angle: Board (kanban drag-and-drop), Calendar (month view of due dates), People (tasks grouped by assignee), Dashboard (stats & charts), Table (searchable list with date-range filtering, doubling as the audit log), This Week (weekly report), and Files (all attached documents). Click any tab to switch.',
       position: 'bottom',
     },
     {
@@ -607,6 +607,12 @@ export const PAGE_TOURS = {
       target: '[data-tour="deptask-tab-board"]',
       title: 'Board — Kanban View',
       body: 'Tasks appear as draggable cards across columns: Pending → In Progress → Waiting Approval → Completed. Drag a card to move it. Overdue cards are flagged in red. Click any card to view details, add comments, attach files, approve or reject submissions, or override the status directly.',
+      position: 'bottom',
+    },
+    {
+      target: '[data-tour="deptask-tab-calendar"]',
+      title: 'Calendar — Month View',
+      body: 'See every task laid out by due date across the month. Use the arrows to move between months, filter by department or assignee just like the Board, and click any task pill to open its detail panel. Admins can click empty space on a day to create a new task due that date.',
       position: 'bottom',
     },
     {
@@ -624,19 +630,13 @@ export const PAGE_TOURS = {
     {
       target: '[data-tour="deptask-tab-table"]',
       title: 'Table — Search & Filter',
-      body: 'Searchable, paginated list of every task. Filter by department, status, priority, or assignee simultaneously. Click any column header to sort. Hit Print to export a formatted A4 report of the current filtered view.',
+      body: 'Searchable, paginated list of every task. Filter by department, status, priority, assignee, or a date range simultaneously — use the This Week / This Month buttons for common ranges, or pick custom From/To dates to audit past work. Click any column header to sort. Hit Print for a formatted A4 report, or Export to download the current filtered view as a CSV or Excel file with your choice of columns.',
       position: 'bottom',
     },
     {
       target: '[data-tour="deptask-tab-weekly"]',
       title: 'This Week — Outstanding Report',
       body: 'Printable report of all outstanding tasks grouped by department for the selected week. Use the navigation arrows to move between weeks, filter by assignee for individual workload reviews, and click Print A4 to export for team meetings.',
-      position: 'bottom',
-    },
-    {
-      target: '[data-tour="deptask-tab-reports"]',
-      title: 'History — Audit Log',
-      body: 'All completed and cancelled tasks with their resolution dates. Filter by department, status, priority, or date range to audit past work and measure team output over time.',
       position: 'bottom',
     },
     {
@@ -651,7 +651,7 @@ export const PAGE_TOURS = {
     {
       target: '.tab-bar',
       title: 'Your Task Manager',
-      body: 'Four views: List (your personal tasks sorted by urgency), Board (team kanban for reference), History (your completed tasks), and Files (all documents attached to your tasks). List is your day-to-day working surface.',
+      body: 'Four views: List (your personal tasks sorted by urgency), Board (team kanban for reference), Calendar (your due dates by month), and Files (all documents attached to your tasks). List is your day-to-day working surface.',
       position: 'bottom',
     },
     {
@@ -676,6 +676,12 @@ export const PAGE_TOURS = {
       target: '[data-tour="deptask-tab-board"]',
       title: 'Board View',
       body: 'See all team tasks across status columns. Click any card to view details. Task creation and admin-level status changes are managed by your admin.',
+      position: 'bottom',
+    },
+    {
+      target: '[data-tour="deptask-tab-calendar"]',
+      title: 'Calendar View',
+      body: 'See your tasks laid out by due date across the month. Use the arrows to move between months and click any task to open its detail panel.',
       position: 'bottom',
     },
     {

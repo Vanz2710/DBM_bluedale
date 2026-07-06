@@ -233,6 +233,61 @@
       </div>
     </div>
 
+    <!-- ── Calendar ──────────────────────────────────────────────────────────── -->
+    <div v-else-if="currentView === 'calendar'" class="dtm-section">
+      <div class="section-toolbar">
+        <div class="cal-nav">
+          <button class="btn-icon" @click="calendarNav(-1)" aria-label="Previous month" v-html="ICO.chevronL"></button>
+          <span class="cal-nav-label">{{ calendarMonthLabel }}</span>
+          <button class="btn-icon" @click="calendarNav(1)" aria-label="Next month" v-html="ICO.chevronR"></button>
+        </div>
+        <div v-if="isAdmin" class="scope-toggle">
+          <button :class="['scope-btn', boardFilters.assigned_to ? 'active' : '']"
+            @click="setBoardScope(true)">My Tasks</button>
+          <button :class="['scope-btn', !boardFilters.assigned_to ? 'active' : '']"
+            @click="setBoardScope(false)">All Tasks</button>
+        </div>
+        <select v-model="boardFilters.department_id" @change="loadBoardTasks" class="field-input sm">
+          <option value="">All Departments</option>
+          <option v-for="d in departments" :key="d.id" :value="d.id">{{ d.name }}</option>
+        </select>
+        <button class="btn-ghost sm board-toggle-closed" :class="showClosed && 'active'" @click="toggleShowClosed">
+          <span v-html="showClosed ? ICO.eyeOff : ICO.eye"></span>
+          {{ showClosed ? 'Hide closed' : 'Show closed' }}
+        </button>
+      </div>
+
+      <div v-if="boardLoading" class="view-loading">
+        <div class="spinner"></div>
+      </div>
+      <div v-else class="cal-wrap">
+        <div class="cal-head-row">
+          <span v-for="d in CAL_WEEKDAYS" :key="d">{{ d }}</span>
+        </div>
+        <div class="cal-grid">
+          <div v-for="day in calendarDays" :key="day.key"
+            class="cal-day"
+            :class="{ 'cal-day--muted': !day.inMonth, 'cal-day--today': day.isToday, 'cal-day--addable': isAdmin }"
+            :title="isAdmin ? 'Click to add a task due ' + day.date : ''"
+            @click="isAdmin && openTaskModal(null, boardFilters.department_id || null, day.date)">
+            <span class="cal-day-num">{{ day.day }}</span>
+            <div class="cal-pill-stack">
+              <div v-for="task in (calendarTasksByDate[day.date] || []).slice(0, 3)" :key="task.id"
+                class="cal-pill" :class="task.is_overdue && 'cal-pill--overdue'"
+                :style="{ borderLeftColor: priorityColor(task.priority) }"
+                @click.stop="openTaskDetail(task)">
+                <span class="cal-pill-title">{{ task.title }}</span>
+                <span v-if="task.assignee" class="cal-pill-who">{{ initials(task.assignee.name) }}</span>
+              </div>
+              <div v-if="(calendarTasksByDate[day.date] || []).length > 3" class="cal-more">
+                +{{ (calendarTasksByDate[day.date] || []).length - 3 }} more
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- ── People (tasks by user, Notion-style) ────────────────────────────── -->
     <div v-else-if="currentView === 'people'" class="dtm-section">
 
@@ -409,10 +464,21 @@
           <option value="">All Assignees</option>
           <option v-for="u in users" :key="u.id" :value="u.id">{{ u.name }}</option>
         </select>
+        <button @click="quickDateFilter('week')" class="btn-ghost sm">This Week</button>
+        <button @click="quickDateFilter('month')" class="btn-ghost sm">This Month</button>
+        <label class="filter-label">From
+          <input type="date" v-model="tableFilters.date_from" @change="tableFilterChange" class="field-input sm" />
+        </label>
+        <label class="filter-label">To
+          <input type="date" v-model="tableFilters.date_to" @change="tableFilterChange" class="field-input sm" />
+        </label>
         <div class="filter-actions">
           <button @click="clearTableFilters" class="btn-ghost sm">Clear</button>
           <button @click="exportTable()" class="btn-ghost sm">
             <span v-html="ICO.print"></span> Print
+          </button>
+          <button @click="openExportModal()" class="btn-ghost sm">
+            <span v-html="ICO.download"></span> Export
           </button>
           <button v-if="isAdmin" @click="openTaskModal()" class="btn-primary sm">
             <span v-html="ICO.plus"></span> New Task
@@ -552,114 +618,6 @@
             </table>
           </div>
         </div>
-      </div>
-    </div>
-
-    <!-- ── History ───────────────────────────────────────────────────────────── -->
-    <div v-else-if="currentView === 'reports'" class="dtm-section" id="report-print-area">
-
-      <div class="filter-bar no-print">
-        <label class="filter-label">From
-          <input type="date" v-model="reportFilters.date_from" @change="loadReport" class="field-input sm" />
-        </label>
-        <label class="filter-label">To
-          <input type="date" v-model="reportFilters.date_to" @change="loadReport" class="field-input sm" />
-        </label>
-        <select v-model="reportTableFilters.department_id" class="field-input sm">
-          <option value="">All Departments</option>
-          <option v-for="d in departments" :key="d.id" :value="d.id">{{ d.name }}</option>
-        </select>
-        <select v-model="reportTableFilters.status" class="field-input sm">
-          <option value="">All Statuses</option>
-          <option value="pending">Pending</option>
-          <option value="in_progress">In Progress</option>
-          <option value="waiting_approval">Waiting Approval</option>
-          <option value="completed">Completed</option>
-          <option value="cancelled">Cancelled</option>
-          <option value="overdue">Overdue</option>
-        </select>
-        <select v-model="reportTableFilters.priority" class="field-input sm">
-          <option value="">All Priorities</option>
-          <option value="critical">Critical</option>
-          <option value="high">High</option>
-          <option value="medium">Medium</option>
-          <option value="low">Low</option>
-        </select>
-        <div class="filter-actions">
-          <button @click="clearReportFilters" class="btn-ghost sm">Clear</button>
-          <button @click="printReport" class="btn-ghost sm">
-            <span v-html="ICO.print"></span> Print
-          </button>
-        </div>
-      </div>
-
-      <div v-if="reportData" class="hist-summary">
-        <span class="hist-period">{{ reportData.date_from }} – {{ reportData.date_to }}</span>
-        <span class="hist-divider"></span>
-        <span class="hist-metric"><span class="hm-dot" style="background:var(--primary)"></span>{{ reportSummary.total }} tasks</span>
-        <span class="hist-metric"><span class="hm-dot" style="background:#10b981"></span>{{ reportSummary.completed }} completed</span>
-        <span class="hist-metric"><span class="hm-dot" style="background:#94a3b8"></span>{{ reportSummary.pending }} pending</span>
-        <span class="hist-metric" style="color:var(--danger,#dc2626)"><span class="hm-dot" style="background:#ef4444"></span>{{ reportSummary.overdue }} overdue</span>
-        <span v-if="filteredReportTasks.length !== reportFlatTasks.length" class="hist-filtered">
-          filtered from {{ reportFlatTasks.length }}
-        </span>
-      </div>
-
-      <div v-if="reportData && filteredReportTasks.length" class="table-wrap">
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>Task</th>
-              <th>Department</th>
-              <th v-if="isAdmin">Assigned To</th>
-              <th>Priority</th>
-              <th>Due Date</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="t in paginatedReportTasks" :key="t.id"
-              class="table-row" @click="openTaskDetail(t)">
-              <td>{{ t.title }}</td>
-              <td>
-                <span class="dept-pill" :style="{background: t.department?.color+'22', color: t.department?.color}">
-                  {{ t.department?.name }}
-                </span>
-              </td>
-              <td v-if="isAdmin" class="text-2">{{ t.assignee?.name || '—' }}</td>
-              <td>
-                <span class="kc-priority" :style="{background: priorityColor(t.priority)+'22', color: priorityColor(t.priority)}">
-                  {{ t.priority }}
-                </span>
-              </td>
-              <td :class="t.is_overdue && 'text-danger'">{{ t.due_date_fmt || '—' }}</td>
-              <td>
-                <span :class="['status-badge', 'st-'+t.status, t.is_overdue && 'st-overdue']">
-                  {{ t.is_overdue ? 'Overdue' : statusLabel(t.status) }}
-                </span>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <div v-if="reportData && filteredReportTasks.length > REPORT_PAGE_SIZE" class="pagination-bar no-print">
-        <span class="page-info">
-          Showing {{ (reportPage - 1) * REPORT_PAGE_SIZE + 1 }}–{{ Math.min(reportPage * REPORT_PAGE_SIZE, filteredReportTasks.length) }}
-          of {{ filteredReportTasks.length }}
-        </span>
-        <div class="page-btns">
-          <button class="btn-ghost sm" @click="reportPage--" :disabled="reportPage <= 1">Prev</button>
-          <span class="page-num">{{ reportPage }} / {{ reportTotalPages }}</span>
-          <button class="btn-ghost sm" @click="reportPage++" :disabled="reportPage >= reportTotalPages">Next</button>
-        </div>
-      </div>
-
-      <div v-else-if="!reportData" class="view-loading"><div class="spinner"></div></div>
-
-      <div v-else-if="reportData && !filteredReportTasks.length" class="empty-state">
-        <span class="empty-icon" v-html="ICO.trending"></span>
-        <p>{{ reportFlatTasks.length ? 'No tasks match your filters.' : 'No tasks found for this date range.' }}</p>
       </div>
     </div>
 
@@ -1053,6 +1011,61 @@
       </div>
     </transition>
 
+    <!-- ── Export Tasks Modal ─────────────────────────────────────────────────── -->
+    <transition name="modal-fade">
+      <div v-if="exportModal.open" class="modal-backdrop">
+        <div class="modal-box modal-sm">
+          <div class="modal-header">
+            <div>
+              <h3 class="modal-title">Export Tasks</h3>
+              <p class="modal-subtitle">Pick what to include, then download.</p>
+            </div>
+            <button class="btn-icon" @click="exportModal.open = false" v-html="ICO.x"></button>
+          </div>
+          <div class="modal-body">
+            <div class="export-section">
+              <div class="export-cols-head">
+                <span class="export-section-label">Columns to include</span>
+                <div class="export-cols-actions">
+                  <button class="export-link-btn" @click="exportCols.forEach(c => c.checked = true)">All</button>
+                  <span class="export-dot-sep">·</span>
+                  <button class="export-link-btn" @click="exportCols.forEach(c => c.checked = false)">None</button>
+                </div>
+              </div>
+              <div class="export-cols-grid">
+                <label v-for="col in exportCols" :key="col.key" class="export-col-check">
+                  <input type="checkbox" v-model="col.checked">
+                  <span>{{ col.label }}</span>
+                </label>
+              </div>
+            </div>
+          </div>
+          <div class="export-modal-footer">
+            <p class="export-footer-count">
+              Exports the Table tab's current filters · <strong>{{ exportCols.filter(c => c.checked).length }}</strong> column(s)
+            </p>
+            <div class="export-action-stack">
+              <button class="export-dl-btn export-dl-xls" :disabled="exportModal.loading || exportCols.every(c => !c.checked)" @click="executeExport('xls')">
+                <span class="export-dl-icon" v-html="ICO.download"></span>
+                <span class="export-dl-text">
+                  <span class="export-dl-label">{{ exportModal.loading ? 'Exporting…' : 'Download Excel' }}</span>
+                  <span class="export-dl-desc">Formatted with borders &amp; column widths</span>
+                </span>
+              </button>
+              <button class="export-dl-btn export-dl-csv" :disabled="exportModal.loading || exportCols.every(c => !c.checked)" @click="executeExport('csv')">
+                <span class="export-dl-icon" v-html="ICO.download"></span>
+                <span class="export-dl-text">
+                  <span class="export-dl-label">Download CSV</span>
+                  <span class="export-dl-desc">Plain text, opens in any spreadsheet app</span>
+                </span>
+              </button>
+              <button class="export-cancel-btn" @click="exportModal.open = false">Cancel</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </transition>
+
     <!-- ── Toast notifications ───────────────────────────────────────────────── -->
     <div class="toast-container" aria-live="polite">
       <transition-group name="toast-slide">
@@ -1082,7 +1095,6 @@ const ICO = {
   kanban:   _i('<rect x="3" y="3" width="5" height="18" rx="1"/><rect x="10" y="3" width="5" height="13" rx="1"/><rect x="17" y="3" width="4" height="9" rx="1"/>'),
   list:     _i('<line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>'),
   calendar: _i('<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>'),
-  trending: _i('<polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/>'),
   bell:     _i('<path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>'),
   plus:     _i('<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>'),
   edit:     _i('<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>'),
@@ -1106,6 +1118,7 @@ const ICO = {
   users:     _i('<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>'),
   grid:      _i('<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/>'),
   folder:    _i('<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>'),
+  calendarDays: _i('<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="14" x2="8" y2="14"/><line x1="12" y1="14" x2="12" y2="14"/><line x1="16" y1="14" x2="16" y2="14"/><line x1="8" y1="18" x2="8" y2="18"/><line x1="12" y1="18" x2="12" y2="18"/>'),
 };
 
 // ─── View state ───────────────────────────────────────────────────────────────
@@ -1115,18 +1128,18 @@ const _isAdminInit  = (_authUserInit.roles || []).some(r => ['admin', 'super-adm
 
 const ADMIN_VIEWS = [
   { id: 'board',       label: 'Board',      icon: ICO.kanban },
+  { id: 'calendar',    label: 'Calendar',   icon: ICO.calendarDays },
   { id: 'people',      label: 'People',     icon: ICO.users },
   { id: 'dashboard',   label: 'Dashboard',  icon: ICO.chart },
   { id: 'table',       label: 'Table',      icon: ICO.list },
   { id: 'weekly',      label: 'This Week',  icon: ICO.calendar },
-  { id: 'reports',     label: 'History',    icon: ICO.trending },
   { id: 'files',       label: 'Files',      icon: ICO.folder },
 ];
 const USER_VIEWS = [
-  { id: 'mywork',   label: 'List',    icon: ICO.list },
-  { id: 'board',    label: 'Board',   icon: ICO.kanban },
-  { id: 'reports',  label: 'History', icon: ICO.trending },
-  { id: 'files',    label: 'Files',   icon: ICO.folder },
+  { id: 'mywork',   label: 'List',     icon: ICO.list },
+  { id: 'board',    label: 'Board',    icon: ICO.kanban },
+  { id: 'calendar', label: 'Calendar', icon: ICO.calendarDays },
+  { id: 'files',    label: 'Files',    icon: ICO.folder },
 ];
 const views = computed(() => (isAdmin.value ? ADMIN_VIEWS : USER_VIEWS));
 const currentView = ref(_isAdminInit ? 'board' : 'mywork');
@@ -1144,7 +1157,6 @@ const tableTotal      = ref(0);
 const tablePageFrom   = ref(0);
 const tablePageTo     = ref(0);
 const weeklyData    = ref({ week_start: '', week_end: '', departments: [] });
-const reportData    = ref(null);
 const notifications = ref([]);
 const notifCount    = ref(0);
 const toasts        = ref([]);
@@ -1194,14 +1206,10 @@ const currentUserName = computed(() => authUser.value.name ?? '');
 
 // ─── Filters ──────────────────────────────────────────────────────────────────
 const boardFilters = reactive({ department_id: '', assigned_to: '' });
-const tableFilters = reactive({ search: '', department_id: '', status: '', priority: '', assigned_to: '' });
+const tableFilters = reactive({ search: '', department_id: '', status: '', priority: '', assigned_to: '', date_from: '', date_to: '' });
 const tableSort    = reactive({ field: 'created_at', dir: 'desc' });
 const weeklyWeekStart      = ref('');
 const weeklyAssigneeFilter = ref('');
-const reportFilters      = reactive({ date_from: '', date_to: '' });
-const reportTableFilters = reactive({ department_id: '', status: '', priority: '' });
-const reportPage         = ref(1);
-const REPORT_PAGE_SIZE   = 20;
 
 // ─── Modal / panel state ──────────────────────────────────────────────────────
 const showModal    = ref(false);
@@ -1252,6 +1260,56 @@ const kanbanCols = computed(() => {
   return cols;
 });
 
+// ─── Calendar view ────────────────────────────────────────────────────────────
+const CAL_WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const calendarMonth = ref(new Date());
+
+const calendarMonthLabel = computed(() =>
+  calendarMonth.value.toLocaleDateString('default', { month: 'long', year: 'numeric' })
+);
+
+function calendarNav(delta) {
+  calendarMonth.value = new Date(calendarMonth.value.getFullYear(), calendarMonth.value.getMonth() + delta, 1);
+}
+
+// Same closed-task visibility rule the Kanban board applies via kanbanCols/showClosed.
+const calendarFilteredTasks = computed(() => {
+  if (showClosed.value) return boardTasks.value;
+  return boardTasks.value.filter(t => t.status !== 'completed' && t.status !== 'cancelled');
+});
+
+// Grouped once per recompute so each day cell is an O(1) lookup instead of a re-filter.
+const calendarTasksByDate = computed(() => {
+  const map = {};
+  for (const t of calendarFilteredTasks.value) {
+    if (!t.due_date) continue;
+    (map[t.due_date] ??= []).push(t);
+  }
+  return map;
+});
+
+const calendarDays = computed(() => {
+  const monthStart = new Date(calendarMonth.value.getFullYear(), calendarMonth.value.getMonth(), 1);
+  const start = new Date(monthStart);
+  start.setDate(start.getDate() - start.getDay());
+  const todayStr = toLocalDate(new Date());
+
+  const days = [];
+  for (let i = 0; i < 42; i++) {
+    const date = new Date(start);
+    date.setDate(start.getDate() + i);
+    const iso = toLocalDate(date);
+    days.push({
+      key: `${iso}-${i}`,
+      date: iso,
+      day: date.getDate(),
+      inMonth: date.getMonth() === calendarMonth.value.getMonth(),
+      isToday: iso === todayStr,
+    });
+  }
+  return days;
+});
+
 // ─── Computed ─────────────────────────────────────────────────────────────────
 const statCards = computed(() => {
   const s = dashData.value.stats || {};
@@ -1271,43 +1329,6 @@ const weeklyMonthLabel = computed(() => {
   if (parts.length < 3) return '';
   const d = new Date(parts[2], parts[1] - 1, parts[0]);
   return d.toLocaleString('default', { month: 'long', year: 'numeric' }).toUpperCase();
-});
-
-const reportFlatTasks = computed(() => {
-  if (!reportData.value?.byDepartment) return [];
-  return reportData.value.byDepartment.flatMap(dept => dept.tasks);
-});
-
-const filteredReportTasks = computed(() => {
-  let tasks = reportFlatTasks.value;
-  if (reportTableFilters.department_id)
-    tasks = tasks.filter(t => t.department_id === Number(reportTableFilters.department_id));
-  if (reportTableFilters.status === 'overdue')
-    tasks = tasks.filter(t => t.is_overdue);
-  else if (reportTableFilters.status)
-    tasks = tasks.filter(t => t.status === reportTableFilters.status);
-  if (reportTableFilters.priority)
-    tasks = tasks.filter(t => t.priority === reportTableFilters.priority);
-  return tasks;
-});
-
-const reportTotalPages = computed(() =>
-  Math.max(1, Math.ceil(filteredReportTasks.value.length / REPORT_PAGE_SIZE))
-);
-
-const paginatedReportTasks = computed(() => {
-  const start = (reportPage.value - 1) * REPORT_PAGE_SIZE;
-  return filteredReportTasks.value.slice(start, start + REPORT_PAGE_SIZE);
-});
-
-const reportSummary = computed(() => {
-  const tasks = filteredReportTasks.value;
-  return {
-    total:     tasks.length,
-    completed: tasks.filter(t => t.status === 'completed').length,
-    pending:   tasks.filter(t => t.status === 'pending').length,
-    overdue:   tasks.filter(t => t.is_overdue).length,
-  };
 });
 
 const filteredWeeklyDepts = computed(() => {
@@ -1611,6 +1632,8 @@ async function loadTableTasks() {
     if (tableFilters.status)        params.status        = tableFilters.status;
     if (tableFilters.priority)      params.priority      = tableFilters.priority;
     if (tableFilters.assigned_to)   params.assigned_to   = tableFilters.assigned_to;
+    if (tableFilters.date_from)     params.date_from     = tableFilters.date_from;
+    if (tableFilters.date_to)       params.date_to       = tableFilters.date_to;
     const res = await api.get('/v1/dept/tasks', { params });
     tableTasks.value  = res.data.data;
     tableLastPage.value = res.data.last_page;
@@ -1628,20 +1651,6 @@ async function loadWeeklyData() {
   weeklyData.value = res.data;
 }
 
-async function loadReport() {
-  reportPage.value = 1;
-  const params = {};
-  if (reportFilters.date_from) params.date_from = reportFilters.date_from;
-  if (reportFilters.date_to)   params.date_to   = reportFilters.date_to;
-  const res = await api.get('/v1/dept/report', { params });
-  reportData.value = res.data;
-}
-
-function clearReportFilters() {
-  Object.assign(reportTableFilters, { department_id: '', status: '', priority: '' });
-  reportPage.value = 1;
-}
-
 async function loadNotifications() {
   const res = await api.get('/v1/dept/notifications');
   notifications.value = res.data.notifications;
@@ -1656,7 +1665,7 @@ async function markAllRead() {
 }
 
 // ─── Task CRUD ────────────────────────────────────────────────────────────────
-function openTaskModal(task = null, deptId = null) {
+function openTaskModal(task = null, deptId = null, dueDate = null) {
   editTask.value = task;
   if (task) {
     Object.assign(form, {
@@ -1668,7 +1677,7 @@ function openTaskModal(task = null, deptId = null) {
     Object.assign(form, {
       title: '', description: '', department_id: deptId || '',
       assigned_to: isAdmin.value ? '' : currentUserId.value,
-      priority: 'medium', status: 'pending', due_date: '', requires_approval: true,
+      priority: 'medium', status: 'pending', due_date: dueDate || '', requires_approval: true,
     });
   }
   formError.value = '';
@@ -2004,9 +2013,26 @@ function toggleSort(field) {
 
 function clearTableFilters() {
   const defaultAssignee = isAdmin.value ? '' : currentUserId.value;
-  Object.assign(tableFilters, { search: '', department_id: '', status: '', priority: '', assigned_to: defaultAssignee });
+  Object.assign(tableFilters, { search: '', department_id: '', status: '', priority: '', assigned_to: defaultAssignee, date_from: '', date_to: '' });
   tablePage.value = 1;
   loadTableTasks();
+}
+
+// Quick date-range presets — Table's stand-in for the old dedicated "This Week"/History date pickers.
+function quickDateFilter(range) {
+  const now = new Date();
+  if (range === 'week') {
+    const day    = now.getDay();
+    const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() + (day === 0 ? -6 : 1 - day));
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    tableFilters.date_from = toLocalDate(monday);
+    tableFilters.date_to   = toLocalDate(sunday);
+  } else if (range === 'month') {
+    tableFilters.date_from = toLocalDate(new Date(now.getFullYear(), now.getMonth(), 1));
+    tableFilters.date_to   = toLocalDate(new Date(now.getFullYear(), now.getMonth() + 1, 0));
+  }
+  tableFilterChange();
 }
 
 // ─── Export / Print ───────────────────────────────────────────────────────────
@@ -2161,31 +2187,6 @@ function printWeekly() {
   openPrintWindow(wrapDoc('Weekly Outstanding Task Report', meta, grid));
 }
 
-function printReport() {
-  const tasks   = filteredReportTasks.value;
-  const summary = reportSummary.value;
-  const fmtNow  = new Date().toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' });
-
-  const meta = `<div style="margin-bottom:12px">
-  <div class="doc-co">Bluedale Group of Companies</div>
-  <div class="doc-title-line">
-    <div>
-      <div class="doc-title">Task History Report</div>
-      <div class="doc-meta"><span><b>Period:</b> ${reportData.value?.date_from || ''} – ${reportData.value?.date_to || ''}</span></div>
-    </div>
-    <div class="doc-generated">Generated: ${fmtNow}</div>
-  </div>
-</div>
-<div class="doc-summary">
-  <span>${summary.total} total</span>
-  <span>${summary.completed} completed</span>
-  <span>${summary.pending} pending</span>
-  ${summary.overdue ? `<span class="s-danger">${summary.overdue} overdue</span>` : ''}
-</div>`;
-
-  openPrintWindow(wrapDoc('Task History Report', meta, flatTable(tasks, 'No tasks found for this period.')));
-}
-
 async function exportTable() {
   const params = { all: true, sort_by: tableSort.field, sort_dir: tableSort.dir };
   if (tableFilters.search)        params.search        = tableFilters.search;
@@ -2193,20 +2194,84 @@ async function exportTable() {
   if (tableFilters.status)        params.status        = tableFilters.status;
   if (tableFilters.priority)      params.priority      = tableFilters.priority;
   if (tableFilters.assigned_to)   params.assigned_to   = tableFilters.assigned_to;
+  if (tableFilters.date_from)     params.date_from     = tableFilters.date_from;
+  if (tableFilters.date_to)       params.date_to       = tableFilters.date_to;
 
   const res    = await api.get('/v1/dept/tasks', { params });
   const tasks  = res.data;
   const fmtNow = new Date().toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' });
+  const period = (tableFilters.date_from || tableFilters.date_to)
+    ? `<div class="doc-meta"><span><b>Period:</b> ${tableFilters.date_from || '…'} – ${tableFilters.date_to || '…'}</span></div>`
+    : '';
 
   const meta = `<div style="margin-bottom:12px">
   <div class="doc-co">Bluedale Group of Companies</div>
   <div class="doc-title-line">
-    <div><div class="doc-title">Task List</div></div>
+    <div><div class="doc-title">Task List</div>${period}</div>
     <div class="doc-generated">${tasks.length} task${tasks.length !== 1 ? 's' : ''} &nbsp;·&nbsp; Generated: ${fmtNow}</div>
   </div>
 </div>`;
 
   openPrintWindow(wrapDoc('Task List', meta, flatTable(tasks, 'No tasks match the current filters.')));
+}
+
+// ─── Export (CSV / Excel download) ─────────────────────────────────────────────
+const EXPORT_COLUMNS = [
+  { key: 'no',          label: 'No' },
+  { key: 'title',       label: 'Task' },
+  { key: 'department',  label: 'Department' },
+  { key: 'assigned_to', label: 'Assigned To' },
+  { key: 'priority',    label: 'Priority' },
+  { key: 'status',      label: 'Status' },
+  { key: 'due_date',    label: 'Due Date' },
+  { key: 'created_by',  label: 'Created By' },
+  { key: 'created_at',  label: 'Created On' },
+  { key: 'description', label: 'Description' },
+];
+const exportModal = ref({ open: false, loading: false });
+const exportCols  = ref(EXPORT_COLUMNS.map(c => ({ ...c, checked: true })));
+
+function openExportModal() {
+  exportModal.value = { open: true, loading: false };
+}
+
+async function executeExport(format) {
+  const cols = exportCols.value.filter(c => c.checked);
+  if (!cols.length) return;
+  exportModal.value.loading = true;
+  try {
+    const params = new URLSearchParams({ cols: cols.map(c => c.key).join(','), format });
+    params.set('sort_by', tableSort.field);
+    params.set('sort_dir', tableSort.dir);
+    if (tableFilters.search)        params.set('search', tableFilters.search);
+    if (tableFilters.department_id) params.set('department_id', tableFilters.department_id);
+    if (tableFilters.status)        params.set('status', tableFilters.status);
+    if (tableFilters.priority)      params.set('priority', tableFilters.priority);
+    if (tableFilters.assigned_to)   params.set('assigned_to', tableFilters.assigned_to);
+    if (tableFilters.date_from)     params.set('date_from', tableFilters.date_from);
+    if (tableFilters.date_to)       params.set('date_to', tableFilters.date_to);
+
+    const token = localStorage.getItem('crm_token');
+    const resp  = await fetch(`/api/v1/dept/tasks/export?${params}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!resp.ok) throw new Error(`Server error ${resp.status}`);
+    const blob = await resp.blob();
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = `Task_Export_${new Date().toISOString().slice(0, 10)}.${format}`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 500);
+    exportModal.value.open = false;
+    showToast('Export downloaded');
+  } catch (e) {
+    showToast('Could not export tasks', 'error');
+  } finally {
+    exportModal.value.loading = false;
+  }
 }
 
 // ─── Debounce ─────────────────────────────────────────────────────────────────
@@ -2226,10 +2291,10 @@ function refreshCurrentView(silent = false) {
   if (currentView.value === 'mywork')    loadBoardTasks(silent);
   if (currentView.value === 'dashboard') loadDashboard();
   if (currentView.value === 'board')     loadBoardTasks(silent);
+  if (currentView.value === 'calendar')  loadBoardTasks(silent);
   if (currentView.value === 'people')    loadPeopleTasks(silent);
   if (currentView.value === 'table')     loadTableTasks();
   if (currentView.value === 'weekly')    loadWeeklyData();
-  if (currentView.value === 'reports')   loadReport();
   if (currentView.value === 'files')     loadAllAttachments();
 }
 
@@ -2282,16 +2347,14 @@ function buildCharts() {
 }
 
 // ─── Watch view changes ───────────────────────────────────────────────────────
-watch(reportTableFilters, () => { reportPage.value = 1; });
-
 watch(currentView, (v) => {
   if (v === 'mywork')    loadBoardTasks();
   if (v === 'dashboard') loadDashboard();
   if (v === 'board')     loadBoardTasks();
+  if (v === 'calendar')  loadBoardTasks();
   if (v === 'people')    loadPeopleTasks();
   if (v === 'table')     loadTableTasks();
   if (v === 'weekly')    loadWeeklyData();
-  if (v === 'reports')   loadReport();
   if (v === 'files')     loadAllAttachments();
 });
 
@@ -2309,9 +2372,6 @@ onMounted(async () => {
   const day    = now.getDay();
   const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() + (day === 0 ? -6 : 1 - day));
   weeklyWeekStart.value = toLocalDate(monday);
-
-  reportFilters.date_from = toLocalDate(new Date(now.getFullYear(), now.getMonth(), 1));
-  reportFilters.date_to   = toLocalDate(now);
 
   await loadMeta();
 
@@ -2602,6 +2662,51 @@ select.field-input { cursor: pointer; }
 .kanban-empty { text-align: center; color: var(--text-3); font-size: 13px; padding: 24px 0; border: 2px dashed var(--border); border-radius: var(--radius); }
 .overdue-badge { font-size: 10px; background: #fee2e2; color: #991b1b; padding: 2px 7px; border-radius: 999px; font-weight: 600; }
 
+/* ── Calendar ─────────────────────────────────────────────────────────────── */
+.cal-nav       { display: flex; align-items: center; gap: 6px; }
+.cal-nav-label { font-size: 13.5px; font-weight: 600; color: var(--text-1); min-width: 150px; text-align: center; }
+
+.cal-wrap     { border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; background: var(--surface); }
+.cal-head-row { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); background: var(--surface-2); border-bottom: 1px solid var(--border); }
+.cal-head-row span {
+  padding: 9px; text-align: center; font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-3);
+}
+.cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
+.cal-day {
+  min-height: 112px; padding: 8px;
+  border-right: 1px solid var(--border-soft); border-bottom: 1px solid var(--border-soft);
+  background: var(--surface); overflow: hidden;
+}
+.cal-day:nth-child(7n)       { border-right: none; }
+.cal-day--muted              { background: var(--surface-2); }
+.cal-day--muted .cal-day-num { color: var(--text-3); }
+.cal-day--today .cal-day-num { background: var(--primary); color: var(--primary-on); }
+.cal-day--addable            { cursor: pointer; }
+.cal-day--addable:hover      { background: color-mix(in srgb, var(--primary) 4%, var(--surface)); }
+.cal-day-num {
+  display: inline-flex; width: 24px; height: 24px; align-items: center; justify-content: center;
+  border-radius: 999px; font-size: 12px; font-weight: 700; color: var(--text-1);
+}
+.cal-pill-stack { display: flex; flex-direction: column; gap: 3px; margin-top: 6px; }
+.cal-pill {
+  display: flex; align-items: center; justify-content: space-between; gap: 4px;
+  padding: 3px 6px; border-radius: var(--radius-sm); border-left: 3px solid transparent;
+  background: var(--surface-2); font-size: 10.5px; line-height: 1.3; cursor: pointer;
+}
+.cal-pill:hover                       { background: var(--border); }
+.cal-pill--overdue                    { background: #fee2e2; }
+.cal-pill-title                       { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600; color: var(--text-1); }
+.cal-pill--overdue .cal-pill-title    { color: #991b1b; }
+.cal-pill-who   { flex-shrink: 0; font-size: 9px; font-weight: 700; color: var(--text-3); }
+.cal-more       { font-size: 10px; color: var(--text-3); padding: 1px 4px; }
+
+@media (max-width: 640px) {
+  .cal-day         { min-height: 76px; padding: 5px; }
+  .cal-pill-who    { display: none; }
+  .cal-nav-label   { min-width: 110px; font-size: 12.5px; }
+}
+
 /* ── Filter bar ───────────────────────────────────────────────────────────── */
 .filter-bar {
   display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 14px;
@@ -2756,6 +2861,7 @@ select.field-input { cursor: pointer; }
 .modal-box      { background: var(--surface); border-radius: var(--radius-lg); width: 100%; max-width: 600px; max-height: 90vh; overflow-y: auto; display: flex; flex-direction: column; box-shadow: 0 20px 60px rgba(0,0,0,0.2); }
 .modal-header   { display: flex; justify-content: space-between; align-items: center; padding: 18px 22px 14px; border-bottom: 1px solid var(--border); }
 .modal-title    { margin: 0; font-size: 17px; font-weight: 700; color: var(--text-1); }
+.modal-subtitle { margin: 3px 0 0; font-size: 12.5px; color: var(--text-3); }
 .modal-body     { padding: 20px 22px; display: flex; flex-direction: column; gap: 16px; }
 .modal-footer   { padding: 16px 22px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 10px; }
 .field-row      { display: flex; flex-direction: column; gap: 6px; }
@@ -2767,6 +2873,52 @@ select.field-input { cursor: pointer; }
 .checkbox-label { display: flex; align-items: center; gap: 8px; font-size: 13.5px; color: var(--text-1); cursor: pointer; }
 .checkbox-label input { width: 16px; height: 16px; }
 .field-hint { font-size: 11.5px; color: var(--text-3); margin-top: 6px; line-height: 1.5; }
+
+/* ── Export modal ─────────────────────────────────────────────────────────── */
+.export-section       { display: flex; flex-direction: column; gap: 10px; }
+.export-section-label { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; color: var(--text-3); }
+.export-cols-head      { display: flex; align-items: center; justify-content: space-between; margin-bottom: 2px; }
+.export-cols-actions   { display: flex; align-items: center; gap: 4px; }
+.export-link-btn { background: none; border: none; cursor: pointer; font-size: 12px; font-weight: 600; color: var(--primary); padding: 2px 4px; border-radius: 4px; }
+.export-link-btn:hover { text-decoration: underline; }
+.export-dot-sep   { color: var(--text-3); font-size: 12px; }
+.export-cols-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px 12px; }
+.export-col-check {
+  display: flex; align-items: center; gap: 8px; cursor: pointer;
+  font-size: 13px; color: var(--text-2); font-weight: 500;
+  padding: 6px 10px; border-radius: var(--radius-sm); border: 1px solid var(--border-soft);
+  transition: background 0.12s, border-color 0.12s;
+}
+.export-col-check:hover { background: var(--primary-soft); border-color: var(--primary); }
+.export-col-check input[type="checkbox"] { accent-color: var(--primary); width: 14px; height: 14px; flex-shrink: 0; cursor: pointer; }
+
+.export-modal-footer {
+  display: flex; flex-direction: column; gap: 12px;
+  padding: 16px 22px 20px; border-top: 1px solid var(--border); background: var(--surface-2);
+}
+.export-footer-count        { font-size: 12.5px; color: var(--text-3); margin: 0; }
+.export-footer-count strong { color: var(--primary); }
+.export-action-stack { display: flex; flex-direction: column; gap: 10px; }
+.export-dl-btn {
+  width: 100%; display: flex; align-items: flex-start; gap: 14px;
+  padding: 14px 18px; border-radius: var(--radius); border: none; cursor: pointer;
+  text-align: left; transition: opacity 0.15s, transform 0.08s;
+}
+.export-dl-btn:hover:not(:disabled) { opacity: 0.88; transform: translateY(-1px); }
+.export-dl-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.export-dl-icon { width: 20px; height: 20px; flex-shrink: 0; margin-top: 2px; }
+.export-dl-text  { display: flex; flex-direction: column; gap: 2px; }
+.export-dl-label { font-size: 14px; font-weight: 700; line-height: 1.2; }
+.export-dl-desc  { font-size: 12px; opacity: 0.82; line-height: 1.3; }
+.export-dl-xls { background: #10b981; color: #fff; }
+.export-dl-csv { background: var(--surface); border: 1.5px solid var(--border) !important; color: var(--text-1); }
+.export-cancel-btn {
+  width: 100%; padding: 10px 16px; background: none;
+  border: 1px solid var(--border-soft); border-radius: var(--radius);
+  font-size: 13px; font-weight: 600; color: var(--text-3); cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+.export-cancel-btn:hover { background: var(--border-soft); color: var(--text-2); }
 
 /* ── Section animation ────────────────────────────────────────────────────── */
 .dtm-section { animation: dtm-fade 0.2s ease; }
@@ -2819,18 +2971,7 @@ select.field-input { cursor: pointer; }
 .page-num  { font-weight: 600; color: var(--text-1); min-width: 48px; text-align: center; }
 .page-btns .btn-ghost:disabled { opacity: 0.35; cursor: not-allowed; }
 
-/* ── History summary strip ───────────────────────────────────────────────── */
-.hist-summary {
-  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
-  padding: 9px 14px; margin-bottom: 14px;
-  background: var(--surface); border: 1px solid var(--border);
-  border-radius: var(--radius); font-size: 13px;
-}
-.hist-period  { font-weight: 600; color: var(--text-1); }
-.hist-divider { width: 1px; height: 14px; background: var(--border); flex-shrink: 0; }
-.hist-metric  { display: flex; align-items: center; gap: 5px; color: var(--text-2); }
-.hm-dot        { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-.hist-filtered { font-size: 11.5px; color: var(--text-3); margin-left: auto; }
+.hm-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
 
 /* ── Loading spinner ──────────────────────────────────────────────────────── */
 .view-loading { display: flex; align-items: center; justify-content: center; padding: 80px 20px; }
