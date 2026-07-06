@@ -2642,36 +2642,41 @@ onMounted(async () => {
   line-height: 1;
 }
 
-/* Tab bar — pill style */
+/* Tab bar — underline style (matches Task Manager) */
 .view-tabs {
-  display: inline-flex;
+  display: flex;
   gap: 4px;
-  background: var(--surface);
-  border-radius: 999px;
-  padding: 5px;
-  border: 1px solid var(--border-soft);
+  border-bottom: 2px solid var(--border);
   margin-bottom: 18px;
-  box-shadow: var(--shadow-xs);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--app-bg);
+  padding-top: 4px;
   flex-wrap: wrap;
 }
 .tab-btn {
-  padding: 8px 18px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 18px;
   border: none;
   background: none;
   cursor: pointer;
   font-size: 13px;
   font-weight: 600;
   color: var(--text-2);
-  border-radius: 999px;
-  transition: color 0.15s, background 0.15s;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  transition: color 0.15s, border-color 0.15s;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
   white-space: nowrap;
 }
-.tab-btn:hover { color: var(--text-1); background: var(--surface-2); }
-.tab-icon { display: inline-flex; align-items: center; vertical-align: middle; }
+.tab-btn:hover:not(.tab-active) { color: var(--text-1); background: var(--surface-2); }
+.tab-icon { display: inline-flex; align-items: center; vertical-align: middle; opacity: 0.8; }
 .tab-active {
-  color: var(--primary-on) !important;
-  background: var(--primary) !important;
-  box-shadow: 0 4px 12px -4px rgba(29,78,216,0.5);
+  color: var(--primary) !important;
+  border-bottom-color: var(--primary);
 }
 
 /* Toolbar */
