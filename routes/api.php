@@ -99,6 +99,7 @@ Route::middleware(['auth:sanctum', 'maintenance'])->group(function () {
             Route::get('contact-analysis/lead-source',          [ContactAnalysisController::class, 'leadSource']);
             Route::get('contact-analysis/status-distribution',  [ContactAnalysisController::class, 'statusDistribution']);
             Route::get('contact-analysis/engagement',           [ContactAnalysisController::class, 'engagement']);
+            Route::get('contact-analysis/followup-actions',     [ContactAnalysisController::class, 'followupActions']);
         });
 
         // Predictive Insights

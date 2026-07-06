@@ -226,13 +226,44 @@
 
     </div>
 
+    <!-- ══ Follow-up Action Types ══════════════════════════════════════════════════ -->
+    <div class="ca-card">
+      <div class="ca-card-top">
+        <div>
+          <div class="ca-card-title">Follow-up Action Types</div>
+          <div class="ca-card-sub">Completion rate by action type, in the selected period</div>
+        </div>
+        <span class="ca-card-total">{{ actionData.total }} logged</span>
+      </div>
+      <div v-if="loading.actions" class="ca-chart-loading" style="height:120px">Loading…</div>
+      <template v-else>
+        <div v-if="actionData.by_action?.length">
+          <div class="ca-source-bars">
+            <div v-for="a in actionData.by_action" :key="a.action_type" class="ca-source-bar-item">
+              <div class="ca-source-bar-hdr">
+                <span>{{ a.label }}</span>
+                <span class="ca-source-count-pct">
+                  <strong>{{ a.completion_rate }}%</strong>
+                  <span class="ca-source-pct">done · {{ a.total }} total</span>
+                </span>
+              </div>
+              <div class="ca-source-track">
+                <div class="ca-source-fill" :style="{ width: a.completion_rate + '%', background: actionColor(a.completion_rate) }"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div v-else class="ca-empty-chart">No follow-ups logged in this period.</div>
+      </template>
+    </div>
+
     <!-- ══ Engagement Health ══════════════════════════════════════════════════════ -->
     <div class="ca-card ca-card--eng" ref="engSectionRef">
 
       <div class="ca-eng-head">
         <div>
           <div class="ca-card-title">Engagement Health</div>
-          <div class="ca-card-sub">Contacts ranked by inactivity — click a card above to jump to a specific group.</div>
+          <div class="ca-card-sub">Contacts ranked by inactivity as of today — click a card above to jump to a specific group. Not limited by the date range above.</div>
         </div>
         <div class="ca-health-pill-group">
           <button
@@ -258,14 +289,7 @@
             @keyup.enter="loadEngagement(1)"
           />
         </div>
-        <select v-if="isAdmin" v-model="engFilters.user_id" @change="loadEngagement(1)" class="ca-eng-select">
-          <option value="">All Agents</option>
-          <option v-for="u in lookups.users" :key="u.id" :value="u.id">{{ u.name }}</option>
-        </select>
-        <select v-model="engFilters.status_id" @change="loadEngagement(1)" class="ca-eng-select">
-          <option value="">All Statuses</option>
-          <option v-for="s in lookups.statuses" :key="s.id" :value="s.id">{{ s.name }}</option>
-        </select>
+        <span class="ca-eng-bar-hint">Uses the Agent / Status / Industry filters above</span>
         <div class="ca-per-page-wrap">
           <span class="ca-per-page-label">Rows</span>
           <select v-model.number="engFilters.per_page" @change="loadEngagement(1)" class="ca-eng-select">
@@ -444,7 +468,7 @@ function clearFilters() {
 }
 
 // ─── Loading state ─────────────────────────────────────────────────────────
-const loading = reactive({ overview: false, source: false, statusDist: false, engagement: false });
+const loading = reactive({ overview: false, source: false, statusDist: false, actions: false, engagement: false });
 
 // ─── Overview (overdue tasks count) ───────────────────────────────────────
 const overviewData = ref(null);
@@ -500,6 +524,25 @@ async function loadStatusDist() {
   }
 }
 
+// ─── Follow-up Action Types ─────────────────────────────────────────────────
+const actionData = ref({ total: 0, by_action: [] });
+
+function actionColor(rate) {
+  if (rate >= 70) return 'var(--success)';
+  if (rate >= 40) return 'var(--warning)';
+  return 'var(--danger)';
+}
+
+async function loadActions() {
+  loading.actions = true;
+  try {
+    const { data } = await api.get('/v1/contact-analysis/followup-actions', { params: buildParams() });
+    actionData.value = data;
+  } finally {
+    loading.actions = false;
+  }
+}
+
 // ─── Engagement table ──────────────────────────────────────────────────────
 const PER_PAGE_OPTIONS = [10, 20, 50];
 
@@ -511,8 +554,6 @@ const engSectionRef = ref(null);
 const engFilters = reactive({
   health:    '',
   q:         '',
-  user_id:   '',
-  status_id: '',
   sort_by:   'days_inactive',
   sort_dir:  'desc',
   per_page:  10,
@@ -585,8 +626,9 @@ async function loadEngagement(page = 1) {
       sort_by:  engFilters.sort_by,
       sort_dir: engFilters.sort_dir,
     };
-    if (engFilters.user_id)   params.user_id   = engFilters.user_id;
-    if (engFilters.status_id) params.status_id = engFilters.status_id;
+    if (filters.user_id)     params.user_id     = filters.user_id;
+    if (filters.status_id)   params.status_id   = filters.status_id;
+    if (filters.industry_id) params.industry_id = filters.industry_id;
     const { data } = await api.get('/v1/contact-analysis/engagement', { params });
     engData.value = data.data;
     Object.assign(engMeta, data.meta);
@@ -597,7 +639,7 @@ async function loadEngagement(page = 1) {
 }
 
 async function loadAll() {
-  await Promise.all([loadOverview(), loadSource(), loadStatusDist()]);
+  await Promise.all([loadOverview(), loadSource(), loadStatusDist(), loadActions(), loadEngagement(1)]);
 }
 
 // ─── Lifecycle ─────────────────────────────────────────────────────────────
@@ -607,7 +649,7 @@ onMounted(async () => {
   lookups.users      = data.users      ?? [];
   lookups.statuses   = data.statuses   ?? [];
   lookups.industries = data.industries ?? [];
-  await Promise.all([loadAll(), loadEngagement(1)]);
+  await loadAll();
 });
 
 onUnmounted(() => {
@@ -1014,6 +1056,8 @@ onUnmounted(() => {
 }
 .ca-search-input:focus { background: #fff; border-color: var(--primary, #1d4ed8); }
 .ca-search-input::placeholder { color: var(--text-3); }
+
+.ca-eng-bar-hint { font-size: 11.5px; color: var(--text-3); white-space: nowrap; }
 
 .ca-eng-select {
   padding: 7px 14px;

@@ -146,6 +146,9 @@ class ContactAnalysisController extends Controller
             )
             ->when($request->filled('status_id'), fn ($q) =>
                 $q->whereHas('todo.contact', fn ($q2) => $q2->where('status_id', $request->status_id))
+            )
+            ->when($request->filled('industry_id'), fn ($q) =>
+                $q->whereHas('todo.contact', fn ($q2) => $q2->where('industry_id', $request->industry_id))
             );
 
         $total    = (clone $base)->count();
