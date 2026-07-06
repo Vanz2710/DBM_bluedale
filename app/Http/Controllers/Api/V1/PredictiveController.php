@@ -32,6 +32,9 @@ class PredictiveController extends Controller
     }
 
     // ── 1. Summary KPI cards ──────────────────────────────────────────────────
+    //    Deliberately ignores from/to — these are current-state snapshots
+    //    (e.g. "neglected as of today"), not period aggregates. There's no
+    //    activity log to answer "who was neglected as of a past date."
 
     public function summary(Request $request)
     {
@@ -82,6 +85,9 @@ class PredictiveController extends Controller
     // ── 2. Pipeline by close month ────────────────────────────────────────────
     //    Groups open deals by expected close month. This is a weighted bucket
     //    summary — not a statistical forecast.
+    //    Deliberately ignores from/to — the picker is a look-back window
+    //    (max date = today), while expected_close_date is normally in the
+    //    future, so applying it here would filter out most open pipeline.
 
     public function forecast(Request $request)
     {
@@ -122,6 +128,7 @@ class PredictiveController extends Controller
     // ── 3. Neglected contacts ─────────────────────────────────────────────────
     //    Non-raw contacts with no completed todo or follow-up in threshold days.
     //    Uses last_contacted_at (falls back to updated_at for legacy rows).
+    //    Deliberately ignores from/to — current-state snapshot, see summary().
 
     public function atRisk(Request $request)
     {
@@ -151,6 +158,7 @@ class PredictiveController extends Controller
     }
 
     // ── 4. Agent coverage load ────────────────────────────────────────────────
+    //    Deliberately ignores from/to — current-state snapshot, see summary().
 
     public function pace(Request $request)
     {
@@ -193,6 +201,7 @@ class PredictiveController extends Controller
     // ── 5. Unworked segment opportunities ────────────────────────────────────
     //    By industry: engaged contacts with no interaction in 30+ days.
     //    Uses last_contacted_at (falls back to updated_at for legacy rows).
+    //    Deliberately ignores from/to — current-state snapshot, see summary().
 
     public function overdueRisk(Request $request)
     {
@@ -231,6 +240,8 @@ class PredictiveController extends Controller
     //    Returns the agent-set probability unchanged plus observable signals
     //    (days to close, completed activity) so the UI can present facts rather
     //    than a fake adjusted score.
+    //    Deliberately ignores from/to — see forecast() above for why filtering
+    //    open pipeline by a look-back window doesn't make sense.
 
     public function deals(Request $request)
     {
@@ -378,6 +389,7 @@ class PredictiveController extends Controller
     // ── 9. Pipeline coverage vs KPI targets ──────────────────────────────────
     //    Compares each agent's weighted open pipeline to their won_deal_value
     //    KPI target. Agents without a target show pipeline only.
+    //    Deliberately ignores from/to — current-state snapshot, see summary().
 
     public function pipelineCoverage(Request $request)
     {

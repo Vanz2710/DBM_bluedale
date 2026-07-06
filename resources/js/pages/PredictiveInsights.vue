@@ -55,6 +55,14 @@
       </div>
     </div>
 
+    <!-- ══ Date-range scope notice ═════════════════════════════════════════════════ -->
+    <div class="pi-scope-note">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+        <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
+      </svg>
+      <span>The date range above only narrows <strong>Historical Win Rates</strong> and <strong>Deal Velocity</strong>. Every other card below reflects live data as of today.</span>
+    </div>
+
     <!-- ══ Summary error banner ════════════════════════════════════════════════════ -->
     <div v-if="errors.summary" class="pi-error-banner">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
@@ -82,7 +90,7 @@
             <template v-else>{{ summary.neglected ?? '—' }}</template>
           </div>
           <div class="pi-kpi-label">Neglected Contacts</div>
-          <div class="pi-kpi-sub">Potential/Existing, 60+ days since last interaction</div>
+          <div class="pi-kpi-sub">Potential/Existing, 60+ days since last interaction · live</div>
         </div>
       </div>
 
@@ -100,7 +108,7 @@
             <template v-else>{{ summary.pipeline_value != null ? formatCurrency(summary.pipeline_value) : '—' }}</template>
           </div>
           <div class="pi-kpi-label">Expected Pipeline</div>
-          <div class="pi-kpi-sub">Open deals × agent-set probability</div>
+          <div class="pi-kpi-sub">Open deals × agent-set probability · live</div>
         </div>
       </div>
 
@@ -119,7 +127,7 @@
             <template v-else>{{ summary.overloaded_agents ?? '—' }}</template>
           </div>
           <div class="pi-kpi-label">Overloaded Agents</div>
-          <div class="pi-kpi-sub">Carrying 1.5× average portfolio</div>
+          <div class="pi-kpi-sub">Carrying 1.5× average portfolio · live</div>
         </div>
       </div>
 
@@ -136,7 +144,7 @@
             <template v-else>{{ summary.unworked_opps ?? '—' }}</template>
           </div>
           <div class="pi-kpi-label">Unworked Opportunities</div>
-          <div class="pi-kpi-sub">Active contacts, 30+ days since last interaction</div>
+          <div class="pi-kpi-sub">Active contacts, 30+ days since last interaction · live</div>
         </div>
       </div>
 
@@ -155,7 +163,7 @@
             </svg>
             <span class="pi-card-title">Pipeline by Close Month</span>
           </div>
-          <span class="pi-card-meta">Open deals grouped by expected close date, weighted by agent probability</span>
+          <span class="pi-card-meta">Open deals grouped by expected close date, weighted by agent probability · live, not limited by the date range above</span>
         </div>
         <div class="pi-card-body">
           <div v-if="loading.forecast" class="pi-skeleton-block"></div>
@@ -189,7 +197,7 @@
             <span class="pi-card-title">Neglected Contacts</span>
           </div>
           <div class="pi-card-head-right">
-            <span class="pi-card-meta">60+ days since last completed interaction</span>
+            <span class="pi-card-meta">60+ days since last completed interaction · live</span>
             <button class="pi-export-btn" @click="exportNeglected" :disabled="!neglected.length">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
               CSV
@@ -240,7 +248,7 @@
             </svg>
             <span class="pi-card-title">Agent Coverage Load</span>
           </div>
-          <span class="pi-card-meta">Total contacts per agent — bar shows actionable share</span>
+          <span class="pi-card-meta">Total contacts per agent — bar shows actionable share · live</span>
         </div>
         <div class="pi-card-body">
           <div v-if="loading.agentLoad" class="pi-skeleton-list">
@@ -289,7 +297,7 @@
             </svg>
             <span class="pi-card-title">Unworked Opportunities</span>
           </div>
-          <span class="pi-card-meta">Active contacts per industry, 30+ days since last interaction</span>
+          <span class="pi-card-meta">Active contacts per industry, 30+ days since last interaction · live</span>
         </div>
         <div class="pi-card-body">
           <div v-if="loading.unworked" class="pi-skeleton-list">
@@ -406,7 +414,7 @@
           <template v-if="velocity.benchmark_days">
             Won deals close in <strong>{{ velocity.benchmark_days }}d</strong> on average ({{ velocity.sample_size }} deals) · {{ velocity.stalling_count }} stalling
           </template>
-          <template v-else>Open deals vs historical close-time benchmark</template>
+          <template v-else>Open deals vs close-time benchmark from the selected period</template>
         </span>
       </div>
       <div class="pi-card-body">
@@ -463,7 +471,7 @@
           </svg>
           <span class="pi-card-title">Pipeline Coverage</span>
         </div>
-        <span class="pi-card-meta">Weighted open pipeline vs won_deal_value KPI target</span>
+        <span class="pi-card-meta">Weighted open pipeline vs won_deal_value KPI target · live</span>
       </div>
       <div class="pi-card-body">
         <div v-if="loading.coverage" class="pi-skeleton-list">
@@ -519,7 +527,7 @@
           <span class="pi-card-title">Open Deals</span>
         </div>
         <div class="pi-card-head-right">
-          <span class="pi-card-meta">Activity = completed todos in last 30 days</span>
+          <span class="pi-card-meta">Activity = completed todos in last 30 days · live, not limited by the date range above</span>
           <button class="pi-export-btn" @click="exportDeals" :disabled="!deals.length">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             CSV
@@ -1190,6 +1198,16 @@ onBeforeUnmount(() => {
   animation: pi-pulse 1.4s ease-in-out infinite;
 }
 @keyframes pi-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+/* ── Scope note ───────────────────────────────────────────────────────────── */
+.pi-scope-note {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 16px; background: var(--info-soft);
+  border: 1px solid var(--info); border-radius: var(--radius);
+  font-size: 12.5px; color: var(--text-2);
+}
+.pi-scope-note svg    { width: 16px; height: 16px; flex-shrink: 0; color: var(--info); }
+.pi-scope-note strong { color: var(--text-1); font-weight: 700; }
 
 /* ── Error states ─────────────────────────────────────────────────────────── */
 .pi-error-banner {
