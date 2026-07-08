@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\ContactEditGrant;
 use App\Models\FollowUp;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class FollowUpController extends Controller
 {
@@ -131,14 +133,23 @@ class FollowUpController extends Controller
 
     public function bulkComplete(string $todoId)
     {
-        FollowUp::where('todo_id', $todoId)
+        $now = now();
+        $updated = FollowUp::where('todo_id', $todoId)
             ->where('completion_status', 'pending')
-            ->get()
-            ->each(function ($f) {
-                $f->completion_status = 'completed';
-                $f->completed_at      = now();
-                $f->save(); // fires saved hook → updates contact.last_contacted_at
-            });
+            ->update([
+                'completion_status' => 'completed',
+                'completed_at'      => $now,
+                'updated_by'        => Auth::id(),
+            ]);
+
+        // All rows share the same todo_id, so the contact is the same for every row —
+        // do the last_contacted_at update once instead of relying on the per-row model event.
+        if ($updated > 0) {
+            $contactId = DB::table('to_dos')->where('id', $todoId)->value('contact_id');
+            if ($contactId) {
+                DB::table('contacts')->where('id', $contactId)->update(['last_contacted_at' => $now]);
+            }
+        }
 
         return response()->json(['status' => 'success']);
     }

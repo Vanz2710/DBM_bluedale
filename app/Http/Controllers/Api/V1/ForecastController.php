@@ -207,7 +207,7 @@ class ForecastController extends Controller
             ->when($isAdmin && $request->input('user_id'), fn($q, $v) => $q->where('user_id', $v))
             ->when($request->input('from_date'), fn($q, $v) => $q->where('forecast_date', '>=', $v))
             ->when($request->input('to_date'), fn($q, $v) => $q->where('forecast_date', '<=', $v))
-            ->when($request->input('year'), fn($q, $v) => $q->whereYear('forecast_date', $v));
+            ->when($request->input('year'), fn($q, $v) => $q->whereBetween('forecast_date', ["{$v}-01-01", "{$v}-12-31"]));
 
         if ($request->filled('result_id')) {
             $result = $request->input('result_id');

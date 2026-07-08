@@ -31,10 +31,8 @@ class AnalyticsController extends Controller
         $totalContacts = $cBase()->count();
 
         // This month vs last month
-        $thisMonth = $cBase()->whereYear('created_at', now()->year)
-            ->whereMonth('created_at', now()->month)->count();
-        $lastMonth = $cBase()->whereYear('created_at', now()->subMonth()->year)
-            ->whereMonth('created_at', now()->subMonth()->month)->count();
+        $thisMonth = $cBase()->whereBetween('created_at', [now()->startOfMonth(), now()->endOfMonth()])->count();
+        $lastMonth = $cBase()->whereBetween('created_at', [now()->subMonth()->startOfMonth(), now()->subMonth()->endOfMonth()])->count();
 
         // Status distribution
         $byStatus = $cBase()

@@ -72,10 +72,11 @@ class PerformanceController extends Controller
         if ($viewType === 'week' && $startDate && $endDate) {
             $query->whereBetween('todo_date', [$startDate, $endDate]);
         } elseif ($viewType === 'month' && $month) {
-            [$y, $m] = explode('-', $month);
-            $query->whereYear('todo_date', $y)->whereMonth('todo_date', $m);
+            $monthStart = $month . '-01';
+            $monthEnd   = date('Y-m-t', strtotime($monthStart));
+            $query->whereBetween('todo_date', [$monthStart, $monthEnd]);
         } else {
-            $query->whereYear('todo_date', $year);
+            $query->whereBetween('todo_date', ["{$year}-01-01", "{$year}-12-31"]);
         }
 
         $todos = $query->orderBy('todo_date')->get();

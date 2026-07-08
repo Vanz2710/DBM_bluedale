@@ -31,7 +31,7 @@ class SummaryController extends Controller
 
         // Fetch completed/cancelled tasks for the current page's contacts only
         $todoRows = ToDo::whereIn('contact_id', $contactIds)
-            ->whereYear('todo_date', $year)
+            ->whereBetween('todo_date', ["{$year}-01-01", "{$year}-12-31"])
             ->whereIn('completion_status', ['completed', 'cancelled'])
             ->with('task')
             ->orderBy('todo_date')

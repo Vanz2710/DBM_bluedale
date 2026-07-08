@@ -70,7 +70,7 @@ class ContactController extends Controller
         $date     = $request->input('date');
         $dateFrom = $request->input('date_from');
         $dateTo   = $request->input('date_to');
-        $perPage  = min((int) $request->input('per_page', 100), 9999);
+        $perPage  = min((int) $request->input('per_page', 100), 500);
 
         $query = Contact::with(['status', 'type', 'industry', 'category', 'user']);
 

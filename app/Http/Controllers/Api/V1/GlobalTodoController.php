@@ -31,10 +31,12 @@ class GlobalTodoController extends Controller
             if ($fromDate) $query->whereDate('todo_date', '>=', $fromDate);
             if ($toDate)   $query->whereDate('todo_date', '<=', $toDate);
         } elseif ($view === 'Month') {
-            $query->whereYear('todo_date', substr($date, 0, 4))
-                  ->whereMonth('todo_date', (int) substr($date, 5, 2));
+            $monthStart = substr($date, 0, 7) . '-01';
+            $monthEnd   = date('Y-m-t', strtotime($monthStart));
+            $query->whereBetween('todo_date', [$monthStart, $monthEnd]);
         } elseif ($view === 'Year') {
-            $query->whereYear('todo_date', substr($date, 0, 4));
+            $year = substr($date, 0, 4);
+            $query->whereBetween('todo_date', ["{$year}-01-01", "{$year}-12-31"]);
         } elseif ($view === 'Day') {
             $query->whereDate('todo_date', $date);
         }
@@ -104,8 +106,9 @@ class GlobalTodoController extends Controller
         $month = (int) $request->get('month', now()->month);
         $user  = $request->user();
 
-        $query = ToDo::whereYear('todo_date', $year)
-            ->whereMonth('todo_date', $month);
+        $monthStart = sprintf('%04d-%02d-01', $year, $month);
+        $monthEnd   = date('Y-m-t', strtotime($monthStart));
+        $query = ToDo::whereBetween('todo_date', [$monthStart, $monthEnd]);
 
         if (!$user->hasAnyRole(['admin', 'super-admin'])) {
             $query->where('user_id', $user->id);
