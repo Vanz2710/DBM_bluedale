@@ -180,18 +180,18 @@
     <!-- Delete confirmation modal -->
     <Teleport to="body">
       <div v-if="deleteTarget" class="conf-overlay" @mousedown.self="deleteTarget = null">
-        <div class="conf-modal">
+        <div class="conf-modal" role="dialog" aria-modal="true" aria-labelledby="delete-forecast-title">
           <div class="conf-head">
             <div>
-              <p class="conf-title">Delete Forecast</p>
+              <p class="conf-title" id="delete-forecast-title">Delete Forecast</p>
               <p class="conf-sub">This action cannot be undone.</p>
             </div>
             <button class="conf-close" @click="deleteTarget = null"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
           </div>
           <div class="conf-body">
-            <svg class="conf-warn" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <svg class="conf-warn" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="var(--warning)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-              <line x1="12" y1="9" x2="12" y2="13"/><circle cx="12" cy="17" r="1" fill="#f59e0b" stroke="none"/>
+              <line x1="12" y1="9" x2="12" y2="13"/><circle cx="12" cy="17" r="1" fill="var(--warning)" stroke="none"/>
             </svg>
             <p class="conf-text">Delete the forecast for <strong>{{ deleteTarget.contact_name }}</strong>?</p>
           </div>
@@ -206,10 +206,10 @@
     <!-- Export Modal -->
     <Teleport to="body">
       <div v-if="exportModal.open" class="remark-overlay" @mousedown.self="exportModal.open = false">
-        <div class="export-modal">
+        <div class="export-modal" role="dialog" aria-modal="true" aria-labelledby="export-forecast-title">
           <div class="export-modal-header">
             <div>
-              <strong class="export-modal-title">Export Forecasts</strong>
+              <strong class="export-modal-title" id="export-forecast-title">Export Forecasts</strong>
               <p class="export-modal-sub">Pick what to include, then download.</p>
             </div>
             <button class="remark-close" @click="exportModal.open = false"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
@@ -261,10 +261,10 @@
     <!-- Update Result Modal -->
     <Teleport to="body">
       <div v-if="resultModal.open" class="remark-overlay" @mousedown.self="closeResultModal">
-        <div class="conf-modal">
+        <div class="conf-modal" role="dialog" aria-modal="true" aria-labelledby="update-result-title">
           <div class="conf-head">
             <div>
-              <p class="conf-title">Update Result</p>
+              <p class="conf-title" id="update-result-title">Update Result</p>
               <p class="conf-sub">{{ resultModal.forecast?.contact_name }}</p>
             </div>
             <button class="conf-close" @click="closeResultModal"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
@@ -561,6 +561,8 @@ async function doDelete() {
     await api.delete(`/v1/forecasts/${deleteTarget.value.id}`);
     deleteTarget.value = null;
     load(); loadSummary();
+  } catch (e) {
+    toast(e.response?.data?.message ?? 'Failed to delete forecast.', 'error');
   } finally {
     deleting.value = false;
   }
@@ -669,8 +671,8 @@ onMounted(async () => {
 .btn-primary:hover { background: var(--primary-hover); }
 .btn-clear { background: var(--surface); color: var(--text-2); border: 1px solid var(--border); }
 .btn-clear:hover { background: var(--danger-soft); color: var(--danger); border-color: var(--danger-soft); }
-.btn-export { background: #10b981; color: #fff; border: none; }
-.btn-export:hover { background: #059669; }
+.btn-export { background: var(--success); color: #fff; border: none; }
+.btn-export:hover { filter: brightness(0.9); }
 
 /* Table */
 .table-wrap { background: var(--surface); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); border: 1px solid var(--border-soft); overflow: hidden; }
@@ -689,10 +691,10 @@ onMounted(async () => {
 }
 .fstat-chip strong { font-size: 12px; font-weight: 800; color: var(--text-1); line-height: 1.2; }
 .fstat-chip small { font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-3); font-weight: 700; }
-.fstat-confirmed { background: #dcfce7; }
-.fstat-confirmed strong { color: #15803d; }
-.fstat-pending { background: #fef3c7; }
-.fstat-pending strong { color: #b45309; }
+.fstat-confirmed { background: var(--success-soft); }
+.fstat-confirmed strong { color: var(--success); }
+.fstat-pending { background: var(--warning-soft); }
+.fstat-pending strong { color: var(--warning); }
 .table-scroll { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; font-size: 12px; table-layout: fixed; }
 thead th {
@@ -727,13 +729,13 @@ tbody tr:hover { background: var(--surface-2); }
 .company-link { color: var(--text-1); font-weight: 600; text-decoration: none; }
 .company-link:hover { color: var(--primary); }
 .muted { color: var(--text-3); }
-.type-badge { background: #e0f2fe; color: #0369a1; font-size: 11.5px; font-weight: 600; padding: 3px 10px; border-radius: 999px; white-space: nowrap; }
+.type-badge { background: var(--info-soft); color: var(--info); font-size: 11.5px; font-weight: 600; padding: 3px 10px; border-radius: 999px; white-space: nowrap; }
 .result-badge     { font-size: 11.5px; font-weight: 600; padding: 3px 10px; border-radius: 999px; white-space: nowrap; }
-.result-confirmed { background: #dcfce7; color: #15803d; }
-.result-pending   { background: #fef3c7; color: #b45309; }
-.result-rejected  { background: #fee2e2; color: #b91c1c; }
+.result-confirmed { background: var(--success-soft); color: var(--success); }
+.result-pending   { background: var(--warning-soft); color: var(--warning); }
+.result-rejected  { background: var(--danger-soft); color: var(--danger); }
 .result-no-result { background: var(--surface-2); color: var(--text-3); }
-.amount-cell { font-weight: 800; color: #0369a1; white-space: nowrap; }
+.amount-cell { font-weight: 800; color: var(--info); white-space: nowrap; }
 .snapshot { display: flex; flex-direction: column; gap: 2px; }
 .snapshot span { font-size: 12.5px; font-weight: 600; color: var(--text-1); }
 .snapshot small { font-size: 11px; color: var(--text-3); }
@@ -745,10 +747,10 @@ tbody tr:hover { background: var(--surface-2); }
   cursor: pointer; border: none; transition: background 0.12s, transform 0.06s;
 }
 .icon-btn:active { transform: scale(0.92); }
-.btn-edit { background: #fefce8; }
-.btn-edit:hover { background: #fde68a; }
-.btn-del  { background: #fee2e2; }
-.btn-del:hover  { background: #fca5a5; }
+.btn-edit { background: var(--warning-soft); }
+.btn-edit:hover { background: color-mix(in srgb, var(--warning) 40%, white); }
+.btn-del  { background: var(--danger-soft); }
+.btn-del:hover  { background: color-mix(in srgb, var(--danger) 35%, white); }
 .actions-cell { display: flex; gap: 4px; }
 .empty-state { text-align: center; padding: 48px; color: var(--text-3); font-size: 14px; }
 
@@ -787,7 +789,7 @@ tbody tr:hover { background: var(--surface-2); }
 .pager-rows-sel:focus { border-color: var(--primary); }
 
 /* Confirm / delete modal */
-.conf-overlay { position: fixed; inset: 0; background: rgba(15,23,42,0.55); backdrop-filter: blur(4px); z-index: 900; display: flex; align-items: center; justify-content: center; padding: 16px; animation: overlay-fade-in 0.18s ease; }
+.conf-overlay { position: fixed; inset: 0; background: rgba(15,23,42,0.45); backdrop-filter: blur(4px); z-index: 900; display: flex; align-items: center; justify-content: center; padding: 16px; animation: overlay-fade-in 0.18s ease; }
 .conf-overlay > .conf-modal { animation: modal-spring-in 0.26s cubic-bezier(0.34, 1.4, 0.64, 1); }
 .conf-modal { background: var(--surface); border-radius: var(--radius-lg); width: 100%; max-width: 420px; box-shadow: var(--shadow-lg); border: 1px solid var(--border-soft); overflow: hidden; }
 .conf-head { display: flex; justify-content: space-between; align-items: flex-start; padding: 18px 22px 14px; border-bottom: 1px solid var(--border-soft); }
@@ -802,7 +804,7 @@ tbody tr:hover { background: var(--surface-2); }
 .conf-cancel { height: 38px; padding: 0 18px; background: none; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 13px; font-weight: 600; color: var(--text-2); cursor: pointer; }
 .conf-cancel:hover { background: var(--surface-2); }
 .conf-delete { height: 38px; padding: 0 18px; background: var(--danger); color: #fff; border: none; border-radius: var(--radius-sm); font-size: 13px; font-weight: 700; cursor: pointer; }
-.conf-delete:hover:not(:disabled) { background: #b91c1c; }
+.conf-delete:hover:not(:disabled) { filter: brightness(0.9); }
 .conf-delete:disabled { opacity: 0.5; cursor: not-allowed; }
 .conf-save { height: 38px; padding: 0 18px; background: var(--primary); color: var(--primary-on); border: none; border-radius: var(--radius-sm); font-size: 13px; font-weight: 700; cursor: pointer; }
 .conf-save:hover:not(:disabled) { background: var(--primary-hover); }
@@ -824,7 +826,7 @@ tbody tr:hover { background: var(--surface-2); }
 .result-edit-btn:hover { background: var(--surface-2); color: var(--text-1); border-color: var(--border); }
 .result-edit-btn:active { transform: scale(0.92); }
 .result-body { padding: 18px 22px; display: flex; flex-direction: column; gap: 12px; }
-.result-error { background: #fee2e2; color: #b91c1c; border-radius: var(--radius-sm); padding: 8px 12px; font-size: 13px; }
+.result-error { background: var(--danger-soft); color: var(--danger); border-radius: var(--radius-sm); padding: 8px 12px; font-size: 13px; }
 .result-field { display: flex; flex-direction: column; gap: 5px; }
 .result-field label { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.7px; color: var(--text-3); padding-left: 2px; }
 .result-field select { height: 38px; padding: 0 14px; border: 1px solid var(--border); border-radius: 999px; font-size: 13px; outline: none; background: var(--surface); color: var(--text-1); transition: border-color 0.15s, box-shadow 0.15s; }
@@ -847,7 +849,7 @@ tbody tr:hover { background: var(--surface-2); }
 .export-dl-text { display: flex; flex-direction: column; gap: 2px; }
 .export-dl-label { font-size: 14px; font-weight: 700; line-height: 1.2; }
 .export-dl-desc  { font-size: 12px; opacity: 0.82; line-height: 1.3; }
-.export-dl-xls { background: #10b981; color: #fff; }
+.export-dl-xls { background: var(--success); color: #fff; }
 .export-dl-csv { background: var(--surface); border: 1.5px solid var(--border) !important; color: var(--text-1); }
 .export-cancel-btn { width: 100%; padding: 10px 16px; border: none; border-radius: var(--radius-sm, 6px); background: none; cursor: pointer; font-size: 13.5px; font-weight: 500; color: var(--text-3); transition: background 0.12s, color 0.12s; }
 .export-cancel-btn:hover { background: var(--border-soft); color: var(--text-2); }
@@ -877,7 +879,7 @@ tbody tr:hover { background: var(--surface-2); }
 /* ── Overlay + modal animation ── */
 @keyframes overlay-fade-in { from { opacity: 0; } to { opacity: 1; } }
 @keyframes modal-spring-in { from { opacity: 0; transform: scale(0.92) translateY(10px); } to { opacity: 1; transform: scale(1) translateY(0); } }
-.remark-overlay { position: fixed; inset: 0; background: rgba(15,23,42,0.55); backdrop-filter: blur(4px); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 16px; animation: overlay-fade-in 0.18s ease; }
+.remark-overlay { position: fixed; inset: 0; background: rgba(15,23,42,0.45); backdrop-filter: blur(4px); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 16px; animation: overlay-fade-in 0.18s ease; }
 .remark-overlay > * { animation: modal-spring-in 0.26s cubic-bezier(0.34, 1.4, 0.64, 1); }
 .remark-close { background: none; border: none; cursor: pointer; color: var(--text-3); padding: 4px; border-radius: 6px; display: flex; align-items: center; justify-content: center; transition: color 0.12s, background 0.12s; }
 .remark-close:hover { color: var(--text-1); background: var(--surface-2); }

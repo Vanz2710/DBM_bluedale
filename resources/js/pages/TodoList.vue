@@ -208,6 +208,16 @@
               </td>
               <td @click.stop>
                 <div class="actions-cell">
+                  <button v-if="can('edit todos') && t.can_edit && t.completion_status !== 'completed'"
+                    class="icon-btn btn-complete" title="Mark complete" aria-label="Mark complete"
+                    :disabled="completing === t.id"
+                    @click="markDone(t)" v-html="CI.check">
+                  </button>
+                  <button v-if="can('edit todos') && t.can_edit && t.completion_status === 'completed'"
+                    class="icon-btn btn-undo" title="Mark pending" aria-label="Mark pending"
+                    :disabled="completing === t.id"
+                    @click="markPending(t)" v-html="CI.undo">
+                  </button>
                   <button v-if="can('create followups') && t.can_edit" class="fu-add-btn" title="Add a follow-up for this to-do" @click="openFollowUpModal(t)">+ F/U</button>
                   <button v-if="can('edit todos') && t.can_edit" class="icon-btn btn-edit" title="Edit" aria-label="Edit to-do" @click="openEditModal(t)" v-html="CI.edit"></button>
                   <button v-if="can('delete todos') && t.can_edit" class="icon-btn btn-delete" title="Delete to-do" aria-label="Delete to-do" @click="openDeleteTodoModal(t)" v-html="CI.trash"></button>
@@ -237,11 +247,12 @@
       </div>
     </div>
     <!-- Add To-Do Modal -->
-    <div v-if="addModal.open" class="remark-overlay">
-      <div class="add-todo-modal">
+    <Teleport to="body">
+    <div v-if="addModal.open" class="remark-overlay" @mousedown.self="closeAddModal">
+      <div class="add-todo-modal" role="dialog" aria-modal="true" aria-labelledby="add-todo-title">
         <div class="add-modal-header">
           <div class="add-modal-title-block">
-            <strong class="add-modal-title">Add To-Do</strong>
+            <strong class="add-modal-title" id="add-todo-title">Add To-Do</strong>
           </div>
           <button class="remark-close" @click="closeAddModal" v-html="CI.x"></button>
         </div>
@@ -312,13 +323,15 @@
         </div>
       </div>
     </div>
+    </Teleport>
 
     <!-- Add Follow-Up Modal -->
-    <div v-if="fuModal.open" class="remark-overlay">
-      <div class="add-todo-modal">
+    <Teleport to="body">
+    <div v-if="fuModal.open" class="remark-overlay" @mousedown.self="closeFuModal">
+      <div class="add-todo-modal" role="dialog" aria-modal="true" aria-labelledby="add-fu-todo-title">
         <div class="add-modal-header">
           <div class="add-modal-title-block">
-            <strong class="add-modal-title">Add Follow-Up</strong>
+            <strong class="add-modal-title" id="add-fu-todo-title">Add Follow-Up</strong>
           </div>
           <button class="remark-close" @click="closeFuModal" v-html="CI.x"></button>
         </div>
@@ -362,14 +375,15 @@
         </div>
       </div>
     </div>
+    </Teleport>
 
     <!-- Edit To-Do Modal -->
     <Teleport to="body">
       <div v-if="editModal.open" class="remark-overlay" @mousedown.self="closeEditModal">
-        <div class="add-todo-modal">
+        <div class="add-todo-modal" role="dialog" aria-modal="true" aria-labelledby="edit-todo-title">
           <div class="add-modal-header">
             <div class="add-modal-title-block">
-              <strong class="add-modal-title">Edit To-Do</strong>
+              <strong class="add-modal-title" id="edit-todo-title">Edit To-Do</strong>
               <span v-if="editModal.todo" class="add-modal-sub">{{ editModal.todo.contact_name }}</span>
             </div>
             <button class="remark-close" @click="closeEditModal" v-html="CI.x"></button>
@@ -443,10 +457,10 @@
     <!-- Export Modal -->
     <Teleport to="body">
       <div v-if="exportModal.open" class="remark-overlay" @mousedown.self="exportModal.open = false">
-        <div class="export-modal">
+        <div class="export-modal" role="dialog" aria-modal="true" aria-labelledby="export-todo-title">
           <div class="export-modal-header">
             <div>
-              <strong class="export-modal-title">Export To-Dos</strong>
+              <strong class="export-modal-title" id="export-todo-title">Export To-Dos</strong>
               <p class="export-modal-sub">Pick what to include, then download.</p>
             </div>
             <button class="remark-close" @click="exportModal.open = false" v-html="CI.x"></button>
@@ -496,11 +510,12 @@
     </Teleport>
 
     <!-- Edit Remark Modal -->
-    <div v-if="remarkModal.open" class="remark-overlay">
-      <div class="add-todo-modal remark-modal">
+    <Teleport to="body">
+    <div v-if="remarkModal.open" class="remark-overlay" @mousedown.self="closeRemarkModal">
+      <div class="add-todo-modal remark-modal" role="dialog" aria-modal="true" aria-labelledby="edit-remark-title">
         <div class="add-modal-header">
           <div class="add-modal-title-block">
-            <strong class="add-modal-title">Edit Remark</strong>
+            <strong class="add-modal-title" id="edit-remark-title">Edit Remark</strong>
           </div>
           <button class="remark-close" @click="closeRemarkModal" v-html="CI.x"></button>
         </div>
@@ -525,21 +540,22 @@
         </div>
       </div>
     </div>
+    </Teleport>
   </div>
 
   <Teleport to="body">
-    <div v-if="followUpPrompt.open" class="conf-overlay">
-      <div class="conf-modal">
+    <div v-if="followUpPrompt.open" class="conf-overlay" @mousedown.self="dismissFollowUpPrompt">
+      <div class="conf-modal" role="dialog" aria-modal="true" aria-labelledby="fu-prompt-title">
         <div class="conf-head">
           <div>
-            <p class="conf-title">Pending Follow-Ups</p>
+            <p class="conf-title" id="fu-prompt-title">Pending Follow-Ups</p>
             <p class="conf-sub">This to-do has {{ followUpPrompt.count }} pending follow-up{{ followUpPrompt.count !== 1 ? 's' : '' }}.</p>
           </div>
           <button class="conf-close" @click="dismissFollowUpPrompt"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
         </div>
         <div class="conf-body">
-          <svg class="conf-warn" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#1d4ed8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><circle cx="12" cy="16" r="1" fill="#1d4ed8" stroke="none"/>
+          <svg class="conf-warn" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><circle cx="12" cy="16" r="1" fill="var(--primary)" stroke="none"/>
           </svg>
           <p class="conf-text">Mark all {{ followUpPrompt.count }} pending follow-up{{ followUpPrompt.count !== 1 ? 's' : '' }} as complete too?</p>
         </div>
@@ -552,19 +568,19 @@
       </div>
     </div>
 
-    <div v-if="deleteTodoModal.open" class="conf-overlay">
-      <div class="conf-modal">
+    <div v-if="deleteTodoModal.open" class="conf-overlay" @mousedown.self="closeDeleteTodoModal">
+      <div class="conf-modal" role="dialog" aria-modal="true" aria-labelledby="delete-todo-title">
         <div class="conf-head">
           <div>
-            <p class="conf-title">Delete To-Do</p>
+            <p class="conf-title" id="delete-todo-title">Delete To-Do</p>
             <p class="conf-sub">All linked follow-ups will also be removed.</p>
           </div>
           <button class="conf-close" @click="closeDeleteTodoModal"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
         </div>
         <div class="conf-body">
-          <svg class="conf-warn" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <svg class="conf-warn" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="var(--warning)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-            <line x1="12" y1="9" x2="12" y2="13"/><circle cx="12" cy="17" r="1" fill="#f59e0b" stroke="none"/>
+            <line x1="12" y1="9" x2="12" y2="13"/><circle cx="12" cy="17" r="1" fill="var(--warning)" stroke="none"/>
           </svg>
           <p class="conf-text">Delete to-do for <strong>{{ deleteTodoModal.todo?.contact_name }}</strong>?</p>
         </div>
@@ -579,10 +595,10 @@
 
     <!-- Task Change Confirmation Modal -->
     <div v-if="taskChangeModal.open" class="conf-overlay" @mousedown.self="closeTaskChangeModal">
-      <div class="conf-modal task-change-modal">
+      <div class="conf-modal task-change-modal" role="dialog" aria-modal="true" aria-labelledby="task-change-title">
         <div class="conf-head">
           <div>
-            <p class="conf-title">Update Task</p>
+            <p class="conf-title" id="task-change-title">Update Task</p>
             <p class="conf-sub">{{ taskChangeModal.todo?.contact_name }}</p>
           </div>
           <button class="conf-close" @click="closeTaskChangeModal"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
@@ -620,7 +636,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, reactive } from 'vue';
+import { ref, computed, onMounted, onUnmounted, reactive } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import api from '../api.js';
 import LoadingSpinner from '../components/LoadingSpinner.vue';
@@ -951,6 +967,7 @@ async function executeExport(format = 'xls') {
     exportModal.value.open = false;
   } catch (err) {
     console.error('[Export]', err);
+    toast('Failed to export to-dos. Please try again.', 'error');
   } finally {
     exportModal.value.loading = false;
   }
@@ -959,15 +976,23 @@ async function executeExport(format = 'xls') {
 async function markSelectedDone() {
   const pending = todos.value.filter(t => selectedIds.value.includes(t.id) && t.can_edit && t.completion_status !== 'completed');
   if (!pending.length) return;
-  await Promise.all(pending.map(t => api.patch(`/v1/todos/${t.id}/status`, { status: 'completed' }).then(() => { t.completion_status = 'completed'; })));
-  selectedIds.value = [];
+  try {
+    await Promise.all(pending.map(t => api.patch(`/v1/todos/${t.id}/status`, { status: 'completed' }).then(() => { t.completion_status = 'completed'; })));
+    selectedIds.value = [];
+  } catch (err) {
+    toast('Failed to update some to-dos. Please try again.', 'error');
+  }
 }
 
 async function markSelectedPending() {
   const completed = todos.value.filter(t => selectedIds.value.includes(t.id) && t.can_edit && t.completion_status === 'completed');
   if (!completed.length) return;
-  await Promise.all(completed.map(t => api.patch(`/v1/todos/${t.id}/status`, { status: 'pending' }).then(() => { t.completion_status = 'pending'; })));
-  selectedIds.value = [];
+  try {
+    await Promise.all(completed.map(t => api.patch(`/v1/todos/${t.id}/status`, { status: 'pending' }).then(() => { t.completion_status = 'pending'; })));
+    selectedIds.value = [];
+  } catch (err) {
+    toast('Failed to update some to-dos. Please try again.', 'error');
+  }
 }
 
 // Search autocomplete
@@ -1003,27 +1028,42 @@ function onSearchBlur() {
 }
 
 const followUpPrompt = reactive({ open: false, todoId: null, count: 0, loading: false });
+const completing = ref(null);
 
 async function markDone(todo) {
-  await api.patch(`/v1/todos/${todo.id}/status`, { status: 'completed' });
-  todo.completion_status = 'completed';
-  // Non-blocking check for pending follow-ups
+  completing.value = todo.id;
   try {
-    const res = await api.get('/v1/followups', {
-      params: { todo_id: todo.id, completion_status: 'pending', per_page: 1, view: 'DateRange', from_date: '2000-01-01', to_date: '2099-12-31' },
-    });
-    const count = res.data.meta?.total ?? 0;
-    if (count > 0) {
-      followUpPrompt.todoId = todo.id;
-      followUpPrompt.count  = count;
-      followUpPrompt.open   = true;
-    }
-  } catch (_) { /* non-critical */ }
+    await api.patch(`/v1/todos/${todo.id}/status`, { status: 'completed' });
+    todo.completion_status = 'completed';
+    // Non-blocking check for pending follow-ups
+    try {
+      const res = await api.get('/v1/followups', {
+        params: { todo_id: todo.id, completion_status: 'pending', per_page: 1, view: 'DateRange', from_date: '2000-01-01', to_date: '2099-12-31' },
+      });
+      const count = res.data.meta?.total ?? 0;
+      if (count > 0) {
+        followUpPrompt.todoId = todo.id;
+        followUpPrompt.count  = count;
+        followUpPrompt.open   = true;
+      }
+    } catch (_) { /* non-critical */ }
+  } catch (e) {
+    toast(e.response?.data?.message ?? 'Failed to update to-do. Please try again.', 'error');
+  } finally {
+    completing.value = null;
+  }
 }
 
 async function markPending(todo) {
-  await api.patch(`/v1/todos/${todo.id}/status`, { status: 'pending' });
-  todo.completion_status = 'pending';
+  completing.value = todo.id;
+  try {
+    await api.patch(`/v1/todos/${todo.id}/status`, { status: 'pending' });
+    todo.completion_status = 'pending';
+  } catch (e) {
+    toast(e.response?.data?.message ?? 'Failed to update to-do. Please try again.', 'error');
+  } finally {
+    completing.value = null;
+  }
 }
 
 async function completeFollowUps() {
@@ -1195,6 +1235,20 @@ async function submitAddTodo() {
   }
 }
 
+function handleModalEscape(e) {
+  if (e.key !== 'Escape') return;
+  if (exportModal.value.open) { exportModal.value.open = false; return; }
+  if (remarkModal.value.open) { closeRemarkModal(); return; }
+  if (taskChangeModal.value.open) { closeTaskChangeModal(); return; }
+  if (deleteTodoModal.open) { closeDeleteTodoModal(); return; }
+  if (followUpPrompt.open) { dismissFollowUpPrompt(); return; }
+  if (editModal.value.open) { closeEditModal(); return; }
+  if (fuModal.value.open) { closeFuModal(); return; }
+  if (addModal.value.open) { closeAddModal(); return; }
+}
+onMounted(() => window.addEventListener('keydown', handleModalEscape));
+onUnmounted(() => window.removeEventListener('keydown', handleModalEscape));
+
 onMounted(async () => {
   // Arriving from a contact's "Open in To-Do" — pre-filter to that contact, show its full history.
   if (route.query.contact_id) {
@@ -1249,13 +1303,13 @@ onMounted(async () => {
 .btn-primary-pill:active { transform: translateY(1px); }
 .btn-head-export {
   display: inline-flex; align-items: center; gap: 6px;
-  background: #10b981; color: #fff;
+  background: var(--success); color: #fff;
   border: none; border-radius: 999px; padding: 11px 20px;
   font-size: 13px; font-weight: 700; cursor: pointer;
   white-space: nowrap;
   transition: background 0.15s, transform 0.06s;
 }
-.btn-head-export:hover { background: #059669; }
+.btn-head-export:hover { filter: brightness(0.9); }
 .btn-head-export:active { transform: translateY(1px); }
 .plus-icon {
   display: inline-flex; align-items: center; justify-content: center;
@@ -1285,10 +1339,10 @@ onMounted(async () => {
   color: var(--text-2); box-shadow: var(--shadow-xs);
 }
 .btn-export-sel {
-  background: #10b981; color: white; border: none; border-radius: 999px;
+  background: var(--success); color: white; border: none; border-radius: 999px;
   padding: 6px 16px; cursor: pointer; font-size: 13px; font-weight: 600;
 }
-.btn-export-sel:hover { background: #059669; }
+.btn-export-sel:hover { filter: brightness(0.9); }
 .btn-done-sel {
   background: var(--primary); color: white; border: none; border-radius: 999px;
   padding: 6px 16px; cursor: pointer; font-size: 13px; font-weight: 600;
@@ -1373,7 +1427,7 @@ tbody tr:hover { background: var(--surface-2); }
 .completed-date { font-size: 11px; font-weight: 600; color: var(--success); background: var(--success-soft); padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
 .company-link { color: var(--text-1); font-weight: 600; text-decoration: none; white-space: normal; word-break: break-word; }
 .company-link:hover { color: var(--primary); }
-.status-chip { background: var(--surface-2); color: var(--text-2); font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+.status-chip { background: var(--success-soft); color: var(--success); font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
 .remark-cell { max-width: 170px; }
 .remark-inner { display: flex; align-items: center; gap: 6px; }
 .remark-text {
@@ -1388,7 +1442,7 @@ tbody tr:hover { background: var(--surface-2); }
   border: 1px solid var(--border); background: var(--surface-2); color: var(--text-2); cursor: pointer;
   transition: background 0.12s, color 0.12s, border-color 0.12s;
 }
-.remark-edit-btn:hover { background: #fefce8; color: #92400e; border-color: #fde68a; }
+.remark-edit-btn:hover { background: var(--warning-soft); color: color-mix(in srgb, var(--warning) 75%, black); border-color: color-mix(in srgb, var(--warning) 40%, white); }
 .remark-modal { width: 460px; }
 
 .icon-btn {
@@ -1397,23 +1451,27 @@ tbody tr:hover { background: var(--surface-2); }
   cursor: pointer; border: none; transition: background 0.12s, transform 0.06s;
 }
 .icon-btn:active { transform: scale(0.92); }
-.btn-edit { background: #fefce8; }
-.btn-edit:hover { background: #fde68a; }
-.btn-delete { background: #fee2e2; color: #991b1b; }
-.btn-delete:hover { background: #fca5a5; }
-.btn-followup { background: #fce7f3; color: #9d174d; }
-.btn-followup:hover { background: #f9a8d4; }
+.btn-complete { background: var(--success-soft); color: var(--success); }
+.btn-complete:hover { background: var(--success); color: #fff; }
+.btn-undo { background: var(--surface-2); color: var(--text-2); }
+.btn-undo:hover { background: var(--text-2); color: var(--surface); }
+.btn-edit { background: var(--warning-soft); }
+.btn-edit:hover { background: color-mix(in srgb, var(--warning) 40%, white); }
+.btn-delete { background: var(--danger-soft); color: var(--danger); }
+.btn-delete:hover { background: color-mix(in srgb, var(--danger) 35%, white); }
+.btn-followup { background: var(--followup-soft); color: var(--followup); }
+.btn-followup:hover { background: color-mix(in srgb, var(--followup) 40%, white); }
 .fu-add-btn {
   display: inline-flex; align-items: center; justify-content: center;
   height: 24px; padding: 0 9px;
   border-radius: 999px;
-  border: 1px solid #f9a8d4;
-  background: #fce7f3; color: #9d174d;
+  border: 1px solid color-mix(in srgb, var(--followup) 40%, white);
+  background: var(--followup-soft); color: var(--followup);
   font-size: 10.5px; font-weight: 700; letter-spacing: 0.2px;
   cursor: pointer; white-space: nowrap; flex-shrink: 0;
   transition: background 0.12s, border-color 0.12s, transform 0.06s;
 }
-.fu-add-btn:hover { background: #f9a8d4; border-color: #f472b6; }
+.fu-add-btn:hover { background: color-mix(in srgb, var(--followup) 40%, white); border-color: color-mix(in srgb, var(--followup) 55%, white); }
 .fu-add-btn:active { transform: scale(0.93); }
 .actions-cell { display: flex; gap: 4px; align-items: center; }
 
@@ -1450,7 +1508,7 @@ tbody tr:hover { background: var(--surface-2); }
   background: var(--surface-2); color: var(--text-2); cursor: pointer;
   transition: background 0.12s, color 0.12s, border-color 0.12s;
 }
-.task-edit-btn:hover { background: #fefce8; color: #92400e; border-color: #fde68a; }
+.task-edit-btn:hover { background: var(--warning-soft); color: color-mix(in srgb, var(--warning) 75%, black); border-color: color-mix(in srgb, var(--warning) 40%, white); }
 
 /* Task change confirmation modal */
 .task-change-modal { width: 440px; max-width: 95vw; }
@@ -1503,10 +1561,10 @@ tbody tr:hover { background: var(--surface-2); }
 .followup-count {
   display: inline-flex; align-items: center; justify-content: center;
   min-width: 28px; padding: 3px 10px; border-radius: 999px;
-  background: #fce7f3; color: #9d174d; font-size: 11.5px; font-weight: 700;
+  background: var(--followup-soft); color: var(--followup); font-size: 11.5px; font-weight: 700;
   text-decoration: none;
 }
-.followup-count:hover { background: #f9a8d4; }
+.followup-count:hover { background: color-mix(in srgb, var(--followup) 40%, white); }
 .muted { color: var(--text-3); }
 .row-done td { opacity: 0.5; text-decoration: line-through; text-decoration-color: var(--border); }
 .row-done .icon-btn { text-decoration: none; opacity: 1; }
@@ -1589,7 +1647,7 @@ tbody tr:hover { background: var(--surface-2); }
 /* Add To-Do Modal */
 .remark-overlay {
   position: fixed; inset: 0;
-  background: rgba(15,23,42,0.55);
+  background: rgba(15,23,42,0.45);
   backdrop-filter: blur(4px);
   z-index: 700;
   display: flex; align-items: center; justify-content: center;
@@ -1665,8 +1723,8 @@ tbody tr:hover { background: var(--surface-2); }
   box-shadow: 0 6px 18px -6px rgba(29,78,216,0.55);
 }
 .btn-todo-submit:hover:not(:disabled) { background: var(--primary-hover); }
-.btn-todo-submit:disabled { background: #94a3b8; cursor: not-allowed; box-shadow: none; }
-.req { color: #ef4444; }
+.btn-todo-submit:disabled { background: var(--text-3); cursor: not-allowed; box-shadow: none; }
+.req { color: var(--danger); }
 
 /* Follow-Up modal context row */
 .fu-context-row {
@@ -1678,7 +1736,7 @@ tbody tr:hover { background: var(--surface-2); }
 .fu-context-value { font-size: 13px; font-weight: 600; color: var(--text-1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* ── Confirm modal ── */
-.conf-overlay { position: fixed; inset: 0; background: rgba(15,23,42,0.5); z-index: 900; display: flex; align-items: center; justify-content: center; padding: 16px; }
+.conf-overlay { position: fixed; inset: 0; background: rgba(15,23,42,0.45); z-index: 900; display: flex; align-items: center; justify-content: center; padding: 16px; }
 .conf-modal { background: var(--surface); border-radius: var(--radius-lg); width: 100%; max-width: 420px; box-shadow: var(--shadow-lg); border: 1px solid var(--border-soft); overflow: hidden; }
 .conf-head { display: flex; justify-content: space-between; align-items: flex-start; padding: 18px 22px 14px; border-bottom: 1px solid var(--border-soft); }
 .conf-title { font-size: 15px; font-weight: 700; color: var(--text-1); margin: 0 0 2px; }
@@ -1692,7 +1750,7 @@ tbody tr:hover { background: var(--surface-2); }
 .conf-cancel { height: 38px; padding: 0 18px; background: none; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 13px; font-weight: 600; color: var(--text-2); cursor: pointer; }
 .conf-cancel:hover { background: var(--surface-2); }
 .conf-delete { height: 38px; padding: 0 18px; background: var(--danger); color: #fff; border: none; border-radius: var(--radius-sm); font-size: 13px; font-weight: 700; cursor: pointer; }
-.conf-delete:hover:not(:disabled) { background: #b91c1c; }
+.conf-delete:hover:not(:disabled) { filter: brightness(0.9); }
 .conf-delete:disabled { opacity: 0.5; cursor: not-allowed; }
 .conf-followup-ok { height: 38px; padding: 0 18px; background: var(--primary); color: #fff; border: none; border-radius: var(--radius-sm); font-size: 13px; font-weight: 700; cursor: pointer; }
 .conf-followup-ok:hover:not(:disabled) { background: var(--primary-hover); }
@@ -1730,7 +1788,7 @@ tbody tr:hover { background: var(--surface-2); }
 .export-dl-text { display: flex; flex-direction: column; gap: 2px; }
 .export-dl-label { font-size: 14px; font-weight: 700; line-height: 1.2; }
 .export-dl-desc  { font-size: 12px; opacity: 0.82; line-height: 1.3; }
-.export-dl-xls { background: #10b981; color: #fff; }
+.export-dl-xls { background: var(--success); color: #fff; }
 .export-dl-csv { background: var(--surface); border: 1.5px solid var(--border) !important; color: var(--text-1); }
 .export-cancel-btn {
   width: 100%; padding: 10px 16px; background: none;

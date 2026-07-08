@@ -53,18 +53,26 @@
           <input
             v-model="search"
             @input="onSearchInput"
-            @keyup.enter="load(1); showSuggestions = false"
+            @keydown.down.prevent="moveSuggestion(1)"
+            @keydown.up.prevent="moveSuggestion(-1)"
+            @keyup.enter="onSearchEnter"
             @keydown.esc="showSuggestions = false"
             @blur="onSearchBlur"
             @focus="search.trim() && suggestions.length && (showSuggestions = true)"
             placeholder="Search by company name…"
             autocomplete="off"
+            role="combobox"
+            aria-autocomplete="list"
+            :aria-expanded="showSuggestions"
           >
-          <div v-if="showSuggestions && suggestions.length" class="suggestions-dropdown">
+          <div v-if="showSuggestions && suggestions.length" class="suggestions-dropdown" role="listbox">
             <div
-              v-for="s in suggestions"
+              v-for="(s, si) in suggestions"
               :key="s.id"
               class="suggestion-item"
+              :class="{ 'suggestion-item-active': si === activeSuggestion }"
+              role="option"
+              :aria-selected="si === activeSuggestion"
               @mousedown.prevent="pickSuggestion(s.name)"
             >{{ s.name }}</div>
           </div>
@@ -130,18 +138,26 @@
           <input
             v-model="summaryFilters.search"
             @input="onSummarySearchInput"
-            @keyup.enter="applySummaryFilters(); summaryShowSuggestions = false"
+            @keydown.down.prevent="moveSummarySuggestion(1)"
+            @keydown.up.prevent="moveSummarySuggestion(-1)"
+            @keyup.enter="onSummarySearchEnter"
             @keydown.esc="summaryShowSuggestions = false"
             @blur="onSummarySearchBlur"
             @focus="summaryFilters.search.trim() && summarySuggestions.length && (summaryShowSuggestions = true)"
             placeholder="Company name…"
             autocomplete="off"
+            role="combobox"
+            aria-autocomplete="list"
+            :aria-expanded="summaryShowSuggestions"
           >
-          <div v-if="summaryShowSuggestions && summarySuggestions.length" class="suggestions-dropdown">
+          <div v-if="summaryShowSuggestions && summarySuggestions.length" class="suggestions-dropdown" role="listbox">
             <div
-              v-for="s in summarySuggestions"
+              v-for="(s, si) in summarySuggestions"
               :key="s.id"
               class="suggestion-item"
+              :class="{ 'suggestion-item-active': si === summaryActiveSuggestion }"
+              role="option"
+              :aria-selected="si === summaryActiveSuggestion"
               @mousedown.prevent="pickSummarySuggestion(s.name)"
             >{{ s.name }}</div>
           </div>
@@ -852,7 +868,7 @@
           <table>
             <thead>
               <tr>
-                <th class="col-check"><input type="checkbox" @change="toggleAllContacts" ref="contactSelectAllRef" :indeterminate.prop="contactSomeSelected"></th>
+                <th class="col-check"><input type="checkbox" @change="toggleAllContacts" ref="contactSelectAllRef" :indeterminate.prop="contactSomeSelected" aria-label="Select all contacts"></th>
                 <th class="col-date">Date Added</th>
                 <th class="col-user">User</th>
                 <th class="col-status">Status</th>
@@ -881,7 +897,7 @@
                 </td>
               </tr>
               <tr v-for="(c, idx) in contacts" :key="c.id" class="contact-row" @click="openDrawer(c)" style="cursor:pointer">
-                <td class="col-check" @click.stop><input type="checkbox" :value="c.id" v-model="contactSelectedIds"></td>
+                <td class="col-check" @click.stop><input type="checkbox" :value="c.id" v-model="contactSelectedIds" :aria-label="'Select ' + c.name"></td>
                 <td class="col-date"><span class="date-text">{{ fmtDate(c.created_at) }}</span></td>
                 <td class="col-user"><span class="user-name">{{ c.user?.name ?? '—' }}</span></td>
                 <td class="col-status">
@@ -951,7 +967,7 @@
           <div class="summary-legend">
             <span class="legend-dot dot-completed"></span><span class="legend-label">Contacted</span>
             <span class="legend-dot dot-cancelled"></span><span class="legend-label">Cancelled</span>
-            <span class="legend-dot" style="background:#e2e8f0"></span><span class="legend-label">No activity</span>
+            <span class="legend-dot" style="background:var(--border)"></span><span class="legend-label">No activity</span>
           </div>
           <div class="sum-pager-rows">
             <span class="sum-pager-label">Rows</span>
@@ -964,7 +980,7 @@
           <table class="summary-table">
             <thead>
               <tr>
-                <th class="col-check"><input type="checkbox" @change="toggleAllSummary" ref="summarySelectAllRef" :indeterminate.prop="summarySomeSelected"></th>
+                <th class="col-check"><input type="checkbox" @change="toggleAllSummary" ref="summarySelectAllRef" :indeterminate.prop="summarySomeSelected" aria-label="Select all contacts"></th>
                 <th class="sum-name-col">Company</th>
                 <th class="sum-user-col">User</th>
                 <th class="sum-status-col">Status</th>
@@ -980,7 +996,7 @@
                 </td>
               </tr>
               <tr v-for="(c, idx) in summaryContacts" :key="c.id" class="contact-row" @click="openDrawer(c)" style="cursor:pointer">
-                <td class="col-check" @click.stop><input type="checkbox" :value="c.id" v-model="summarySelectedIds"></td>
+                <td class="col-check" @click.stop><input type="checkbox" :value="c.id" v-model="summarySelectedIds" :aria-label="'Select ' + c.name"></td>
                 <td class="sum-name-col"><span class="sum-company-link">{{ c.name }}</span></td>
                 <td class="sum-user-col"><span class="user-name">{{ c.user ?? '—' }}</span></td>
                 <td class="sum-status-col">
@@ -1316,9 +1332,9 @@
           </button>
         </div>
         <div class="conf-body">
-          <svg class="conf-warn" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <svg class="conf-warn" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="var(--warning)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-            <line x1="12" y1="9" x2="12" y2="13"/><circle cx="12" cy="17" r="1" fill="#f59e0b" stroke="none"/>
+            <line x1="12" y1="9" x2="12" y2="13"/><circle cx="12" cy="17" r="1" fill="var(--warning)" stroke="none"/>
           </svg>
           <p class="conf-text">Flag <strong>{{ drawer.contact?.name }}</strong> as permanently closed? You can undo this at any time.</p>
         </div>
@@ -1331,17 +1347,6 @@
       </div>
     </div>
   </Teleport>
-
-    <!-- Toast notifications -->
-    <div class="toast-container">
-      <transition-group name="toast" tag="div" class="toast-list">
-        <div v-for="t in toasts" :key="t.id" :class="['toast-item', `toast-${t.type}`]">
-          <span class="toast-check" v-html="t.type === 'success' ? CI.check : CI.x"></span>
-          <span class="toast-text">{{ t.message }}</span>
-          <button class="toast-dismiss" @click="dismissToast(t.id)" v-html="CI.x"></button>
-        </div>
-      </transition-group>
-    </div>
   </div>
 </template>
 
@@ -1361,15 +1366,10 @@ const { can, isAdmin } = usePermissions();
 const router = useRouter();
 const route  = useRoute();
 
-// ── Toast notifications ──
-const toasts = ref([]);
-let _toastSeq = 0;
+// ── Toast notifications ── fires the global toast handled by ToastContainer.vue (mounted in App.vue)
 function showToast(message, type = 'success') {
-  const id = ++_toastSeq;
-  toasts.value.push({ id, message, type });
-  setTimeout(() => { toasts.value = toasts.value.filter(t => t.id !== id); }, 3000);
+  window.dispatchEvent(new CustomEvent('crm-toast', { detail: { message, type } }));
 }
-function dismissToast(id) { toasts.value = toasts.value.filter(t => t.id !== id); }
 
 // ── Icons (same SVG style as the sidebar) ──
 const _si = (p, sz = 14) => `<svg width="${sz}" height="${sz}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
@@ -1460,10 +1460,12 @@ const CONTACT_PER_PAGE_OPTIONS = [10, 25, 50, 100];
 // ── Search autocomplete ──
 const suggestions     = ref([]);
 const showSuggestions = ref(false);
+const activeSuggestion = ref(-1);
 let _suggestTimer = null;
 
 function onSearchInput() {
   clearTimeout(_suggestTimer);
+  activeSuggestion.value = -1;
   if (!search.value.trim()) {
     suggestions.value = [];
     showSuggestions.value = false;
@@ -1478,9 +1480,25 @@ function onSearchInput() {
   }, 250);
 }
 
+function moveSuggestion(delta) {
+  if (!showSuggestions.value || !suggestions.value.length) return;
+  const len = suggestions.value.length;
+  activeSuggestion.value = (activeSuggestion.value + delta + len) % len;
+}
+
+function onSearchEnter() {
+  if (showSuggestions.value && suggestions.value[activeSuggestion.value]) {
+    pickSuggestion(suggestions.value[activeSuggestion.value].name);
+  } else {
+    load(1);
+    showSuggestions.value = false;
+  }
+}
+
 function pickSuggestion(name) {
   search.value = name;
   showSuggestions.value = false;
+  activeSuggestion.value = -1;
   load();
 }
 
@@ -1491,10 +1509,12 @@ function onSearchBlur() {
 // ── Summary tab search suggestions ──
 const summarySuggestions     = ref([]);
 const summaryShowSuggestions = ref(false);
+const summaryActiveSuggestion = ref(-1);
 let _summaryTimer = null;
 
 function onSummarySearchInput() {
   clearTimeout(_summaryTimer);
+  summaryActiveSuggestion.value = -1;
   if (!summaryFilters.value.search.trim()) {
     summarySuggestions.value = [];
     summaryShowSuggestions.value = false;
@@ -1509,9 +1529,25 @@ function onSummarySearchInput() {
   }, 250);
 }
 
+function moveSummarySuggestion(delta) {
+  if (!summaryShowSuggestions.value || !summarySuggestions.value.length) return;
+  const len = summarySuggestions.value.length;
+  summaryActiveSuggestion.value = (summaryActiveSuggestion.value + delta + len) % len;
+}
+
+function onSummarySearchEnter() {
+  if (summaryShowSuggestions.value && summarySuggestions.value[summaryActiveSuggestion.value]) {
+    pickSummarySuggestion(summarySuggestions.value[summaryActiveSuggestion.value].name);
+  } else {
+    applySummaryFilters();
+    summaryShowSuggestions.value = false;
+  }
+}
+
 function pickSummarySuggestion(name) {
   summaryFilters.value.search = name;
   summaryShowSuggestions.value = false;
+  summaryActiveSuggestion.value = -1;
   applySummaryFilters();
 }
 
@@ -1709,6 +1745,8 @@ async function load(page = 1) {
       total:        res.data.total        ?? res.data.data?.length ?? 0,
       from:         res.data.from         ?? 1,
     };
+  } catch (e) {
+    showToast(e.response?.data?.message ?? 'Failed to load contacts.', 'error');
   } finally {
     loading.value = false;
   }
@@ -1847,6 +1885,8 @@ async function loadSummary() {
     const res = await api.get('/v1/summary', { params });
     summaryContacts.value = res.data.data;
     summaryMeta.value = res.data.meta ?? {};
+  } catch (e) {
+    showToast(e.response?.data?.message ?? 'Failed to load summary.', 'error');
   } finally {
     summaryLoading.value = false;
   }
@@ -2042,6 +2082,8 @@ async function completeFollowUps() {
   followUpPrompt.value.loading = true;
   try {
     await api.patch(`/v1/todos/${followUpPrompt.value.todoId}/complete-followups`);
+  } catch (e) {
+    showToast(e.response?.data?.message ?? 'Failed to complete follow-ups.', 'error');
   } finally {
     followUpPrompt.value = { open: false, todoId: null, count: 0, loading: false };
   }
@@ -2150,7 +2192,8 @@ async function confirmForecastDelete() {
     closeForecastDeleteModal();
     loadForecasts();
     showToast('Forecast deleted');
-  } catch {
+  } catch (e) {
+    showToast(e.response?.data?.message ?? 'Failed to delete forecast.', 'error');
     forecastDeleteModal.value.loading = false;
   }
 }
@@ -2175,6 +2218,8 @@ async function toggleDrawerClosed() {
     const match = contacts.value.find(c => c.id === drawer.value.contact.id);
     if (match) match.is_permanently_closed = res.data.is_permanently_closed;
     closedDrawerModal.value.open = false;
+  } catch (e) {
+    showToast(e.response?.data?.message ?? 'Failed to update contact status.', 'error');
   } finally {
     closedDrawerModal.value.loading = false;
   }
@@ -2188,6 +2233,9 @@ async function openDrawer(c) {
   try {
     const res = await api.get(`/v1/contacts/${c.id}`);
     drawer.value.contact = res.data.data;
+  } catch (e) {
+    drawer.value.open = false;
+    showToast(e.response?.data?.message ?? 'Failed to load contact.', 'error');
   } finally {
     drawer.value.loading = false;
   }
@@ -2411,10 +2459,14 @@ function checkEditDuplicate() {
   editContactModal.value.dupError = '';
   if (!editContactForm.value.name.trim()) return;
   editDupTimer = setTimeout(async () => {
-    const res = await api.get('/v1/contacts/check-duplicate', {
-      params: { name: editContactForm.value.name, exclude_id: editContactModal.value.contactId },
-    });
-    editContactModal.value.dupError = res.data.exists ? 'This company name already exists!' : '';
+    try {
+      const res = await api.get('/v1/contacts/check-duplicate', {
+        params: { name: editContactForm.value.name, exclude_id: editContactModal.value.contactId },
+      });
+      editContactModal.value.dupError = res.data.exists ? 'This company name already exists!' : '';
+    } catch (e) {
+      showToast(e.response?.data?.message ?? 'Failed to check for duplicate name.', 'error');
+    }
   }, 400);
 }
 
@@ -2463,10 +2515,18 @@ async function submitQuickTask() {
 }
 
 async function toggleDrawerTodoDone(todo, status) {
-  await api.patch(`/v1/todos/${todo.id}/status`, { status });
-  todo.completion_status = status;
-  showToast(status === 'completed' ? 'Task marked complete' : 'Task marked pending');
-  if (status === 'completed') checkAndPromptFollowUps(todo.id);
+  if (todo._toggling) return;
+  todo._toggling = true;
+  try {
+    await api.patch(`/v1/todos/${todo.id}/status`, { status });
+    todo.completion_status = status;
+    showToast(status === 'completed' ? 'Task marked complete' : 'Task marked pending');
+    if (status === 'completed') checkAndPromptFollowUps(todo.id);
+  } catch (e) {
+    showToast(e.response?.data?.message ?? 'Failed to update task status.', 'error');
+  } finally {
+    todo._toggling = false;
+  }
 }
 
 function deleteDrawerTodo(todo) {
@@ -2487,7 +2547,8 @@ async function confirmTodoDelete() {
     const res = await api.get(`/v1/contacts/${drawer.value.contact.id}`);
     drawer.value.contact = res.data.data;
     showToast('Task deleted');
-  } catch {
+  } catch (e) {
+    showToast(e.response?.data?.message ?? 'Failed to delete task.', 'error');
     todoDeleteModal.value.loading = false;
   }
 }
@@ -2511,7 +2572,8 @@ async function confirmDelete() {
     closeDeleteModal();
     load();
     showToast('Contact deleted');
-  } catch {
+  } catch (e) {
+    showToast(e.response?.data?.message ?? 'Failed to delete contact.', 'error');
     deleteModal.value.loading = false;
   }
 }
@@ -2534,8 +2596,12 @@ function checkAddDuplicate() {
   addDupError.value = '';
   if (!addForm.value.name.trim()) return;
   addDupTimer = setTimeout(async () => {
-    const res = await api.get('/v1/contacts/check-duplicate', { params: { name: addForm.value.name } });
-    addDupError.value = res.data.exists ? 'A contact with this company name already exists!' : '';
+    try {
+      const res = await api.get('/v1/contacts/check-duplicate', { params: { name: addForm.value.name } });
+      addDupError.value = res.data.exists ? 'A contact with this company name already exists!' : '';
+    } catch (e) {
+      showToast(e.response?.data?.message ?? 'Failed to check for duplicate name.', 'error');
+    }
   }, 400);
 }
 
@@ -2763,14 +2829,14 @@ onMounted(async () => {
   border: 1px solid var(--border);
 }
 .btn-clear:hover { background: var(--danger-soft); color: var(--danger); border-color: var(--danger-soft); }
-.btn-export { background: #10b981; color: white; border: none; }
-.btn-export:hover { background: #059669; }
+.btn-export { background: var(--success); color: white; border: none; }
+.btn-export:hover { filter: brightness(0.9); }
 .btn-sm { height: 32px; padding: 0 14px; font-size: 12px; }
 
 /* Table wrap */
 .table-wrap {
   background: var(--surface);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius);
   box-shadow: var(--shadow-sm);
   border: 1px solid var(--border-soft);
   overflow: hidden;
@@ -3013,8 +3079,8 @@ tbody tr:last-child td { border-bottom: none; }
 }
 .sum-month-cell:hover { transform: scale(1.08); box-shadow: 0 4px 12px -2px rgba(0,0,0,0.18); z-index: 1; position: relative; }
 .smc-empty    { background: var(--surface-2); border: 1px solid var(--border-soft); opacity: 0.55; }
-.smc-active   { background: #bbf7d0; border: 2px solid #16a34a; box-shadow: 0 2px 8px -2px rgba(22,163,74,0.3); }
-.smc-cancelled { background: #fde68a; border: 2px solid #d97706; box-shadow: 0 2px 8px -2px rgba(217,119,6,0.25); }
+.smc-active   { background: color-mix(in srgb, var(--success) 30%, white); border: 2px solid var(--success); box-shadow: 0 2px 8px -2px color-mix(in srgb, var(--success) 30%, transparent); }
+.smc-cancelled { background: color-mix(in srgb, var(--warning) 35%, white); border: 2px solid color-mix(in srgb, var(--warning) 85%, black); box-shadow: 0 2px 8px -2px color-mix(in srgb, var(--warning) 25%, transparent); }
 .smc-name {
   font-size: 9.5px;
   font-weight: 700;
@@ -3023,15 +3089,15 @@ tbody tr:last-child td { border-bottom: none; }
   line-height: 1;
 }
 .smc-empty .smc-name { color: var(--text-3); }
-.smc-active .smc-name { color: #15803d; font-weight: 800; }
-.smc-cancelled .smc-name { color: #b45309; font-weight: 800; }
+.smc-active .smc-name { color: color-mix(in srgb, var(--success) 75%, black); font-weight: 800; }
+.smc-cancelled .smc-name { color: color-mix(in srgb, var(--warning) 75%, black); font-weight: 800; }
 .smc-date {
   font-size: 11px;
   font-weight: 800;
   line-height: 1.2;
 }
-.smc-active .smc-date { color: #14532d; }
-.smc-cancelled .smc-date { color: #92400e; }
+.smc-active .smc-date { color: color-mix(in srgb, var(--success) 55%, black); }
+.smc-cancelled .smc-date { color: color-mix(in srgb, var(--warning) 60%, black); }
 .smc-task {
   font-size: 9px;
   font-weight: 700;
@@ -3041,8 +3107,8 @@ tbody tr:last-child td { border-bottom: none; }
   text-overflow: ellipsis;
   max-width: 100%;
 }
-.smc-active .smc-task { color: #166534; }
-.smc-cancelled .smc-task { color: #78350f; }
+.smc-active .smc-task { color: color-mix(in srgb, var(--success) 65%, black); }
+.smc-cancelled .smc-task { color: color-mix(in srgb, var(--warning) 70%, black); }
 .smc-count {
   font-size: 9px; font-weight: 800; line-height: 1;
   background: rgba(0,0,0,0.18); color: inherit;
@@ -3102,7 +3168,7 @@ tbody tr:last-child td { border-bottom: none; }
   justify-content: space-between;
   padding: 14px 18px;
   border-top: 1px solid var(--border-soft);
-  background: #f8f9ff;
+  background: var(--surface-2);
 }
 .pagination-info { font-size: 12px; color: var(--text-3); flex-shrink: 0; }
 .pagination-btns { display: flex; align-items: center; gap: 3px; }
@@ -3116,7 +3182,7 @@ tbody tr:last-child td { border-bottom: none; }
   transition: background 0.12s;
 }
 .page-nav svg { width: 14px; height: 14px; }
-.page-nav:hover:not(:disabled) { background: #e5eeff; }
+.page-nav:hover:not(:disabled) { background: var(--primary-soft); }
 .page-nav:disabled { opacity: 0.3; cursor: default; }
 .page-num {
   width: 32px; height: 32px;
@@ -3128,7 +3194,7 @@ tbody tr:last-child td { border-bottom: none; }
   cursor: pointer;
   transition: background 0.12s;
 }
-.page-num:hover { background: #e5eeff; }
+.page-num:hover { background: var(--primary-soft); }
 .page-num--on { background: var(--primary, #1d4ed8); color: #fff; font-weight: 700; }
 .page-ellipsis { width: 32px; text-align: center; color: var(--text-3); font-size: 13px; line-height: 32px; }
 .sum-pager-rows { display: flex; align-items: center; gap: 6px; }
@@ -3202,7 +3268,7 @@ tbody tr:last-child td { border-bottom: none; }
 .export-dl-label { font-size: 14px; font-weight: 700; line-height: 1.2; }
 .export-dl-desc  { font-size: 12px; opacity: 0.82; line-height: 1.3; }
 
-.export-dl-xls { background: #10b981; color: #fff; }
+.export-dl-xls { background: var(--success); color: #fff; }
 .export-dl-csv { background: var(--surface); border: 1.5px solid var(--border); color: var(--text-1); }
 
 .export-cancel-btn {
@@ -3408,7 +3474,7 @@ tbody tr:last-child td { border-bottom: none; }
   transition: background 0.15s;
   box-shadow: 0 6px 18px -6px rgba(239,68,68,0.55);
 }
-.btn-danger:hover:not(:disabled) { background: #dc2626; }
+.btn-danger:hover:not(:disabled) { filter: brightness(0.9); }
 .btn-danger:disabled { opacity: 0.45; cursor: not-allowed; box-shadow: none; }
 
 /* Drawer */
@@ -3500,8 +3566,8 @@ tbody tr:last-child td { border-bottom: none; }
 .btn-edit-c:hover { background: var(--warning); color: #fff; }
 .btn-forecast-c { background: var(--info-soft); color: var(--info); }
 .btn-forecast-c:hover { background: var(--info); color: #fff; }
-.btn-followup-c { background: #fce7f3; color: #9d174d; }
-.btn-followup-c:hover { background: #e11d48; color: #fff; }
+.btn-followup-c { background: var(--followup-soft); color: var(--followup); }
+.btn-followup-c:hover { background: var(--followup); color: #fff; }
 .btn-close-c { background: var(--danger-soft); color: var(--danger); }
 .btn-close-c:hover { background: var(--danger); color: #fff; }
 .btn-reopen-c { background: var(--success-soft); color: var(--success); }
@@ -3511,11 +3577,11 @@ tbody tr:last-child td { border-bottom: none; }
   background: var(--danger-soft); color: var(--danger); border-radius: var(--radius-sm);
   padding: 7px 12px; font-size: 12px; font-weight: 700;
 }
-.btn-followup-save { background: #e11d48; color: #fff; border: none; border-radius: 6px; cursor: pointer; }
-.btn-followup-save:disabled { background: #94a3b8; cursor: not-allowed; }
+.btn-followup-save { background: var(--followup); color: #fff; border: none; border-radius: var(--radius-sm); cursor: pointer; }
+.btn-followup-save:disabled { background: var(--text-3); cursor: not-allowed; }
 .btn-followup-submit { flex: 1; background: var(--primary); color: var(--primary-on); justify-content: center; height: 42px; padding: 0 20px; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; border: none; display: inline-flex; align-items: center; box-shadow: 0 6px 18px -6px rgba(29,78,216,0.55); }
 .btn-followup-submit:hover:not(:disabled) { background: var(--primary-hover); }
-.btn-followup-submit:disabled { background: #94a3b8; cursor: not-allowed; box-shadow: none; }
+.btn-followup-submit:disabled { background: var(--text-3); cursor: not-allowed; box-shadow: none; }
 .todo-actions-cell { text-align: right; white-space: nowrap; display: flex; gap: 4px; justify-content: flex-end; align-items: center; }
 .todo-del-btn {
   display: inline-flex; align-items: center; justify-content: center;
@@ -3525,15 +3591,19 @@ tbody tr:last-child td { border-bottom: none; }
 }
 .todo-del-btn:hover { background: var(--danger); color: #fff; }
 .fu-count-badge {
-  font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 10px;
-  border: 1.5px solid #fce7f3; background: #fce7f3; color: #9d174d;
+  font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: var(--radius);
+  border: 1.5px solid var(--followup-soft); background: var(--followup-soft); color: var(--followup);
   cursor: pointer; white-space: nowrap; transition: background 0.15s, color 0.15s, border-color 0.15s;
 }
-.fu-count-badge.fu-has-entries { border-color: #fb7185; background: #ffe4e6; color: #be123c; }
-.fu-count-badge:hover { background: #e11d48; border-color: #e11d48; color: #fff; }
+.fu-count-badge.fu-has-entries {
+  border-color: color-mix(in srgb, var(--followup) 55%, white);
+  background: color-mix(in srgb, var(--followup) 15%, white);
+  color: color-mix(in srgb, var(--followup) 90%, black);
+}
+.fu-count-badge:hover { background: var(--followup); border-color: var(--followup); color: #fff; }
 .fu-badge {
-  background: #fce7f3; color: #9d174d; font-size: 11px; font-weight: 600;
-  padding: 2px 8px; border-radius: 10px; white-space: nowrap;
+  background: var(--followup-soft); color: var(--followup); font-size: 11px; font-weight: 600;
+  padding: 2px 8px; border-radius: var(--radius); white-space: nowrap;
 }
 .task-fu-modal { width: 620px; }
 .task-fu-body { padding: 18px 24px; }
@@ -3855,7 +3925,7 @@ tbody tr:last-child td { border-bottom: none; }
 .pic-btn-del { background: var(--surface-2); color: var(--danger); border-color: var(--border); }
 .pic-btn-del:hover { background: var(--danger-soft); }
 .pic-btn-confirm { background: var(--danger); color: #fff; }
-.pic-btn-confirm:hover:not(:disabled) { background: #b91c1c; }
+.pic-btn-confirm:hover:not(:disabled) { filter: brightness(0.9); }
 .pic-btn-ghost { background: var(--surface-2); color: var(--text-2); border-color: var(--border); }
 .pic-btn-ghost:hover { background: var(--border); color: var(--text-1); }
 @media (max-width: 640px) {
@@ -3864,21 +3934,21 @@ tbody tr:last-child td { border-bottom: none; }
 }
 
 /* Forecast tab */
-.btn-add-forecast { background: #0ea5e9; }
-.btn-add-forecast:hover { background: #0284c7; }
+.btn-add-forecast { background: var(--info); }
+.btn-add-forecast:hover { filter: brightness(0.9); }
 .forecast-stats { display: flex; gap: 8px; flex-wrap: wrap; }
 .fstat-chip {
   display: inline-flex; flex-direction: column; align-items: center; padding: 4px 12px;
-  background: #f1f5f9; border-radius: 8px; min-width: 90px;
+  background: var(--surface-2); border-radius: var(--radius-sm); min-width: 90px;
 }
 .fstat-chip strong { font-size: 12px; font-weight: 800; color: var(--text-1); line-height: 1.2; }
 .fstat-chip small { font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-3); margin-top: 2px; font-weight: 700; }
-.fstat-confirmed { background: #dcfce7; }
-.fstat-confirmed strong { color: #15803d; }
-.fstat-pending { background: #fef3c7; }
-.fstat-pending strong { color: #b45309; }
+.fstat-confirmed { background: var(--success-soft); }
+.fstat-confirmed strong { color: var(--success); }
+.fstat-pending { background: var(--warning-soft); }
+.fstat-pending strong { color: var(--warning); }
 .fcol-amount { width: 110px; text-align: right; white-space: nowrap; }
-.fcast-amount { font-weight: 800; color: #0369a1; font-size: 12px; }
+.fcast-amount { font-weight: 800; color: var(--info); font-size: 12px; }
 
 /* Drawer slide-in transition */
 .drawer-enter-active { transition: opacity 0.2s ease; }
@@ -3996,57 +4066,7 @@ tbody tr:last-child td { border-bottom: none; }
 }
 .suggestion-item:last-child { border-bottom: none; }
 .suggestion-item:hover { background: var(--surface-2); color: var(--primary); }
-
-/* ── Toast notifications ── */
-.toast-container {
-  position: fixed;
-  bottom: 28px;
-  right: 28px;
-  z-index: 9999;
-  pointer-events: none;
-}
-.toast-list {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-.toast-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 260px;
-  max-width: 360px;
-  padding: 12px 16px;
-  border-radius: 12px;
-  background: #1e293b;
-  color: #f8fafc;
-  font-size: 13.5px;
-  font-weight: 500;
-  box-shadow: 0 8px 32px -6px rgba(0,0,0,0.38);
-  pointer-events: all;
-}
-.toast-success .toast-check { color: #4ade80; font-weight: 800; font-size: 16px; flex-shrink: 0; }
-.toast-error   .toast-check { color: #f87171; font-weight: 800; font-size: 16px; flex-shrink: 0; }
-.toast-text { flex: 1; line-height: 1.4; }
-.toast-dismiss {
-  background: none;
-  border: none;
-  color: #94a3b8;
-  cursor: pointer;
-  font-size: 11px;
-  padding: 2px 5px;
-  border-radius: 4px;
-  line-height: 1;
-  flex-shrink: 0;
-  transition: color 0.15s, background 0.15s;
-}
-.toast-dismiss:hover { color: #f8fafc; background: rgba(255,255,255,0.12); }
-
-.toast-enter-active { transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1), opacity 0.25s ease; }
-.toast-leave-active { transition: transform 0.2s ease, opacity 0.18s ease; position: absolute; width: 100%; }
-.toast-enter-from   { transform: translateY(24px); opacity: 0; }
-.toast-leave-to     { transform: translateY(12px); opacity: 0; }
-.toast-move         { transition: transform 0.25s ease; }
+.suggestion-item-active { background: var(--primary-soft); color: var(--primary-text); }
 
 /* Confirm modal (shared with Mark as Closed) */
 .conf-overlay { position: fixed; inset: 0; background: rgba(15,23,42,0.5); z-index: 900; display: flex; align-items: center; justify-content: center; padding: 16px; }
@@ -4063,7 +4083,7 @@ tbody tr:last-child td { border-bottom: none; }
 .conf-cancel { height: 38px; padding: 0 18px; background: none; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 13px; font-weight: 600; color: var(--text-2); cursor: pointer; }
 .conf-cancel:hover { background: var(--surface-2); }
 .conf-delete { height: 38px; padding: 0 18px; background: var(--danger); color: #fff; border: none; border-radius: var(--radius-sm); font-size: 13px; font-weight: 700; cursor: pointer; }
-.conf-delete:hover:not(:disabled) { background: #b91c1c; }
+.conf-delete:hover:not(:disabled) { filter: brightness(0.9); }
 .conf-delete:disabled { opacity: 0.5; cursor: not-allowed; }
 
 /* ── Tab panel transition ── */
@@ -4174,8 +4194,8 @@ tbody tr:last-child td { border-bottom: none; }
   font-size: 10px; font-weight: 700; text-transform: capitalize;
   border-radius: 99px; padding: 2px 8px; flex-shrink: 0;
 }
-.sp-badge-completed { background: #d1fae5; color: #065f46; }
-.sp-badge-cancelled { background: #fef3c7; color: #92400e; }
+.sp-badge-completed { background: var(--success-soft); color: color-mix(in srgb, var(--success) 75%, black); }
+.sp-badge-cancelled { background: var(--warning-soft); color: color-mix(in srgb, var(--warning) 75%, black); }
 .sp-task {
   font-size: 12.5px; font-weight: 600; color: var(--text-2);
   display: block; margin-bottom: 4px; padding-left: 24px;

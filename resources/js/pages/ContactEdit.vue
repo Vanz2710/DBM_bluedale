@@ -316,7 +316,7 @@ onMounted(async () => {
 .pic-title { font-size: 16px; font-weight: 700; color: var(--text-1); margin: 0 0 3px; }
 .pic-sub { font-size: 12.5px; color: var(--text-3); margin: 0; }
 .btn-add-pic { flex-shrink: 0; height: 36px; padding: 0 14px; border: 1px solid var(--primary); background: var(--primary-soft); color: var(--primary-text); border-radius: var(--radius-sm); font-size: 13px; font-weight: 600; cursor: pointer; transition: background 0.15s; }
-.btn-add-pic:hover { background: #c7dbfd; }
+.btn-add-pic:hover { background: color-mix(in srgb, var(--primary-soft) 60%, var(--primary)); }
 .pic-empty { font-size: 13px; color: var(--text-3); padding: 8px 0 4px; }
 .pic-list { display: flex; flex-direction: column; gap: 10px; }
 .pic-row { display: grid; grid-template-columns: 1.4fr 1fr 1.4fr auto; gap: 10px; align-items: center; }
@@ -331,7 +331,7 @@ onMounted(async () => {
 .pic-btn-del { background: var(--surface-2); color: var(--danger); border-color: var(--border); }
 .pic-btn-del:hover { background: var(--danger-soft); }
 .pic-btn-confirm { background: var(--danger); color: #fff; }
-.pic-btn-confirm:hover:not(:disabled) { background: #b91c1c; }
+.pic-btn-confirm:hover:not(:disabled) { filter: brightness(0.9); }
 .pic-btn-ghost { background: var(--surface-2); color: var(--text-2); border-color: var(--border); }
 .pic-btn-ghost:hover { background: var(--border); color: var(--text-1); }
 

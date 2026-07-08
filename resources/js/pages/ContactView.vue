@@ -288,11 +288,12 @@
     <div v-else class="not-found">Contact not found.</div>
 
     <!-- Task Follow-Up Modal -->
-    <div v-if="taskFuModal.open" class="modal-overlay">
-      <div class="modal-box task-fu-modal">
+    <Teleport to="body">
+    <div v-if="taskFuModal.open" class="modal-overlay" @mousedown.self="closeTaskFuModal">
+      <div class="modal-box task-fu-modal" role="dialog" aria-modal="true" aria-labelledby="task-fu-title">
         <div class="modal-head">
           <div class="modal-head-left">
-            <strong class="modal-head-title">Follow-Ups</strong>
+            <strong class="modal-head-title" id="task-fu-title">Follow-Ups</strong>
             <span class="task-chip" v-if="taskFuModal.todo">
               {{ taskFuModal.todo.task?.name ?? 'Task' }} — {{ fmtDate(taskFuModal.todo.todo_date) }}
             </span>
@@ -346,12 +347,14 @@
         </div>
       </div>
     </div>
+    </Teleport>
 
     <!-- Delete confirmation modal -->
-    <div v-if="showDeleteModal" class="modal-overlay">
-      <div class="modal-box delete-modal">
+    <Teleport to="body">
+    <div v-if="showDeleteModal" class="modal-overlay" @mousedown.self="closeDeleteModal">
+      <div class="modal-box delete-modal" role="dialog" aria-modal="true" aria-labelledby="delete-company-title">
         <div class="modal-head modal-head-danger">
-          <strong class="modal-head-title">Delete Company</strong>
+          <strong class="modal-head-title" id="delete-company-title">Delete Company</strong>
           <button class="modal-close-btn" @click="closeDeleteModal"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
         </div>
         <div class="modal-body">
@@ -373,6 +376,7 @@
         </div>
       </div>
     </div>
+    </Teleport>
 
     <ForecastFormModal
       :open="forecastModal.open"
@@ -384,11 +388,11 @@
     />
 
   <Teleport to="body">
-    <div v-if="closedModal.open" class="conf-overlay">
-      <div class="conf-modal">
+    <div v-if="closedModal.open" class="conf-overlay" @mousedown.self="closedModal.open = false">
+      <div class="conf-modal" role="dialog" aria-modal="true" aria-labelledby="mark-closed-title">
         <div class="conf-head">
           <div>
-            <p class="conf-title">Mark as Permanently Closed</p>
+            <p class="conf-title" id="mark-closed-title">Mark as Permanently Closed</p>
             <p class="conf-sub">This contact will be flagged as a closed business.</p>
           </div>
           <button class="conf-close" @click="closedModal.open = false">
@@ -396,9 +400,9 @@
           </button>
         </div>
         <div class="conf-body">
-          <svg class="conf-warn" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <svg class="conf-warn" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="var(--warning)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-            <line x1="12" y1="9" x2="12" y2="13"/><circle cx="12" cy="17" r="1" fill="#f59e0b" stroke="none"/>
+            <line x1="12" y1="9" x2="12" y2="13"/><circle cx="12" cy="17" r="1" fill="var(--warning)" stroke="none"/>
           </svg>
           <p class="conf-text">Flag <strong>{{ contact?.name }}</strong> as permanently closed? You can undo this at any time.</p>
         </div>
@@ -413,19 +417,19 @@
   </Teleport>
 
   <Teleport to="body">
-    <div v-if="deleteTaskModal.open" class="conf-overlay">
-      <div class="conf-modal">
+    <div v-if="deleteTaskModal.open" class="conf-overlay" @mousedown.self="closeDeleteTaskModal">
+      <div class="conf-modal" role="dialog" aria-modal="true" aria-labelledby="delete-todo-cv-title">
         <div class="conf-head">
           <div>
-            <p class="conf-title">Delete To-Do</p>
+            <p class="conf-title" id="delete-todo-cv-title">Delete To-Do</p>
             <p class="conf-sub">All linked follow-ups will also be removed.</p>
           </div>
           <button class="conf-close" @click="closeDeleteTaskModal"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
         </div>
         <div class="conf-body">
-          <svg class="conf-warn" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <svg class="conf-warn" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="var(--warning)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-            <line x1="12" y1="9" x2="12" y2="13"/><circle cx="12" cy="17" r="1" fill="#f59e0b" stroke="none"/>
+            <line x1="12" y1="9" x2="12" y2="13"/><circle cx="12" cy="17" r="1" fill="var(--warning)" stroke="none"/>
           </svg>
           <p class="conf-text">Delete <strong>{{ deleteTaskModal.todo?.task?.name ?? 'this task' }}</strong> on {{ fmtDate(deleteTaskModal.todo?.todo_date) }}?</p>
         </div>
@@ -440,19 +444,19 @@
   </Teleport>
 
   <Teleport to="body">
-    <div v-if="deleteForecastModal.open" class="conf-overlay">
-      <div class="conf-modal">
+    <div v-if="deleteForecastModal.open" class="conf-overlay" @mousedown.self="closeDeleteForecastModal">
+      <div class="conf-modal" role="dialog" aria-modal="true" aria-labelledby="delete-forecast-cv-title">
         <div class="conf-head">
           <div>
-            <p class="conf-title">Delete Forecast</p>
+            <p class="conf-title" id="delete-forecast-cv-title">Delete Forecast</p>
             <p class="conf-sub">This cannot be undone.</p>
           </div>
           <button class="conf-close" @click="closeDeleteForecastModal"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
         </div>
         <div class="conf-body">
-          <svg class="conf-warn" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <svg class="conf-warn" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="var(--warning)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-            <line x1="12" y1="9" x2="12" y2="13"/><circle cx="12" cy="17" r="1" fill="#f59e0b" stroke="none"/>
+            <line x1="12" y1="9" x2="12" y2="13"/><circle cx="12" cy="17" r="1" fill="var(--warning)" stroke="none"/>
           </svg>
           <p class="conf-text">Delete this forecast entry?</p>
         </div>
@@ -469,7 +473,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, reactive } from 'vue';
+import { ref, computed, onMounted, onUnmounted, reactive } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import api from '../api.js';
 import LoadingSpinner from '../components/LoadingSpinner.vue';
@@ -768,6 +772,17 @@ const SOURCE_LABELS = {
 };
 function sourceLabel(src) { return SOURCE_LABELS[src] ?? src; }
 
+function handleModalEscape(e) {
+  if (e.key !== 'Escape') return;
+  if (showDeleteModal.value) { closeDeleteModal(); return; }
+  if (taskFuModal.value.open) { closeTaskFuModal(); return; }
+  if (deleteForecastModal.open) { closeDeleteForecastModal(); return; }
+  if (deleteTaskModal.open) { closeDeleteTaskModal(); return; }
+  if (closedModal.open) { closedModal.open = false; return; }
+}
+onMounted(() => window.addEventListener('keydown', handleModalEscape));
+onUnmounted(() => window.removeEventListener('keydown', handleModalEscape));
+
 onMounted(async () => {
   try {
     const [contactRes, lookupRes] = await Promise.all([
@@ -815,11 +830,11 @@ onMounted(async () => {
 .btn-success  { background: var(--success-soft); color: var(--success); }
 .btn-success:hover  { background: var(--success);      color: #fff; }
 .btn-danger   { background: var(--danger);       color: #fff; }
-.btn-danger:hover   { background: #dc2626; }
+.btn-danger:hover   { filter: brightness(0.9); }
 .btn-danger:disabled { opacity: 0.45; cursor: not-allowed; }
-.btn-fu-save  { background: #e11d48; color: #fff; flex: 1; justify-content: center; }
-.btn-fu-save:hover:not(:disabled)  { background: #be123c; }
-.btn-fu-save:disabled { background: #94a3b8; cursor: not-allowed; }
+.btn-fu-save  { background: var(--followup); color: #fff; flex: 1; justify-content: center; }
+.btn-fu-save:hover:not(:disabled)  { filter: brightness(0.9); }
+.btn-fu-save:disabled { background: var(--text-3); cursor: not-allowed; }
 .req { color: var(--danger); }
 
 /* Profile banner */
@@ -979,12 +994,16 @@ onMounted(async () => {
 /* Follow-up pill */
 .fu-pill {
   display: inline-flex; align-items: center; gap: 4px;
-  font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 10px;
-  border: 1.5px solid #fce7f3; background: #fce7f3; color: #9d174d;
+  font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: var(--radius);
+  border: 1.5px solid var(--followup-soft); background: var(--followup-soft); color: var(--followup);
   cursor: pointer; white-space: nowrap; transition: background 0.15s, color 0.15s;
 }
-.fu-pill.fu-pill-has { border-color: #fb7185; background: #ffe4e6; color: #be123c; }
-.fu-pill:hover { background: #e11d48; border-color: #e11d48; color: #fff; }
+.fu-pill.fu-pill-has {
+  border-color: color-mix(in srgb, var(--followup) 55%, white);
+  background: color-mix(in srgb, var(--followup) 15%, white);
+  color: color-mix(in srgb, var(--followup) 90%, black);
+}
+.fu-pill:hover { background: var(--followup); border-color: var(--followup); color: #fff; }
 
 /* Result badge */
 .result-badge { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 999px; font-size: 10.5px; font-weight: 700; white-space: nowrap; }
@@ -1023,7 +1042,7 @@ onMounted(async () => {
 
 /* Modals */
 .modal-overlay {
-  position: fixed; inset: 0; background: rgba(15,23,42,0.55); backdrop-filter: blur(4px);
+  position: fixed; inset: 0; background: rgba(15,23,42,0.45); backdrop-filter: blur(4px);
   z-index: 700; display: flex; align-items: center; justify-content: center; padding: 16px;
 }
 .modal-box {
@@ -1072,9 +1091,9 @@ onMounted(async () => {
 }
 .fu-field textarea { height: 80px; padding: 10px 14px; resize: none; border-radius: var(--radius); }
 .fu-field input:focus, .fu-field select:focus, .fu-field textarea:focus {
-  border-color: #e11d48; box-shadow: 0 0 0 3px rgba(225,29,72,0.12);
+  border-color: var(--followup); box-shadow: 0 0 0 3px color-mix(in srgb, var(--followup) 12%, transparent);
 }
-.fu-action-badge { background: #fce7f3; color: #9d174d; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 10px; white-space: nowrap; }
+.fu-action-badge { background: var(--followup-soft); color: var(--followup); font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: var(--radius); white-space: nowrap; }
 .fu-form-actions { display: flex; gap: 10px; margin-top: 4px; justify-content: flex-end; }
 
 /* Delete modal */
@@ -1135,14 +1154,14 @@ onMounted(async () => {
 }
 .pic-input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--focus-ring); }
 .pic-row-actions { display: flex; gap: 6px; align-items: center; }
-.pic-btn { height: 32px; padding: 0 12px; border-radius: 999px; font-size: 11.5px; font-weight: 700; cursor: pointer; border: 1px solid transparent; white-space: nowrap; transition: background 0.15s, color 0.15s; }
+.pic-btn { height: 34px; padding: 0 12px; border-radius: var(--radius-sm); font-size: 12.5px; font-weight: 600; cursor: pointer; border: 1px solid transparent; white-space: nowrap; transition: background 0.15s, color 0.15s; }
 .pic-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .pic-btn-save { background: var(--primary); color: var(--primary-on); }
 .pic-btn-save:hover:not(:disabled) { background: var(--primary-hover); }
 .pic-btn-del { background: var(--surface-2); color: var(--danger); border-color: var(--border); }
 .pic-btn-del:hover { background: var(--danger-soft); }
 .pic-btn-confirm { background: var(--danger); color: #fff; }
-.pic-btn-confirm:hover:not(:disabled) { background: #b91c1c; }
+.pic-btn-confirm:hover:not(:disabled) { filter: brightness(0.9); }
 .pic-btn-ghost { background: var(--surface-2); color: var(--text-2); border-color: var(--border); }
 .pic-btn-ghost:hover { background: var(--border); color: var(--text-1); }
 @media (max-width: 640px) {
@@ -1159,7 +1178,7 @@ onMounted(async () => {
 .maps-link:hover { background: var(--primary); color: var(--primary-on); }
 
 /* ── Confirm modal ── */
-.conf-overlay { position: fixed; inset: 0; background: rgba(15,23,42,0.5); z-index: 900; display: flex; align-items: center; justify-content: center; padding: 16px; }
+.conf-overlay { position: fixed; inset: 0; background: rgba(15,23,42,0.45); z-index: 900; display: flex; align-items: center; justify-content: center; padding: 16px; }
 .conf-modal { background: var(--surface); border-radius: var(--radius-lg); width: 100%; max-width: 420px; box-shadow: var(--shadow-lg); border: 1px solid var(--border-soft); overflow: hidden; }
 .conf-head { display: flex; justify-content: space-between; align-items: flex-start; padding: 18px 22px 14px; border-bottom: 1px solid var(--border-soft); }
 .conf-title { font-size: 15px; font-weight: 700; color: var(--text-1); margin: 0 0 2px; }
@@ -1173,6 +1192,6 @@ onMounted(async () => {
 .conf-cancel { height: 38px; padding: 0 18px; background: none; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 13px; font-weight: 600; color: var(--text-2); cursor: pointer; }
 .conf-cancel:hover { background: var(--surface-2); }
 .conf-delete { height: 38px; padding: 0 18px; background: var(--danger); color: #fff; border: none; border-radius: var(--radius-sm); font-size: 13px; font-weight: 700; cursor: pointer; }
-.conf-delete:hover:not(:disabled) { background: #b91c1c; }
+.conf-delete:hover:not(:disabled) { filter: brightness(0.9); }
 .conf-delete:disabled { opacity: 0.5; cursor: not-allowed; }
 </style>

@@ -679,6 +679,8 @@ export default { name: 'App' };
   --warning-soft:   #fef3c7;
   --info:           #0ea5e9;
   --info-soft:      #e0f2fe;
+  --followup:       #e11d48;
+  --followup-soft:  #fce7f3;
 
   /* Shape & elevation */
   --radius-sm:  6px;

@@ -266,9 +266,9 @@ export const PAGE_TOURS = {
 
   'task-add': [
     {
-      target: '.page-banner',
-      title: 'Add Reminder',
-      body: 'Schedule a reminder tied directly to this contact — task type, due date, and an optional note.',
+      target: '.page-header',
+      title: 'Add To-Do',
+      body: 'Schedule a to-do tied directly to this contact — task type, due date, and an optional note.',
       position: 'bottom',
     },
     {
@@ -281,7 +281,7 @@ export const PAGE_TOURS = {
 
   'todo-add': [
     {
-      target: '.page-header',
+      target: '.page-banner',
       title: 'Add To-Do',
       body: 'Create a to-do for any contact — task type, due date, and an optional remark.',
       position: 'bottom',

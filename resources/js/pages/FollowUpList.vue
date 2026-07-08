@@ -213,10 +213,10 @@
     <!-- Export Modal -->
     <Teleport to="body">
       <div v-if="exportModal.open" class="remark-overlay" @mousedown.self="exportModal.open = false">
-        <div class="export-modal">
+        <div class="export-modal" role="dialog" aria-modal="true" aria-labelledby="export-fu-title">
           <div class="export-modal-header">
             <div>
-              <strong class="export-modal-title">Export Follow-Ups</strong>
+              <strong class="export-modal-title" id="export-fu-title">Export Follow-Ups</strong>
               <p class="export-modal-sub">Pick what to include, then download.</p>
             </div>
             <button class="remark-close" @click="exportModal.open = false" v-html="CI.x"></button>
@@ -266,11 +266,12 @@
     </Teleport>
 
     <!-- Add Follow-Up Modal -->
-    <div v-if="addModal.open" class="remark-overlay">
-      <div class="add-followup-modal">
+    <Teleport to="body">
+    <div v-if="addModal.open" class="remark-overlay" @mousedown.self="closeAddModal">
+      <div class="add-followup-modal" role="dialog" aria-modal="true" aria-labelledby="add-fu-title">
         <div class="add-modal-header">
           <div class="add-modal-title-block">
-            <strong class="add-modal-title">Add Follow-Up</strong>
+            <strong class="add-modal-title" id="add-fu-title">Add Follow-Up</strong>
           </div>
           <button class="remark-close" @click="closeAddModal" v-html="CI.x"></button>
         </div>
@@ -342,14 +343,15 @@
         </div>
       </div>
     </div>
+    </Teleport>
 
     <!-- Edit Follow-Up Modal -->
     <Teleport to="body">
       <div v-if="editModal.open" class="remark-overlay" @mousedown.self="closeEditModal">
-        <div class="add-followup-modal">
+        <div class="add-followup-modal" role="dialog" aria-modal="true" aria-labelledby="edit-fu-title">
           <div class="add-modal-header">
             <div class="add-modal-title-block">
-              <strong class="add-modal-title">Edit Follow-Up</strong>
+              <strong class="add-modal-title" id="edit-fu-title">Edit Follow-Up</strong>
             </div>
             <button class="remark-close" @click="closeEditModal" v-html="CI.x"></button>
           </div>
@@ -404,9 +406,10 @@
     </Teleport>
 
     <!-- Delete confirmation modal -->
-    <div v-if="deleteTarget" class="modal-backdrop">
-      <div class="modal">
-        <h3>Delete Follow-Up?</h3>
+    <Teleport to="body">
+    <div v-if="deleteTarget" class="modal-backdrop" @mousedown.self="deleteTarget = null">
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="delete-fu-title">
+        <h3 id="delete-fu-title">Delete Follow-Up?</h3>
         <p>Are you sure you want to delete this follow-up for <strong>{{ deleteTarget.contact_name }}</strong>?</p>
         <div class="modal-btns">
           <button class="btn btn-cancel" @click="deleteTarget = null">Cancel</button>
@@ -416,11 +419,12 @@
         </div>
       </div>
     </div>
+    </Teleport>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import api from '../api.js';
 import LoadingSpinner from '../components/LoadingSpinner.vue';
@@ -790,6 +794,16 @@ async function submitAddFollowUp() {
   }
 }
 
+function handleModalEscape(e) {
+  if (e.key !== 'Escape') return;
+  if (exportModal.value.open) { exportModal.value.open = false; return; }
+  if (editModal.value.open) { closeEditModal(); return; }
+  if (addModal.value.open) { closeAddModal(); return; }
+  if (deleteTarget.value) { deleteTarget.value = null; return; }
+}
+onMounted(() => window.addEventListener('keydown', handleModalEscape));
+onUnmounted(() => window.removeEventListener('keydown', handleModalEscape));
+
 onMounted(async () => {
   // Load lookups for column filter dropdowns
   try {
@@ -872,10 +886,10 @@ onMounted(async () => {
   color: var(--text-2); box-shadow: var(--shadow-xs);
 }
 .btn-export-sel {
-  background: #10b981; color: white; border: none; border-radius: 999px;
+  background: var(--success); color: white; border: none; border-radius: 999px;
   padding: 6px 16px; cursor: pointer; font-size: 13px; font-weight: 600;
 }
-.btn-export-sel:hover { background: #059669; }
+.btn-export-sel:hover { filter: brightness(0.9); }
 
 /* Toolbar */
 .toolbar {
@@ -902,11 +916,11 @@ onMounted(async () => {
 .btn:active { transform: translateY(1px); }
 .btn-primary { background: var(--primary); color: var(--primary-on); box-shadow: 0 6px 18px -6px rgba(29,78,216,0.55); }
 .btn-primary:hover { background: var(--primary-hover); }
-.btn-export { background: #10b981; color: white; }
-.btn-export:hover { background: #059669; }
+.btn-export { background: var(--success); color: white; }
+.btn-export:hover { filter: brightness(0.9); }
 .btn-cancel { background: var(--surface); color: var(--text-2); border: 1px solid var(--border); }
 .btn-danger { background: var(--danger); color: white; }
-.btn-danger:hover:not(:disabled) { background: #dc2626; }
+.btn-danger:hover:not(:disabled) { filter: brightness(0.9); }
 .btn-danger:disabled { background: var(--border); color: var(--text-3); cursor: not-allowed; }
 
 /* Table */
@@ -954,8 +968,8 @@ tbody tr:hover { background: var(--surface-2); }
 .td-company { white-space: normal !important; word-break: break-word; overflow: visible !important; }
 .company-link { color: var(--text-1); font-weight: 600; text-decoration: none; white-space: normal; word-break: break-word; }
 .company-link:hover { color: var(--primary); }
-.action-chip { background: #fce7f3; color: #9d174d; font-size: 11.5px; font-weight: 600; padding: 3px 10px; border-radius: 999px; white-space: nowrap; }
-.status-chip { background: var(--surface-2); color: var(--text-2); font-size: 11.5px; font-weight: 600; padding: 3px 10px; border-radius: 999px; white-space: nowrap; }
+.action-chip { background: var(--followup-soft); color: var(--followup); font-size: 11.5px; font-weight: 600; padding: 3px 10px; border-radius: 999px; white-space: nowrap; }
+.status-chip { background: var(--success-soft); color: var(--success); font-size: 11.5px; font-weight: 600; padding: 3px 10px; border-radius: 999px; white-space: nowrap; }
 .task-chip { background: var(--primary-soft); color: var(--primary-text); font-size: 11.5px; font-weight: 600; padding: 3px 10px; border-radius: 999px; white-space: nowrap; }
 .note-cell { max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12.5px; color: var(--text-2); }
 .muted { color: var(--text-3); }
@@ -972,12 +986,12 @@ tbody tr:hover { background: var(--surface-2); }
 }
 .icon-btn:active { transform: scale(0.92); }
 .icon-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-.btn-edit     { background: #fefce8; }
-.btn-edit:hover { background: #fde68a; }
-.btn-del      { background: #fee2e2; }
-.btn-del:hover { background: #fca5a5; }
-.btn-complete { background: #dcfce7; color: #15803d; }
-.btn-complete:hover:not(:disabled) { background: #bbf7d0; }
+.btn-edit     { background: var(--warning-soft); }
+.btn-edit:hover { background: color-mix(in srgb, var(--warning) 40%, white); }
+.btn-del      { background: var(--danger-soft); }
+.btn-del:hover { background: color-mix(in srgb, var(--danger) 35%, white); }
+.btn-complete { background: var(--success-soft); color: var(--success); }
+.btn-complete:hover:not(:disabled) { background: color-mix(in srgb, var(--success) 30%, white); }
 .btn-undo     { background: var(--surface-2); color: var(--text-3); }
 .btn-undo:hover:not(:disabled) { background: var(--border); color: var(--text-2); }
 .actions-cell { display: flex; gap: 4px; }
@@ -1018,7 +1032,7 @@ tbody tr:hover { background: var(--surface-2); }
 
 /* Delete modal */
 .modal-backdrop {
-  position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 2000;
+  position: fixed; inset: 0; background: rgba(15,23,42,0.45); z-index: 2000;
   display: flex; align-items: center; justify-content: center;
 }
 .modal {
@@ -1055,7 +1069,7 @@ tbody tr:hover { background: var(--surface-2); }
 /* Add Follow-Up Modal */
 .remark-overlay {
   position: fixed; inset: 0;
-  background: rgba(15,23,42,0.55);
+  background: rgba(15,23,42,0.45);
   backdrop-filter: blur(4px);
   z-index: 700;
   display: flex; align-items: center; justify-content: center;
@@ -1128,7 +1142,7 @@ tbody tr:hover { background: var(--surface-2); }
 .company-option:hover { background: var(--surface-2); }
 .company-option.muted { color: var(--text-3); cursor: default; }
 .company-option.muted:hover { background: none; }
-.add-hint { font-size: 11.5px; color: #f59e0b; margin-top: 4px; display: block; }
+.add-hint { font-size: 11.5px; color: var(--warning); margin-top: 4px; display: block; }
 .add-error-box {
   background: var(--danger-soft); color: var(--danger);
   border-radius: var(--radius); padding: 12px 16px;
@@ -1152,8 +1166,8 @@ tbody tr:hover { background: var(--surface-2); }
   box-shadow: 0 6px 18px -6px rgba(29,78,216,0.55);
 }
 .btn-followup-submit:hover:not(:disabled) { background: var(--primary-hover); }
-.btn-followup-submit:disabled { background: #94a3b8; cursor: not-allowed; box-shadow: none; }
-.req { color: #ef4444; }
+.btn-followup-submit:disabled { background: var(--text-3); cursor: not-allowed; box-shadow: none; }
+.req { color: var(--danger); }
 
 /* ── Export modal ── */
 .export-modal {
@@ -1180,7 +1194,7 @@ tbody tr:hover { background: var(--surface-2); }
 .export-dl-text { display: flex; flex-direction: column; gap: 2px; }
 .export-dl-label { font-size: 14px; font-weight: 700; line-height: 1.2; }
 .export-dl-desc  { font-size: 12px; opacity: 0.82; line-height: 1.3; }
-.export-dl-xls { background: #10b981; color: #fff; }
+.export-dl-xls { background: var(--success); color: #fff; }
 .export-dl-csv { background: var(--surface); border: 1.5px solid var(--border) !important; color: var(--text-1); }
 .export-cancel-btn { width: 100%; padding: 10px 16px; background: none; border: 1px solid var(--border-soft); border-radius: var(--radius); font-size: 13px; font-weight: 600; color: var(--text-3); cursor: pointer; transition: background 0.12s, color 0.12s; }
 .export-cancel-btn:hover { background: var(--border-soft); color: var(--text-2); }

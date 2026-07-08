@@ -231,13 +231,13 @@ onMounted(async () => {
 .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
   border-color: var(--primary); box-shadow: 0 0 0 3px rgba(29,78,216,0.12);
 }
-.hint { font-size: 11px; color: #f59e0b; margin-top: 4px; }
-.error-hint { color: #ef4444; font-weight: 600; }
+.hint { font-size: 11px; color: var(--warning); margin-top: 4px; }
+.error-hint { color: var(--danger); font-weight: 600; }
 .error-box {
-  background: #fee2e2; color: #991b1b; border-radius: 8px;
+  background: var(--danger-soft); color: var(--danger); border-radius: var(--radius-sm);
   padding: 10px 14px; font-size: 13px; margin-bottom: 16px;
 }
-.req { color: #ef4444; }
+.req { color: var(--danger); }
 .btn-row { display: flex; gap: 10px; margin-top: 24px; }
 .btn { height: 42px; padding: 0 20px; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; border: none; text-decoration: none; display: flex; align-items: center; }
 .btn-cancel { background: var(--app-bg); color: var(--text-2); }
