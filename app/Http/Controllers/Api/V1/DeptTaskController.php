@@ -469,6 +469,7 @@ class DeptTaskController extends Controller
         }
 
         $this->maybeNotifyApproval($task, $oldStatus, $request->user());
+        $this->maybeSpawnRecurrence($task, $oldStatus);
 
         return response()->json($this->formatTask($task));
     }
@@ -480,7 +481,14 @@ class DeptTaskController extends Controller
             abort(403, 'Only admins can delete tasks.');
         }
 
-        DeptTask::findOrFail($id)->delete();
+        // The attachments table cascade-deletes at the DB level, but the physical
+        // files on disk don't clean themselves up — remove them explicitly first.
+        $task = DeptTask::with('attachments')->findOrFail($id);
+        foreach ($task->attachments as $attachment) {
+            Storage::disk('public')->delete($attachment->path);
+        }
+        $task->delete();
+
         return response()->json(['ok' => true]);
     }
 
@@ -501,6 +509,7 @@ class DeptTaskController extends Controller
         $task->load(['department', 'assignee:id,name,email', 'creator:id,name']);
 
         $this->maybeNotifyApproval($task, $oldStatus, $actor);
+        $this->maybeSpawnRecurrence($task, $oldStatus);
 
         // Approver sent the task back for changes (waiting_approval → in_progress)
         if ($oldStatus === 'waiting_approval' && $task->status === 'in_progress'
@@ -847,6 +856,57 @@ class DeptTaskController extends Controller
         }
     }
 
+    /**
+     * When a recurring task is completed, spawn its next occurrence.
+     * Event-driven (fires on completion) rather than a scheduled scan, so a task
+     * with no due date simply recurs from today instead of never generating.
+     */
+    private function maybeSpawnRecurrence(DeptTask $task, string $oldStatus): void
+    {
+        if ($task->status !== 'completed' || $oldStatus === 'completed') {
+            return;
+        }
+        if (!$task->is_recurring || !$task->recurrence_type) {
+            return;
+        }
+
+        $base = $task->due_date ?? Carbon::today();
+        $nextDue = match ($task->recurrence_type) {
+            'daily'     => $base->copy()->addDay(),
+            'weekly'    => $base->copy()->addWeek(),
+            'monthly'   => $base->copy()->addMonth(),
+            'quarterly' => $base->copy()->addMonths(3),
+            default     => $base->copy()->addWeek(),
+        };
+
+        $next = DeptTask::create([
+            'title'             => $task->title,
+            'description'       => $task->description,
+            'department_id'     => $task->department_id,
+            'assigned_to'       => $task->assigned_to,
+            'created_by'        => $task->created_by,
+            'priority'          => $task->priority,
+            'status'            => 'pending',
+            'due_date'          => $nextDue,
+            'requires_approval' => $task->requires_approval,
+            'is_recurring'      => true,
+            'recurrence_type'   => $task->recurrence_type,
+            'board_position'    => DeptTask::where('department_id', $task->department_id)->where('status', 'pending')->count(),
+        ]);
+
+        // Breadcrumb on the just-completed task so its history shows when the next one was scheduled.
+        $task->update(['next_recurrence_date' => $nextDue]);
+
+        if ($next->assigned_to) {
+            DeptNotification::create([
+                'user_id' => $next->assigned_to,
+                'task_id' => $next->id,
+                'type'    => 'assigned',
+                'message' => "Recurring task created: {$next->title}",
+            ]);
+        }
+    }
+
     private function formatTask(DeptTask $task, bool $withDetails = false): array
     {
         $data = [
@@ -867,6 +927,7 @@ class DeptTaskController extends Controller
             'requires_approval'=> $task->requires_approval,
             'is_recurring'    => $task->is_recurring,
             'recurrence_type' => $task->recurrence_type,
+            'next_recurrence_date' => $task->next_recurrence_date?->format('d M Y'),
             'board_position'  => $task->board_position,
             'created_at'      => $task->created_at->format('d M Y, H:i'),
             'updated_at'      => $task->updated_at->format('d M Y, H:i'),

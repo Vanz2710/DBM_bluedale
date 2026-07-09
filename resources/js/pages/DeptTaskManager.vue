@@ -661,8 +661,8 @@
               </span>
               <div class="fm-card-overlay">
                 <a :href="a.url" target="_blank" class="fm-overlay-btn" title="Download" v-html="ICO.download"></a>
-                <button class="fm-overlay-btn" @click.stop="openRename(a)" title="Rename" v-html="ICO.edit"></button>
-                <button class="fm-overlay-btn danger" @click.stop="deleteAttachmentFromTab(a)" title="Delete" v-html="ICO.trash"></button>
+                <button v-if="isAdmin || a.user?.id === currentUserId" class="fm-overlay-btn" @click.stop="openRename(a)" title="Rename" v-html="ICO.edit"></button>
+                <button v-if="isAdmin || a.user?.id === currentUserId" class="fm-overlay-btn danger" @click.stop="deleteAttachmentFromTab(a)" title="Delete" v-html="ICO.trash"></button>
               </div>
             </div>
             <div class="fm-card-foot">
@@ -705,8 +705,8 @@
             <span class="fm-list-meta">{{ formatFileSize(a.size) }}</span>
             <span class="fm-list-meta">{{ a.created_at }}</span>
             <div class="fm-list-actions" @click.stop>
-              <button class="btn-icon" @click="openRename(a)" title="Rename" v-html="ICO.edit"></button>
-              <button class="btn-icon danger" @click="deleteAttachmentFromTab(a)" title="Delete" v-html="ICO.trash"></button>
+              <button v-if="isAdmin || a.user?.id === currentUserId" class="btn-icon" @click="openRename(a)" title="Rename" v-html="ICO.edit"></button>
+              <button v-if="isAdmin || a.user?.id === currentUserId" class="btn-icon danger" @click="deleteAttachmentFromTab(a)" title="Delete" v-html="ICO.trash"></button>
             </div>
           </div>
         </div>
@@ -724,7 +724,7 @@
 
     <!-- ── Task Detail Panel (right slide-in) ──────────────────────────────── -->
     <transition name="slide-panel">
-      <div v-if="selectedTask" class="panel-overlay">
+      <div v-if="selectedTask" class="panel-overlay" @click.self="selectedTask = null">
         <div class="detail-panel">
           <div class="dp-header">
             <div>
@@ -753,6 +753,13 @@
             <div class="dp-meta-item">
               <span class="dp-meta-lbl">Approval</span>
               <span>{{ selectedTask.requires_approval ? 'Required' : 'Not required' }}</span>
+            </div>
+            <div v-if="selectedTask.is_recurring" class="dp-meta-item">
+              <span class="dp-meta-lbl">Repeats</span>
+              <span>
+                {{ recurrenceLabel(selectedTask.recurrence_type) }}
+                <template v-if="selectedTask.next_recurrence_date"> · next {{ selectedTask.next_recurrence_date }}</template>
+              </span>
             </div>
             <div class="dp-meta-item">
               <span class="dp-meta-lbl">Due Date</span>
@@ -849,7 +856,7 @@
               <div v-for="a in (selectedTask.attachments || [])" :key="a.id" class="attachment-item">
                 <a :href="a.url" target="_blank" class="attach-name" :title="a.filename">{{ a.filename }}</a>
                 <span class="attach-size">{{ formatFileSize(a.size) }}</span>
-                <button class="btn-icon xs danger" @click="deleteAttachmentFile(a.id)" v-html="ICO.x" title="Remove" aria-label="Remove attachment"></button>
+                <button v-if="isAdmin || a.user?.id === currentUserId" class="btn-icon xs danger" @click="deleteAttachmentFile(a.id)" v-html="ICO.x" title="Remove" aria-label="Remove attachment"></button>
               </div>
               <div v-if="!(selectedTask.attachments || []).length" class="empty-comments">No attachments yet.</div>
             </div>
@@ -864,7 +871,7 @@
                   <div class="comment-meta">
                     <strong>{{ c.user?.name }}</strong>
                     <span class="comment-time">{{ formatDate(c.created_at) }}</span>
-                    <button class="btn-icon xs danger" @click="deleteComment(c.id)" v-html="ICO.x" title="Delete" aria-label="Delete comment"></button>
+                    <button v-if="isAdmin || c.user?.id === currentUserId" class="btn-icon xs danger" @click="deleteComment(c.id)" v-html="ICO.x" title="Delete" aria-label="Delete comment"></button>
                   </div>
                   <div class="comment-text">{{ c.comment }}</div>
                 </div>
@@ -948,6 +955,23 @@
                 {{ form.requires_approval
                     ? 'The assignee submits the task; an admin or the creator approves it before it’s marked complete.'
                     : 'The assignee can mark this task complete directly, with no approval step.' }}
+              </span>
+            </div>
+            <div class="field-row">
+              <label class="checkbox-label">
+                <input type="checkbox" v-model="form.is_recurring" />
+                Repeats
+              </label>
+              <select v-if="form.is_recurring" v-model="form.recurrence_type" class="field-input sm recur-select">
+                <option value="daily">Daily</option>
+                <option value="weekly">Weekly</option>
+                <option value="monthly">Monthly</option>
+                <option value="quarterly">Quarterly</option>
+              </select>
+              <span class="field-hint">
+                {{ form.is_recurring
+                    ? 'When this task is completed, the next occurrence is created automatically.'
+                    : 'A one-off task with no repeat.' }}
               </span>
             </div>
             <div class="field-row">
@@ -1158,7 +1182,6 @@ const tablePageFrom   = ref(0);
 const tablePageTo     = ref(0);
 const weeklyData    = ref({ week_start: '', week_end: '', departments: [] });
 const notifications = ref([]);
-const notifCount    = ref(0);
 const toasts        = ref([]);
 const boardLoading  = ref(false);
 const dashLoading   = ref(false);
@@ -1226,6 +1249,7 @@ const quickStatus  = ref('');
 const form         = reactive({
   title: '', description: '', department_id: '', assigned_to: '', priority: 'medium',
   status: 'pending', due_date: '', requires_approval: true,
+  is_recurring: false, recurrence_type: 'weekly',
 });
 
 // ─── Drag & drop state ────────────────────────────────────────────────────────
@@ -1363,6 +1387,10 @@ function priorityColor(p) {
 
 function statusLabel(s) {
   return { pending: 'Pending', in_progress: 'In Progress', waiting_approval: 'Waiting Approval', completed: 'Completed', cancelled: 'Cancelled' }[s] || s;
+}
+
+function recurrenceLabel(type) {
+  return { daily: 'Daily', weekly: 'Weekly', monthly: 'Monthly', quarterly: 'Quarterly' }[type] || 'Weekly';
 }
 
 function initials(name) {
@@ -1569,7 +1597,6 @@ async function dismissNotif(n) {
     await api.post('/v1/dept/notifications/read', { id: n.id });
   } catch (_) { /* ignore */ }
   n.read_at = new Date().toISOString();
-  notifCount.value = Math.max(0, notifCount.value - 1);
 }
 
 async function openNotifTask(n) {
@@ -1586,12 +1613,16 @@ function showToast(msg, type = 'success') {
 
 // ─── API calls ────────────────────────────────────────────────────────────────
 async function loadMeta() {
-  const [deptRes, userRes] = await Promise.all([
-    api.get('/v1/dept/departments'),
-    api.get('/v1/dept/users'),
-  ]);
-  departments.value = deptRes.data;
-  users.value       = userRes.data;
+  try {
+    const [deptRes, userRes] = await Promise.all([
+      api.get('/v1/dept/departments'),
+      api.get('/v1/dept/users'),
+    ]);
+    departments.value = deptRes.data;
+    users.value       = userRes.data;
+  } catch (e) {
+    showToast(e.response?.data?.message || 'Could not load departments or users', 'error');
+  }
 }
 
 async function loadDashboard() {
@@ -1601,6 +1632,9 @@ async function loadDashboard() {
     if (!isAdmin.value && currentUserId.value) params.user_id = currentUserId.value;
     const res = await api.get('/v1/dept/dashboard', { params });
     dashData.value = res.data;
+  } catch (e) {
+    showToast(e.response?.data?.message || 'Could not load dashboard', 'error');
+    return;
   } finally {
     dashLoading.value = false;
   }
@@ -1618,6 +1652,8 @@ async function loadBoardTasks(silent = false) {
     if (boardFilters.assigned_to)   params.assigned_to   = boardFilters.assigned_to;
     const res = await api.get('/v1/dept/tasks', { params });
     boardTasks.value = res.data;
+  } catch (e) {
+    showToast(e.response?.data?.message || 'Could not load tasks', 'error');
   } finally {
     if (!silent) boardLoading.value = false;
   }
@@ -1640,28 +1676,40 @@ async function loadTableTasks() {
     tableTotal.value    = res.data.total;
     tablePageFrom.value = res.data.from ?? 0;
     tablePageTo.value   = res.data.to   ?? 0;
+  } catch (e) {
+    showToast(e.response?.data?.message || 'Could not load tasks', 'error');
   } finally {
     tableLoading.value = false;
   }
 }
 
 async function loadWeeklyData() {
-  const params = weeklyWeekStart.value ? { week_start: weeklyWeekStart.value } : {};
-  const res = await api.get('/v1/dept/weekly', { params });
-  weeklyData.value = res.data;
+  try {
+    const params = weeklyWeekStart.value ? { week_start: weeklyWeekStart.value } : {};
+    const res = await api.get('/v1/dept/weekly', { params });
+    weeklyData.value = res.data;
+  } catch (e) {
+    showToast(e.response?.data?.message || 'Could not load weekly report', 'error');
+  }
 }
 
 async function loadNotifications() {
-  const res = await api.get('/v1/dept/notifications');
-  notifications.value = res.data.notifications;
-  notifCount.value    = res.data.unread;
+  try {
+    const res = await api.get('/v1/dept/notifications');
+    notifications.value = res.data.notifications;
+  } catch (_) {
+    // Non-critical background fetch — fail quietly, same as dismissNotif().
+  }
 }
 
 async function markAllRead() {
-  await api.post('/v1/dept/notifications/read');
-  notifCount.value = 0;
-  notifications.value = notifications.value.map(n => ({ ...n, read_at: new Date().toISOString() }));
-  showToast('All notifications marked as read');
+  try {
+    await api.post('/v1/dept/notifications/read');
+    notifications.value = notifications.value.map(n => ({ ...n, read_at: new Date().toISOString() }));
+    showToast('All notifications marked as read');
+  } catch (e) {
+    showToast(e.response?.data?.message || 'Could not mark notifications as read', 'error');
+  }
 }
 
 // ─── Task CRUD ────────────────────────────────────────────────────────────────
@@ -1672,12 +1720,14 @@ function openTaskModal(task = null, deptId = null, dueDate = null) {
       title: task.title, description: task.description || '', department_id: task.department_id,
       assigned_to: task.assigned_to || '', priority: task.priority, status: task.status,
       due_date: task.due_date || '', requires_approval: !!task.requires_approval,
+      is_recurring: !!task.is_recurring, recurrence_type: task.recurrence_type || 'weekly',
     });
   } else {
     Object.assign(form, {
       title: '', description: '', department_id: deptId || '',
       assigned_to: isAdmin.value ? '' : currentUserId.value,
       priority: 'medium', status: 'pending', due_date: dueDate || '', requires_approval: true,
+      is_recurring: false, recurrence_type: 'weekly',
     });
   }
   formError.value = '';
@@ -1694,6 +1744,7 @@ async function saveTask() {
     const payload = { ...form };
     if (!payload.assigned_to) delete payload.assigned_to;
     if (!payload.due_date)    delete payload.due_date;
+    if (!payload.is_recurring) payload.recurrence_type = null;
 
     if (editTask.value) {
       await api.put(`/v1/dept/tasks/${editTask.value.id}`, payload);
@@ -1717,8 +1768,13 @@ function triggerDeleteConfirm(message, fn) {
 }
 async function confirmDelete() {
   showDeleteConfirm.value = false;
-  await deletePendingFn.value?.();
-  deletePendingFn.value = null;
+  try {
+    await deletePendingFn.value?.();
+  } catch (e) {
+    showToast(e.response?.data?.message || 'Could not delete. Please try again.', 'error');
+  } finally {
+    deletePendingFn.value = null;
+  }
 }
 function deleteTask(id) {
   triggerDeleteConfirm('Are you sure you want to delete this task? This cannot be undone.', async () => {
@@ -1816,9 +1872,13 @@ function setTableScope(myTasksOnly) {
 async function addComment() {
   const text = newComment.value.trim();
   if (!text || !selectedTask.value) return;
-  const res = await api.post(`/v1/dept/tasks/${selectedTask.value.id}/comments`, { comment: text });
-  selectedTask.value.comments = [res.data, ...(selectedTask.value.comments || [])];
-  newComment.value = '';
+  try {
+    const res = await api.post(`/v1/dept/tasks/${selectedTask.value.id}/comments`, { comment: text });
+    selectedTask.value.comments = [res.data, ...(selectedTask.value.comments || [])];
+    newComment.value = '';
+  } catch (e) {
+    showToast(e.response?.data?.message || 'Could not post comment', 'error');
+  }
 }
 
 function deleteComment(commentId) {
@@ -1845,6 +1905,8 @@ async function uploadAttachment(event) {
   try {
     const res = await api.post(`/v1/dept/tasks/${selectedTask.value.id}/attachments`, fd);
     selectedTask.value.attachments = [res.data, ...(selectedTask.value.attachments || [])];
+  } catch (e) {
+    showToast(e.response?.data?.message || 'Could not upload file', 'error');
   } finally {
     attachmentUploading.value = false;
     event.target.value = '';
@@ -1900,6 +1962,8 @@ async function loadAllAttachments() {
     allAttachments.value      = res.data.data;
     attachmentsLastPage.value = res.data.last_page;
     attachmentsTotal.value    = res.data.total;
+  } catch (e) {
+    showToast(e.response?.data?.message || 'Could not load files', 'error');
   } finally {
     attachmentsLoading.value = false;
   }
@@ -1948,6 +2012,8 @@ async function loadPeopleTasks(silent = false) {
   try {
     const res = await api.get('/v1/dept/tasks', { params: { all: true } });
     peopleTasks.value = res.data;
+  } catch (e) {
+    showToast(e.response?.data?.message || 'Could not load tasks', 'error');
   } finally {
     if (!silent) peopleLoading.value = false;
   }
@@ -2090,8 +2156,16 @@ const _SL = s => ({ pending:'Pending', in_progress:'In Progress', waiting_approv
 const _SU = s => _SL(s).toUpperCase();
 const _PU = p => (p ?? '—').toUpperCase();
 
-function openPrintWindow(html) {
-  const w = window.open('', '_blank', 'width=900,height=700');
+// `w` defaults to opening synchronously here for callers (like printWeekly) that
+// already have their data in hand. Callers that must `await` an API call first
+// (like exportTable) should open the window *before* that await — inside the
+// original click's call stack — and pass the handle in, or most browsers'
+// popup blockers will silently swallow a window.open() that fires after a delay.
+function openPrintWindow(html, w = window.open('', '_blank', 'width=900,height=700')) {
+  if (!w) {
+    showToast('Pop-up blocked — please allow pop-ups for this site to print.', 'error');
+    return;
+  }
   w.document.write(html);
   w.document.close();
   w.focus();
@@ -2188,6 +2262,14 @@ function printWeekly() {
 }
 
 async function exportTable() {
+  // Open the window synchronously, inside the click's own call stack, so popup
+  // blockers see it as a direct response to the user gesture — see openPrintWindow().
+  const printWin = window.open('', '_blank', 'width=900,height=700');
+  if (!printWin) {
+    showToast('Pop-up blocked — please allow pop-ups for this site to print.', 'error');
+    return;
+  }
+
   const params = { all: true, sort_by: tableSort.field, sort_dir: tableSort.dir };
   if (tableFilters.search)        params.search        = tableFilters.search;
   if (tableFilters.department_id) params.department_id = tableFilters.department_id;
@@ -2197,8 +2279,16 @@ async function exportTable() {
   if (tableFilters.date_from)     params.date_from     = tableFilters.date_from;
   if (tableFilters.date_to)       params.date_to       = tableFilters.date_to;
 
-  const res    = await api.get('/v1/dept/tasks', { params });
-  const tasks  = res.data;
+  let tasks;
+  try {
+    const res = await api.get('/v1/dept/tasks', { params });
+    tasks = res.data;
+  } catch (e) {
+    printWin.close();
+    showToast(e.response?.data?.message || 'Could not export tasks', 'error');
+    return;
+  }
+
   const fmtNow = new Date().toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' });
   const period = (tableFilters.date_from || tableFilters.date_to)
     ? `<div class="doc-meta"><span><b>Period:</b> ${tableFilters.date_from || '…'} – ${tableFilters.date_to || '…'}</span></div>`
@@ -2212,7 +2302,7 @@ async function exportTable() {
   </div>
 </div>`;
 
-  openPrintWindow(wrapDoc('Task List', meta, flatTable(tasks, 'No tasks match the current filters.')));
+  openPrintWindow(wrapDoc('Task List', meta, flatTable(tasks, 'No tasks match the current filters.')), printWin);
 }
 
 // ─── Export (CSV / Excel download) ─────────────────────────────────────────────
@@ -2358,11 +2448,25 @@ watch(currentView, (v) => {
   if (v === 'files')     loadAllAttachments();
 });
 
+// ─── Escape-to-close ──────────────────────────────────────────────────────────
+// One listener for every dismissable surface, innermost/most-recently-opened first —
+// the only real stacking case today is the delete-confirm modal opened from within
+// the detail panel, so it must close before the panel underneath it does.
+function handleEscapeKey(e) {
+  if (e.key !== 'Escape') return;
+  if (showDeleteConfirm.value) { showDeleteConfirm.value = false; return; }
+  if (renameModal.show)        { renameModal.show = false; return; }
+  if (exportModal.value.open)  { exportModal.value.open = false; return; }
+  if (showModal.value)         { showModal.value = false; return; }
+  if (selectedTask.value)      { selectedTask.value = null; return; }
+}
+
 // ─── Lifecycle ────────────────────────────────────────────────────────────────
 onUnmounted(() => {
   destroyCharts();
   clearTimeout(searchTimer);
   clearTimeout(attachmentSearchTimer);
+  window.removeEventListener('keydown', handleEscapeKey);
 });
 
 onMounted(async () => {
@@ -2372,6 +2476,8 @@ onMounted(async () => {
   const day    = now.getDay();
   const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() + (day === 0 ? -6 : 1 - day));
   weeklyWeekStart.value = toLocalDate(monday);
+
+  window.addEventListener('keydown', handleEscapeKey);
 
   await loadMeta();
 
@@ -2624,6 +2730,12 @@ select.field-input { cursor: pointer; }
   min-height: 480px;
 }
 @media (max-width: 1100px) { .kanban-board { height: auto; } }
+@media (max-width: 900px) {
+  /* Equal-width grid columns get unusably thin once there are 4-5 of them on a
+     narrow screen — switch to a horizontally-scrolling row of fixed-width columns. */
+  .kanban-board { display: flex; overflow-x: auto; padding-bottom: 8px; -webkit-overflow-scrolling: touch; }
+  .kanban-col   { min-width: 260px; flex: 0 0 260px; }
+}
 .kanban-col {
   background: var(--surface-2); border: 1px solid var(--border);
   border-radius: var(--radius-lg); padding: 14px;
@@ -2869,10 +2981,14 @@ select.field-input { cursor: pointer; }
 .field-row.three-col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
 .field-row.two-col > div,
 .field-row.three-col > div { display: flex; flex-direction: column; gap: 6px; }
+@media (max-width: 560px) {
+  .field-row.two-col, .field-row.three-col { grid-template-columns: 1fr; }
+}
 .field-label    { font-size: 12px; font-weight: 600; color: var(--text-2); display: block; }
 .checkbox-label { display: flex; align-items: center; gap: 8px; font-size: 13.5px; color: var(--text-1); cursor: pointer; }
 .checkbox-label input { width: 16px; height: 16px; }
 .field-hint { font-size: 11.5px; color: var(--text-3); margin-top: 6px; line-height: 1.5; }
+.recur-select { display: block; margin-top: 8px; }
 
 /* ── Export modal ─────────────────────────────────────────────────────────── */
 .export-section       { display: flex; flex-direction: column; gap: 10px; }
