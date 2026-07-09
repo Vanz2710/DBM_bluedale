@@ -1609,17 +1609,43 @@ onMounted(() => switchTab('pending'));
 .page-title { font-size: 28px; font-weight: 800; letter-spacing: -0.5px; color: var(--text-1); margin: 0 0 4px; }
 .page-subtitle { font-size: 13.5px; color: var(--text-3); margin: 0; }
 
-/* ── Tab bar ── */
+/* ── Tab bar — underline style (matches List of Contacts / Reports / Task Manager) ── */
 .view-tabs {
-  display: inline-flex; gap: 4px; background: var(--surface); border-radius: 999px;
-  padding: 5px; border: 1px solid var(--border-soft); margin-bottom: 20px;
-  box-shadow: var(--shadow-xs); flex-wrap: wrap;
+  display: flex;
+  gap: 4px;
+  border-bottom: 2px solid var(--border);
+  margin-bottom: 20px;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--app-bg);
+  padding-top: 4px;
+  flex-wrap: wrap;
 }
-.tab-btn { padding: 8px 18px; border: none; background: none; cursor: pointer; font-size: 13px; font-weight: 600; color: var(--text-2); border-radius: 999px; transition: color 0.15s, background 0.15s; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px; }
-.tab-btn:hover { color: var(--text-1); background: var(--surface-2); }
-.tab-active { color: var(--primary-on) !important; background: var(--primary) !important; box-shadow: 0 4px 12px -4px rgba(29,78,216,0.45); }
-.tab-count-chip { font-size: 11px; font-weight: 700; padding: 1px 7px; border-radius: 999px; background: rgba(0,0,0,0.08); color: inherit; }
-.tab-active .tab-count-chip { background: rgba(255,255,255,0.22); }
+.tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 18px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-2);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  transition: color 0.15s, border-color 0.15s;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  white-space: nowrap;
+}
+.tab-btn:hover:not(.tab-active) { color: var(--text-1); background: var(--surface-2); }
+.tab-active {
+  color: var(--primary) !important;
+  border-bottom-color: var(--primary);
+}
+.tab-count-chip { font-size: 11px; font-weight: 700; padding: 1px 7px; border-radius: 999px; background: var(--surface-2); color: var(--text-2); }
+.tab-active .tab-count-chip { background: var(--primary-soft); color: var(--primary-text); }
 .tab-count-alert { background: #ef4444 !important; color: white !important; }
 
 /* ── Table wrap (replaces .panel) ── */

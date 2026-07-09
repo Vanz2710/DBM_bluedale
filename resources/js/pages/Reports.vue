@@ -11,9 +11,15 @@
 
     <!-- ══ Tab bar ═════════════════════════════════════════════════════════════ -->
     <div class="view-tabs">
-      <button :class="['tab-btn', { 'tab-active': tab === 'overview' }]"   @click="switchTab('overview')">Overview</button>
-      <button :class="['tab-btn', { 'tab-active': tab === 'breakdown' }]"  @click="switchTab('breakdown')">Breakdown</button>
-      <button :class="['tab-btn', { 'tab-active': tab === 'trends' }]"     @click="switchTab('trends')">Trends</button>
+      <button :class="['tab-btn', { 'tab-active': tab === 'overview' }]" @click="switchTab('overview')">
+        <span class="tab-icon" v-html="CI.grid"></span> Overview
+      </button>
+      <button :class="['tab-btn', { 'tab-active': tab === 'breakdown' }]" @click="switchTab('breakdown')">
+        <span class="tab-icon" v-html="CI.pieChart"></span> Breakdown
+      </button>
+      <button :class="['tab-btn', { 'tab-active': tab === 'trends' }]" @click="switchTab('trends')">
+        <span class="tab-icon" v-html="CI.trending"></span> Trends
+      </button>
     </div>
 
     <LoadingSpinner v-if="loading" />
@@ -380,6 +386,15 @@ import LoadingSpinner from '../components/LoadingSpinner.vue';
 
 Chart.register(BarController, BarElement, CategoryScale, LinearScale, Tooltip);
 
+// ── Icons (same SVG style as the sidebar) ──
+const _si = (p, sz = 14) => `<svg width="${sz}" height="${sz}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
+const ICO = {
+  grid:     (sz) => _si('<rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>', sz),
+  pieChart: (sz) => _si('<path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/>', sz),
+  trending: (sz) => _si('<polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/>', sz),
+};
+const CI = Object.fromEntries(Object.entries(ICO).map(([k, fn]) => [k, fn(14)]));
+
 // ── Constants ─────────────────────────────────────────────────────────────────
 const DIMS = [
   { key: 'by_status',   label: 'By Status',   labelLower: 'status' },
@@ -591,19 +606,42 @@ onUnmounted(() => {
 .page-title { font-size: 28px; font-weight: 800; letter-spacing: -0.5px; color: var(--text-1); margin: 0; }
 .page-subtitle { font-size: 13.5px; color: var(--text-3); margin: 0; }
 
-/* ── Tab bar ─────────────────────────────────────────────────────────────── */
+/* ── Tab bar — underline style (matches List of Contacts / Task Manager) ──── */
 .view-tabs {
-  display: inline-flex; gap: 4px; background: var(--surface); border-radius: 999px;
-  padding: 5px; border: 1px solid var(--border-soft); margin-bottom: 20px;
-  box-shadow: var(--shadow-xs); flex-wrap: wrap;
+  display: flex;
+  gap: 4px;
+  border-bottom: 2px solid var(--border);
+  margin-bottom: 20px;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--app-bg);
+  padding-top: 4px;
+  flex-wrap: wrap;
 }
 .tab-btn {
-  padding: 8px 20px; border: none; background: none; cursor: pointer;
-  font-size: 13px; font-weight: 600; color: var(--text-2); border-radius: 999px;
-  transition: color 0.15s, background 0.15s; white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 18px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-2);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  transition: color 0.15s, border-color 0.15s;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  white-space: nowrap;
 }
-.tab-btn:hover { color: var(--text-1); background: var(--surface-2); }
-.tab-active { color: var(--primary-on) !important; background: var(--primary) !important; box-shadow: 0 4px 12px -4px rgba(29,78,216,0.5); }
+.tab-btn:hover:not(.tab-active) { color: var(--text-1); background: var(--surface-2); }
+.tab-icon { display: inline-flex; align-items: center; vertical-align: middle; opacity: 0.8; }
+.tab-active {
+  color: var(--primary) !important;
+  border-bottom-color: var(--primary);
+}
 
 /* ── KPI cards ───────────────────────────────────────────────────────────── */
 .kpi-row {
