@@ -279,9 +279,10 @@
                 <span class="cal-pill-title">{{ task.title }}</span>
                 <span v-if="task.assignee" class="cal-pill-who">{{ initials(task.assignee.name) }}</span>
               </div>
-              <div v-if="(calendarTasksByDate[day.date] || []).length > 3" class="cal-more">
+              <button v-if="(calendarTasksByDate[day.date] || []).length > 3" type="button"
+                class="cal-more" @click.stop="openDayTasks(day)">
                 +{{ (calendarTasksByDate[day.date] || []).length - 3 }} more
-              </div>
+              </button>
             </div>
           </div>
         </div>
@@ -1090,6 +1091,29 @@
       </div>
     </transition>
 
+    <!-- ── Day Tasks Modal (calendar "+N more") ─────────────────────────────── -->
+    <transition name="modal-fade">
+      <div v-if="dayTasksModal.open" class="modal-backdrop">
+        <div class="modal-box modal-sm">
+          <div class="modal-header">
+            <h3 class="modal-title">Tasks due {{ dayTasksModal.label }}</h3>
+            <button class="btn-icon" @click="dayTasksModal.open = false" v-html="ICO.x"></button>
+          </div>
+          <div class="modal-body">
+            <div class="day-tasks-list">
+              <button v-for="task in dayTasksModal.tasks" :key="task.id" type="button"
+                class="cal-pill" :class="task.is_overdue && 'cal-pill--overdue'"
+                :style="{ borderLeftColor: priorityColor(task.priority) }"
+                @click="openDayTask(task)">
+                <span class="cal-pill-title">{{ task.title }}</span>
+                <span v-if="task.assignee" class="cal-pill-who">{{ initials(task.assignee.name) }}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </transition>
+
     <!-- ── Toast notifications ───────────────────────────────────────────────── -->
     <div class="toast-container" aria-live="polite">
       <transition-group name="toast-slide">
@@ -1146,8 +1170,20 @@ const ICO = {
 };
 
 // ─── View state ───────────────────────────────────────────────────────────────
+// A corrupted crm_user value must never throw here — this runs at component
+// setup time, before the page can render at all (same guarded pattern as
+// App.vue's getStoredUser() and router/index.js's setupGuard()).
+function getStoredUser() {
+  try {
+    return JSON.parse(localStorage.getItem('crm_user') || '{}');
+  } catch {
+    localStorage.removeItem('crm_user');
+    return {};
+  }
+}
+
 // Admins get the full management console; users get a focused personal surface.
-const _authUserInit = JSON.parse(localStorage.getItem('crm_user') || '{}');
+const _authUserInit = getStoredUser();
 const _isAdminInit  = (_authUserInit.roles || []).some(r => ['admin', 'super-admin'].includes(r));
 
 const ADMIN_VIEWS = [
@@ -1222,7 +1258,7 @@ function setFilesView(mode) {
 }
 
 // ─── Auth state ───────────────────────────────────────────────────────────────
-const authUser        = computed(() => JSON.parse(localStorage.getItem('crm_user') || '{}'));
+const authUser        = computed(() => getStoredUser());
 const isAdmin         = computed(() => (authUser.value.roles || []).some(r => ['admin', 'super-admin'].includes(r)));
 const currentUserId   = computed(() => authUser.value.id ?? null);
 const currentUserName = computed(() => authUser.value.name ?? '');
@@ -1244,6 +1280,7 @@ const deleteConfirmMsg    = ref('');
 const deletePendingFn     = ref(null);
 const attachmentUploading = ref(false);
 const selectedTask      = ref(null);
+const dayTasksModal = reactive({ open: false, label: '', tasks: [] });
 const newComment   = ref('');
 const quickStatus  = ref('');
 const form         = reactive({
@@ -1257,7 +1294,10 @@ const dragTask    = ref(null);
 const dragOverCol = ref('');
 
 // ─── Board "show closed" toggle (persisted) ───────────────────────────────────
-const showClosed = ref(JSON.parse(localStorage.getItem('dtm_show_closed') ?? 'false'));
+let _showClosedInit = false;
+try { _showClosedInit = JSON.parse(localStorage.getItem('dtm_show_closed') ?? 'false'); }
+catch { localStorage.removeItem('dtm_show_closed'); }
+const showClosed = ref(_showClosedInit);
 function toggleShowClosed() {
   showClosed.value = !showClosed.value;
   localStorage.setItem('dtm_show_closed', String(showClosed.value));
@@ -1333,6 +1373,19 @@ const calendarDays = computed(() => {
   }
   return days;
 });
+
+// Local Date(y, m, d) construction — never new Date(isoString), which parses
+// as UTC and can shift the displayed day depending on the browser's timezone.
+function openDayTasks(day) {
+  const [y, m, d] = day.date.split('-').map(Number);
+  dayTasksModal.label = new Date(y, m - 1, d).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+  dayTasksModal.tasks = calendarTasksByDate.value[day.date] || [];
+  dayTasksModal.open  = true;
+}
+function openDayTask(task) {
+  dayTasksModal.open = false;
+  openTaskDetail(task);
+}
 
 // ─── Computed ─────────────────────────────────────────────────────────────────
 const statCards = computed(() => {
@@ -2457,6 +2510,7 @@ function handleEscapeKey(e) {
   if (showDeleteConfirm.value) { showDeleteConfirm.value = false; return; }
   if (renameModal.show)        { renameModal.show = false; return; }
   if (exportModal.value.open)  { exportModal.value.open = false; return; }
+  if (dayTasksModal.open)      { dayTasksModal.open = false; return; }
   if (showModal.value)         { showModal.value = false; return; }
   if (selectedTask.value)      { selectedTask.value = null; return; }
 }
@@ -2807,11 +2861,24 @@ select.field-input { cursor: pointer; }
   background: var(--surface-2); font-size: 10.5px; line-height: 1.3; cursor: pointer;
 }
 .cal-pill:hover                       { background: var(--border); }
-.cal-pill--overdue                    { background: #fee2e2; }
+.cal-pill--overdue                    { background: var(--danger-soft); }
 .cal-pill-title                       { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600; color: var(--text-1); }
-.cal-pill--overdue .cal-pill-title    { color: #991b1b; }
+.cal-pill--overdue .cal-pill-title    { color: var(--danger); }
 .cal-pill-who   { flex-shrink: 0; font-size: 9px; font-weight: 700; color: var(--text-3); }
-.cal-more       { font-size: 10px; color: var(--text-3); padding: 1px 4px; }
+.cal-more {
+  display: block; width: 100%; text-align: left; font-family: inherit;
+  background: none; border: none; cursor: pointer;
+  font-size: 10px; color: var(--text-3); padding: 1px 4px;
+}
+.cal-more:hover { color: var(--primary); text-decoration: underline; }
+
+.day-tasks-list { display: flex; flex-direction: column; gap: 6px; max-height: 50vh; overflow-y: auto; }
+.day-tasks-list .cal-pill {
+  width: 100%; text-align: left; font-family: inherit;
+  border: none; border-left: 3px solid transparent;
+  font-size: 12.5px; padding: 8px 10px;
+}
+.day-tasks-list .cal-pill-title { white-space: normal; overflow: visible; text-overflow: clip; }
 
 @media (max-width: 640px) {
   .cal-day         { min-height: 76px; padding: 5px; }
