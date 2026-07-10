@@ -12,7 +12,7 @@ All important project docs in one place. Files at the project root are listed he
 | File | What it covers |
 |------|---------------|
 | [DEPLOY_CPANEL.md](../DEPLOY_CPANEL.md) | **START HERE for production** — step-by-step NetOnBoard cPanel deployment checklist (phases 1–7) |
-| [PRODUCTION_READINESS.md](../PRODUCTION_READINESS.md) | Infra checklist — cache/queue drivers, indexes, Sentry, rate limiting, health check, backups (cPanel) |
+| [PRODUCTION_READINESS.md](../PRODUCTION_READINESS.md) | Infra checklist — cache/queue drivers, indexes, rate limiting, health check, backups (cPanel) |
 | [TEST_CASES_CONTEXT.md](../TEST_CASES_CONTEXT.md) | Reference for generating the formal test-case document |
 | [TEST_CASES_RESULTS.md](../TEST_CASES_RESULTS.md) | Results & remarks from the completed test pass (companion to the context doc) |
 | [private/INFINITYFREE_STATUS.md](../private/INFINITYFREE_STATUS.md) | Historical — InfinityFree staging setup + the server-side changes that were NOT committed. ⚠️ Live credentials, local only. |

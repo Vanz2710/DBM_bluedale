@@ -37,16 +37,11 @@
 
 ---
 
-## Priority 4 — Error Monitoring (Sentry)
-> See errors before users report them — requires a Sentry account
+## Priority 4 — Error Monitoring
 
-- [x] Sentry account created, free project set up
-- [x] `composer require sentry/sentry-laravel` — v4.25.1 installed
-- [x] `npm install @sentry/vue` — installed
-- [x] `SENTRY_LARAVEL_DSN` added to `.env` and `.env.production.example`
-- [x] `config/sentry.php` created, `bootstrap/app.php` wired with `Integration::handles()`
-- [x] `@sentry/vue` wired up in `resources/js/app.js` with router tracing
-- [ ] Verify on live server: trigger a test error and confirm it appears in Sentry dashboard
+Sentry (`sentry/sentry-laravel`, `@sentry/vue`) was set up here and has since been removed by
+decision — no longer part of the stack. Production errors go to `storage/logs/laravel.log`
+only; there is currently no external error-monitoring service wired up.
 
 ---
 

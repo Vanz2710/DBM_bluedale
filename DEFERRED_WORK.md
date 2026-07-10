@@ -219,7 +219,6 @@ Open items from `PRODUCTION_READINESS.md`:
 - [ ] Run `php artisan permission:cache-reset` after first deploy to warm Spatie permission cache
 - [ ] Register on UptimeRobot (free) — point to `https://your-domain.com/up`, configure email/SMS alert
 - [ ] Enable automated daily MySQL backups (cPanel built-in or mysqldump cron), verify restoration works
-- [ ] Verify Sentry receives errors from live server — trigger a test error, confirm it appears in Sentry dashboard
 - [ ] Swap to production email provider (Brevo or SendGrid) if still on Gmail SMTP
 - [ ] Set `admin_notification_email` in Admin → System Settings on first super-admin login
 - [ ] Run artisan cache commands after all `.env` values are final:
