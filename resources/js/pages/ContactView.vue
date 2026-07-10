@@ -537,6 +537,10 @@ function addPicDraft() {
   picDrafts.value.push({ name: '', phone_mobile: '', email: '', _saving: false });
 }
 
+function showToast(message, type = 'error') {
+  window.dispatchEvent(new CustomEvent('crm-toast', { detail: { message, type } }));
+}
+
 async function savePicDraft(idx) {
   const d = picDrafts.value[idx];
   if (!d.name.trim()) return;
@@ -551,6 +555,7 @@ async function savePicDraft(idx) {
     picDrafts.value.splice(idx, 1);
   } catch (e) {
     picError.value = picErrMsg(e);
+    showToast(picError.value);
     d._saving = false;
   }
 }
@@ -565,6 +570,7 @@ async function savePic(pic) {
     });
   } catch (e) {
     picError.value = picErrMsg(e);
+    showToast(picError.value);
   } finally {
     pic._saving = false;
   }
@@ -578,6 +584,7 @@ async function removePic(pic) {
     contact.value.incharges = contact.value.incharges.filter(p => p.id !== pic.id);
   } catch (e) {
     picError.value = picErrMsg(e);
+    showToast(picError.value);
     pic._saving = false;
   }
 }
@@ -611,6 +618,7 @@ async function submitTaskFu() {
     taskFuForm.value = { followup_date: new Date().toISOString().slice(0, 10), action_type: '', note: '' };
   } catch (e) {
     taskFuModal.value.error = e.response?.data?.message ?? 'Failed to save follow-up.';
+    showToast(taskFuModal.value.error);
   } finally {
     taskFuModal.value.saving = false;
   }
@@ -643,14 +651,19 @@ async function submitAddTask() {
     contact.value = normalizeContact(res.data.data);
   } catch (e) {
     addTaskError.value = e.response?.data?.message ?? 'Failed to save task.';
+    showToast(addTaskError.value);
   } finally {
     addTaskSaving.value = false;
   }
 }
 
 async function toggleDone(todo, status) {
-  await api.patch(`/v1/todos/${todo.id}/status`, { status });
-  todo.completion_status = status;
+  try {
+    await api.patch(`/v1/todos/${todo.id}/status`, { status });
+    todo.completion_status = status;
+  } catch (e) {
+    showToast(e.response?.data?.message ?? 'Failed to update task status.');
+  }
 }
 
 const deleteTaskModal = reactive({ open: false, todo: null, loading: false });
@@ -665,8 +678,9 @@ async function confirmDeleteTask() {
     const res = await api.get(`/v1/contacts/${id}`);
     contact.value = normalizeContact(res.data.data);
     closeDeleteTaskModal();
-  } catch {
-    closeDeleteTaskModal();
+  } catch (e) {
+    // Leave the modal open on failure — closing it here would read as success.
+    showToast(e.response?.data?.message ?? 'Failed to delete task.');
   } finally {
     deleteTaskModal.loading = false;
   }
@@ -685,8 +699,12 @@ function openForecastEdit(fid) {
 function closeForecastModal() { forecastModal.value.open = false; }
 async function onForecastSaved() {
   closeForecastModal();
-  const res = await api.get(`/v1/contacts/${id}`);
-  contact.value = res.data.data;
+  try {
+    const res = await api.get(`/v1/contacts/${id}`);
+    contact.value = res.data.data;
+  } catch (e) {
+    showToast(e.response?.data?.message ?? 'Saved, but failed to refresh the page — reload to see the latest data.');
+  }
 }
 const deleteForecastModal = reactive({ open: false, forecastId: null, loading: false });
 function openDeleteForecastModal(fid) { deleteForecastModal.forecastId = fid; deleteForecastModal.open = true; }
@@ -699,8 +717,9 @@ async function confirmDeleteForecast() {
     await api.delete(`/v1/forecasts/${deleteForecastModal.forecastId}`);
     contact.value.forecasts = contact.value.forecasts.filter(f => f.id !== deleteForecastModal.forecastId);
     closeDeleteForecastModal();
-  } catch {
-    closeDeleteForecastModal();
+  } catch (e) {
+    // Leave the modal open on failure — closing it here would read as success.
+    showToast(e.response?.data?.message ?? 'Failed to delete forecast.');
   } finally {
     deleteForecastModal.loading = false;
   }
@@ -717,6 +736,8 @@ async function toggleClosed() {
     const res = await api.patch(`/v1/contacts/${id}/closed`);
     contact.value.is_permanently_closed = res.data.is_permanently_closed;
     closedModal.open = false;
+  } catch (e) {
+    showToast(e.response?.data?.message ?? 'Failed to update contact status.');
   } finally {
     closedModal.loading = false;
   }
@@ -745,6 +766,7 @@ async function confirmDelete() {
     router.push('/list');
   } catch (e) {
     deleteError.value = e.response?.data?.message ?? 'Failed to delete contact.';
+    showToast(deleteError.value);
     deleting.value = false;
   }
 }

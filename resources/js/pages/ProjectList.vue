@@ -213,12 +213,18 @@ function buildParams() {
   };
 }
 
+function showToast(message, type = 'error') {
+  window.dispatchEvent(new CustomEvent('crm-toast', { detail: { message, type } }));
+}
+
 async function load() {
   loading.value = true;
   try {
     const res = await api.get('/v1/projects', { params: buildParams() });
     projects.value = res.data.data;
     meta.value     = res.data.meta ?? {};
+  } catch (e) {
+    showToast(e.response?.data?.message ?? 'Failed to load projects.', 'error');
   } finally {
     loading.value = false;
   }
@@ -243,6 +249,8 @@ async function openRemark(p) {
   try {
     const res = await api.get(`/v1/projects/${p.id}/remark`);
     remarkText.value = res.data.data?.project_remark ?? p.project_remark ?? '';
+  } catch (e) {
+    showToast(e.response?.data?.message ?? 'Failed to load remark.', 'error');
   } finally {
     remarkLoading.value = false;
   }
@@ -258,6 +266,8 @@ async function doDelete() {
     await api.delete(`/v1/projects/${deleteTarget.value.id}`);
     deleteTarget.value = null;
     load();
+  } catch (e) {
+    showToast(e.response?.data?.message ?? 'Failed to delete project.', 'error');
   } finally {
     deleting.value = false;
   }

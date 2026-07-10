@@ -418,6 +418,8 @@ async function load() {
     const res   = await api.get('/v1/deals', { params: buildParams() });
     deals.value = res.data.data ?? [];
     meta.value  = res.data.meta ?? {};
+  } catch (e) {
+    showToast(e.response?.data?.message ?? 'Failed to load deals.', 'error');
   } finally {
     loading.value = false;
   }
@@ -428,6 +430,8 @@ async function loadSummary() {
   try {
     const res     = await api.get('/v1/deals/summary', { params: buildSummaryParams() });
     summary.value = res.data.data ?? summary.value;
+  } catch (e) {
+    showToast(e.response?.data?.message ?? 'Failed to load deal summary.', 'error');
   } finally {
     summaryLoading.value = false;
   }
@@ -438,7 +442,9 @@ async function loadUsers() {
   try {
     const res   = await api.get('/v1/rbac/users');
     users.value = res.data.data ?? [];
-  } catch (_) {}
+  } catch (e) {
+    showToast(e.response?.data?.message ?? 'Failed to load users.', 'error');
+  }
 }
 
 function applyFilters() { page.value = 1; load(); loadSummary(); }
@@ -458,6 +464,8 @@ async function doDelete() {
     await api.delete(`/v1/deals/${deleteTarget.value.id}`);
     deleteTarget.value = null;
     load(); loadSummary();
+  } catch (e) {
+    showToast(e.response?.data?.message ?? 'Failed to delete deal.', 'error');
   } finally {
     deleting.value = false;
   }

@@ -2127,6 +2127,8 @@ async function loadForecasts() {
     forecasts.value = listRes.data.data ?? [];
     forecastMeta.value = listRes.data ?? {};
     forecastSummary.value = sumRes.data.data?.totals ?? {};
+  } catch (e) {
+    showToast(e.response?.data?.message ?? 'Failed to load forecasts.', 'error');
   } finally {
     forecastLoading.value = false;
   }
@@ -2171,8 +2173,12 @@ async function onForecastSaved() {
   showToast('Forecast saved');
   if (tab.value === 'forecast') loadForecasts();
   if (drawer.value.open && drawer.value.contact) {
-    const res = await api.get(`/v1/contacts/${drawer.value.contact.id}`);
-    drawer.value.contact = res.data.data;
+    try {
+      const res = await api.get(`/v1/contacts/${drawer.value.contact.id}`);
+      drawer.value.contact = res.data.data;
+    } catch (e) {
+      showToast(e.response?.data?.message ?? 'Saved, but failed to refresh the panel — reload to see the latest data.', 'error');
+    }
   }
 }
 
@@ -2295,6 +2301,7 @@ async function submitFollowUpModal() {
     showToast('Follow-up saved');
   } catch (e) {
     followUpModal.value.error = e.response?.data?.message ?? 'Failed to save follow-up.';
+    showToast(followUpModal.value.error, 'error');
   } finally {
     followUpModal.value.saving = false;
   }
@@ -2327,6 +2334,7 @@ async function submitTaskFuForm() {
     showToast('Follow-up saved');
   } catch (e) {
     taskFuModal.value.error = e.response?.data?.message ?? 'Failed to save follow-up.';
+    showToast(taskFuModal.value.error, 'error');
   } finally {
     taskFuModal.value.saving = false;
   }
@@ -2355,6 +2363,7 @@ async function submitAddTaskModal() {
     showToast('Task saved');
   } catch (e) {
     addTaskModal.value.error = e.response?.data?.message ?? 'Failed to save task.';
+    showToast(addTaskModal.value.error, 'error');
   } finally {
     addTaskModal.value.saving = false;
   }
@@ -2421,6 +2430,7 @@ async function saveEditPicDraft(idx) {
     syncDrawerIncharges();
   } catch (e) {
     editContactModal.value.picError = picErrMsg(e);
+    showToast(editContactModal.value.picError, 'error');
     d._saving = false;
   }
 }
@@ -2436,6 +2446,7 @@ async function saveEditPic(pic) {
     syncDrawerIncharges();
   } catch (e) {
     editContactModal.value.picError = picErrMsg(e);
+    showToast(editContactModal.value.picError, 'error');
   } finally {
     pic._saving = false;
   }
@@ -2450,6 +2461,7 @@ async function removeEditPic(pic) {
     syncDrawerIncharges();
   } catch (e) {
     editContactModal.value.picError = picErrMsg(e);
+    showToast(editContactModal.value.picError, 'error');
     pic._saving = false;
   }
 }
@@ -2487,6 +2499,7 @@ async function submitEditContact() {
     editContactModal.value.error = errors
       ? Object.values(errors).flat().join(' ')
       : (e.response?.data?.message ?? 'Failed to save.');
+    showToast(editContactModal.value.error, 'error');
   } finally {
     editContactModal.value.saving = false;
   }
@@ -2509,6 +2522,7 @@ async function submitQuickTask() {
     showToast('Task saved');
   } catch (e) {
     addTaskError.value = e.response?.data?.message ?? 'Failed to save task.';
+    showToast(addTaskError.value, 'error');
   } finally {
     addTaskSaving.value = false;
   }
@@ -2622,6 +2636,7 @@ async function submitAdd() {
   } catch (e) {
     const errors = e.response?.data?.errors;
     addSubmitError.value = errors ? Object.values(errors).flat().join(' ') : (e.response?.data?.message ?? 'Failed to save. Please try again.');
+    showToast(addSubmitError.value, 'error');
   } finally {
     addSaving.value = false;
   }

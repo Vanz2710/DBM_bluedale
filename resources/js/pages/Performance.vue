@@ -578,14 +578,22 @@ function switchTargets() {
 }
 
 // ─── API calls ───────────────────────────────────────────────────────────────
+function showToast(message, type = 'error') {
+  window.dispatchEvent(new CustomEvent('crm-toast', { detail: { message, type } }));
+}
+
 async function loadLookups() {
-  const res = await api.get('/v1/lookups');
-  users.value = res.data.users ?? [];
-  if (!selectedUserId.value) {
-    const me = users.value.find(u => u.id === currentUser?.id);
-    selectedUserId.value = me ? me.id : (users.value[0]?.id ?? null);
+  try {
+    const res = await api.get('/v1/lookups');
+    users.value = res.data.users ?? [];
+    if (!selectedUserId.value) {
+      const me = users.value.find(u => u.id === currentUser?.id);
+      selectedUserId.value = me ? me.id : (users.value[0]?.id ?? null);
+    }
+    targetUserId.value = selectedUserId.value;
+  } catch (e) {
+    showToast(e.response?.data?.message ?? 'Failed to load users.', 'error');
   }
-  targetUserId.value = selectedUserId.value;
 }
 
 async function loadOverview() {
@@ -596,6 +604,8 @@ async function loadOverview() {
       params: { ...periodParams(), user_id: selectedUserId.value },
     });
     overview.value = res.data.data;
+  } catch (e) {
+    showToast(e.response?.data?.message ?? 'Failed to load performance overview.', 'error');
   } finally {
     loadingOverview.value = false;
   }
@@ -620,8 +630,12 @@ async function loadDealSummary() {
     delete params.year;
   }
   delete params.view;
-  const res = await api.get('/v1/deals/summary', { params });
-  dealSummary.value = res.data.data;
+  try {
+    const res = await api.get('/v1/deals/summary', { params });
+    dealSummary.value = res.data.data;
+  } catch (e) {
+    showToast(e.response?.data?.message ?? 'Failed to load deal summary.', 'error');
+  }
 }
 
 async function loadTeam() {
@@ -629,6 +643,8 @@ async function loadTeam() {
   try {
     const res = await api.get('/v1/performance/team', { params: periodParams() });
     teamData.value = res.data.data ?? [];
+  } catch (e) {
+    showToast(e.response?.data?.message ?? 'Failed to load team performance.', 'error');
   } finally {
     loadingTeam.value = false;
   }
@@ -644,6 +660,8 @@ async function loadKpiTargets() {
       map[m.key] = Number(res.data.data[m.key]?.target_value ?? 0);
     }
     editableTargets.value = map;
+  } catch (e) {
+    showToast(e.response?.data?.message ?? 'Failed to load KPI targets.', 'error');
   } finally {
     loadingTargets.value = false;
   }
@@ -661,6 +679,8 @@ async function saveKpiTargets() {
     targetsSaved.value = true;
     setTimeout(() => { targetsSaved.value = false; }, 3000);
     await loadOverview();
+  } catch (e) {
+    showToast(e.response?.data?.message ?? 'Failed to save KPI targets.', 'error');
   } finally {
     savingTargets.value = false;
   }

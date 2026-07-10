@@ -581,10 +581,19 @@ async function switchTab(newTab) {
 }
 
 // ── Lifecycle ─────────────────────────────────────────────────────────────────
+function showToast(message, type = 'error') {
+  window.dispatchEvent(new CustomEvent('crm-toast', { detail: { message, type } }));
+}
+
 onMounted(async () => {
-  const res = await api.get('/v1/analytics');
-  analytics.value = res.data;
-  loading.value   = false;
+  try {
+    const res = await api.get('/v1/analytics');
+    analytics.value = res.data;
+  } catch (e) {
+    showToast(e.response?.data?.message ?? 'Failed to load report data.', 'error');
+  } finally {
+    loading.value = false;
+  }
 });
 
 onUnmounted(() => {
