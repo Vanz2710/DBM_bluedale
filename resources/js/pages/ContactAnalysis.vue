@@ -378,9 +378,10 @@
 <script setup>
 import { ref, reactive, computed, onMounted, onUnmounted, nextTick } from 'vue';
 import api from '../api.js';
+import { getStoredUser } from '../utils/storage.js';
 
 // ─── Auth ──────────────────────────────────────────────────────────────────
-const user    = JSON.parse(localStorage.getItem('crm_user') || 'null');
+const user    = getStoredUser();
 const isAdmin = (user?.roles ?? []).some(r => ['admin', 'super-admin'].includes(r));
 
 // ─── Date helpers ──────────────────────────────────────────────────────────

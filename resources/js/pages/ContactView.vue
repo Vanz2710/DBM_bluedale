@@ -479,6 +479,7 @@ import api from '../api.js';
 import LoadingSpinner from '../components/LoadingSpinner.vue';
 import ForecastFormModal from '../components/ForecastFormModal.vue';
 import { usePermissions } from '../composables/usePermissions.js';
+import { getStoredUser } from '../utils/storage.js';
 
 const { can } = usePermissions();
 
@@ -490,7 +491,7 @@ const loading = ref(true);
 const contact = ref(null);
 
 const isAdmin = computed(() => {
-  const roles = JSON.parse(localStorage.getItem('crm_user') || 'null')?.roles ?? [];
+  const roles = getStoredUser()?.roles ?? [];
   return roles.includes('admin') || roles.includes('super-admin');
 });
 

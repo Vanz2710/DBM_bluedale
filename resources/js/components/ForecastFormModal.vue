@@ -114,6 +114,7 @@ import { computed, ref, watch, onUnmounted } from 'vue';
 import api from '../api.js';
 import LoadingSpinner from './LoadingSpinner.vue';
 import { useLookups } from '../composables/useLookups.js';
+import { getStoredUser } from '../utils/storage.js';
 
 const props = defineProps({
   open: { type: Boolean, default: false },
@@ -123,7 +124,7 @@ const props = defineProps({
 });
 const emit = defineEmits(['close', 'saved']);
 
-const currentUser = JSON.parse(localStorage.getItem('crm_user') || 'null');
+const currentUser = getStoredUser();
 const isAdmin = computed(() => {
   const roles = currentUser?.roles ?? [];
   return roles.includes('admin') || roles.includes('super-admin');

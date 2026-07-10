@@ -1059,6 +1059,7 @@ import BillboardOverlayEditor from '../components/BillboardOverlayEditor.vue';
 import BookingEntryModal from '../components/BookingEntryModal.vue';
 import RegisterProductModal from '../components/RegisterProductModal.vue';
 import SignaturePad from '../components/SignaturePad.vue';
+import { getStoredUser } from '../utils/storage.js';
 
 const months = [
   { value: 1, short: 'Jan' },
@@ -1121,7 +1122,7 @@ const phoneCountries = [
 ]
 
 // ── Prepared-by profiles ───────────────────────────────────────────────────
-const _authUser        = JSON.parse(localStorage.getItem('crm_user') || 'null');
+const _authUser        = getStoredUser();
 const authUserId       = _authUser?.id ?? null;
 const isSuperAdmin     = _authUser?.roles?.includes('super-admin') ?? false;
 

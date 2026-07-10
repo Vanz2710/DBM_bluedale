@@ -220,6 +220,7 @@
 import { ref, computed, onMounted } from 'vue';
 import api from '../api.js';
 import { usePermissions } from '../composables/usePermissions.js';
+import { getStoredUser } from '../utils/storage.js';
 
 const { can } = usePermissions();
 
@@ -230,7 +231,7 @@ const STAGE_CLASSES = {
   'Won': 'won', 'Lost': 'lost',
 };
 
-const currentUser = ref(JSON.parse(localStorage.getItem('crm_user') || 'null'));
+const currentUser = ref(getStoredUser());
 const isAdmin = computed(() => {
   const roles = currentUser.value?.roles ?? [];
   return roles.includes('admin') || roles.includes('super-admin');

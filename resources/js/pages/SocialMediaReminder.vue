@@ -245,6 +245,7 @@
 <script setup>
 import { computed, onMounted, ref, reactive } from 'vue';
 import api from '../api.js';
+import { getStoredUser } from '../utils/storage.js';
 
 const reminders = ref([]);
 const meta      = ref({ current_page: 1, last_page: 1, total: 0 });
@@ -254,7 +255,7 @@ const saving = ref(false);
 const error = ref('');
 const search = ref('');
 const monthFilter = ref('');
-const preparedBy = ref(JSON.parse(localStorage.getItem('crm_user') || 'null')?.name ?? 'Staff');
+const preparedBy = ref(getStoredUser()?.name ?? 'Staff');
 const companyResults = ref([]);
 const companyLoading = ref(false);
 const selectedContactId = ref(null);

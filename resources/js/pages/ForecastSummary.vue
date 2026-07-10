@@ -224,6 +224,7 @@ import { computed, onMounted, reactive, ref } from 'vue';
 import api from '../api.js';
 import LoadingSpinner from '../components/LoadingSpinner.vue';
 import { useLookups } from '../composables/useLookups.js';
+import { getStoredUser } from '../utils/storage.js';
 
 function _i(d) {
   return `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
@@ -235,7 +236,7 @@ const ICO = {
 
 const { lookups, load: loadLookups } = useLookups();
 
-const currentUser = ref(JSON.parse(localStorage.getItem('crm_user') || 'null'));
+const currentUser = ref(getStoredUser());
 const isAdmin = computed(() => {
   const roles = currentUser.value?.roles ?? [];
   return roles.includes('admin') || roles.includes('super-admin');

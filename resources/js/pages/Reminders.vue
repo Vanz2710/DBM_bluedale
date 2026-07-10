@@ -128,6 +128,7 @@ import { useRouter } from 'vue-router';
 import api from '../api.js';
 import LoadingSpinner from '../components/LoadingSpinner.vue';
 import { useTodoModal } from '../composables/useTodoModal.js';
+import { getStoredUser } from '../utils/storage.js';
 
 const router = useRouter();
 const todoModal = useTodoModal();
@@ -149,7 +150,7 @@ const upcoming = ref([]);
 const userId   = ref('');
 const users    = ref([]);
 
-const currentUser = ref(JSON.parse(localStorage.getItem('crm_user') || 'null'));
+const currentUser = ref(getStoredUser());
 const isAdmin = computed(() => {
   const roles = currentUser.value?.roles ?? [];
   return roles.includes('admin') || roles.includes('super-admin');

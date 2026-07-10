@@ -262,6 +262,7 @@
 import { ref, computed, onMounted } from 'vue';
 import api from '../api.js';
 import LoadingSpinner from '../components/LoadingSpinner.vue';
+import { getStoredUser } from '../utils/storage.js';
 
 const loading       = ref(true);
 const savingProfile = ref(false);
@@ -375,7 +376,7 @@ async function saveProfile() {
     profile.value = res.data.user;
     profileMsg.value = { type: 'success', text: 'Profile updated successfully.' };
 
-    const stored = JSON.parse(localStorage.getItem('crm_user') || '{}');
+    const stored = getStoredUser() || {};
     stored.name  = res.data.user.name;
     stored.email = res.data.user.email;
     localStorage.setItem('crm_user', JSON.stringify(stored));

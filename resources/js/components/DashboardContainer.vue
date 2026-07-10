@@ -139,6 +139,7 @@ import { GridLayout, GridItem } from 'grid-layout-plus';
 import { Plus, X, LayoutGrid, Move, TrendingUp, Users, BarChart2, ClipboardList, Target, CalendarCheck, Briefcase, Zap, AlertTriangle, BarChart3, Megaphone } from 'lucide-vue-next';
 import api from '../api.js';
 import LoadingSpinner from './LoadingSpinner.vue';
+import { getStoredUser } from '../utils/storage.js';
 
 // --- Registry (lazy-loaded — only fetched when a widget is actually on the canvas) ---
 const widgetComponents = {
@@ -245,7 +246,7 @@ const DEFAULT_LAYOUT = [
 const ROW_HEIGHT = 80;
 
 // --- Greeting -----------------------------------------------------------
-const _user      = JSON.parse(localStorage.getItem('crm_user') || 'null');
+const _user      = getStoredUser();
 const firstName  = String(_user?.name || '').trim().split(/\s+/)[0] || '';
 const _now       = new Date();
 const _hour      = _now.getHours();

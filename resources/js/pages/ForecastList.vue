@@ -307,6 +307,7 @@ import LoadingSpinner from '../components/LoadingSpinner.vue';
 import ForecastFormModal from '../components/ForecastFormModal.vue';
 import { usePermissions } from '../composables/usePermissions.js';
 import { useLookups } from '../composables/useLookups.js';
+import { getStoredUser } from '../utils/storage.js';
 
 // `embedded` = rendered inside the Contacts page's Forecast tab (vs the standalone route).
 defineProps({ embedded: { type: Boolean, default: false } });
@@ -329,7 +330,7 @@ function toast(message, type = 'success') {
   window.dispatchEvent(new CustomEvent('crm-toast', { detail: { message, type } }));
 }
 
-const currentUser = ref(JSON.parse(localStorage.getItem('crm_user') || 'null'));
+const currentUser = ref(getStoredUser());
 const isAdmin = computed(() => {
   const roles = currentUser.value?.roles ?? [];
   return roles.includes('admin') || roles.includes('super-admin');

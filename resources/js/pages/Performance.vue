@@ -365,6 +365,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import api from '../api.js';
+import { getStoredUser } from '../utils/storage.js';
 
 // ─── SVG Icons ────────────────────────────────────────────────────────────────
 const ICONS = {
@@ -425,7 +426,7 @@ function formatCurrency(val) {
 }
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
-const currentUser = JSON.parse(localStorage.getItem('crm_user') || 'null');
+const currentUser = getStoredUser();
 const isAdmin     = (currentUser?.roles ?? []).some(r => ['admin', 'super-admin'].includes(r));
 
 // ─── State ───────────────────────────────────────────────────────────────────

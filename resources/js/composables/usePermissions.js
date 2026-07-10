@@ -1,7 +1,8 @@
 import { computed } from 'vue';
+import { getStoredUser } from '../utils/storage.js';
 
 export function usePermissions() {
-    const user = computed(() => JSON.parse(localStorage.getItem('crm_user') || 'null'));
+    const user = computed(() => getStoredUser());
 
     // null permissions = super-admin (full access via Gate::before, no DB rows).
     // Also handle stale localStorage where super-admin has an empty array instead of null.

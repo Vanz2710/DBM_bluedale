@@ -595,11 +595,12 @@ import {
   Tooltip, Legend,
 } from 'chart.js';
 import api from '../api.js';
+import { getStoredUser } from '../utils/storage.js';
 
 Chart.register(BarController, BarElement, CategoryScale, LinearScale, Tooltip, Legend);
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
-const currentUser = JSON.parse(localStorage.getItem('crm_user') || 'null');
+const currentUser = getStoredUser();
 const isAdmin = computed(() => {
   const roles = currentUser?.roles ?? [];
   return roles.includes('admin') || roles.includes('super-admin');

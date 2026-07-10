@@ -305,6 +305,7 @@
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue';
 import { useSettings, applyTheme } from '../composables/useSettings.js';
+import { getStoredUser } from '../utils/storage.js';
 
 const _s      = (p) => `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
 const _sLarge = (p) => `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
@@ -326,7 +327,7 @@ onMounted(async () => {
   Object.assign(localSettings.crm, settings.crm);
 });
 
-const currentUser = computed(() => JSON.parse(localStorage.getItem('crm_user') || 'null'));
+const currentUser = computed(() => getStoredUser());
 const isAdmin     = computed(() => {
   const roles = currentUser.value?.roles ?? [];
   return roles.includes('admin') || roles.includes('super-admin');
