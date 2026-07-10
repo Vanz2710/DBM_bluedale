@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Models\AdminAuditLog;
+use App\Support\Csv;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 
@@ -42,7 +43,7 @@ class AdminAuditLogController extends Controller
             fputs($out, chr(0xEF) . chr(0xBB) . chr(0xBF));
             fputcsv($out, ['Date', 'Time', 'Actor', 'Action', 'Entity Type', 'Entity Name', 'IP Address']);
             foreach ($logs as $log) {
-                fputcsv($out, [
+                fputcsv($out, Csv::row([
                     $log->created_at?->format('d-m-Y') ?? '-',
                     $log->created_at?->format('H:i') ?? '-',
                     $log->actor?->name ?? 'System',
@@ -50,7 +51,7 @@ class AdminAuditLogController extends Controller
                     $log->entity_type,
                     $log->entity_name ?? $log->entity_id ?? '-',
                     $log->ip_address ?? '-',
-                ]);
+                ]));
             }
             fclose($out);
         };

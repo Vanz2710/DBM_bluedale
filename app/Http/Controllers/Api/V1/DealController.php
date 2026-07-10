@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Models\Deal;
+use App\Support\Csv;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -242,7 +243,7 @@ class DealController extends Controller
             fputcsv($out, ['NO', 'TITLE', 'STAGE', 'STATUS', 'COMPANY', 'VALUE', 'PROBABILITY (%)', 'EXPECTED CLOSE', 'ASSIGNED TO', 'LOST REASON', 'NOTES', 'ENTRY DATE']);
             $no = 1;
             foreach ($deals as $d) {
-                fputcsv($out, [
+                fputcsv($out, Csv::row([
                     $no++,
                     $d->title ?? '-',
                     $d->stage ?? '-',
@@ -255,7 +256,7 @@ class DealController extends Controller
                     $d->lost_reason ?? '-',
                     $d->notes ?? '-',
                     $d->created_at?->format('d-m-Y') ?? '-',
-                ]);
+                ]));
             }
             fclose($out);
         };

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ContactEditGrant;
 use App\Models\FollowUp;
 use App\Models\ToDo;
+use App\Support\Csv;
 use Illuminate\Http\Request;
 
 class GlobalTodoController extends Controller
@@ -294,7 +295,7 @@ class GlobalTodoController extends Controller
                     foreach ($todos as $t) {
                         $row = [];
                         foreach ($selected as $col) { $row[] = $col === 'no' ? $no : $getVal($t, $col); }
-                        fputcsv($h, $row);
+                        fputcsv($h, Csv::row($row));
                         $no++;
                     }
                 });

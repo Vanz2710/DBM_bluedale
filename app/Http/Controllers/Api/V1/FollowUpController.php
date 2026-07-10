@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Models\ContactEditGrant;
 use App\Models\FollowUp;
+use App\Support\Csv;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -243,7 +244,7 @@ class FollowUpController extends Controller
                     foreach ($rows as $f) {
                         $row = [];
                         foreach ($selected as $col) { $row[] = $col === 'no' ? $no : $getVal($f, $col); }
-                        fputcsv($h, $row);
+                        fputcsv($h, Csv::row($row));
                         $no++;
                     }
                 });

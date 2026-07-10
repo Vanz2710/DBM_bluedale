@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Models\Project;
+use App\Support\Csv;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -165,7 +166,7 @@ class ProjectController extends Controller
                 $start    = $p->project_startdate;
                 $end      = $p->project_enddate;
                 $duration = ($start && $end) ? $start->diffInDays($end) : '-';
-                fputcsv($out, [
+                fputcsv($out, Csv::row([
                     $no++,
                     $start?->format('d-m-Y') ?? '-',
                     $end?->format('d-m-Y') ?? '-',
@@ -175,7 +176,7 @@ class ProjectController extends Controller
                     $p->project_remark ?? '-',
                     $p->user?->name ?? '-',
                     $p->created_at?->format('d-m-Y') ?? '-',
-                ]);
+                ]));
             }
             fclose($out);
         };

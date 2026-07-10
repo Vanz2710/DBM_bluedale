@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\AdminAuditLog;
 use App\Models\Contact;
 use App\Models\ContactEditGrant;
+use App\Support\Csv;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -196,7 +197,7 @@ class ContactController extends Controller
                         foreach ($selected as $col) {
                             $row[] = $col === 'no' ? $no : $getVal($c, $col);
                         }
-                        fputcsv($handle, $row);
+                        fputcsv($handle, Csv::row($row));
                         $no++;
                     }
                 });

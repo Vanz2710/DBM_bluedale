@@ -8,6 +8,7 @@ use App\Models\DeptNotification;
 use App\Models\DeptTask;
 use App\Models\DeptTaskComment;
 use App\Models\User;
+use App\Support\Csv;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -302,7 +303,7 @@ class DeptTaskController extends Controller
                     foreach ($tasks as $t) {
                         $row = [];
                         foreach ($selected as $col) { $row[] = $col === 'no' ? $no : $getVal($t, $col); }
-                        fputcsv($h, $row);
+                        fputcsv($h, Csv::row($row));
                         $no++;
                     }
                 });

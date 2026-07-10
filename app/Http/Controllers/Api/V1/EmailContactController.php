@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ContactIncharge;
 use App\Models\EmailContact;
 use App\Models\EmailTag;
+use App\Support\Csv;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -222,7 +223,7 @@ class EmailContactController extends Controller
 
             $query->orderBy('id')->chunk(500, function ($chunk) use ($out) {
                 foreach ($chunk as $c) {
-                    fputcsv($out, [
+                    fputcsv($out, Csv::row([
                         $c->full_name,
                         $c->email,
                         $c->phone,
@@ -230,7 +231,7 @@ class EmailContactController extends Controller
                         $c->status,
                         $c->tags->pluck('name')->implode(', '),
                         optional($c->created_at)->toDateString(),
-                    ]);
+                    ]));
                 }
             });
 

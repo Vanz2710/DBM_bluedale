@@ -97,6 +97,26 @@ class ImportController extends Controller
         ]);
     }
 
+    /**
+     * Resolve a validated temp_path to a real filesystem path, confirming it
+     * still resolves inside imports/. Storage::disk('local')->path() is a raw
+     * string-concat (League\Flysystem\PathPrefixer) that does not reject '..'
+     * segments the way Flysystem's actual read/write operations do, so this
+     * containment check is the real guard against path traversal — the regex
+     * in process() is the first line of defense, this is the second.
+     */
+    private function resolveImportPath(string $tempPath): ?string
+    {
+        $importsDir = realpath(Storage::disk('local')->path('imports'));
+        $fullPath   = realpath(Storage::disk('local')->path($tempPath));
+
+        if (!$importsDir || !$fullPath || !str_starts_with($fullPath, $importsDir . DIRECTORY_SEPARATOR)) {
+            return null;
+        }
+
+        return $fullPath;
+    }
+
     public function preview(Request $request)
     {
         if (!class_exists(\PhpOffice\PhpSpreadsheet\IOFactory::class)) {
@@ -162,7 +182,12 @@ class ImportController extends Controller
         ];
 
         $request->validate([
-            'temp_path'  => ['required', 'string', 'regex:/^imports\/[a-zA-Z0-9\/._-]+$/'],
+            // No slashes allowed in the tail — store() always places the file directly
+            // inside imports/ with a flat generated filename, so a legitimate value can
+            // never contain '/'. The lookahead additionally rejects a bare '.' or '..'
+            // tail (e.g. "imports/.."), which the character class alone would allow
+            // through as a parent-directory reference.
+            'temp_path'  => ['required', 'string', 'regex:/^imports\/(?!\.{1,2}$)[a-zA-Z0-9._-]+$/'],
             'data_start' => 'required|integer|min:1|max:1000',
             'mapping'    => 'required|array|max:50',
             'mapping.*'  => ['nullable', 'string', Rule::in($allowedFields)],
@@ -170,8 +195,8 @@ class ImportController extends Controller
 
         ini_set('memory_limit', '512M');
 
-        $fullPath = Storage::disk('local')->path($request->input('temp_path'));
-        if (!file_exists($fullPath)) {
+        $fullPath = $this->resolveImportPath($request->input('temp_path'));
+        if (!$fullPath) {
             return response()->json(['error' => 'Uploaded file not found.'], 422);
         }
 
