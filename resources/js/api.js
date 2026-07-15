@@ -59,12 +59,18 @@ export function setRouter(router) {
 // Redirect to login on 401; show toast on 403 (deduplicated — one toast per 3s)
 api.interceptors.response.use(
     (res) => {
-        // Populate cache for successful GET responses
         const method = (res.config?.method ?? 'get').toLowerCase();
         if (method === 'get' && res.status === 200 && !res.config?._noCache
             && !SKIP_CACHE.has(res.config?.url)) {
+            // Populate cache for successful GET responses
             const ttl = LONG_TTL_URLS.has(res.config?.url) ? _LONG_TTL : _TTL;
             _cache.set(_cacheKey(res.config), { data: res.data, exp: Date.now() + ttl });
+        } else if (method !== 'get') {
+            // Any successful write (POST/PUT/PATCH/DELETE) invalidates every cached
+            // read. Without this, a page's own re-fetch right after a save can hit
+            // the pre-mutation cache entry and silently show stale data until a hard
+            // refresh — a stale list is worse than a few extra re-fetches.
+            _cache.clear();
         }
         return res;
     },
