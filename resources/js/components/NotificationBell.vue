@@ -68,12 +68,13 @@
             :class="{ 'r-read': item.is_read }"
           >
             <div class="r-body r-clickable" @click="onReminderClick(item)">
-              <span class="r-tag" :class="item.source_type === 'todo' ? 'tag-todo' : 'tag-fu'">
-                {{ item.source_type === 'todo' ? 'TODO' : 'F/U' }}
-              </span>
+              <span class="r-tag" :class="tagClass(item)">{{ tagLabel(item) }}</span>
               <div class="r-text">
                 <div class="r-title">{{ clip(item.title) }}</div>
-                <div class="r-sub">{{ item.contact_name }} · <span class="date-red">{{ fmtDate(item.due_date) }}</span></div>
+                <div class="r-sub">
+                  {{ item.contact_name }} · <span class="date-red">{{ fmtDate(item.due_date) }}</span>
+                  <span v-if="item.priority" class="r-prio" :class="'prio-' + item.priority">{{ item.priority }}</span>
+                </div>
               </div>
             </div>
             <button v-if="!item.is_read" class="btn-dismiss" @click.stop="dismissOne(item)" title="Dismiss">×</button>
@@ -89,12 +90,13 @@
             :class="{ 'r-read': item.is_read }"
           >
             <div class="r-body r-clickable" @click="onReminderClick(item)">
-              <span class="r-tag" :class="item.source_type === 'todo' ? 'tag-todo' : 'tag-fu'">
-                {{ item.source_type === 'todo' ? 'TODO' : 'F/U' }}
-              </span>
+              <span class="r-tag" :class="tagClass(item)">{{ tagLabel(item) }}</span>
               <div class="r-text">
                 <div class="r-title">{{ clip(item.title) }}</div>
-                <div class="r-sub">{{ item.contact_name }}</div>
+                <div class="r-sub">
+                  {{ item.contact_name }}
+                  <span v-if="item.priority" class="r-prio" :class="'prio-' + item.priority">{{ item.priority }}</span>
+                </div>
               </div>
             </div>
             <button v-if="!item.is_read" class="btn-dismiss" @click.stop="dismissOne(item)" title="Dismiss">×</button>
@@ -110,12 +112,13 @@
             :class="{ 'r-read': item.is_read }"
           >
             <div class="r-body r-clickable" @click="onReminderClick(item)">
-              <span class="r-tag" :class="item.source_type === 'todo' ? 'tag-todo' : 'tag-fu'">
-                {{ item.source_type === 'todo' ? 'TODO' : 'F/U' }}
-              </span>
+              <span class="r-tag" :class="tagClass(item)">{{ tagLabel(item) }}</span>
               <div class="r-text">
                 <div class="r-title">{{ clip(item.title) }}</div>
-                <div class="r-sub">{{ item.contact_name }} · {{ fmtDate(item.due_date) }}</div>
+                <div class="r-sub">
+                  {{ item.contact_name }} · {{ fmtDate(item.due_date) }}
+                  <span v-if="item.priority" class="r-prio" :class="'prio-' + item.priority">{{ item.priority }}</span>
+                </div>
               </div>
             </div>
             <button v-if="!item.is_read" class="btn-dismiss" @click.stop="dismissOne(item)" title="Dismiss">×</button>
@@ -270,7 +273,19 @@ function handleTaskNotif(item) {
 }
 
 function taskTypeLabel(type) {
-  return { assigned: 'ASSIGNED', approval_needed: 'NEEDS APPROVAL', completed: 'COMPLETED', rejected: 'CHANGES REQUESTED' }[type] ?? 'TASK';
+  return { assigned: 'ASSIGNED', approval_needed: 'NEEDS APPROVAL', completed: 'COMPLETED', rejected: 'CHANGES REQUESTED', overdue: 'OVERDUE' }[type] ?? 'TASK';
+}
+
+function tagClass(item) {
+  if (item.source_type === 'todo') return 'tag-todo';
+  if (item.source_type === 'task') return 'tag-task';
+  return 'tag-fu';
+}
+
+function tagLabel(item) {
+  if (item.source_type === 'todo') return 'TODO';
+  if (item.source_type === 'task') return 'TASK';
+  return 'F/U';
 }
 
 function dismissAnnouncement(item) {
@@ -427,6 +442,15 @@ onUnmounted(() => {
 .r-title { font-size: 12px; font-weight: 600; color: #1e293b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .r-sub   { font-size: 11px; color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .date-red { color: #dc2626; font-weight: 600; }
+.r-prio {
+  display: inline-block; margin-left: 5px; font-size: 8.5px; font-weight: 800;
+  text-transform: uppercase; letter-spacing: 0.3px; padding: 1px 5px; border-radius: 3px;
+  vertical-align: middle;
+}
+.prio-critical { background: #fee2e2; color: #dc2626; }
+.prio-high     { background: #ffedd5; color: #c2410c; }
+.prio-medium   { background: #e0f2fe; color: #0369a1; }
+.prio-low      { background: #f1f5f9; color: #64748b; }
 
 .btn-dismiss {
   flex-shrink: 0; width: 20px; height: 20px; background: #f1f5f9;

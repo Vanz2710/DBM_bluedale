@@ -10,7 +10,7 @@ use Illuminate\Console\Command;
 class NotifyOverdueDeptTasks extends Command
 {
     protected $signature = 'dept:notify-overdue';
-    protected $description = 'Create in-app overdue notifications for admins on newly overdue department tasks';
+    protected $description = 'Notify assignees and admins on newly overdue department tasks';
 
     public function handle(): int
     {
@@ -32,29 +32,38 @@ class NotifyOverdueDeptTasks extends Command
         }
 
         $adminIds = User::role(['admin', 'super-admin'])->pluck('id');
-
-        if ($adminIds->isEmpty()) {
-            $this->warn('No admin users found — skipping notifications.');
-            return Command::SUCCESS;
-        }
-
-        $created = 0;
+        $created  = 0;
 
         foreach ($tasks as $task) {
             $assigneeName = $task->assignee?->name ?? 'Unassigned';
             $deptName     = $task->department?->name;
-            $message      = "Task \"{$task->title}\" assigned to {$assigneeName}";
-            if ($deptName) {
-                $message .= " ({$deptName})";
+
+            // Personal nudge straight to whoever the work actually belongs to —
+            // previously only admins were told a task was overdue, so the assignee
+            // (the one person who can actually act on it) never found out here.
+            if ($task->assigned_to) {
+                DeptNotification::create([
+                    'user_id' => $task->assigned_to,
+                    'task_id' => $task->id,
+                    'type'    => 'overdue',
+                    'message' => "Your task \"{$task->title}\" is overdue.",
+                ]);
+                $created++;
             }
-            $message .= ' is overdue.';
+
+            $adminMessage = "Task \"{$task->title}\" assigned to {$assigneeName}";
+            if ($deptName) {
+                $adminMessage .= " ({$deptName})";
+            }
+            $adminMessage .= ' is overdue.';
 
             foreach ($adminIds as $adminId) {
+                if ($adminId === $task->assigned_to) continue; // already got the personal version above
                 DeptNotification::create([
                     'user_id' => $adminId,
                     'task_id' => $task->id,
                     'type'    => 'overdue',
-                    'message' => $message,
+                    'message' => $adminMessage,
                 ]);
                 $created++;
             }
