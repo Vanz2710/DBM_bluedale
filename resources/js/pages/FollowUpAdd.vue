@@ -91,6 +91,8 @@ async function onContactChange() {
   try {
     const res = await api.get(`/v1/contacts/${contactId.value}/todos`);
     todos.value = res.data.data;
+  } catch (e) {
+    error.value = e.response?.data?.message ?? 'Failed to load to-dos for this company.';
   } finally {
     todosLoading.value = false;
   }
@@ -118,24 +120,28 @@ async function submit() {
 }
 
 onMounted(async () => {
-  const res = await api.get('/v1/contacts', { params: { per_page: 1000 } });
-  contacts.value = res.data.data;
+  try {
+    const res = await api.get('/v1/contacts', { params: { per_page: 1000 } });
+    contacts.value = res.data.data;
 
-  // If launched from "Log Follow-Up" on a ToDo row, pre-select the parent.
-  const prefillTodoId = route.query.todo_id;
-  if (prefillTodoId) {
-    try {
-      const todoRes = await api.get(`/v1/todos/${prefillTodoId}`);
-      const todo    = todoRes.data.data;
-      if (todo?.contact_id) {
-        contactId.value = todo.contact_id;
-        await onContactChange();
-        form.value.todo_id = Number(prefillTodoId);
-      }
-    } catch (_) { /* fall back to manual selection */ }
+    // If launched from "Log Follow-Up" on a ToDo row, pre-select the parent.
+    const prefillTodoId = route.query.todo_id;
+    if (prefillTodoId) {
+      try {
+        const todoRes = await api.get(`/v1/todos/${prefillTodoId}`);
+        const todo    = todoRes.data.data;
+        if (todo?.contact_id) {
+          contactId.value = todo.contact_id;
+          await onContactChange();
+          form.value.todo_id = Number(prefillTodoId);
+        }
+      } catch (_) { /* fall back to manual selection */ }
+    }
+  } catch (e) {
+    error.value = e.response?.data?.message ?? 'Failed to load form data. Please try again.';
+  } finally {
+    loading.value = false;
   }
-
-  loading.value  = false;
 });
 </script>
 

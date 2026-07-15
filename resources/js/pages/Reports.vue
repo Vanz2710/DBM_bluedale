@@ -406,7 +406,16 @@ const DIMS = [
 
 // ── State ─────────────────────────────────────────────────────────────────────
 const loading   = ref(true);
-const analytics = ref(null);
+// Defaults mirror the /v1/analytics response shape so a failed load (toast fires,
+// but the tab still renders) doesn't crash on `analytics.total_contacts.toLocaleString()` etc.
+const analytics = ref({
+  is_admin: false,
+  total_contacts: 0, this_month: 0, last_month: 0, unassigned: 0,
+  active_count: 0, existing_count: 0, raw_count: 0, tasks_due_today: 0,
+  top_agent: null, top_industry: null, top_product: null,
+  by_status: [], by_industry: [], by_category: [], by_user: [], by_type: [],
+  by_month: [], by_tasks: [],
+});
 const tab       = ref('overview');
 const activeDim = ref('by_status');
 

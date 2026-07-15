@@ -814,6 +814,10 @@ onMounted(async () => {
     ]);
     contact.value = normalizeContact(contactRes.data.data);
     lookups.value = { tasks: lookupRes.data.tasks ?? [] };
+  } catch (e) {
+    if (e.response?.status !== 404) {
+      showToast(e.response?.data?.message ?? 'Failed to load contact. Please try again.');
+    }
   } finally {
     loading.value = false;
   }

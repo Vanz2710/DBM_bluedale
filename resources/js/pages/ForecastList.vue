@@ -432,6 +432,7 @@ async function load() {
     forecasts.value = [];
     meta.value = {};
     console.error('Forecast list load failed:', e);
+    toast(e.response?.data?.message ?? 'Failed to load forecasts.', 'error');
   } finally {
     loading.value = false;
   }
@@ -444,6 +445,7 @@ async function loadSummary() {
   } catch (e) {
     summary.value = {};
     console.error('Forecast summary load failed:', e);
+    toast(e.response?.data?.message ?? 'Failed to load forecast summary.', 'error');
   }
 }
 

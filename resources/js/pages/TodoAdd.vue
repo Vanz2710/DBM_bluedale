@@ -123,13 +123,18 @@ async function submit() {
 }
 
 onMounted(async () => {
-  const [contactsRes, lookupRes] = await Promise.all([
-    api.get('/v1/contacts', { params: { per_page: 1000 } }),
-    api.get('/v1/lookups'),
-  ]);
-  contacts.value = contactsRes.data.data;
-  lookups.value = lookupRes.data;
-  loading.value = false;
+  try {
+    const [contactsRes, lookupRes] = await Promise.all([
+      api.get('/v1/contacts', { params: { per_page: 1000 } }),
+      api.get('/v1/lookups'),
+    ]);
+    contacts.value = contactsRes.data.data;
+    lookups.value = lookupRes.data;
+  } catch (e) {
+    error.value = e.response?.data?.message ?? 'Failed to load form data. Please try again.';
+  } finally {
+    loading.value = false;
+  }
 });
 </script>
 

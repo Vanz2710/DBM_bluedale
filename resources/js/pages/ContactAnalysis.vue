@@ -384,6 +384,10 @@ import { getStoredUser } from '../utils/storage.js';
 const user    = getStoredUser();
 const isAdmin = (user?.roles ?? []).some(r => ['admin', 'super-admin'].includes(r));
 
+function toast(message, type = 'error') {
+  window.dispatchEvent(new CustomEvent('crm-toast', { detail: { message, type } }));
+}
+
 // ─── Date helpers ──────────────────────────────────────────────────────────
 function fmtDate(d)    { return d.toISOString().slice(0, 10); }
 function subDays(d, n) { const r = new Date(d); r.setDate(r.getDate() - n); return r; }
@@ -479,6 +483,8 @@ async function loadOverview() {
   try {
     const { data } = await api.get('/v1/contact-analysis/overview', { params: buildParams() });
     overviewData.value = data;
+  } catch {
+    toast('Failed to load overview data.');
   } finally {
     loading.overview = false;
   }
@@ -501,6 +507,8 @@ async function loadSource() {
   try {
     const { data } = await api.get('/v1/contact-analysis/lead-source', { params: buildParams() });
     sourceData.value = data;
+  } catch {
+    toast('Failed to load lead source data.');
   } finally {
     loading.source = false;
   }
@@ -520,6 +528,8 @@ async function loadStatusDist() {
     if (filters.industry_id) params.industry_id = filters.industry_id;
     const { data } = await api.get('/v1/contact-analysis/status-distribution', { params });
     statusDistData.value = data;
+  } catch {
+    toast('Failed to load status distribution.');
   } finally {
     loading.statusDist = false;
   }
@@ -539,6 +549,8 @@ async function loadActions() {
   try {
     const { data } = await api.get('/v1/contact-analysis/followup-actions', { params: buildParams() });
     actionData.value = data;
+  } catch {
+    toast('Failed to load follow-up action data.');
   } finally {
     loading.actions = false;
   }
@@ -634,6 +646,8 @@ async function loadEngagement(page = 1) {
     engData.value = data.data;
     Object.assign(engMeta, data.meta);
     engSummary.value = data.summary;
+  } catch {
+    toast('Failed to load engagement data.');
   } finally {
     loading.engagement = false;
   }
@@ -646,10 +660,14 @@ async function loadAll() {
 // ─── Lifecycle ─────────────────────────────────────────────────────────────
 onMounted(async () => {
   document.addEventListener('click', handleOutsideClick);
-  const { data } = await api.get('/v1/lookups');
-  lookups.users      = data.users      ?? [];
-  lookups.statuses   = data.statuses   ?? [];
-  lookups.industries = data.industries ?? [];
+  try {
+    const { data } = await api.get('/v1/lookups');
+    lookups.users      = data.users      ?? [];
+    lookups.statuses   = data.statuses   ?? [];
+    lookups.industries = data.industries ?? [];
+  } catch {
+    toast('Failed to load filter options.');
+  }
   await loadAll();
 });
 

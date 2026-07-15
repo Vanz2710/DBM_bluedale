@@ -2394,6 +2394,9 @@ async function openEditContactModal(c) {
       user_id:     contact.user_id     ?? '',
     };
     editContactModal.value.incharges = (picRes.data.data ?? []).map(p => ({ ...p, _saving: false, _confirmDel: false }));
+  } catch (e) {
+    editContactModal.value.error = e.response?.data?.message ?? 'Failed to load contact. Please try again.';
+    showToast(editContactModal.value.error, 'error');
   } finally {
     editContactModal.value.loading = false;
   }

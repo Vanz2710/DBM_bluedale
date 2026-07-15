@@ -841,6 +841,8 @@ async function load() {
     const res = await api.get('/v1/todos', { params });
     todos.value = res.data.data;
     meta.value  = res.data; // paginator fields (current_page, last_page, total) are at top level
+  } catch (e) {
+    toast(e.response?.data?.message ?? 'Failed to load to-dos.', 'error');
   } finally {
     loading.value = false;
   }
@@ -1070,6 +1072,8 @@ async function completeFollowUps() {
   followUpPrompt.loading = true;
   try {
     await api.patch(`/v1/todos/${followUpPrompt.todoId}/complete-followups`);
+  } catch (e) {
+    toast(e.response?.data?.message ?? 'Failed to complete follow-ups.', 'error');
   } finally {
     followUpPrompt.open    = false;
     followUpPrompt.todoId  = null;

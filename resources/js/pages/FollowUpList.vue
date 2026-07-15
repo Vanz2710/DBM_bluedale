@@ -430,6 +430,11 @@ import api from '../api.js';
 import LoadingSpinner from '../components/LoadingSpinner.vue';
 import { usePermissions } from '../composables/usePermissions.js';
 
+// Fires the global toast handled by ToastContainer.vue (mounted in App.vue).
+function toast(message, type = 'success') {
+  window.dispatchEvent(new CustomEvent('crm-toast', { detail: { message, type } }));
+}
+
 // `embedded` = rendered inside the Contacts page's Follow-Up tab (vs the standalone route).
 const props = defineProps({ embedded: { type: Boolean, default: false } });
 
@@ -647,6 +652,8 @@ async function load() {
     const res = await api.get('/v1/followups', { params: buildParams() });
     followUps.value = res.data.data;
     meta.value      = res.data.meta ?? {};
+  } catch (e) {
+    toast(e.response?.data?.message ?? 'Failed to load follow-ups.', 'error');
   } finally {
     loading.value = false;
   }
@@ -715,6 +722,7 @@ async function executeExport(format = 'xls') {
     exportModal.value.open = false;
   } catch (err) {
     console.error('[Export]', err);
+    toast(`Export failed: ${err.message}`, 'error');
   } finally {
     exportModal.value.loading = false;
   }
@@ -730,6 +738,9 @@ async function doDelete() {
     await api.delete(`/v1/followups/${deleteTarget.value.id}`);
     deleteTarget.value = null;
     load();
+    toast('Follow-up deleted successfully.');
+  } catch (e) {
+    toast(e.response?.data?.message ?? 'Failed to delete follow-up.', 'error');
   } finally {
     deleting.value = false;
   }
@@ -746,6 +757,8 @@ async function toggleStatus(f) {
       followUps.value = followUps.value.filter(x => x.id !== f.id);
       if (meta.value.total) meta.value.total--;
     }
+  } catch (e) {
+    toast(e.response?.data?.message ?? 'Failed to update follow-up status.', 'error');
   } finally {
     completing.value = null;
   }
@@ -767,6 +780,8 @@ async function onAddContactChange() {
   try {
     const res = await api.get(`/v1/contacts/${addModal.value.contactId}/todos`);
     addModal.value.todos = res.data.data;
+  } catch (e) {
+    toast(e.response?.data?.message ?? 'Failed to load to-dos for this company.', 'error');
   } finally {
     addModal.value.todosLoading = false;
   }

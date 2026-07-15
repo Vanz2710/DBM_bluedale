@@ -31,14 +31,23 @@ const acting = ref(false);
 const error = ref('');
 const todo = ref(null);
 
+// Fires the global toast handled by ToastContainer.vue (mounted in App.vue).
+function toast(message, type = 'success') {
+  window.dispatchEvent(new CustomEvent('crm-toast', { detail: { message, type } }));
+}
+
 async function markComplete() {
   acting.value = true;
   try {
     await api.patch(`/v1/todos/${id}/status`, { status: 'completed' });
     todo.value.completion_status = 'completed';
     todo.value.completed_at = new Date().toISOString();
+    toast('To-do marked as complete.');
   } catch (e) {
-    error.value = e.response?.data?.message ?? 'Failed to update. Please try again.';
+    // Use a toast, not the page-level `error` ref — that ref drives the
+    // loading/error/detail v-if chain below, so setting it here would
+    // replace the whole detail card with a bare error message.
+    toast(e.response?.data?.message ?? 'Failed to update. Please try again.', 'error');
   } finally {
     acting.value = false;
   }

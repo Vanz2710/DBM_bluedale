@@ -62,9 +62,15 @@ async function load() {
   }
 }
 
-function dismiss(item) {
-  api.post(`/v1/announcements/${item.id}/read`).catch(() => {});
+async function dismiss(item) {
   item.is_read = true;
+  try {
+    await api.post(`/v1/announcements/${item.id}/read`);
+  } catch {
+    // Revert instead of pretending it succeeded — otherwise the item
+    // silently reappears as unread on the next reload with no explanation.
+    item.is_read = false;
+  }
 }
 
 onMounted(load);

@@ -123,23 +123,30 @@ async function submit() {
 }
 
 onMounted(async () => {
-  const [todoRes, lookupRes] = await Promise.all([
-    api.get(`/v1/todos/${id}`),
-    api.get('/v1/lookups'),
-  ]);
-  todo.value = todoRes.data.data;
-  const t = todo.value;
-  form.value = {
-    task_id:      t.task_id       ?? '',
-    user_id:      t.user_id       ?? '',
-    todo_date:    toInputDate(t.todo_date),
-    date_created: toInputDate(t.date_created),
-    todo_remark:  t.todo_remark   ?? '',
-    status_id:    t.contact?.status_id ?? '',
-    type_id:      t.contact?.type_id   ?? '',
-  };
-  lookups.value = lookupRes.data;
-  loading.value = false;
+  try {
+    const [todoRes, lookupRes] = await Promise.all([
+      api.get(`/v1/todos/${id}`),
+      api.get('/v1/lookups'),
+    ]);
+    todo.value = todoRes.data.data;
+    const t = todo.value;
+    form.value = {
+      task_id:      t.task_id       ?? '',
+      user_id:      t.user_id       ?? '',
+      todo_date:    toInputDate(t.todo_date),
+      date_created: toInputDate(t.date_created),
+      todo_remark:  t.todo_remark   ?? '',
+      status_id:    t.contact?.status_id ?? '',
+      type_id:      t.contact?.type_id   ?? '',
+    };
+    lookups.value = lookupRes.data;
+  } catch (e) {
+    error.value = e.response?.status === 404
+      ? 'This to-do no longer exists.'
+      : (e.response?.data?.message ?? 'Failed to load this to-do.');
+  } finally {
+    loading.value = false;
+  }
 });
 </script>
 

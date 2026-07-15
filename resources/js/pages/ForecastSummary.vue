@@ -226,6 +226,11 @@ import LoadingSpinner from '../components/LoadingSpinner.vue';
 import { useLookups } from '../composables/useLookups.js';
 import { getStoredUser } from '../utils/storage.js';
 
+// Fires the global toast handled by ToastContainer.vue (mounted in App.vue).
+function toast(message, type = 'success') {
+  window.dispatchEvent(new CustomEvent('crm-toast', { detail: { message, type } }));
+}
+
 function _i(d) {
   return `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
 }
@@ -358,6 +363,8 @@ async function load() {
     months.value = res.data.data?.months ?? [];
     rows.value   = res.data.data?.rows   ?? [];
     meta.value   = { current_page: res.data.current_page, last_page: res.data.last_page, total: res.data.total };
+  } catch (e) {
+    toast(e.response?.data?.message ?? 'Failed to load forecast summary.', 'error');
   } finally {
     loading.value = false;
   }
