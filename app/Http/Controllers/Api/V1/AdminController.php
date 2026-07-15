@@ -10,6 +10,8 @@ use App\Models\ContactCategory;
 use App\Models\ContactIndustry;
 use App\Models\ContactStatus;
 use App\Models\ContactType;
+use App\Models\Department;
+use App\Models\DeptTask;
 use App\Models\Forecast;
 use App\Models\ForecastProduct;
 use App\Models\ForecastResult;
@@ -19,6 +21,7 @@ use App\Models\SocialMediaPackage;
 use App\Models\SocialMediaReminder;
 use App\Models\Task;
 use App\Models\ToDo;
+use App\Models\User;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -34,10 +37,17 @@ class AdminController extends Controller
         'categories'        => [ContactCategory::class, 'name'],
         'areas'             => [ContactArea::class,     'name'],
         'tasks'             => [Task::class,            'name'],
+        'departments'       => [Department::class,      'name'],
         'forecast-products' => [ForecastProduct::class, 'name'],
         'forecast-types'    => [ForecastType::class,    'name'],
         'forecast-results'  => [ForecastResult::class,  'name'],
         'packages'          => [SocialMediaPackage::class, 'name'],
+    ];
+
+    // Extra fields (beyond 'name') that a given entity's add/edit form may submit,
+    // merged into the validation rules and passed straight through to create/update.
+    private static array $extraFields = [
+        'departments' => ['color' => 'nullable|string|max:20'],
     ];
 
     // Referencing model classes (resolved to table names via getTable() at call time)
@@ -50,6 +60,7 @@ class AdminController extends Controller
         'categories'        => [[Contact::class, 'category_id']],
         'areas'             => [[Contact::class, 'area_id']],
         'tasks'             => [[ToDo::class, 'task_id'], [PerformanceTarget::class, 'task_id']],
+        'departments'       => [[DeptTask::class, 'department_id'], [User::class, 'department_id']],
         'forecast-products' => [[Forecast::class, 'product_id']],
         'forecast-types'    => [[Forecast::class, 'forecast_type_id']],
         'forecast-results'  => [[Forecast::class, 'result_id']],
@@ -82,16 +93,22 @@ class AdminController extends Controller
     {
         [$model] = $this->resolve($entity);
 
-        $validated = $request->validate(['name' => 'required|string|max:255']);
+        $rules     = array_merge(['name' => 'required|string|max:255'], self::$extraFields[$entity] ?? []);
+        $validated = $request->validate($rules);
 
         if ($model::where('name', $validated['name'])->exists()) {
             throw ValidationException::withMessages(['name' => ['This entry already exists.']]);
         }
 
+        if ($entity === 'departments') {
+            $validated['code']  = $this->generateDepartmentCode($validated['name']);
+            $validated['color'] = $validated['color'] ?? '#1d4ed8';
+        }
+
         $item = $model::create($validated);
 
         Cache::forget('lookups_v2');
-        $this->audit('created', $entity, $item->id, $item->name, null, ['name' => $item->name], $request);
+        $this->audit('created', $entity, $item->id, $item->name, null, $validated, $request);
 
         return response()->json(['status' => 'success', 'data' => $item], 201);
     }
@@ -101,17 +118,18 @@ class AdminController extends Controller
         [$model] = $this->resolve($entity);
         $item = $model::findOrFail($id);
 
-        $validated = $request->validate(['name' => 'required|string|max:255']);
+        $rules     = array_merge(['name' => 'required|string|max:255'], self::$extraFields[$entity] ?? []);
+        $validated = $request->validate($rules);
 
         if ($model::where('name', $validated['name'])->where('id', '!=', $id)->exists()) {
             throw ValidationException::withMessages(['name' => ['This name already exists.']]);
         }
 
-        $old = ['name' => $item->name];
+        $old = $item->only(array_keys($validated));
         $item->update($validated);
 
         Cache::forget('lookups_v2');
-        $this->audit('updated', $entity, $item->id, $item->name, $old, ['name' => $item->name], $request);
+        $this->audit('updated', $entity, $item->id, $item->name, $old, $validated, $request);
 
         return response()->json(['status' => 'success', 'data' => $item]);
     }
@@ -169,7 +187,11 @@ class AdminController extends Controller
                 if ($model::where('name', $validated['new_name'])->exists()) {
                     throw ValidationException::withMessages(['new_name' => ['This entry already exists.']]);
                 }
-                $keep = $model::create(['name' => $validated['new_name']]);
+                $createData = ['name' => $validated['new_name']];
+                if ($entity === 'departments') {
+                    $createData['code'] = $this->generateDepartmentCode($validated['new_name']);
+                }
+                $keep = $model::create($createData);
             } else {
                 $keep = $model::lockForUpdate()->findOrFail($validated['keep_id']);
             }
@@ -219,6 +241,25 @@ class AdminController extends Controller
 
             return response()->json(['status' => 'success', 'merged' => count($mergeIds), 'data' => $keep]);
         });
+    }
+
+    // departments.code is a required, unique column the frontend never exposes for
+    // editing (unused anywhere in the UI) — derive one from the name so the generic
+    // create path never hits a "no default value" DB error.
+    private function generateDepartmentCode(string $name): string
+    {
+        $base = strtoupper(preg_replace('/[^A-Za-z0-9]/', '', $name));
+        $base = $base !== '' ? substr($base, 0, 10) : 'DEPT';
+
+        $code   = $base;
+        $suffix = 1;
+        while (Department::where('code', $code)->exists()) {
+            $suffixStr = (string) $suffix;
+            $code = substr($base, 0, 10 - strlen($suffixStr)) . $suffixStr;
+            $suffix++;
+        }
+
+        return $code;
     }
 
     private function resolve(string $entity): array

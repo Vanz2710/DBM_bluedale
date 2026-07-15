@@ -29,6 +29,24 @@
       <div v-else-if="loadError" class="error-banner">{{ loadError }}</div>
       <template v-else>
         <div class="table-header-bar">
+          <div v-if="isColorTab" class="color-field">
+            <span class="color-field-label">Color</span>
+            <div class="color-swatches">
+              <button
+                v-for="c in PRESET_COLORS" :key="c" type="button"
+                class="color-swatch-btn" :class="{ 'color-swatch-btn--active': newColor === c }"
+                :style="{ background: c }" :title="c" @click="newColor = c"
+              ></button>
+            </div>
+            <button type="button" class="color-advanced-toggle" @click="newColorAdvanced = !newColorAdvanced">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" :class="newColorAdvanced && 'color-advanced-chevron-open'"><polyline points="6 9 12 15 18 9"/></svg>
+              Advanced
+            </button>
+            <template v-if="newColorAdvanced">
+              <input v-model="newColor" type="color" class="color-picker" title="Custom color">
+              <span class="color-hex-preview">{{ newColor }}</span>
+            </template>
+          </div>
           <div class="add-form">
             <input v-model="newName" :placeholder="`Add new ${currentTab.label.toLowerCase()}...`" @keyup.enter="addItem">
             <button class="btn-add" @click="addItem" :disabled="!newName.trim()">+ Add</button>
@@ -45,12 +63,12 @@
             <thead>
               <tr>
                 <th class="check-col"><input type="checkbox" v-if="items.length" :checked="allSelected" @change="toggleSelectAll"></th>
-                <th>#</th><th>Name</th><th>In Use</th><th>Action</th>
+                <th>#</th><th>Name</th><th v-if="isColorTab">Color</th><th>In Use</th><th>Action</th>
               </tr>
             </thead>
             <tbody>
               <tr v-if="items.length === 0">
-                <td colspan="5" class="empty-state">No items yet.</td>
+                <td :colspan="isColorTab ? 6 : 5" class="empty-state">No items yet.</td>
               </tr>
               <tr v-for="(item, idx) in items" :key="item.id">
                 <td class="check-col"><input type="checkbox" :value="item.id" v-model="selectedIds"></td>
@@ -61,6 +79,25 @@
                     <span v-if="editError" class="edit-inline-error">{{ editError }}</span>
                   </template>
                   <span v-else class="item-name">{{ item.name }}</span>
+                </td>
+                <td v-if="isColorTab" class="color-cell">
+                  <div v-if="editId === item.id" class="color-field color-field--inline">
+                    <div class="color-swatches">
+                      <button
+                        v-for="c in PRESET_COLORS" :key="c" type="button"
+                        class="color-swatch-btn" :class="{ 'color-swatch-btn--active': editColor === c }"
+                        :style="{ background: c }" :title="c" @click="editColor = c"
+                      ></button>
+                    </div>
+                    <button type="button" class="color-advanced-toggle" title="Advanced: custom color" @click="editColorAdvanced = !editColorAdvanced">
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" :class="editColorAdvanced && 'color-advanced-chevron-open'"><polyline points="6 9 12 15 18 9"/></svg>
+                    </button>
+                    <input v-if="editColorAdvanced" v-model="editColor" type="color" class="color-picker">
+                  </div>
+                  <template v-else>
+                    <span class="color-swatch" :style="{ background: item.color }"></span>
+                    <span class="color-hex">{{ item.color }}</span>
+                  </template>
                 </td>
                 <td class="usage-cell">
                   <span :class="item.usage_count > 0 ? 'badge-used' : 'badge-unused'">{{ item.usage_count }}</span>
@@ -171,6 +208,7 @@
 
 <script setup>
 import { ref, computed, onMounted, reactive } from 'vue';
+import { useRoute } from 'vue-router';
 import api from '../api.js';
 import LoadingSpinner from '../components/LoadingSpinner.vue';
 
@@ -187,7 +225,8 @@ const TAB_GROUPS = [
   {
     label: 'Task / Performance',
     tabs: [
-      { key: 'tasks', label: 'Tasks' },
+      { key: 'tasks',       label: 'Tasks' },
+      { key: 'departments', label: 'Departments' },
     ],
   },
   {
@@ -208,14 +247,28 @@ const TAB_GROUPS = [
 
 const tabs = TAB_GROUPS.flatMap(g => g.tabs);
 
-const activeTab = ref('statuses');
+// Curated defaults for the simple swatch picker — the native <input type="color">
+// (full OS palette) is tucked behind "Advanced" for anyone who wants a precise hex.
+const PRESET_COLORS = [
+  '#1d4ed8', '#4338ca', '#7c3aed', '#db2777',
+  '#dc2626', '#ea580c', '#d97706', '#16a34a',
+  '#0d9488', '#0891b2',
+];
+
+const route      = useRoute();
+const activeTab  = ref(tabs.some(t => t.key === route.query.tab) ? route.query.tab : 'statuses');
+const isColorTab = computed(() => activeTab.value === 'departments');
 const items     = ref([]);
 const loading   = ref(false);
 const loadError = ref('');
 const newName   = ref('');
+const newColor  = ref('#1d4ed8');
+const newColorAdvanced = ref(false);
 const addError  = ref('');
 const editId    = ref(null);
 const editName  = ref('');
+const editColor = ref('#1d4ed8');
+const editColorAdvanced = ref(false);
 const editError = ref('');
 const toast     = ref('');
 
@@ -300,6 +353,8 @@ async function loadItems() {
 function switchTab(key) {
   activeTab.value    = key;
   newName.value      = '';
+  newColor.value     = '#1d4ed8';
+  newColorAdvanced.value = false;
   selectedIds.value  = [];
   loadItems();
 }
@@ -309,9 +364,11 @@ async function addItem() {
   if (!name) return;
   addError.value = '';
   try {
-    const res = await api.post(`/v1/admin/${activeTab.value}`, { name });
+    const payload = isColorTab.value ? { name, color: newColor.value } : { name };
+    const res = await api.post(`/v1/admin/${activeTab.value}`, payload);
     items.value.push(res.data.data ?? res.data);
     newName.value = '';
+    if (isColorTab.value) { newColor.value = '#1d4ed8'; newColorAdvanced.value = false; }
   } catch (e) {
     const errors = e.response?.data?.errors;
     addError.value = errors
@@ -321,14 +378,17 @@ async function addItem() {
 }
 
 function startEdit(item) {
-  editId.value   = item.id;
-  editName.value = item.name;
+  editId.value    = item.id;
+  editName.value  = item.name;
+  editColor.value = item.color || '#1d4ed8';
+  editColorAdvanced.value = false;
   editError.value = '';
 }
 
 function cancelEdit() {
   editId.value   = null;
   editName.value = '';
+  editColorAdvanced.value = false;
   editError.value = '';
 }
 
@@ -336,7 +396,8 @@ async function saveEdit(item) {
   const name = editName.value.trim();
   if (!name) return;
   try {
-    const res = await api.put(`/v1/admin/${activeTab.value}/${item.id}`, { name });
+    const payload = isColorTab.value ? { name, color: editColor.value } : { name };
+    const res = await api.put(`/v1/admin/${activeTab.value}/${item.id}`, payload);
     const updated = res.data.data ?? res.data;
     const idx = items.value.findIndex(i => i.id === item.id);
     if (idx !== -1) items.value[idx] = updated;
@@ -377,14 +438,20 @@ onMounted(loadItems);
 .page-title { font-size: 28px; font-weight: 800; letter-spacing: -0.5px; color: var(--text-1); margin: 0 0 4px; }
 .page-subtitle { font-size: 13.5px; color: var(--text-3); margin: 0; }
 
-/* ── Tab bar ── */
-.tabs-bar { display: flex; gap: 20px; margin-bottom: 20px; flex-wrap: wrap; align-items: flex-end; }
+/* ── Tab bar (underline style — standardised app-wide, see UI_DESIGN_STANDARDS.md) ── */
+.tabs-bar { display: flex; gap: 24px; margin-bottom: 24px; flex-wrap: wrap; align-items: flex-end; border-bottom: 2px solid var(--border); }
 .tab-group-block { display: flex; flex-direction: column; gap: 6px; }
-.tab-group-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-3); padding-left: 4px; }
-.tab-group-pills { display: inline-flex; gap: 4px; background: var(--surface); border-radius: 999px; padding: 5px; border: 1px solid var(--border-soft); box-shadow: var(--shadow-xs); }
-.tab-btn { padding: 7px 16px; border: none; background: none; cursor: pointer; font-size: 13px; font-weight: 600; color: var(--text-2); border-radius: 999px; transition: color 0.15s, background 0.15s; white-space: nowrap; }
-.tab-btn:hover { color: var(--text-1); background: var(--surface-2); }
-.tab-active { color: var(--primary-on) !important; background: var(--primary) !important; box-shadow: 0 4px 12px -4px rgba(29,78,216,0.45); }
+.tab-group-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-3); padding-left: 2px; }
+.tab-group-pills { display: inline-flex; gap: 2px; }
+.tab-btn {
+  padding: 9px 14px; border: none; background: none; cursor: pointer;
+  font-size: 13px; font-weight: 600; color: var(--text-2);
+  border-bottom: 2px solid transparent; margin-bottom: -2px;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  transition: color 0.15s, border-color 0.15s, background 0.15s; white-space: nowrap;
+}
+.tab-btn:hover:not(.tab-active) { color: var(--text-1); background: var(--surface-2); }
+.tab-active { color: var(--primary) !important; border-bottom-color: var(--primary); background: none !important; box-shadow: none !important; }
 
 /* ── Table wrap ── */
 .table-wrap { background: var(--surface); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); border: 1px solid var(--border-soft); overflow: hidden; }
@@ -408,6 +475,35 @@ onMounted(loadItems);
 }
 .btn-add:hover:not(:disabled) { background: var(--primary-hover); }
 .btn-add:disabled { background: var(--text-3); cursor: not-allowed; box-shadow: none; }
+
+.color-picker { width: 38px; height: 38px; padding: 2px; border: 1.5px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; flex-shrink: 0; }
+.color-cell { width: 110px; white-space: nowrap; }
+.color-swatch { display: inline-block; width: 18px; height: 18px; border-radius: 50%; border: 1px solid var(--border); vertical-align: middle; }
+.color-hex { margin-left: 8px; font-size: 11.5px; color: var(--text-3); font-family: monospace; vertical-align: middle; }
+
+/* ── Color field: simple swatch picker by default, native picker under "Advanced" ── */
+.color-field { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; width: 100%; }
+.color-field--inline { flex-wrap: nowrap; width: auto; }
+.color-field-label { font-size: 11px; font-weight: 700; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.6px; }
+.color-swatches { display: flex; flex-wrap: wrap; gap: 6px; }
+.color-field--inline .color-swatches { max-width: 150px; }
+.color-swatch-btn {
+  width: 22px; height: 22px; border-radius: 50%; padding: 0; cursor: pointer; flex-shrink: 0;
+  border: 2px solid var(--surface); box-shadow: 0 0 0 1px var(--border-soft);
+  transition: box-shadow 0.15s, transform 0.15s;
+}
+.color-swatch-btn:hover   { transform: scale(1.15); }
+.color-swatch-btn--active { box-shadow: 0 0 0 1px var(--surface), 0 0 0 3px var(--primary); }
+.color-advanced-toggle {
+  display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0;
+  background: none; border: none; cursor: pointer;
+  font-size: 12px; font-weight: 600; color: var(--text-3); padding: 4px 2px;
+  transition: color 0.15s;
+}
+.color-advanced-toggle:hover        { color: var(--primary); }
+.color-advanced-toggle svg          { transition: transform 0.15s; }
+.color-advanced-chevron-open        { transform: rotate(180deg); }
+.color-hex-preview { font-size: 11.5px; color: var(--text-3); font-family: monospace; }
 
 .error-banner { padding: 14px 22px; color: var(--danger); font-size: 13px; font-weight: 600; background: var(--danger-soft); }
 .inline-error { font-size: 12px; font-weight: 600; color: var(--danger); }
