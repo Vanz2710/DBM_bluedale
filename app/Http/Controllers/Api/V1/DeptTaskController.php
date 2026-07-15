@@ -26,14 +26,13 @@ class DeptTaskController extends Controller
     public function dashboard(Request $request): JsonResponse
     {
         $authUser = $request->user();
-        $userId   = null;
+        $isAdmin  = $authUser->hasAnyRole(['admin', 'super-admin']);
 
-        if ($request->filled('user_id')) {
-            $requestedId = (int) $request->input('user_id');
-            if ($requestedId === $authUser->id || $authUser->hasAnyRole(['admin', 'super-admin'])) {
-                $userId = $requestedId;
-            }
-        }
+        // Non-admins are locked to their own stats only — ignore any user_id param,
+        // same rule index()/weekly()/report() already enforce for this controller.
+        $userId = $isAdmin
+            ? ($request->filled('user_id') ? (int) $request->input('user_id') : null)
+            : $authUser->id;
 
         $today = Carbon::today();
 
