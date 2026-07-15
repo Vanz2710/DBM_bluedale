@@ -594,7 +594,7 @@ export const PAGE_TOURS = {
     {
       target: '.tab-bar',
       title: 'Task Manager — Seven Views',
-      body: 'Seven tabs cover every angle: Board (kanban drag-and-drop), Calendar (month view of due dates), People (tasks grouped by assignee), Dashboard (stats & charts), Table (searchable list with date-range filtering, doubling as the audit log), This Week (weekly report), and Files (all attached documents). Click any tab to switch.',
+      body: 'Seven tabs cover every angle: Dashboard (stats & charts), Calendar (month view of due dates), Table (searchable list with date-range filtering, doubling as the audit log), This Week (weekly report), Board (kanban drag-and-drop), People (tasks grouped by assignee), and Files (all attached documents). Click any tab to switch.',
       position: 'bottom',
     },
     {
@@ -604,27 +604,15 @@ export const PAGE_TOURS = {
       position: 'bottom-left',
     },
     {
-      target: '[data-tour="deptask-tab-board"]',
-      title: 'Board — Kanban View',
-      body: 'Tasks appear as draggable cards across columns: Pending → In Progress → Waiting Approval → Completed. Drag a card to move it. Overdue cards are flagged in red. Click any card to view details, add comments, attach files, approve or reject submissions, or override the status directly.',
+      target: '[data-tour="deptask-tab-dashboard"]',
+      title: 'Dashboard — Stats at a Glance',
+      body: 'Live counts for total, overdue, in-progress, waiting approval, and completed tasks. Click any stat card to jump to the Table filtered to those tasks. Charts show breakdown by department, status, and weekly completion rate.',
       position: 'bottom',
     },
     {
       target: '[data-tour="deptask-tab-calendar"]',
       title: 'Calendar — Month View',
       body: 'See every task laid out by due date across the month. Use the arrows to move between months, filter by department or assignee just like the Board, and click any task pill to open its detail panel. Admins can click empty space on a day to create a new task due that date.',
-      position: 'bottom',
-    },
-    {
-      target: '[data-tour="deptask-tab-people"]',
-      title: 'People — Tasks by Assignee',
-      body: 'The People tab groups every task under its assigned person. Each person shows an overdue/active/done chip count and a progress bar. Switch between list view (collapsible rows with task details) and cards view (compact per-user cards) using the toggle on the right of the filter bar.',
-      position: 'bottom',
-    },
-    {
-      target: '[data-tour="deptask-tab-dashboard"]',
-      title: 'Dashboard — Stats at a Glance',
-      body: 'Live counts for total, overdue, in-progress, waiting approval, and completed tasks. Click any stat card to jump to the Table filtered to those tasks. Charts show breakdown by department, status, and weekly completion rate.',
       position: 'bottom',
     },
     {
@@ -637,6 +625,18 @@ export const PAGE_TOURS = {
       target: '[data-tour="deptask-tab-weekly"]',
       title: 'This Week — Outstanding Report',
       body: 'Printable report of all outstanding tasks grouped by department for the selected week. Use the navigation arrows to move between weeks, filter by assignee for individual workload reviews, and click Print A4 to export for team meetings.',
+      position: 'bottom',
+    },
+    {
+      target: '[data-tour="deptask-tab-board"]',
+      title: 'Board — Kanban View',
+      body: 'Tasks appear as draggable cards across columns: Pending → In Progress → Waiting Approval → Completed. Drag a card to move it. Overdue cards are flagged in red. Click any card to view details, add comments, attach files, approve or reject submissions, or override the status directly.',
+      position: 'bottom',
+    },
+    {
+      target: '[data-tour="deptask-tab-people"]',
+      title: 'People — Tasks by Assignee',
+      body: 'The People tab groups every task under its assigned person. Each person shows an overdue/active/done chip count and a progress bar. Switch between list view (collapsible rows with task details) and cards view (compact per-user cards) using the toggle on the right of the filter bar.',
       position: 'bottom',
     },
     {

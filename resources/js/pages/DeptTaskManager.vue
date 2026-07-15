@@ -8,7 +8,11 @@
         <p class="page-subtitle">{{ isAdmin ? 'Department tasks, board view, and reports' : 'My assigned tasks' }}</p>
       </div>
       <div class="page-header-actions">
-<button v-if="isAdmin" class="btn-primary" @click="openTaskModal()">
+        <router-link v-if="isAdmin" class="btn-ghost" :to="{ path: '/admin', query: { tab: 'departments' } }">
+          <span v-html="ICO.settings"></span>
+          Manage Departments
+        </router-link>
+        <button v-if="isAdmin" class="btn-primary" @click="openTaskModal()">
           <span v-html="ICO.plus"></span>
           New Task
         </button>
@@ -274,7 +278,7 @@
             <div class="cal-pill-stack">
               <div v-for="task in (calendarTasksByDate[day.date] || []).slice(0, 3)" :key="task.id"
                 class="cal-pill" :class="task.is_overdue && 'cal-pill--overdue'"
-                :style="{ borderLeftColor: priorityColor(task.priority) }"
+                :style="{ borderLeftColor: priorityColor(task.priority), background: task.is_overdue ? undefined : priorityColor(task.priority) + '22' }"
                 @click.stop="openTaskDetail(task)">
                 <span class="cal-pill-title">{{ task.title }}</span>
                 <span v-if="task.assignee" class="cal-pill-who">{{ initials(task.assignee.name) }}</span>
@@ -473,6 +477,10 @@
         <label class="filter-label">To
           <input type="date" v-model="tableFilters.date_to" @change="tableFilterChange" class="field-input sm" />
         </label>
+        <button class="btn-ghost sm" @click="toggleTableExpanded">
+          <span v-html="tableExpanded ? ICO.list : ICO.grid"></span>
+          {{ tableExpanded ? 'Fewer columns' : 'Show all columns' }}
+        </button>
         <div class="filter-actions">
           <button @click="clearTableFilters" class="btn-ghost sm">Clear</button>
           <button @click="exportTable()" class="btn-ghost sm">
@@ -491,45 +499,59 @@
         <table class="data-table">
           <thead>
             <tr>
+              <th @click="toggleSort('created_at')" class="sortable">
+                Date In
+                <span class="sort-indicator" v-html="tableSort.field === 'created_at' ? (tableSort.dir === 'asc' ? ICO.sortAsc : ICO.sortDesc) : ICO.sortNone"></span>
+              </th>
+              <th @click="toggleSort('due_date')" class="sortable">
+                Deadline
+                <span class="sort-indicator" v-html="tableSort.field === 'due_date' ? (tableSort.dir === 'asc' ? ICO.sortAsc : ICO.sortDesc) : ICO.sortNone"></span>
+              </th>
+              <th @click="toggleSort('department_id')" class="sortable">Dept</th>
               <th @click="toggleSort('title')" class="sortable">
-                Task
+                Details / Task
                 <span class="sort-indicator" v-html="tableSort.field === 'title' ? (tableSort.dir === 'asc' ? ICO.sortAsc : ICO.sortDesc) : ICO.sortNone"></span>
               </th>
-              <th @click="toggleSort('department_id')" class="sortable">Department</th>
-              <th>Assigned To</th>
-              <th @click="toggleSort('priority')" class="sortable">Priority</th>
-              <th @click="toggleSort('due_date')" class="sortable">Due Date</th>
-              <th @click="toggleSort('status')" class="sortable">Status</th>
+              <template v-if="tableExpanded">
+                <th>Assigned To</th>
+                <th @click="toggleSort('priority')" class="sortable">Priority</th>
+                <th @click="toggleSort('status')" class="sortable">Status</th>
+              </template>
               <th>Actions</th>
             </tr>
           </thead>
           <tbody>
             <tr v-if="tableLoading">
-              <td colspan="7" class="empty-cell">Loading…</td>
+              <td :colspan="tableExpanded ? 8 : 5" class="empty-cell">Loading…</td>
             </tr>
             <tr v-else-if="tableTasks.length === 0">
-              <td colspan="7" class="empty-cell">No tasks found.</td>
+              <td :colspan="tableExpanded ? 8 : 5" class="empty-cell">No tasks found.</td>
             </tr>
             <tr v-for="task in tableTasks" :key="task.id"
               class="table-row" @click="openTaskDetail(task)">
-              <td>{{ task.title }}</td>
+              <td class="text-2">{{ dateOnly(task.created_at) }}</td>
+              <td :class="task.is_overdue && 'text-danger'">{{ task.due_date_fmt || '—' }}</td>
               <td>
                 <span class="dept-pill" :style="{background: task.department?.color+'22', color: task.department?.color}">
                   {{ task.department?.name }}
                 </span>
               </td>
-              <td class="text-2">{{ task.assignee?.name || '—' }}</td>
               <td>
-                <span class="kc-priority" :style="{background: priorityColor(task.priority)+'22', color: priorityColor(task.priority)}">
-                  {{ task.priority }}
-                </span>
+                <span class="task-cell-title">{{ task.title }}</span><span v-if="task.description" class="task-cell-desc"> - {{ task.description }}</span>
               </td>
-              <td :class="task.is_overdue && 'text-danger'">{{ task.due_date_fmt || '—' }}</td>
-              <td>
-                <span :class="['status-badge', 'st-'+task.status, task.is_overdue && 'st-overdue']">
-                  {{ task.is_overdue ? 'Overdue' : statusLabel(task.status) }}
-                </span>
-              </td>
+              <template v-if="tableExpanded">
+                <td class="text-2">{{ task.assignee?.name || '—' }}</td>
+                <td>
+                  <span class="kc-priority" :style="{background: priorityColor(task.priority)+'22', color: priorityColor(task.priority)}">
+                    {{ task.priority }}
+                  </span>
+                </td>
+                <td>
+                  <span :class="['status-badge', 'st-'+task.status, task.is_overdue && 'st-overdue']">
+                    {{ task.is_overdue ? 'Overdue' : statusLabel(task.status) }}
+                  </span>
+                </td>
+              </template>
               <td @click.stop class="actions-cell">
                 <button class="btn-icon" @click="openTaskModal(task)" title="Edit" aria-label="Edit task" v-html="ICO.edit"></button>
                 <button class="btn-icon danger" @click="deleteTask(task.id)" title="Delete" aria-label="Delete task" v-html="ICO.trash"></button>
@@ -1103,7 +1125,7 @@
             <div class="day-tasks-list">
               <button v-for="task in dayTasksModal.tasks" :key="task.id" type="button"
                 class="cal-pill" :class="task.is_overdue && 'cal-pill--overdue'"
-                :style="{ borderLeftColor: priorityColor(task.priority) }"
+                :style="{ borderLeftColor: priorityColor(task.priority), background: task.is_overdue ? undefined : priorityColor(task.priority) + '22' }"
                 @click="openDayTask(task)">
                 <span class="cal-pill-title">{{ task.title }}</span>
                 <span v-if="task.assignee" class="cal-pill-who">{{ initials(task.assignee.name) }}</span>
@@ -1129,6 +1151,7 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted, onUnmounted, watch, nextTick } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import { Chart, registerables } from 'chart.js';
 import api from '../api.js';
 
@@ -1167,6 +1190,7 @@ const ICO = {
   grid:      _i('<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/>'),
   folder:    _i('<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>'),
   calendarDays: _i('<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="14" x2="8" y2="14"/><line x1="12" y1="14" x2="12" y2="14"/><line x1="16" y1="14" x2="16" y2="14"/><line x1="8" y1="18" x2="8" y2="18"/><line x1="12" y1="18" x2="12" y2="18"/>'),
+  settings: _i('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>'),
 };
 
 // ─── View state ───────────────────────────────────────────────────────────────
@@ -1187,12 +1211,12 @@ const _authUserInit = getStoredUser();
 const _isAdminInit  = (_authUserInit.roles || []).some(r => ['admin', 'super-admin'].includes(r));
 
 const ADMIN_VIEWS = [
-  { id: 'board',       label: 'Board',      icon: ICO.kanban },
-  { id: 'calendar',    label: 'Calendar',   icon: ICO.calendarDays },
-  { id: 'people',      label: 'People',     icon: ICO.users },
   { id: 'dashboard',   label: 'Dashboard',  icon: ICO.chart },
+  { id: 'calendar',    label: 'Calendar',   icon: ICO.calendarDays },
   { id: 'table',       label: 'Table',      icon: ICO.list },
   { id: 'weekly',      label: 'This Week',  icon: ICO.calendar },
+  { id: 'board',       label: 'Board',      icon: ICO.kanban },
+  { id: 'people',      label: 'People',     icon: ICO.users },
   { id: 'files',       label: 'Files',      icon: ICO.folder },
 ];
 const USER_VIEWS = [
@@ -1303,6 +1327,23 @@ function toggleShowClosed() {
   localStorage.setItem('dtm_show_closed', String(showClosed.value));
 }
 
+// ─── Table "expand columns" toggle (persisted) ─────────────────────────────
+// Basic view = a handful of quick-glance columns (Date In / Deadline / Dept / Task).
+// Expanded view adds Assigned To, Priority and Status. Purely a client-side render
+// switch over the already-loaded tableTasks — no re-fetch needed.
+let _tableExpandedInit = false;
+try { _tableExpandedInit = JSON.parse(localStorage.getItem('dtm_table_expanded') ?? 'false'); }
+catch { localStorage.removeItem('dtm_table_expanded'); }
+const tableExpanded = ref(_tableExpandedInit);
+function toggleTableExpanded() {
+  tableExpanded.value = !tableExpanded.value;
+  localStorage.setItem('dtm_table_expanded', String(tableExpanded.value));
+}
+
+function dateOnly(str) {
+  return str ? str.split(',')[0] : '—';
+}
+
 // ─── Chart refs ───────────────────────────────────────────────────────────────
 const deptChart   = ref(null);
 const statusChart = ref(null);
@@ -1325,7 +1366,7 @@ const kanbanCols = computed(() => {
 });
 
 // ─── Calendar view ────────────────────────────────────────────────────────────
-const CAL_WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const CAL_WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const calendarMonth = ref(new Date());
 
 const calendarMonthLabel = computed(() =>
@@ -1355,7 +1396,8 @@ const calendarTasksByDate = computed(() => {
 const calendarDays = computed(() => {
   const monthStart = new Date(calendarMonth.value.getFullYear(), calendarMonth.value.getMonth(), 1);
   const start = new Date(monthStart);
-  start.setDate(start.getDate() - start.getDay());
+  const mondayOffset = (start.getDay() + 6) % 7; // Monday-first: 0=Mon...6=Sun
+  start.setDate(start.getDate() - mondayOffset);
   const todayStr = toLocalDate(new Date());
 
   const days = [];
@@ -1595,6 +1637,8 @@ function canTransitionClient(task, to) {
   if (to === 'cancelled' && !isAdminUser) return false;
   // Reopening is admin-only
   if (['completed', 'cancelled'].includes(task.status) && !isAdminUser) return false;
+  // Only the assignee (to withdraw) or an approver (to approve/reject) may act on a submitted task
+  if (task.status === 'waiting_approval' && !isApprover && !isAssignee) return false;
   // Sequential guard: completed must come from waiting_approval for approval tasks
   if (to === 'completed' && task.requires_approval && task.status !== 'waiting_approval') return false;
   // Approval gate: only a non-assignee admin can approve
@@ -1833,7 +1877,7 @@ function deleteTask(id) {
   triggerDeleteConfirm('Are you sure you want to delete this task? This cannot be undone.', async () => {
     await api.delete(`/v1/dept/tasks/${id}`);
     if (selectedTask.value?.id === id) selectedTask.value = null;
-    showToast('Task deleted', 'error');
+    showToast('Task deleted');
     refreshCurrentView();
   });
 }
@@ -2056,7 +2100,7 @@ function deleteAttachmentFromTab(a) {
     await api.delete(`/v1/dept/attachments/${a.id}`);
     allAttachments.value   = allAttachments.value.filter(x => x.id !== a.id);
     attachmentsTotal.value = Math.max(0, attachmentsTotal.value - 1);
-    showToast('Attachment deleted', 'error');
+    showToast('Attachment deleted');
   });
 }
 
@@ -2515,6 +2559,17 @@ function handleEscapeKey(e) {
   if (selectedTask.value)      { selectedTask.value = null; return; }
 }
 
+// ─── Deep link: reminders can open a specific task via ?task=ID ───────────────
+const route  = useRoute();
+const router = useRouter();
+
+watch(() => route.query.task, (taskId) => {
+  if (!taskId) return;
+  openTaskDetail({ id: taskId });
+  const { task, ...rest } = route.query;
+  router.replace({ query: rest });
+}, { immediate: true });
+
 // ─── Lifecycle ────────────────────────────────────────────────────────────────
 onUnmounted(() => {
   destroyCharts();
@@ -2591,6 +2646,7 @@ onMounted(async () => {
   padding: 8px 14px; background: var(--surface-2); color: var(--text-2);
   border: 1px solid var(--border); border-radius: var(--radius-sm);
   font-size: 13px; font-weight: 500; cursor: pointer; transition: background 0.15s;
+  text-decoration: none;
 }
 .btn-ghost:hover { background: var(--border); color: var(--text-1); }
 .btn-ghost.sm { padding: 6px 10px; font-size: 12.5px; }
@@ -2830,60 +2886,61 @@ select.field-input { cursor: pointer; }
 
 /* ── Calendar ─────────────────────────────────────────────────────────────── */
 .cal-nav       { display: flex; align-items: center; gap: 6px; }
-.cal-nav-label { font-size: 13.5px; font-weight: 600; color: var(--text-1); min-width: 150px; text-align: center; }
+.cal-nav-label { font-size: 21px; font-weight: 800; color: var(--text-1); min-width: 150px; text-align: center; }
 
 .cal-wrap     { border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; background: var(--surface); }
-.cal-head-row { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); background: var(--surface-2); border-bottom: 1px solid var(--border); }
+.cal-head-row { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); background: var(--primary-soft); border-bottom: 2px solid var(--primary); }
 .cal-head-row span {
-  padding: 9px; text-align: center; font-size: 11px; font-weight: 700;
-  text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-3);
+  padding: 10px; text-align: center; font-size: 12.5px; font-weight: 800;
+  text-transform: uppercase; letter-spacing: 0.5px; color: var(--primary-text);
 }
 .cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
 .cal-day {
-  min-height: 112px; padding: 8px;
+  min-height: 124px; padding: 8px;
   border-right: 1px solid var(--border-soft); border-bottom: 1px solid var(--border-soft);
   background: var(--surface); overflow: hidden;
 }
 .cal-day:nth-child(7n)       { border-right: none; }
 .cal-day--muted              { background: var(--surface-2); }
 .cal-day--muted .cal-day-num { color: var(--text-3); }
+.cal-day--today               { background: var(--primary-soft); }
 .cal-day--today .cal-day-num { background: var(--primary); color: var(--primary-on); }
 .cal-day--addable            { cursor: pointer; }
 .cal-day--addable:hover      { background: color-mix(in srgb, var(--primary) 4%, var(--surface)); }
 .cal-day-num {
-  display: inline-flex; width: 24px; height: 24px; align-items: center; justify-content: center;
-  border-radius: 999px; font-size: 12px; font-weight: 700; color: var(--text-1);
+  display: inline-flex; width: 28px; height: 28px; align-items: center; justify-content: center;
+  border-radius: 999px; font-size: 14px; font-weight: 800; color: var(--text-1);
 }
 .cal-pill-stack { display: flex; flex-direction: column; gap: 3px; margin-top: 6px; }
 .cal-pill {
   display: flex; align-items: center; justify-content: space-between; gap: 4px;
-  padding: 3px 6px; border-radius: var(--radius-sm); border-left: 3px solid transparent;
-  background: var(--surface-2); font-size: 10.5px; line-height: 1.3; cursor: pointer;
+  padding: 4px 7px; border-radius: var(--radius-sm); border-left: 4px solid transparent;
+  background: var(--surface-2); font-size: 12px; line-height: 1.3; cursor: pointer;
 }
 .cal-pill:hover                       { background: var(--border); }
 .cal-pill--overdue                    { background: var(--danger-soft); }
-.cal-pill-title                       { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600; color: var(--text-1); }
+.cal-pill-title                       { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 700; color: var(--text-1); }
 .cal-pill--overdue .cal-pill-title    { color: var(--danger); }
-.cal-pill-who   { flex-shrink: 0; font-size: 9px; font-weight: 700; color: var(--text-3); }
+.cal-pill-who   { flex-shrink: 0; font-size: 10.5px; font-weight: 700; color: var(--text-2); }
 .cal-more {
   display: block; width: 100%; text-align: left; font-family: inherit;
   background: none; border: none; cursor: pointer;
-  font-size: 10px; color: var(--text-3); padding: 1px 4px;
+  font-size: 11.5px; font-weight: 600; color: var(--text-2); padding: 2px 4px;
 }
 .cal-more:hover { color: var(--primary); text-decoration: underline; }
 
 .day-tasks-list { display: flex; flex-direction: column; gap: 6px; max-height: 50vh; overflow-y: auto; }
 .day-tasks-list .cal-pill {
   width: 100%; text-align: left; font-family: inherit;
-  border: none; border-left: 3px solid transparent;
-  font-size: 12.5px; padding: 8px 10px;
+  border: none; border-left: 4px solid transparent;
+  font-size: 13.5px; padding: 9px 11px;
 }
 .day-tasks-list .cal-pill-title { white-space: normal; overflow: visible; text-overflow: clip; }
 
 @media (max-width: 640px) {
-  .cal-day         { min-height: 76px; padding: 5px; }
+  .cal-day         { min-height: 88px; padding: 5px; }
   .cal-pill-who    { display: none; }
-  .cal-nav-label   { min-width: 110px; font-size: 12.5px; }
+  .cal-nav-label   { min-width: 110px; font-size: 17px; }
 }
 
 /* ── Filter bar ───────────────────────────────────────────────────────────── */
@@ -2897,23 +2954,31 @@ select.field-input { cursor: pointer; }
 
 /* ── Table ────────────────────────────────────────────────────────────────── */
 .table-wrap  { border: 1px solid var(--border); border-radius: var(--radius); overflow-x: auto; }
-.data-table  { width: 100%; border-collapse: collapse; font-size: 13px; }
+.data-table  { width: 100%; border-collapse: collapse; font-size: 12.5px; }
 .data-table.compact { font-size: 12.5px; }
 .data-table thead tr { background: var(--surface-2); }
 .data-table th {
-  padding: 10px 14px; text-align: left; font-size: 11px; font-weight: 700;
+  padding: 8px 12px; text-align: left; font-size: 11px; font-weight: 700;
   color: var(--text-2); text-transform: uppercase; letter-spacing: 0.6px;
-  border-bottom: 1px solid var(--border); white-space: nowrap; user-select: none;
+  border-bottom: 1px solid var(--border); border-right: 1px solid var(--border-soft);
+  white-space: nowrap; user-select: none;
 }
+.data-table th:last-child { border-right: none; }
 .data-table th.sortable { cursor: pointer; }
 .data-table th.sortable:hover { color: var(--text-1); }
 .sort-indicator { display: inline-flex; align-items: center; margin-left: 4px; opacity: 0.5; }
-.data-table td { padding: 12px 14px; color: var(--text-1); border-bottom: 1px solid var(--border-soft); }
+.data-table td {
+  padding: 7px 12px; color: var(--text-1);
+  border-bottom: 1px solid var(--border-soft); border-right: 1px solid var(--border-soft);
+}
+.data-table td:last-child { border-right: none; }
 .data-table tr:last-child td { border-bottom: none; }
 .data-table tr:hover td { background: var(--surface-2); }
 .table-row   { cursor: pointer; }
 .actions-cell { white-space: nowrap; }
 .empty-cell  { text-align: center; color: var(--text-3); padding: 32px; }
+.task-cell-title { font-weight: 700; color: var(--text-1); }
+.task-cell-desc  { font-weight: 400; color: var(--text-3); }
 
 /* ── Pills / tags ─────────────────────────────────────────────────────────── */
 .priority-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex-shrink: 0; margin-right: 4px; }
