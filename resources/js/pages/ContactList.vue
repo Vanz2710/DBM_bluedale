@@ -119,9 +119,11 @@
           <option v-for="n in CONTACT_PER_PAGE_OPTIONS" :key="n" :value="n">{{ n }}</option>
         </select>
       </div>
-      <button class="btn btn-primary" @click="load(1)">Search</button>
-      <button class="btn btn-clear" @click="clearFilters" v-if="hasFilters">Clear</button>
-      <button class="btn btn-export" @click="openExportModal">{{ contactSelectedIds.length > 0 ? `Export (${contactSelectedIds.length})` : 'Export' }}</button>
+      <div class="toolbar-actions">
+        <button class="btn btn-primary" @click="load(1)">Search</button>
+        <button class="btn btn-clear" @click="clearFilters" v-if="hasFilters">Clear</button>
+        <button class="btn btn-export" @click="openExportModal">{{ contactSelectedIds.length > 0 ? `Export (${contactSelectedIds.length})` : 'Export' }}</button>
+      </div>
     </div>
 
     <!-- Summary toolbar -->
@@ -198,9 +200,11 @@
           <option v-for="i in lookups.industries" :key="i.id" :value="i.id">{{ i.name }}</option>
         </select>
       </div>
-      <button class="btn btn-primary" @click="applySummaryFilters">Search</button>
-      <button class="btn btn-clear" @click="resetSummaryFilters">Reset</button>
-      <button class="btn btn-export" @click="summaryExportModal.open = true">Export</button>
+      <div class="toolbar-actions">
+        <button class="btn btn-primary" @click="applySummaryFilters">Search</button>
+        <button class="btn btn-clear" @click="resetSummaryFilters">Reset</button>
+        <button class="btn btn-export" @click="summaryExportModal.open = true">Export</button>
+      </div>
     </div>
 
     <!-- Tasks toolbar -->
@@ -2855,6 +2859,12 @@ onMounted(async () => {
 .btn-export:hover { filter: brightness(0.9); }
 .btn-sm { height: 32px; padding: 0 14px; font-size: 12px; }
 
+.toolbar-actions {
+  display: flex; align-items: center; gap: 10px;
+  margin-left: auto; padding-left: 14px;
+  border-left: 1px solid var(--border-soft);
+}
+
 /* Table wrap */
 .table-wrap {
   background: var(--surface);
@@ -3997,6 +4007,7 @@ tbody tr:last-child td { border-bottom: none; }
   .filter-group.wide input { width: 100%; }
   .view-tabs { overflow-x: auto; max-width: 100%; }
   .btn-primary-pill { width: 100%; justify-content: center; }
+  .toolbar-actions { margin-left: 0; padding-left: 0; border-left: none; width: 100%; }
 }
 
 /* ── Date range filter ── */

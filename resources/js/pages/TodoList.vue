@@ -97,37 +97,48 @@
           <option value="completed">Completed</option>
         </select>
       </div>
-      <button class="btn btn-primary" @click="page = 1; load()">Search</button>
-      <button v-if="hasFilters" class="btn btn-clear" @click="clearFilters">Clear</button>
+      <div class="toolbar-actions">
+        <button class="btn btn-primary" @click="page = 1; load()">Search</button>
+        <button v-if="hasFilters" class="btn btn-clear" @click="clearFilters">Clear</button>
+        <button type="button" class="btn-cols-toggle" :class="{ 'btn-cols-toggle--on': columnsExpanded }" @click="toggleColumnsExpanded">
+          <span v-html="columnsExpanded ? CI.list : CI.grid"></span>
+          {{ columnsExpanded ? 'Fewer columns' : 'Show all columns' }}
+        </button>
+      </div>
+    </div>
+
+    <div class="date-nav-bar">
+      <div class="date-nav-pill">
+        <button v-if="viewMode === 'DateRange' && rangeFrom && rangeTo" type="button" class="date-nav-arrow" title="Previous day" aria-label="Previous day" @click="shiftDays(-1)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <span class="count-label">{{ periodLabel }}</span>
+        <button v-if="viewMode === 'DateRange' && rangeFrom && rangeTo" type="button" class="date-nav-arrow" title="Next day" aria-label="Next day" @click="shiftDays(1)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+      </div>
     </div>
 
     <div class="table-wrap">
-      <div class="table-header-bar">
-        <span class="record-count">
-          <span class="count-label">{{ periodLabel }}</span>
-          <span class="count-badge">{{ meta.total ?? todos.length }} to-do(s)</span>
-        </span>
-      </div>
       <LoadingSpinner v-if="loading" />
       <div v-else class="table-scroll">
         <table>
           <colgroup>
             <col style="width:34px">   <!-- checkbox -->
-            <col style="width:92px">   <!-- date -->
+            <col v-if="!isSingleDayView || columnsExpanded" style="width:92px">   <!-- date -->
             <col style="width:110px">  <!-- status -->
             <col style="width:80px">   <!-- type -->
             <col style="min-width:200px"> <!-- company - absorbs remaining space -->
             <col style="width:100px">  <!-- user -->
             <col style="width:140px">  <!-- task -->
             <col style="width:124px">  <!-- remark -->
-            <col style="width:90px">   <!-- follow-ups -->
-            <col style="width:88px">   <!-- last f/u -->
+            <col v-if="!isSingleDayView || columnsExpanded" style="width:90px">   <!-- follow-ups -->
             <col style="width:178px">  <!-- actions -->
           </colgroup>
           <thead>
             <tr>
               <th><input type="checkbox" :checked="allSelected" :indeterminate.prop="someSelected" @change="toggleAll"></th>
-              <th>To Do Date</th>
+              <th v-if="!isSingleDayView || columnsExpanded">Deadline</th>
               <th class="th-filter">
                 <div class="col-head">
                   <span>Status</span>
@@ -158,18 +169,17 @@
                 </div>
               </th>
               <th>Remark</th>
-              <th>Follow-Ups</th>
-              <th>Last F/U</th>
+              <th v-if="!isSingleDayView || columnsExpanded">Follow-Ups</th>
               <th>Actions</th>
             </tr>
           </thead>
           <tbody>
             <tr v-if="todos.length === 0">
-              <td colspan="11" class="empty-state">No to-dos found for this period.</td>
+              <td :colspan="(isSingleDayView && !columnsExpanded) ? 8 : 10" class="empty-state">No to-dos found for this period.</td>
             </tr>
             <tr v-for="(t, idx) in todos" :key="t.id" :class="{ 'row-done': t.completion_status === 'completed', 'row-clickable': t.contact_id }" @click="openContactRow(t)">
               <td @click.stop><input type="checkbox" :value="t.id" v-model="selectedIds"></td>
-              <td><span class="date-text">{{ t.todo_date }}</span></td>
+              <td v-if="!isSingleDayView || columnsExpanded"><span class="date-text">{{ t.todo_date }}</span></td>
               <td>
                 <span v-if="t.status" class="status-chip">{{ t.status }}</span>
                 <span v-else class="muted">—</span>
@@ -192,16 +202,12 @@
                   <button v-if="can('edit todos') && t.can_edit" class="remark-edit-btn" title="Edit remark" aria-label="Edit remark" @click="openRemarkModal(t)" v-html="CI.edit"></button>
                 </div>
               </td>
-              <td @click.stop>
+              <td v-if="!isSingleDayView || columnsExpanded" @click.stop>
                 <router-link v-if="t.followups_count > 0"
                              :to="`/followups?todo_id=${t.id}`"
                              class="followup-count" title="View follow-ups for this to-do">
                   {{ t.followups_count }}
                 </router-link>
-                <span v-else class="muted">—</span>
-              </td>
-              <td>
-                <span v-if="t.last_followup_date" class="date-text">{{ t.last_followup_date }}</span>
                 <span v-else class="muted">—</span>
               </td>
               <td @click.stop>
@@ -272,11 +278,11 @@
             </div>
             <div class="add-form-row">
               <div class="add-form-group">
-                <label>To Do Date <span class="req">*</span></label>
+                <label>Deadline <span class="req">*</span></label>
                 <input type="date" v-model="addForm.todo_date" required>
               </div>
               <div class="add-form-group">
-                <label>Date Created</label>
+                <label>To Do Date</label>
                 <input type="date" v-model="addForm.date_created">
               </div>
             </div>
@@ -401,11 +407,11 @@
               </div>
               <div class="add-form-row">
                 <div class="add-form-group">
-                  <label>To Do Date <span class="req">*</span></label>
+                  <label>Deadline <span class="req">*</span></label>
                   <input type="date" v-model="editForm.todo_date" required>
                 </div>
                 <div class="add-form-group">
-                  <label>Date Created</label>
+                  <label>To Do Date</label>
                   <input type="date" v-model="editForm.date_created">
                 </div>
               </div>
@@ -625,6 +631,8 @@ const CI = {
   edit:  _si('<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>'),
   trash: _si('<polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>'),
   x:     _si('<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>'),
+  grid:  _si('<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/>'),
+  list:  _si('<line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>'),
 };
 
 // Fires the global toast handled by ToastContainer.vue (mounted in App.vue).
@@ -769,10 +777,31 @@ const pageNumbers = computed(() => {
   return [1, '...', cur, '...', total];
 });
 
+const isSingleDayView = computed(() => viewMode.value === 'DateRange' && !!rangeFrom.value && rangeFrom.value === rangeTo.value);
+
+// "Show all columns" toggle — forces the Deadline column visible even in single-day view.
+let _columnsExpandedInit = false;
+try { _columnsExpandedInit = JSON.parse(localStorage.getItem('todo_table_expanded') ?? 'false'); }
+catch { localStorage.removeItem('todo_table_expanded'); }
+const columnsExpanded = ref(_columnsExpandedInit);
+function toggleColumnsExpanded() {
+  columnsExpanded.value = !columnsExpanded.value;
+  localStorage.setItem('todo_table_expanded', String(columnsExpanded.value));
+}
+
 const periodLabel = computed(() => {
+  const long      = (s) => new Date(s + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
+  const short     = (s) => s ? new Date(s + 'T00:00:00').toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'Any';
+  const monthLong = (s) => s ? new Date(s + '-01T00:00:00').toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }) : 'Any';
+
+  if (viewMode.value === 'MonthRange') {
+    const from = fromMonth.value, to = toMonth.value;
+    if (!from && !to) return 'All time';
+    if (from && to && from === to) return monthLong(from);
+    return `${monthLong(from)} – ${monthLong(to)}`;
+  }
+
   const from = rangeFrom.value, to = rangeTo.value;
-  const long  = (s) => new Date(s + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
-  const short = (s) => s ? new Date(s + 'T00:00:00').toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'Any';
   if (!from && !to) return 'All time';
   if (from && to && from === to) return long(from);
   return `${short(from)} – ${short(to)}`;
@@ -838,9 +867,26 @@ function onRangeChange() {
   load();
 }
 
+function shiftDays(delta) {
+  const parseLocal  = (s) => { const [y, m, d] = (s || today).split('-').map(Number); return new Date(y, m - 1, d); };
+  const formatLocal = (dt) => `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+  const from = parseLocal(rangeFrom.value);
+  const to   = parseLocal(rangeTo.value);
+  const spanDays = Math.round((to - from) / 86400000);
+  from.setDate(from.getDate() + delta);
+  const newTo = new Date(from);
+  newTo.setDate(newTo.getDate() + spanDays);
+  rangeFrom.value = formatLocal(from);
+  rangeTo.value   = formatLocal(newTo);
+  onRangeChange();
+}
+
 function clearContactFilter() {
-  contactId.value   = '';
-  contactName.value = '';
+  contactId.value    = '';
+  contactName.value  = '';
+  rangeFrom.value    = today;
+  rangeTo.value      = today;
+  statusFilter.value = 'pending';
   // When embedded in the Contacts page tab, keep the ?tab=tasks query intact.
   if (props.embedded) router.replace({ query: { tab: 'tasks' } });
   else                router.replace({ query: {} });
@@ -860,8 +906,8 @@ function toggleAll(e) {
 // ── Export ──
 const EXPORT_COLUMNS = [
   { key: 'no',           label: 'No' },
-  { key: 'todo_date',    label: 'To Do Date' },
-  { key: 'date_created', label: 'Date Created' },
+  { key: 'todo_date',    label: 'Deadline' },
+  { key: 'date_created', label: 'To Do Date' },
   { key: 'status',       label: 'Status' },
   { key: 'type',         label: 'Type' },
   { key: 'company',      label: 'Company' },
@@ -1258,28 +1304,41 @@ onMounted(async () => {
 .btn-primary:hover { background: var(--primary-hover); }
 .btn-clear { background: var(--surface); color: var(--text-2); border: 1px solid var(--border); }
 .btn-clear:hover { background: var(--danger-soft); color: var(--danger); border-color: var(--danger-soft); }
+.btn-cols-toggle {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 38px; padding: 0 16px; border-radius: 999px;
+  border: 1px solid var(--border); background: var(--surface); color: var(--text-2);
+  font-size: 13px; font-weight: 600; cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.btn-cols-toggle:hover { border-color: var(--primary); color: var(--primary); }
+.btn-cols-toggle--on { background: var(--primary-soft); border-color: var(--primary); color: var(--primary-text); }
+
+.toolbar-actions {
+  display: flex; align-items: center; gap: 10px;
+  margin-left: auto; padding-left: 14px;
+  border-left: 1px solid var(--border-soft);
+}
 
 /* Date navigator */
-.date-nav { display: flex; align-items: center; gap: 4px; align-self: flex-end; }
+.date-nav-bar { display: flex; justify-content: center; margin: 0 0 16px; }
+.date-nav-pill {
+  display: inline-flex; align-items: center; gap: 2px;
+  background: var(--surface); border: 1px solid var(--border-soft);
+  border-radius: 999px; padding: 6px 8px;
+  box-shadow: var(--shadow-sm);
+}
+.date-nav-pill .count-label { font-size: 15px; font-weight: 800; color: var(--text-1); letter-spacing: -0.2px; padding: 0 12px; white-space: nowrap; }
 .date-nav-arrow {
   display: flex; align-items: center; justify-content: center;
-  width: 32px; height: 38px; border-radius: 999px;
-  border: 1px solid var(--border); background: var(--surface);
-  cursor: pointer; color: var(--text-2); transition: background 0.15s, color 0.15s, border-color 0.15s;
+  width: 30px; height: 30px; border-radius: 999px;
+  border: none; background: transparent;
+  cursor: pointer; color: var(--text-2); transition: background 0.15s, color 0.15s;
 }
-.date-nav-arrow:hover { background: var(--primary-soft); color: var(--primary); border-color: var(--primary-soft); }
-/* CalendarPicker trigger inherits its own styles from the component */
+.date-nav-arrow:hover { background: var(--primary-soft); color: var(--primary); }
 
 /* Table */
-.table-wrap { background: var(--surface); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); border: 1px solid var(--border-soft); overflow: hidden; }
-.table-header-bar {
-  background: var(--surface); padding: 16px 22px;
-  border-bottom: 1px solid var(--border-soft);
-  display: flex; align-items: center; gap: 12px;
-}
-.record-count { display: flex; align-items: center; gap: 10px; }
-.count-label { font-size: 14px; font-weight: 700; color: var(--text-1); letter-spacing: -0.2px; }
-.count-badge { background: var(--primary-soft); color: var(--primary-text); font-size: 11.5px; font-weight: 700; padding: 4px 12px; border-radius: 999px; }
+.table-wrap { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow-sm); border: 1px solid var(--border-soft); overflow: hidden; }
 .table-scroll { overflow-x: auto; }
 table { width: 100%; min-width: 1320px; border-collapse: collapse; font-size: 12px; table-layout: fixed; }
 thead th {
@@ -1489,6 +1548,7 @@ tbody tr:hover { background: var(--surface-2); }
   .filter-group { flex: 1 1 45%; }
   .filter-group.wide { flex: 1 1 100%; }
   .filter-group.wide input { width: 100%; }
+  .toolbar-actions { margin-left: 0; padding-left: 0; border-left: none; width: 100%; }
 }
 
 /* Search autocomplete */

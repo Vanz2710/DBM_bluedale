@@ -72,23 +72,35 @@
         <label>Search Company</label>
         <input type="text" v-model="search" @keyup.enter="load" placeholder="Company name…">
       </div>
-      <button class="btn btn-primary" @click="load">Search</button>
-      <button class="btn btn-export" @click="openExportModal()">Export</button>
+      <div class="toolbar-actions">
+        <button class="btn btn-primary" @click="load">Search</button>
+        <button class="btn btn-export" @click="openExportModal()">Export</button>
+        <button type="button" class="btn-cols-toggle" :class="{ 'btn-cols-toggle--on': columnsExpanded }" @click="toggleColumnsExpanded">
+          <span v-html="columnsExpanded ? CI.list : CI.grid"></span>
+          {{ columnsExpanded ? 'Fewer columns' : 'Show all columns' }}
+        </button>
+      </div>
+    </div>
+
+    <div class="date-nav-bar">
+      <div class="date-nav-pill">
+        <button v-if="view === 'DateRange' && fromDate && toDate" type="button" class="date-nav-arrow" title="Previous day" aria-label="Previous day" @click="shiftDays(-1)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <span class="count-label">{{ periodLabel }}</span>
+        <button v-if="view === 'DateRange' && fromDate && toDate" type="button" class="date-nav-arrow" title="Next day" aria-label="Next day" @click="shiftDays(1)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+      </div>
     </div>
 
     <div class="table-wrap">
-      <div class="table-header-bar">
-        <span class="record-count">
-          <span class="count-label">{{ periodLabel }}</span>
-          <span class="count-badge">{{ meta.total ?? followUps.length }} record(s)</span>
-        </span>
-      </div>
       <LoadingSpinner v-if="loading" />
       <div v-else class="table-scroll">
         <table>
           <colgroup>
             <col style="width:34px">    <!-- checkbox -->
-            <col style="width:126px">   <!-- date -->
+            <col v-if="!isSingleDayView || columnsExpanded" style="width:126px">   <!-- date -->
             <col style="width:112px">   <!-- action type -->
             <col>                       <!-- company -->
             <col style="width:120px">   <!-- status -->
@@ -101,7 +113,7 @@
           <thead>
             <tr>
               <th><input type="checkbox" :checked="allSelected" :indeterminate.prop="someSelected" @change="toggleAll"></th>
-              <th>Follow-Up Date</th>
+              <th v-if="!isSingleDayView || columnsExpanded">Follow-Up Date</th>
               <th class="th-filter">
                 <div class="col-head">
                   <span>Action Type</span>
@@ -146,11 +158,11 @@
           </thead>
           <tbody>
             <tr v-if="followUps.length === 0">
-              <td colspan="10" class="empty-state">No follow-ups found for this period.</td>
+              <td :colspan="(isSingleDayView && !columnsExpanded) ? 9 : 10" class="empty-state">No follow-ups found for this period.</td>
             </tr>
             <tr v-for="(f, idx) in followUps" :key="f.id" :class="{ 'row-done': f.completion_status === 'completed', 'row-cancelled': f.completion_status === 'cancelled', 'row-clickable': f.contact_id }" @click="openContactRow(f)">
               <td @click.stop><input type="checkbox" :value="f.id" v-model="selectedIds"></td>
-              <td><span class="date-text">{{ f.followup_date }}</span></td>
+              <td v-if="!isSingleDayView || columnsExpanded"><span class="date-text">{{ f.followup_date }}</span></td>
               <td>
                 <span v-if="f.action_type" class="action-chip">{{ f.action_type }}</span>
                 <span v-else class="muted">—</span>
@@ -367,7 +379,7 @@
                 <span class="fu-context-value">{{ editModal.followUp?.task ?? '—' }}</span>
               </div>
               <div class="fu-context-item">
-                <span class="fu-context-label">To-Do Date</span>
+                <span class="fu-context-label">Deadline</span>
                 <span class="fu-context-value">{{ editModal.followUp?.todo_date ?? '—' }}</span>
               </div>
               <div class="fu-context-item">
@@ -447,6 +459,8 @@ const CI = {
   x:     _si('<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>'),
   check: _si('<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>'),
   undo:  _si('<polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.29"/>'),
+  grid:  _si('<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/>'),
+  list:  _si('<line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>'),
 };
 
 const ACTION_TYPES = ['Call', 'Email', 'Meeting', 'Site Visit', 'Presentation', 'Proposal', 'Demo', 'Contract', 'Other'];
@@ -534,6 +548,7 @@ async function submitEditFollowUp() {
     f.action_type = editForm.value.action_type || null;
     f.note        = editForm.value.note        || null;
     closeEditModal();
+    toast('Follow-up updated successfully.');
   } catch (e) {
     const errors = e.response?.data?.errors;
     editModal.value.error = errors
@@ -597,12 +612,50 @@ function closeCompanyDropdownSoon() {
   setTimeout(() => { companySearch.value.open = false; }, 150);
 }
 
+const isSingleDayView = computed(() => view.value === 'DateRange' && !!fromDate.value && fromDate.value === toDate.value);
+
+// "Show all columns" toggle — forces the Follow-Up Date column visible even in single-day view.
+let _columnsExpandedInit = false;
+try { _columnsExpandedInit = JSON.parse(localStorage.getItem('followup_table_expanded') ?? 'false'); }
+catch { localStorage.removeItem('followup_table_expanded'); }
+const columnsExpanded = ref(_columnsExpandedInit);
+function toggleColumnsExpanded() {
+  columnsExpanded.value = !columnsExpanded.value;
+  localStorage.setItem('followup_table_expanded', String(columnsExpanded.value));
+}
+
 const periodLabel = computed(() => {
-  if (view.value === 'DateRange') {
-    return `${fromDate.value} to ${toDate.value}`;
+  const long      = (s) => new Date(s + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
+  const short     = (s) => s ? new Date(s + 'T00:00:00').toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'Any';
+  const monthLong = (s) => s ? new Date(s + '-01T00:00:00').toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }) : 'Any';
+
+  if (view.value === 'MonthRange') {
+    const from = fromMonth.value, to = toMonth.value;
+    if (!from && !to) return 'All time';
+    if (from && to && from === to) return monthLong(from);
+    return `${monthLong(from)} – ${monthLong(to)}`;
   }
-  return `${fromMonth.value} to ${toMonth.value}`;
+
+  const from = fromDate.value, to = toDate.value;
+  if (!from && !to) return 'All time';
+  if (from && to && from === to) return long(from);
+  return `${short(from)} – ${short(to)}`;
 });
+
+function shiftDays(delta) {
+  const parseLocal  = (s) => { const [y, m, d] = (s || today).split('-').map(Number); return new Date(y, m - 1, d); };
+  const formatLocal = (dt) => `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+  const from = parseLocal(fromDate.value);
+  const to   = parseLocal(toDate.value);
+  const spanDays = Math.round((to - from) / 86400000);
+  from.setDate(from.getDate() + delta);
+  const newTo = new Date(from);
+  newTo.setDate(newTo.getDate() + spanDays);
+  fromDate.value = formatLocal(from);
+  toDate.value   = formatLocal(newTo);
+  page.value = 1;
+  load();
+}
 
 const pageNumbers = computed(() => {
   const total = meta.value.last_page ?? 1;
@@ -638,8 +691,12 @@ function buildParams() {
 }
 
 function clearTodoFilter() {
-  todoFilter.value     = null;
-  todoFilterInfo.value = null;
+  todoFilter.value       = null;
+  todoFilterInfo.value   = null;
+  fromDate.value         = today;
+  toDate.value           = today;
+  completionStatus.value = 'pending';
+  page.value             = 1;
   // When embedded in the Contacts page tab, keep the ?tab=followups query intact.
   router.replace({ query: props.embedded ? { tab: 'followups' } : {} });
   load();
@@ -799,6 +856,7 @@ async function submitAddFollowUp() {
     });
     closeAddModal();
     load();
+    toast('Follow-up added successfully.');
   } catch (e) {
     const errors = e.response?.data?.errors;
     addModal.value.error = errors
@@ -934,21 +992,45 @@ onMounted(async () => {
 .btn-export { background: var(--success); color: white; }
 .btn-export:hover { filter: brightness(0.9); }
 .btn-cancel { background: var(--surface); color: var(--text-2); border: 1px solid var(--border); }
+.btn-cols-toggle {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 38px; padding: 0 16px; border-radius: 999px;
+  border: 1px solid var(--border); background: var(--surface); color: var(--text-2);
+  font-size: 13px; font-weight: 600; cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.btn-cols-toggle:hover { border-color: var(--primary); color: var(--primary); }
+.btn-cols-toggle--on { background: var(--primary-soft); border-color: var(--primary); color: var(--primary-text); }
+
+.toolbar-actions {
+  display: flex; align-items: center; gap: 10px;
+  margin-left: auto; padding-left: 14px;
+  border-left: 1px solid var(--border-soft);
+}
 .btn-danger { background: var(--danger); color: white; }
 .btn-danger:hover:not(:disabled) { filter: brightness(0.9); }
 .btn-danger:disabled { background: var(--border); color: var(--text-3); cursor: not-allowed; }
 
-/* Table */
-.table-wrap { background: var(--surface); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); border: 1px solid var(--border-soft); overflow: hidden; }
-.table-header-bar {
-  background: var(--surface); padding: 16px 22px;
-  border-bottom: 1px solid var(--border-soft);
-  display: flex; align-items: center; gap: 12px;
+/* Date navigator */
+.date-nav-bar { display: flex; justify-content: center; margin: 0 0 16px; }
+.date-nav-pill {
+  display: inline-flex; align-items: center; gap: 2px;
+  background: var(--surface); border: 1px solid var(--border-soft);
+  border-radius: 999px; padding: 6px 8px;
+  box-shadow: var(--shadow-sm);
 }
-.record-count { display: flex; align-items: center; gap: 10px; }
-.count-label { font-size: 14px; font-weight: 700; color: var(--text-1); letter-spacing: -0.2px; }
-.count-badge { background: var(--primary-soft); color: var(--primary-text); font-size: 11.5px; font-weight: 700; padding: 4px 12px; border-radius: 999px; }
-.table-scroll { overflow-x: hidden; }
+.date-nav-pill .count-label { font-size: 15px; font-weight: 800; color: var(--text-1); letter-spacing: -0.2px; padding: 0 12px; white-space: nowrap; }
+.date-nav-arrow {
+  display: flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; border-radius: 999px;
+  border: none; background: transparent;
+  cursor: pointer; color: var(--text-2); transition: background 0.15s, color 0.15s;
+}
+.date-nav-arrow:hover { background: var(--primary-soft); color: var(--primary); }
+
+/* Table */
+.table-wrap { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow-sm); border: 1px solid var(--border-soft); overflow: hidden; }
+.table-scroll { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed; }
 thead th {
   background: var(--surface-2); color: var(--text-2); font-size: 11px; font-weight: 700;
@@ -1069,6 +1151,7 @@ tbody tr:hover { background: var(--surface-2); }
   .filter-group { flex: 1 1 45%; }
   .filter-group.wide { flex: 1 1 100%; }
   .filter-group.wide input { width: 100%; }
+  .toolbar-actions { margin-left: 0; padding-left: 0; border-left: none; width: 100%; }
 }
 
 /* Follow-up context info row (used in Add and Edit modals) */

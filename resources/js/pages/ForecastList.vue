@@ -47,9 +47,11 @@
         <label>To</label>
         <input type="date" v-model="filters.to_date">
       </div>
-      <button class="btn btn-primary" @click="applyFilters">Search</button>
-      <button class="btn btn-clear" @click="resetFilters">Reset</button>
-      <button class="btn btn-export" @click="openExportModal">{{ selectedIds.size > 0 ? `Export (${selectedIds.size})` : 'Export' }}</button>
+      <div class="toolbar-actions">
+        <button class="btn btn-primary" @click="applyFilters">Search</button>
+        <button class="btn btn-clear" @click="resetFilters">Reset</button>
+        <button class="btn btn-export" @click="openExportModal">{{ selectedIds.size > 0 ? `Export (${selectedIds.size})` : 'Export' }}</button>
+      </div>
     </div>
 
     <div class="table-wrap">
@@ -677,8 +679,14 @@ onMounted(async () => {
 .btn-export { background: var(--success); color: #fff; border: none; }
 .btn-export:hover { filter: brightness(0.9); }
 
+.toolbar-actions {
+  display: flex; align-items: center; gap: 10px;
+  margin-left: auto; padding-left: 14px;
+  border-left: 1px solid var(--border-soft);
+}
+
 /* Table */
-.table-wrap { background: var(--surface); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); border: 1px solid var(--border-soft); overflow: hidden; }
+.table-wrap { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow-sm); border: 1px solid var(--border-soft); overflow: hidden; }
 .table-header-bar {
   background: var(--surface); padding: 14px 20px;
   border-bottom: 1px solid var(--border-soft);
@@ -877,6 +885,7 @@ tbody tr:hover { background: var(--surface-2); }
   .filter-group { flex: 1 1 45%; }
   .filter-group.wide { flex: 1 1 100%; }
   .filter-group.wide input { width: 100%; }
+  .toolbar-actions { margin-left: 0; padding-left: 0; border-left: none; width: 100%; }
 }
 
 /* ── Overlay + modal animation ── */
