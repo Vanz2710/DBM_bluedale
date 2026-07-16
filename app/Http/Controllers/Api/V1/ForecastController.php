@@ -37,7 +37,9 @@ class ForecastController extends Controller
     {
         $base = $this->baseQuery($request);
 
-        // Look up result IDs — cached since these rows never change at runtime.
+        // Look up result IDs — cached since these are looked up on every summary request.
+        // ForecastResult rows are admin-editable (Lookup Settings), so AdminController's
+        // store/update/destroy/merge bust these same two keys on any write.
         // Cache a plain array (not a Collection): a serialized Collection can come back
         // as an incomplete object from some cache drivers and fatal on method calls.
         // The `_v2` suffix retires any previously-cached broken Collection without a manual

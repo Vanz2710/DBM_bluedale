@@ -236,6 +236,8 @@ Route::middleware(['auth:sanctum', 'maintenance'])->group(function () {
             Route::post('site-availability/proposal', [SiteAvailabilityController::class, 'proposal']);
             Route::post('site-availability/products', [SiteAvailabilityController::class, 'createProduct']);
             Route::post('site-availability/resolve-maps-url', [SiteAvailabilityController::class, 'resolveMapsUrl']);
+            Route::get('site-availability/geocode', [SiteAvailabilityController::class, 'geocode']);
+            Route::get('site-availability/export', [SiteAvailabilityController::class, 'exportSites']);
             Route::put('site-availability/products/{product}', [SiteAvailabilityController::class, 'updateProduct']);
             Route::post('site-availability/products/{product}/photo', [SiteAvailabilityController::class, 'uploadPhoto']);
             Route::delete('site-availability/products/{product}/photo', [SiteAvailabilityController::class, 'deletePhoto']);
@@ -333,6 +335,7 @@ Route::middleware(['auth:sanctum', 'maintenance'])->group(function () {
             Route::put('admin/{entity}/{id}', [AdminController::class, 'update']);
             Route::delete('admin/{entity}/{id}', [AdminController::class, 'destroy']);
             Route::post('admin/{entity}/merge', [AdminController::class, 'merge']);
+            Route::post('admin/audit-log/{id}/revert', [AdminController::class, 'revertMerge']);
         });
 
         // RBAC

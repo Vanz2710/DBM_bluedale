@@ -1,5 +1,9 @@
 ﻿<template>
   <div class="page">
+    <Transition name="toast">
+      <div v-if="toast" class="toast-msg" role="status">{{ toast }}</div>
+    </Transition>
+
     <div class="page-head">
       <div>
         <h1 class="page-title">Audit Log</h1>
@@ -60,7 +64,7 @@
             <th style="width:100px">Type</th>
             <th>Entity</th>
             <th style="width:60px">IP</th>
-            <th style="width:64px">Changes</th>
+            <th style="width:160px">Changes</th>
           </tr>
         </thead>
         <tbody>
@@ -87,6 +91,16 @@
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
                 View
               </button>
+              <button
+                v-if="canRevert(log)"
+                class="revert-btn"
+                title="Undo this merge — recreates the merged-away items and moves their records back"
+                @click="openRevertModal(log)"
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+                Revert
+              </button>
+              <span v-else-if="log.action === 'merged' && log.reverted_at" class="reverted-pill" title="Already reverted">Reverted</span>
             </td>
           </tr>
         </tbody>
@@ -182,6 +196,40 @@
         </div>
       </div>
     </Teleport>
+
+    <!-- Revert confirm modal -->
+    <Teleport to="body">
+      <div v-if="revertModal.open" class="conf-overlay">
+        <div class="conf-modal">
+          <div class="conf-head">
+            <div>
+              <p class="conf-title">Revert Merge</p>
+              <p class="conf-sub">Recreates the merged-away item(s) and moves their records back.</p>
+            </div>
+            <button class="conf-close" @click="closeRevertModal">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+          <div class="conf-body">
+            <svg class="conf-info" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
+            </svg>
+            <p class="conf-text">
+              Restore <strong>{{ revertMergedNames }}</strong> back out of
+              <strong>{{ revertModal.log?.entity_name ?? '—' }}</strong>?
+              Any record still assigned to it will move back to its original value.
+            </p>
+            <p v-if="revertModal.error" class="conf-error">{{ revertModal.error }}</p>
+          </div>
+          <div class="conf-foot">
+            <button class="conf-cancel" @click="closeRevertModal">Cancel</button>
+            <button class="conf-revert" :disabled="revertModal.loading" @click="confirmRevert">
+              {{ revertModal.loading ? 'Reverting…' : 'Revert' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -204,9 +252,53 @@ const filterDays   = ref('30');
 
 const diffModal = ref({ open: false, log: null });
 
+const toast = ref('');
+function showToast(msg) {
+  toast.value = msg;
+  setTimeout(() => { toast.value = ''; }, 3000);
+}
+
+const revertModal = ref({ open: false, log: null, loading: false, error: '' });
+
+function canRevert(log) {
+  return log.action === 'merged' && !log.reverted_at && log.has_revert_data;
+}
+
+const revertMergedNames = computed(() => {
+  const items = revertModal.value.log?.old_values?.merged_items ?? [];
+  return items.map(i => i.name).join(', ') || 'these items';
+});
+
+function openRevertModal(log) {
+  revertModal.value = { open: true, log, loading: false, error: '' };
+}
+function closeRevertModal() {
+  revertModal.value.open = false;
+}
+
+async function confirmRevert() {
+  const log = revertModal.value.log;
+  if (!log) return;
+  revertModal.value.error   = '';
+  revertModal.value.loading = true;
+  try {
+    const res = await api.post(`/v1/admin/audit-log/${log.id}/revert`);
+    log.reverted_at = new Date().toISOString();
+    revertModal.value.open = false;
+    showToast(`Reverted — ${res.data.recreated} item(s) recreated, ${res.data.records_moved} record(s) moved back.`);
+  } catch (e) {
+    const errors = e.response?.data?.errors;
+    revertModal.value.error = errors
+      ? Object.values(errors).flat().join(' ')
+      : (e.response?.data?.message ?? 'Failed to revert this merge.');
+  } finally {
+    revertModal.value.loading = false;
+  }
+}
+
 const KNOWN_ACTIONS = [
   'approved', 'created', 'deleted', 'devpanel_login_as', 'merged', 'quarantined', 'restored', 'restored_access',
-  'unlocked', 'updated', 'updated_password',
+  'reverted', 'unlocked', 'updated', 'updated_password',
 ];
 
 const KNOWN_ENTITIES = [
@@ -280,6 +372,7 @@ const summaryText = computed(() => {
   if (action === 'approved') return `${actor} approved "${name}".`;
   if (action === 'unlocked') return `${actor} unlocked "${name}".`;
   if (action === 'merged')   return `${actor} merged one or more ${entity.toLowerCase()}s into "${name}".`;
+  if (action === 'reverted') return `${actor} reverted a merge on ${entity.toLowerCase()} "${name}", recreating the merged-away item(s).`;
   if (action === 'updated_password') return `${actor} changed the password for "${name}".`;
   if (action === 'quarantined') return `${actor} quarantined "${name}" — password reset, blocked, and all sessions revoked.`;
   if (action === 'devpanel_login_as') return `${actor} opened a live session as "${name}" via the DevPanel — no password used.`;
@@ -500,7 +593,7 @@ tbody tr:hover { background: var(--app-bg); }
 .time-cell   { display: flex; flex-direction: column; gap: 1px; }
 .date-part   { font-size: 12px; font-weight: 500; color: var(--text-1); white-space: nowrap; }
 .time-part   { font-size: 11px; color: var(--text-3); }
-.diff-cell   { text-align: center; }
+.diff-cell   { text-align: center; display: flex; align-items: center; justify-content: center; gap: 6px; flex-wrap: wrap; }
 
 /* ── Action badge ── */
 .action-badge {
@@ -521,14 +614,15 @@ tbody tr:hover { background: var(--app-bg); }
 .action-badge-restored_access { background: #fef3c7; color: #92400e; }
 .action-badge-updated_password { background: #e0e7ff; color: #3730a3; }
 .action-badge-merged        { background: #ede9fe; color: #5b21b6; }
+.action-badge-reverted      { background: #cffafe; color: #155e75; }
 .action-badge-quarantined   { background: #fee2e2; color: #991b1b; }
 .action-badge-devpanel_login_as { background: #fef3c7; color: #92400e; }
 
 /* fallback for any other action */
 .action-badge:not([class*="action-badge-"]) { background: var(--surface-2); color: var(--text-2); }
 
-/* ── Diff button ── */
-.diff-btn {
+/* ── Diff / revert buttons ── */
+.diff-btn, .revert-btn {
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -547,6 +641,21 @@ tbody tr:hover { background: var(--app-bg); }
   border-color: var(--primary);
   color: var(--primary);
   background: rgba(29,78,216,0.04);
+}
+.revert-btn:hover {
+  border-color: #0891b2;
+  color: #0891b2;
+  background: rgba(8,145,178,0.06);
+}
+.reverted-pill {
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
 }
 
 /* ── Modal ── */
@@ -657,4 +766,32 @@ tbody tr:hover { background: var(--app-bg); }
 
 @media (max-width: 768px) { .page { padding: 20px 16px; } }
 @media (max-width: 640px) { .page { padding: 16px 12px; } }
+
+/* ── Revert confirm modal ── */
+.conf-overlay { position: fixed; inset: 0; background: rgba(15,23,42,0.5); z-index: 900; display: flex; align-items: center; justify-content: center; padding: 16px; }
+.conf-modal { background: var(--surface); border-radius: var(--radius-lg); width: 100%; max-width: 420px; box-shadow: var(--shadow-lg); border: 1px solid var(--border-soft); overflow: hidden; }
+.conf-head { display: flex; justify-content: space-between; align-items: flex-start; padding: 18px 22px 14px; border-bottom: 1px solid var(--border-soft); }
+.conf-title { font-size: 15px; font-weight: 700; color: var(--text-1); margin: 0 0 2px; }
+.conf-sub { font-size: 12px; color: var(--text-3); margin: 0; }
+.conf-close { background: none; border: none; cursor: pointer; color: var(--text-3); line-height: 1; padding: 4px; border-radius: 6px; display: flex; }
+.conf-close:hover { color: var(--text-1); background: var(--surface-2); }
+.conf-body { padding: 20px 24px; display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; }
+.conf-info { width: 40px; height: 40px; flex-shrink: 0; }
+.conf-text { font-size: 14px; color: var(--text-1); margin: 0; line-height: 1.5; }
+.conf-error { font-size: 12.5px; color: #dc2626; margin: 0; }
+.conf-foot { display: flex; justify-content: flex-end; gap: 10px; padding: 14px 22px; border-top: 1px solid var(--border-soft); }
+.conf-cancel { height: 38px; padding: 0 18px; background: none; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 13px; font-weight: 600; color: var(--text-2); cursor: pointer; }
+.conf-cancel:hover { background: var(--surface-2); }
+.conf-revert { height: 38px; padding: 0 18px; background: var(--primary); color: var(--primary-on); border: none; border-radius: var(--radius-sm); font-size: 13px; font-weight: 700; cursor: pointer; }
+.conf-revert:hover:not(:disabled) { background: var(--primary-hover); }
+.conf-revert:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ── Toast ── */
+.toast-msg {
+  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+  background: var(--text-1); color: var(--surface); padding: 10px 20px;
+  border-radius: var(--radius); font-size: 13px; z-index: 950; white-space: nowrap;
+}
+.toast-enter-active, .toast-leave-active { transition: opacity 0.25s, transform 0.25s; }
+.toast-enter-from, .toast-leave-to { opacity: 0; transform: translateX(-50%) translateY(8px); }
 </style>

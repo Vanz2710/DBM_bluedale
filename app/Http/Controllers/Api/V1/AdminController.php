@@ -108,6 +108,9 @@ class AdminController extends Controller
         $item = $model::create($validated);
 
         Cache::forget('lookups_v2');
+        // forecast-results rows also feed a separate long-lived cache in ForecastController::summary()
+        Cache::forget('forecast_result_ids_v2');
+        Cache::forget('forecast_no_result_id_v2');
         $this->audit('created', $entity, $item->id, $item->name, null, $validated, $request);
 
         return response()->json(['status' => 'success', 'data' => $item], 201);
@@ -129,6 +132,9 @@ class AdminController extends Controller
         $item->update($validated);
 
         Cache::forget('lookups_v2');
+        // forecast-results rows also feed a separate long-lived cache in ForecastController::summary()
+        Cache::forget('forecast_result_ids_v2');
+        Cache::forget('forecast_no_result_id_v2');
         $this->audit('updated', $entity, $item->id, $item->name, $old, $validated, $request);
 
         return response()->json(['status' => 'success', 'data' => $item]);
@@ -156,6 +162,9 @@ class AdminController extends Controller
             }
 
             Cache::forget('lookups_v2');
+            // forecast-results rows also feed a separate long-lived cache in ForecastController::summary()
+            Cache::forget('forecast_result_ids_v2');
+            Cache::forget('forecast_no_result_id_v2');
             $this->audit('deleted', $entity, $item->id, $item->name, ['name' => $item->name], null, $request);
 
             $item->delete();
@@ -206,6 +215,7 @@ class AdminController extends Controller
             }
 
             $mergedItems = $model::whereIn('id', $mergeIds)->lockForUpdate()->get(['id', 'name']);
+            $reassignments = [];
 
             try {
                 foreach (self::$usageMap[$entity] as $src) {
@@ -217,6 +227,27 @@ class AdminController extends Controller
                     if (empty($sourceValues)) {
                         continue;
                     }
+
+                    // Snapshot which child rows currently hold which source value *before*
+                    // the reassignment below collapses that information — this is what lets
+                    // a later revert move exactly these rows back instead of guessing.
+                    $moves = DB::table($childTable)
+                        ->whereIn($col, $sourceValues)
+                        ->select('id', $col)
+                        ->get()
+                        ->groupBy($col)
+                        ->map(fn ($rows) => $rows->pluck('id')->all());
+
+                    if ($moves->isNotEmpty()) {
+                        $reassignments[] = [
+                            'child_table' => $childTable,
+                            'column'      => $col,
+                            'parent_col'  => $parentCol,
+                            'keep_value'  => $keep->{$parentCol},
+                            'moves'       => $moves,
+                        ];
+                    }
+
                     DB::table($childTable)->whereIn($col, $sourceValues)->update([$col => $keep->{$parentCol}]);
                 }
             } catch (QueryException $e) {
@@ -228,15 +259,21 @@ class AdminController extends Controller
             $model::whereIn('id', $mergeIds)->delete();
 
             Cache::forget('lookups_v2');
+            // forecast-results rows also feed a separate long-lived cache in ForecastController::summary()
+            Cache::forget('forecast_result_ids_v2');
+            Cache::forget('forecast_no_result_id_v2');
+
+            $mergedItemsPayload = $mergedItems->map(fn ($i) => ['id' => $i->id, 'name' => $i->name])->all();
 
             $this->audit(
                 'merged',
                 $entity,
                 $keep->id,
                 $keep->name,
-                ['merged_items' => $mergedItems->map(fn ($i) => ['id' => $i->id, 'name' => $i->name])->all()],
+                ['merged_items' => $mergedItemsPayload],
                 ['kept_item' => ['id' => $keep->id, 'name' => $keep->name]],
-                $request
+                $request,
+                ['merged_items' => $mergedItemsPayload, 'reassignments' => $reassignments]
             );
 
             return response()->json(['status' => 'success', 'merged' => count($mergeIds), 'data' => $keep]);
@@ -272,7 +309,7 @@ class AdminController extends Controller
 
     private function audit(
         string $action, string $entityType, $entityId, ?string $entityName,
-        ?array $old, ?array $new, Request $request
+        ?array $old, ?array $new, Request $request, ?array $revertData = null
     ): void {
         AdminAuditLog::create([
             'user_id'     => $request->user()?->id,
@@ -282,7 +319,94 @@ class AdminController extends Controller
             'entity_name' => $entityName,
             'old_values'  => $old,
             'new_values'  => $new,
+            'revert_data' => $revertData,
             'ip_address'  => $request->ip(),
         ]);
+    }
+
+    public function revertMerge(Request $request, string $auditLogId)
+    {
+        $log = AdminAuditLog::where('action', 'merged')->findOrFail($auditLogId);
+
+        if ($log->reverted_at) {
+            throw ValidationException::withMessages([
+                'id' => ['This merge has already been reverted.'],
+            ]);
+        }
+
+        $revertData = $log->revert_data;
+        if (empty($revertData['merged_items'])) {
+            throw ValidationException::withMessages([
+                'id' => ['This merge was made before revert support was added and cannot be automatically reverted.'],
+            ]);
+        }
+
+        $entity = str_replace('lookup:', '', $log->entity_type);
+        [$model] = $this->resolve($entity);
+
+        return DB::transaction(function () use ($model, $entity, $log, $revertData, $request) {
+            // Keyed two ways because `moves` (captured in merge()) is grouped by whatever
+            // the child FK actually stores — the lookup row's id for every entity except
+            // 'packages', which stores the name string instead (see $usageMap).
+            $idMapById   = [];
+            $idMapByName = [];
+            foreach ($revertData['merged_items'] as $item) {
+                if ($model::where('name', $item['name'])->exists()) {
+                    throw ValidationException::withMessages([
+                        'id' => ["Cannot revert: an entry named \"{$item['name']}\" already exists again."],
+                    ]);
+                }
+                $createData = ['name' => $item['name']];
+                if ($entity === 'departments') {
+                    $createData['code'] = $this->generateDepartmentCode($item['name']);
+                }
+                $created = $model::create($createData);
+                $idMapById[$item['id']]     = $created;
+                $idMapByName[$item['name']] = $created;
+            }
+
+            $recreatedCount = 0;
+            foreach ($revertData['reassignments'] ?? [] as $r) {
+                $keepValue = $r['keep_value'];
+                $idMap     = $r['parent_col'] === 'name' ? $idMapByName : $idMapById;
+                foreach ($r['moves'] as $originalValue => $ids) {
+                    $newRow = $idMap[$originalValue] ?? null;
+                    if (!$newRow || empty($ids)) {
+                        continue;
+                    }
+                    $newValue = $r['parent_col'] === 'name' ? $newRow->name : $newRow->id;
+                    $recreatedCount += DB::table($r['child_table'])
+                        ->whereIn('id', $ids)
+                        ->where($r['column'], $keepValue)
+                        ->update([$r['column'] => $newValue]);
+                }
+            }
+
+            Cache::forget('lookups_v2');
+            // forecast-results rows also feed a separate long-lived cache in ForecastController::summary()
+            Cache::forget('forecast_result_ids_v2');
+            Cache::forget('forecast_no_result_id_v2');
+
+            $log->update(['reverted_at' => now(), 'reverted_by' => $request->user()?->id]);
+
+            $this->audit(
+                'reverted',
+                $entity,
+                $log->entity_id,
+                $log->entity_name,
+                null,
+                [
+                    'reverted_log_id' => $log->id,
+                    'recreated'       => collect($idMapById)->map(fn ($m) => ['id' => $m->id, 'name' => $m->name])->values()->all(),
+                ],
+                $request
+            );
+
+            return response()->json([
+                'status'         => 'success',
+                'recreated'      => count($idMapById),
+                'records_moved'  => $recreatedCount,
+            ]);
+        });
     }
 }
