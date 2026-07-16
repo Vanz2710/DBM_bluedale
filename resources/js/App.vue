@@ -658,7 +658,7 @@ export default { name: 'App' };
   --border-soft:   #eef0f4;
   --text-1:        #1e293b;
   --text-2:        #64748b;
-  --text-3:        #94a3b8;
+  --text-3:        #475569;
   --topbar-bg:     #ffffff;
   --topbar-border: #eceef3;
 
@@ -697,7 +697,7 @@ export default { name: 'App' };
   --sb-border:         #eceef3;
   --sb-brand-1:        #0f2456;
   --sb-brand-2:        #1d4ed8;
-  --sb-label:          #9ca3af;
+  --sb-label:          #64748b;
   --sb-item:           #4b5563;
   --sb-item-icon:      #6b7280;
   --sb-item-hover-bg:  #f3f4f6;
@@ -724,7 +724,7 @@ export default { name: 'App' };
   --border-soft:   #243049;
   --text-1:        #f1f5f9;
   --text-2:        #94a3b8;
-  --text-3:        #475569;
+  --text-3:        #cbd5e1;
   --topbar-bg:     #1e293b;
   --topbar-border: #334155;
 

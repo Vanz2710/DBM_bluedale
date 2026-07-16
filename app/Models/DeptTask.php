@@ -13,14 +13,13 @@ class DeptTask extends Model
 
     protected $fillable = [
         'title', 'description', 'department_id', 'assigned_to', 'created_by',
-        'priority', 'status', 'due_date', 'requires_approval',
+        'priority', 'status', 'due_date',
         'is_recurring', 'recurrence_type', 'next_recurrence_date', 'board_position',
     ];
 
     protected $casts = [
         'due_date'             => 'date',
         'next_recurrence_date' => 'date',
-        'requires_approval'    => 'boolean',
         'is_recurring'         => 'boolean',
     ];
 
@@ -30,7 +29,10 @@ class DeptTask extends Model
     {
         if (!$this->due_date) return false;
         if (in_array($this->status, ['completed', 'cancelled'])) return false;
-        return $this->due_date->isPast();
+        // Date-only comparison — a task due today is not overdue until tomorrow.
+        // (isPast() compares against the current time, which flags it overdue
+        // the instant the clock passes midnight on the due date itself.)
+        return $this->due_date->lt(Carbon::today());
     }
 
     public function department(): BelongsTo

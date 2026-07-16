@@ -73,10 +73,9 @@
           </div>
           <div class="mw-list">
             <div v-for="task in grp.tasks" :key="task.id" class="mw-row" @click="openTaskDetail(task)">
-              <button v-if="canComplete(task)" class="mw-check" @click.stop="completeTask(task)" title="Mark complete" aria-label="Mark complete">
+              <button class="mw-check" @click.stop="completeTask(task)" title="Mark complete" aria-label="Mark complete">
                 <span class="mw-check-ring"></span>
               </button>
-              <span v-else class="mw-check mw-check--locked" :title="'Needs approval before it can be completed'" v-html="ICO.lock"></span>
               <span class="mw-prio" :style="{ background: priorityColor(task.priority) }" :title="task.priority"></span>
               <div class="mw-main">
                 <div class="mw-title">{{ task.title }}</div>
@@ -88,9 +87,7 @@
               </div>
               <div class="mw-action" @click.stop>
                 <button v-if="task.status === 'pending'" class="btn-ghost sm" @click="advanceStatus(task)">Start</button>
-                <button v-else-if="task.status === 'in_progress' && task.requires_approval" class="btn-primary sm" @click="advanceStatus(task)">Submit</button>
                 <button v-else-if="task.status === 'in_progress'" class="btn-primary sm" @click="completeTask(task)">Complete</button>
-                <span v-else-if="task.status === 'waiting_approval'" class="mw-chip-wait">Awaiting approval</span>
               </div>
             </div>
           </div>
@@ -259,6 +256,9 @@
           <span v-html="showClosed ? ICO.eyeOff : ICO.eye"></span>
           {{ showClosed ? 'Hide closed' : 'Show closed' }}
         </button>
+        <button class="btn-ghost sm" @click="openCalendarExportModal()">
+          <span v-html="ICO.download"></span> Export
+        </button>
       </div>
 
       <div v-if="boardLoading" class="view-loading">
@@ -308,10 +308,9 @@
           <option v-for="d in departments" :key="d.id" :value="d.id">{{ d.name }}</option>
         </select>
         <select v-model="peopleFilters.status" class="field-input sm">
-          <option value="">All Statuses</option>
+          <option value="">All Status</option>
           <option value="pending">Pending</option>
           <option value="in_progress">In Progress</option>
-          <option value="waiting_approval">Waiting Approval</option>
           <option value="completed">Completed</option>
           <option value="overdue">Overdue</option>
         </select>
@@ -450,10 +449,9 @@
           <option v-for="d in departments" :key="d.id" :value="d.id">{{ d.name }}</option>
         </select>
         <select v-model="tableFilters.status" @change="tableFilterChange" class="field-input sm">
-          <option value="">All Statuses</option>
+          <option value="">All Status</option>
           <option value="pending">Pending</option>
           <option value="in_progress">In Progress</option>
-          <option value="waiting_approval">Waiting Approval</option>
           <option value="completed">Completed</option>
           <option value="cancelled">Cancelled</option>
           <option value="overdue">Overdue</option>
@@ -773,10 +771,6 @@
                 {{ selectedTask.is_overdue ? 'Overdue' : statusLabel(selectedTask.status) }}
               </span>
             </div>
-            <div class="dp-meta-item">
-              <span class="dp-meta-lbl">Approval</span>
-              <span>{{ selectedTask.requires_approval ? 'Required' : 'Not required' }}</span>
-            </div>
             <div v-if="selectedTask.is_recurring" class="dp-meta-item">
               <span class="dp-meta-lbl">Repeats</span>
               <span>
@@ -809,31 +803,13 @@
           <div class="dp-actions">
             <!-- Row 1: Workflow actions -->
             <div class="dp-action-row">
-              <!-- Approver: submitted task is awaiting their review -->
-              <template v-if="canApprove(selectedTask) && selectedTask.status === 'waiting_approval'">
-                <span class="dp-approval-notice">
-                  <span v-html="ICO.clock"></span> Awaiting your review
-                </span>
-                <button class="btn-primary sm" @click="approveTask">
-                  <span v-html="ICO.check"></span> Approve
-                </button>
-                <button class="btn-ghost sm" @click="rejectTask">Request changes</button>
-              </template>
-
               <!-- Assignee driving their own task forward -->
-              <template v-else-if="selectedTask.assigned_to === currentUserId">
+              <template v-if="selectedTask.assigned_to === currentUserId">
                 <button v-if="selectedTask.status === 'pending'" class="btn-primary sm" @click="detailAdvance('in_progress')">Start task</button>
-                <button v-else-if="selectedTask.status === 'in_progress' && selectedTask.requires_approval" class="btn-primary sm" @click="detailAdvance('waiting_approval')">Submit for approval</button>
                 <button v-else-if="selectedTask.status === 'in_progress'" class="btn-primary sm" @click="detailAdvance('completed')">Mark complete</button>
-                <span v-else-if="selectedTask.status === 'waiting_approval'" class="mw-chip-wait">Awaiting approval</span>
                 <span v-else-if="selectedTask.status === 'completed'" class="dp-status-note dp-status-note--done"><span v-html="ICO.check"></span> Task completed</span>
                 <span v-else-if="selectedTask.status === 'cancelled'" class="dp-status-note">Task cancelled</span>
               </template>
-
-              <!-- Approver: assignee hasn't submitted yet -->
-              <span v-else-if="canApprove(selectedTask) && selectedTask.status === 'in_progress' && selectedTask.requires_approval" class="dp-no-action dp-no-action--waiting">
-                Awaiting submission from assignee
-              </span>
 
               <!-- Closed states -->
               <span v-else-if="selectedTask.status === 'completed'" class="dp-status-note dp-status-note--done"><span v-html="ICO.check"></span> Task completed</span>
@@ -850,8 +826,7 @@
                 <select v-model="quickStatus" @change="quickUpdateStatus" class="field-input sm" aria-label="Override task status">
                   <option value="pending">Pending</option>
                   <option value="in_progress">In Progress</option>
-                  <option value="waiting_approval">Waiting Approval</option>
-                  <option value="completed">Completed</option>
+                          <option value="completed">Completed</option>
                   <option value="cancelled">Cancelled</option>
                 </select>
               </template>
@@ -959,8 +934,7 @@
                 <select v-model="form.status" class="field-input">
                   <option value="pending">Pending</option>
                   <option value="in_progress">In Progress</option>
-                  <option value="waiting_approval">Waiting Approval</option>
-                  <option v-if="editTask && (isAdmin || form.assigned_to === currentUserId)" value="completed">Completed</option>
+                          <option v-if="editTask && (isAdmin || form.assigned_to === currentUserId)" value="completed">Completed</option>
                   <option v-if="editTask && isAdmin" value="cancelled">Cancelled</option>
                 </select>
               </div>
@@ -968,17 +942,6 @@
                 <label class="field-label">Due Date</label>
                 <input type="date" v-model="form.due_date" class="field-input" />
               </div>
-            </div>
-            <div class="field-row">
-              <label class="checkbox-label">
-                <input type="checkbox" v-model="form.requires_approval" />
-                Require approval before completion
-              </label>
-              <span class="field-hint">
-                {{ form.requires_approval
-                    ? 'The assignee submits the task; an admin or the creator approves it before it’s marked complete.'
-                    : 'The assignee can mark this task complete directly, with no approval step.' }}
-              </span>
             </div>
             <div class="field-row">
               <label class="checkbox-label">
@@ -1113,6 +1076,47 @@
       </div>
     </transition>
 
+    <!-- ── Export Calendar Modal ─────────────────────────────────────────────── -->
+    <transition name="modal-fade">
+      <div v-if="calendarExportModal.open" class="modal-backdrop">
+        <div class="modal-box modal-sm">
+          <div class="modal-header">
+            <div>
+              <h3 class="modal-title">Export Calendar</h3>
+              <p class="modal-subtitle">Pick what to include, then download.</p>
+            </div>
+            <button class="btn-icon" @click="calendarExportModal.open = false" v-html="ICO.x"></button>
+          </div>
+          <div class="modal-body">
+            <div class="export-section">
+              <span class="export-section-label">Include</span>
+              <div class="export-cols-grid">
+                <label class="export-col-check">
+                  <input type="checkbox" v-model="calendarExportModal.includeClosed">
+                  <span>Closed tasks (completed &amp; cancelled)</span>
+                </label>
+              </div>
+            </div>
+          </div>
+          <div class="export-modal-footer">
+            <p class="export-footer-count">
+              Exports the Calendar tab's current filters · <strong>{{ calendarMonthLabel }}</strong>
+            </p>
+            <div class="export-action-stack">
+              <button class="export-dl-btn export-dl-xls" :disabled="calendarExportModal.loading" @click="exportCalendar()">
+                <span class="export-dl-icon" v-html="ICO.download"></span>
+                <span class="export-dl-text">
+                  <span class="export-dl-label">{{ calendarExportModal.loading ? 'Exporting…' : 'Download Excel' }}</span>
+                  <span class="export-dl-desc">Month grid, formatted with borders</span>
+                </span>
+              </button>
+              <button class="export-cancel-btn" @click="calendarExportModal.open = false">Cancel</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </transition>
+
     <!-- ── Day Tasks Modal (calendar "+N more") ─────────────────────────────── -->
     <transition name="modal-fade">
       <div v-if="dayTasksModal.open" class="modal-backdrop">
@@ -1214,7 +1218,7 @@ const ADMIN_VIEWS = [
   { id: 'dashboard',   label: 'Dashboard',  icon: ICO.chart },
   { id: 'calendar',    label: 'Calendar',   icon: ICO.calendarDays },
   { id: 'table',       label: 'Table',      icon: ICO.list },
-  { id: 'weekly',      label: 'This Week',  icon: ICO.calendar },
+  { id: 'weekly',      label: 'Department', icon: ICO.calendar },
   { id: 'board',       label: 'Board',      icon: ICO.kanban },
   { id: 'people',      label: 'People',     icon: ICO.users },
   { id: 'files',       label: 'Files',      icon: ICO.folder },
@@ -1226,7 +1230,7 @@ const USER_VIEWS = [
   { id: 'files',    label: 'Files',    icon: ICO.folder },
 ];
 const views = computed(() => (isAdmin.value ? ADMIN_VIEWS : USER_VIEWS));
-const currentView = ref(_isAdminInit ? 'board' : 'mywork');
+const currentView = ref(_isAdminInit ? 'dashboard' : 'mywork');
 
 // ─── Data ─────────────────────────────────────────────────────────────────────
 const departments   = ref([]);
@@ -1309,7 +1313,7 @@ const newComment   = ref('');
 const quickStatus  = ref('');
 const form         = reactive({
   title: '', description: '', department_id: '', assigned_to: '', priority: 'medium',
-  status: 'pending', due_date: '', requires_approval: true,
+  status: 'pending', due_date: '',
   is_recurring: false, recurrence_type: 'weekly',
 });
 
@@ -1356,7 +1360,6 @@ const kanbanCols = computed(() => {
   const cols = [
     { status: 'pending',          label: 'Pending',          color: '#94a3b8' },
     { status: 'in_progress',      label: 'In Progress',      color: '#3b82f6' },
-    { status: 'waiting_approval', label: 'Waiting Approval', color: '#f59e0b' },
   ];
   if (showClosed.value) {
     cols.push({ status: 'completed', label: 'Completed', color: '#10b981' });
@@ -1436,7 +1439,6 @@ const statCards = computed(() => {
     { label: 'Total Tasks',      value: s.total      || 0, colorClass: 'blue',  icon: ICO.list,    filterKey: 'all' },
     { label: 'Pending',          value: s.pending    || 0, colorClass: 'gray',  icon: ICO.clock,   filterKey: 'pending' },
     { label: 'In Progress',      value: s.inProgress || 0, colorClass: 'blue',  icon: ICO.refresh, filterKey: 'in_progress' },
-    { label: 'Waiting Approval', value: s.waiting    || 0, colorClass: 'amber', icon: ICO.lock,    filterKey: 'waiting_approval' },
     { label: 'Completed',        value: s.completed  || 0, colorClass: 'green', icon: ICO.check,   filterKey: 'completed' },
     { label: 'Overdue',          value: s.overdue    || 0, colorClass: 'red',   icon: ICO.alert,   filterKey: 'overdue' },
   ];
@@ -1481,7 +1483,7 @@ function priorityColor(p) {
 }
 
 function statusLabel(s) {
-  return { pending: 'Pending', in_progress: 'In Progress', waiting_approval: 'Waiting Approval', completed: 'Completed', cancelled: 'Cancelled' }[s] || s;
+  return { pending: 'Pending', in_progress: 'In Progress', completed: 'Completed', cancelled: 'Cancelled' }[s] || s;
 }
 
 function recurrenceLabel(type) {
@@ -1617,19 +1619,10 @@ const peopleGroups = computed(() => {
 });
 
 // ─── Workflow rules (mirror of backend assertCanTransition) ────────────────────
-// Approver = an admin who is NOT the task's assignee (no self-approval).
-function canApprove(task) {
-  return isAdmin.value && task?.assigned_to !== currentUserId.value;
-}
-// Can the current user mark this task completed directly (no submission step)?
-function canComplete(task) {
-  return canApprove(task) || !task?.requires_approval;
-}
 // Client-side guard so the board doesn't fire transitions the server will reject.
 function canTransitionClient(task, to) {
   const isAdminUser = isAdmin.value;
   const isAssignee  = task.assigned_to === currentUserId.value;
-  const isApprover  = isAdminUser && !isAssignee;
 
   // Must be involved
   if (!isAdminUser && !isAssignee && task.created_by !== currentUserId.value) return false;
@@ -1637,22 +1630,16 @@ function canTransitionClient(task, to) {
   if (to === 'cancelled' && !isAdminUser) return false;
   // Reopening is admin-only
   if (['completed', 'cancelled'].includes(task.status) && !isAdminUser) return false;
-  // Only the assignee (to withdraw) or an approver (to approve/reject) may act on a submitted task
-  if (task.status === 'waiting_approval' && !isApprover && !isAssignee) return false;
-  // Sequential guard: completed must come from waiting_approval for approval tasks
-  if (to === 'completed' && task.requires_approval && task.status !== 'waiting_approval') return false;
-  // Approval gate: only a non-assignee admin can approve
-  if (to === 'completed' && task.requires_approval && !isApprover) return false;
   return true;
 }
 
 async function advanceStatus(task) {
-  const next = { pending: 'in_progress', in_progress: 'waiting_approval' }[task.status];
+  const next = { pending: 'in_progress' }[task.status];
   if (!next) return;
   try {
     await api.put(`/v1/dept/tasks/${task.id}/status`, { status: next });
     task.status = next;
-    showToast(next === 'in_progress' ? 'Task started' : 'Submitted for approval');
+    showToast('Task started');
     refreshCurrentView(true);
   } catch (e) {
     showToast(e.response?.data?.message || 'Could not update task', 'error');
@@ -1661,12 +1648,10 @@ async function advanceStatus(task) {
 
 async function completeTask(task) {
   if (task.status === 'completed') return;
-  // Approval tasks can't be self-completed — step to waiting_approval instead.
-  const target = canComplete(task) ? 'completed' : 'waiting_approval';
   try {
-    await api.put(`/v1/dept/tasks/${task.id}/status`, { status: target });
-    task.status = target;
-    showToast(target === 'completed' ? 'Task completed' : 'Submitted for approval');
+    await api.put(`/v1/dept/tasks/${task.id}/status`, { status: 'completed' });
+    task.status = 'completed';
+    showToast('Task completed');
     refreshCurrentView(true);
   } catch (e) {
     showToast(e.response?.data?.message || 'Could not update task', 'error');
@@ -1686,7 +1671,7 @@ function statCardClick(card) {
 const unreadNotifs = computed(() => notifications.value.filter(n => !n.read_at));
 
 function notifTypeLabel(type) {
-  return { assigned: 'ASSIGNED', approval_needed: 'NEEDS APPROVAL', completed: 'COMPLETED', rejected: 'CHANGES REQUESTED', overdue: 'OVERDUE' }[type] ?? 'TASK';
+  return { assigned: 'ASSIGNED', completed: 'COMPLETED', overdue: 'OVERDUE' }[type] ?? 'TASK';
 }
 
 async function dismissNotif(n) {
@@ -1816,14 +1801,14 @@ function openTaskModal(task = null, deptId = null, dueDate = null) {
     Object.assign(form, {
       title: task.title, description: task.description || '', department_id: task.department_id,
       assigned_to: task.assigned_to || '', priority: task.priority, status: task.status,
-      due_date: task.due_date || '', requires_approval: !!task.requires_approval,
+      due_date: task.due_date || '',
       is_recurring: !!task.is_recurring, recurrence_type: task.recurrence_type || 'weekly',
     });
   } else {
     Object.assign(form, {
       title: '', description: '', department_id: deptId || '',
       assigned_to: isAdmin.value ? '' : currentUserId.value,
-      priority: 'medium', status: 'pending', due_date: dueDate || '', requires_approval: true,
+      priority: 'medium', status: 'pending', due_date: dueDate || '',
       is_recurring: false, recurrence_type: 'weekly',
     });
   }
@@ -1908,7 +1893,7 @@ async function quickUpdateStatus() {
   }
 }
 
-// Assignee steps their own task forward (Start → Submit/Complete)
+// Assignee steps their own task forward (Start → Complete)
 async function detailAdvance(status) {
   if (!selectedTask.value) return;
   try {
@@ -1916,41 +1901,12 @@ async function detailAdvance(status) {
     selectedTask.value.status = status;
     quickStatus.value = status;
     showToast({
-      in_progress:      'Task started',
-      waiting_approval: 'Submitted for approval',
-      completed:        'Task completed',
+      in_progress: 'Task started',
+      completed:   'Task completed',
     }[status] || 'Status updated');
     refreshCurrentView(true);
   } catch (e) {
     showToast(e.response?.data?.message || 'Could not update status', 'error');
-  }
-}
-
-// Approver approves a submitted task → completed
-async function approveTask() {
-  if (!selectedTask.value) return;
-  try {
-    await api.put(`/v1/dept/tasks/${selectedTask.value.id}/status`, { status: 'completed' });
-    selectedTask.value.status = 'completed';
-    quickStatus.value = 'completed';
-    showToast('Task approved');
-    refreshCurrentView(true);
-  } catch (e) {
-    showToast(e.response?.data?.message || 'Could not approve task', 'error');
-  }
-}
-
-// Approver sends a submitted task back for changes → in_progress (notifies assignee)
-async function rejectTask() {
-  if (!selectedTask.value) return;
-  try {
-    await api.put(`/v1/dept/tasks/${selectedTask.value.id}/status`, { status: 'in_progress' });
-    selectedTask.value.status = 'in_progress';
-    quickStatus.value = 'in_progress';
-    showToast('Sent back for changes');
-    refreshCurrentView(true);
-  } catch (e) {
-    showToast(e.response?.data?.message || 'Could not update task', 'error');
   }
 }
 
@@ -2133,14 +2089,9 @@ async function onDrop(event, targetStatus) {
   dragTask.value = null;
   if (!task || task.status === targetStatus) return;
 
-  // Block moves the server would reject (e.g. assignee dragging into Completed)
+  // Block moves the server would reject (e.g. non-admin reopening a finished task)
   if (!canTransitionClient(task, targetStatus)) {
-    showToast(
-      targetStatus === 'completed'
-        ? 'This task needs approval — open it and submit for approval.'
-        : 'You can’t move this task there.',
-      'error',
-    );
+    showToast('You can’t move this task there.', 'error');
     return;
   }
 
@@ -2249,7 +2200,7 @@ body { font-family:Arial,'Helvetica Neue',sans-serif; font-size:10px; color:#000
 .empty-msg { text-align:center; padding:40px; color:#888; font-size:12px; }
 `;
 
-const _SL = s => ({ pending:'Pending', in_progress:'In Progress', waiting_approval:'Waiting Approval', completed:'Completed', cancelled:'Cancelled' }[s] ?? s);
+const _SL = s => ({ pending:'Pending', in_progress:'In Progress', completed:'Completed', cancelled:'Cancelled' }[s] ?? s);
 const _SU = s => _SL(s).toUpperCase();
 const _PU = p => (p ?? '—').toUpperCase();
 
@@ -2461,6 +2412,45 @@ async function executeExport(format) {
   }
 }
 
+// ─── Calendar export (Excel, month-grid layout — CSV can't represent a grid) ──
+const calendarExportModal = ref({ open: false, loading: false, includeClosed: false });
+
+function openCalendarExportModal() {
+  calendarExportModal.value = { open: true, loading: false, includeClosed: showClosed.value };
+}
+
+async function exportCalendar() {
+  calendarExportModal.value.loading = true;
+  try {
+    const month  = toLocalDate(calendarMonth.value).slice(0, 7); // 'YYYY-MM'
+    const params = new URLSearchParams({ month });
+    if (boardFilters.department_id)        params.set('department_id', boardFilters.department_id);
+    if (boardFilters.assigned_to)          params.set('assigned_to', boardFilters.assigned_to);
+    if (calendarExportModal.value.includeClosed) params.set('show_closed', '1');
+
+    const token = localStorage.getItem('crm_token');
+    const resp  = await fetch(`/api/v1/dept/tasks/calendar-export?${params}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!resp.ok) throw new Error(`Server error ${resp.status}`);
+    const blob = await resp.blob();
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = `Task_Calendar_${month}.xls`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 500);
+    calendarExportModal.value.open = false;
+    showToast('Calendar exported');
+  } catch (e) {
+    showToast('Could not export calendar', 'error');
+  } finally {
+    calendarExportModal.value.loading = false;
+  }
+}
+
 // ─── Debounce ─────────────────────────────────────────────────────────────────
 let searchTimer = null;
 function debouncedLoadTable() {
@@ -2554,6 +2544,7 @@ function handleEscapeKey(e) {
   if (showDeleteConfirm.value) { showDeleteConfirm.value = false; return; }
   if (renameModal.show)        { renameModal.show = false; return; }
   if (exportModal.value.open)  { exportModal.value.open = false; return; }
+  if (calendarExportModal.value.open) { calendarExportModal.value.open = false; return; }
   if (dayTasksModal.open)      { dayTasksModal.open = false; return; }
   if (showModal.value)         { showModal.value = false; return; }
   if (selectedTask.value)      { selectedTask.value = null; return; }
@@ -2800,8 +2791,6 @@ select.field-input { cursor: pointer; }
 }
 .mw-check:hover .mw-check-ring { border-color: #16a34a; background: #16a34a18; }
 .mw-check--done { color: #16a34a; cursor: default; }
-.mw-check--locked { color: var(--text-3); cursor: default; }
-.mw-check--locked svg { width: 14px; height: 14px; }
 
 .mw-prio { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
 .mw-main { flex: 1; min-width: 0; }
@@ -2817,10 +2806,6 @@ select.field-input { cursor: pointer; }
   color: #1d4ed8; background: #dbeafe; padding: 1px 7px; border-radius: 999px;
 }
 .mw-action { flex-shrink: 0; }
-.mw-chip-wait {
-  font-size: 11.5px; font-weight: 600; color: #92400e;
-  background: #fef3c7; padding: 4px 10px; border-radius: 999px; white-space: nowrap;
-}
 .mw-row--done .mw-title { color: var(--text-3); text-decoration: line-through; }
 
 /* ── Read-only field (non-admin assignee display) ────────────────────────── */
@@ -2986,7 +2971,6 @@ select.field-input { cursor: pointer; }
 .status-badge { font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 999px; white-space: nowrap; }
 .st-pending          { background: var(--surface-2); color: var(--text-2); border: 1px solid var(--border); }
 .st-in_progress      { background: #dbeafe; color: #1d4ed8; }
-.st-waiting_approval { background: #fef3c7; color: #92400e; }
 .st-completed        { background: #dcfce7; color: #15803d; }
 .st-cancelled        { background: var(--surface-2); color: var(--text-3); text-decoration: line-through; }
 .st-overdue          { background: #fee2e2 !important; color: #991b1b !important; }
@@ -3036,16 +3020,6 @@ select.field-input { cursor: pointer; }
 .dp-action-row  { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding: 14px 22px; min-height: 52px; }
 .dp-util-row    { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding: 10px 22px 12px; border-top: 1px solid var(--border); background: var(--surface-2); }
 .dp-no-action           { font-size: 13px; color: var(--text-3); font-style: italic; }
-.dp-no-action--waiting  { color: #92400e; background: #fef3c7; border-radius: var(--radius-sm); padding: 4px 10px; font-style: normal; font-weight: 500; }
-
-/* Approval notice chip (approver row) */
-.dp-approval-notice {
-  display: inline-flex; align-items: center; gap: 5px;
-  font-size: 12px; font-weight: 600; color: #92400e;
-  background: #fef3c7; border: 1px solid #fcd34d;
-  padding: 4px 10px; border-radius: 999px; margin-right: 4px;
-}
-.dp-approval-notice svg { width: 13px; height: 13px; }
 
 /* Task closed / done state notes */
 .dp-status-note {
@@ -3089,9 +3063,7 @@ select.field-input { cursor: pointer; }
 /* notification type tags */
 .ntag              { font-size: 9px; font-weight: 700; padding: 2px 5px; border-radius: 4px; flex-shrink: 0; white-space: nowrap; align-self: flex-start; margin-top: 2px; }
 .ntag-assigned         { background: #dbeafe; color: #1d4ed8; }
-.ntag-approval_needed  { background: #fef3c7; color: #92400e; }
 .ntag-completed        { background: #dcfce7; color: #15803d; }
-.ntag-rejected         { background: #fee2e2; color: #b91c1c; }
 .ntag-overdue          { background: #fff7ed; color: #c2410c; }
 
 /* ── Task notification strip (below tabs) ────────────────────────────────── */

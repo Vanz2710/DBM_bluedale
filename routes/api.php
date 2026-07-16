@@ -387,6 +387,7 @@ Route::middleware(['auth:sanctum', 'maintenance'])->group(function () {
             Route::get('tasks',                                              [DeptTaskController::class, 'index']);
             Route::post('tasks',                                             [DeptTaskController::class, 'store']);
             Route::get('tasks/export',                                       [DeptTaskController::class, 'export']);
+            Route::get('tasks/calendar-export',                             [DeptTaskController::class, 'calendarExport']);
             Route::get('tasks/{id}',                                         [DeptTaskController::class, 'show']);
             Route::put('tasks/{id}',                                         [DeptTaskController::class, 'update']);
             Route::delete('tasks/{id}',                                      [DeptTaskController::class, 'destroy']);

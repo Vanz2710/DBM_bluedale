@@ -421,13 +421,17 @@ class ContactController extends Controller
         }
 
         $validated = $request->validate([
-            'from_user_id' => 'required|integer|exists:users,id',
-            'to_user_id'   => 'required|integer|exists:users,id|different:from_user_id',
+            'from_user_id'  => 'required|integer|exists:users,id',
+            'to_user_id'    => 'required|integer|exists:users,id|different:from_user_id',
+            'contact_ids'   => 'nullable|array',
+            'contact_ids.*' => 'integer|exists:contacts,id',
         ]);
 
-        $count = Contact::where('user_id', $validated['from_user_id'])->count();
-        Contact::where('user_id', $validated['from_user_id'])
-            ->update(['user_id' => $validated['to_user_id']]);
+        $scoped = fn () => Contact::where('user_id', $validated['from_user_id'])
+            ->when(!empty($validated['contact_ids']), fn ($q) => $q->whereIn('id', $validated['contact_ids']));
+
+        $count = $scoped()->count();
+        $scoped()->update(['user_id' => $validated['to_user_id']]);
 
         return response()->json(['status' => 'success', 'count' => $count]);
     }

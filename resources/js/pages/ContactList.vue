@@ -918,6 +918,10 @@
                 </td>
                 <td class="col-action" @click.stop>
                   <div class="action-btns">
+                    <button v-if="can('create todos')" class="action-chip chip-task" title="Add To-Do" @click="openAddTaskModal(c)">
+                      <span class="chip-icon" v-html="CI.clipboard"></span>
+                      <span class="chip-label">To-Do</span>
+                    </button>
                     <button v-if="can('edit contacts') && c.can_edit" class="action-chip chip-edit" title="Edit Contact" @click="openEditContactModal(c)">
                       <span class="chip-icon" v-html="CI.edit"></span>
                       <span class="chip-label">Edit</span>

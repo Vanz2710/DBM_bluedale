@@ -20,8 +20,6 @@
 
     <div v-if="selectedIds.length > 0" class="selection-bar">
       <button class="btn-export-sel" @click="openExportModal(true)">Export {{ selectedIds.length }} selected</button>
-      <button v-if="can('edit todos')" class="btn-done-sel" @click="markSelectedDone">Set as Done</button>
-      <button v-if="can('edit todos')" class="btn-pending-sel" @click="markSelectedPending">Revert to Pending</button>
       <span>{{ selectedIds.length }} record(s) selected</span>
     </div>
 
@@ -118,13 +116,13 @@
             <col style="width:92px">   <!-- date -->
             <col style="width:110px">  <!-- status -->
             <col style="width:80px">   <!-- type -->
-            <col>                      <!-- company - absorbs remaining space -->
-            <col style="width:70px">   <!-- user -->
+            <col style="min-width:200px"> <!-- company - absorbs remaining space -->
+            <col style="width:100px">  <!-- user -->
             <col style="width:140px">  <!-- task -->
             <col style="width:124px">  <!-- remark -->
-            <col style="width:100px">  <!-- follow-ups -->
+            <col style="width:90px">   <!-- follow-ups -->
             <col style="width:88px">   <!-- last f/u -->
-            <col style="width:130px">  <!-- actions -->
+            <col style="width:178px">  <!-- actions -->
           </colgroup>
           <thead>
             <tr>
@@ -180,7 +178,7 @@
               <td class="td-company" @click.stop>
                 <router-link :to="`/contacts/${t.contact_id}`" class="company-link">{{ t.contact_name }}</router-link>
               </td>
-              <td>{{ t.user ?? '—' }}</td>
+              <td class="td-user">{{ t.user ?? '—' }}</td>
               <td class="td-task" @click.stop>
                 <div class="task-chip-wrap">
                   <span v-if="t.task" class="task-chip">{{ t.task }}</span>
@@ -208,16 +206,6 @@
               </td>
               <td @click.stop>
                 <div class="actions-cell">
-                  <button v-if="can('edit todos') && t.can_edit && t.completion_status !== 'completed'"
-                    class="icon-btn btn-complete" title="Mark complete" aria-label="Mark complete"
-                    :disabled="completing === t.id"
-                    @click="markDone(t)" v-html="CI.check">
-                  </button>
-                  <button v-if="can('edit todos') && t.can_edit && t.completion_status === 'completed'"
-                    class="icon-btn btn-undo" title="Mark pending" aria-label="Mark pending"
-                    :disabled="completing === t.id"
-                    @click="markPending(t)" v-html="CI.undo">
-                  </button>
                   <button v-if="can('create followups') && t.can_edit" class="fu-add-btn" title="Add a follow-up for this to-do" @click="openFollowUpModal(t)">+ F/U</button>
                   <button v-if="can('edit todos') && t.can_edit" class="icon-btn btn-edit" title="Edit" aria-label="Edit to-do" @click="openEditModal(t)" v-html="CI.edit"></button>
                   <button v-if="can('delete todos') && t.can_edit" class="icon-btn btn-delete" title="Delete to-do" aria-label="Delete to-do" @click="openDeleteTodoModal(t)" v-html="CI.trash"></button>
@@ -544,30 +532,6 @@
   </div>
 
   <Teleport to="body">
-    <div v-if="followUpPrompt.open" class="conf-overlay" @mousedown.self="dismissFollowUpPrompt">
-      <div class="conf-modal" role="dialog" aria-modal="true" aria-labelledby="fu-prompt-title">
-        <div class="conf-head">
-          <div>
-            <p class="conf-title" id="fu-prompt-title">Pending Follow-Ups</p>
-            <p class="conf-sub">This to-do has {{ followUpPrompt.count }} pending follow-up{{ followUpPrompt.count !== 1 ? 's' : '' }}.</p>
-          </div>
-          <button class="conf-close" @click="dismissFollowUpPrompt"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
-        </div>
-        <div class="conf-body">
-          <svg class="conf-warn" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><circle cx="12" cy="16" r="1" fill="var(--primary)" stroke="none"/>
-          </svg>
-          <p class="conf-text">Mark all {{ followUpPrompt.count }} pending follow-up{{ followUpPrompt.count !== 1 ? 's' : '' }} as complete too?</p>
-        </div>
-        <div class="conf-foot">
-          <button class="conf-cancel" @click="dismissFollowUpPrompt">Skip</button>
-          <button class="conf-followup-ok" :disabled="followUpPrompt.loading" @click="completeFollowUps">
-            {{ followUpPrompt.loading ? 'Completing…' : 'Yes, mark complete' }}
-          </button>
-        </div>
-      </div>
-    </div>
-
     <div v-if="deleteTodoModal.open" class="conf-overlay" @mousedown.self="closeDeleteTodoModal">
       <div class="conf-modal" role="dialog" aria-modal="true" aria-labelledby="delete-todo-title">
         <div class="conf-head">
@@ -975,28 +939,6 @@ async function executeExport(format = 'xls') {
   }
 }
 
-async function markSelectedDone() {
-  const pending = todos.value.filter(t => selectedIds.value.includes(t.id) && t.can_edit && t.completion_status !== 'completed');
-  if (!pending.length) return;
-  try {
-    await Promise.all(pending.map(t => api.patch(`/v1/todos/${t.id}/status`, { status: 'completed' }).then(() => { t.completion_status = 'completed'; })));
-    selectedIds.value = [];
-  } catch (err) {
-    toast('Failed to update some to-dos. Please try again.', 'error');
-  }
-}
-
-async function markSelectedPending() {
-  const completed = todos.value.filter(t => selectedIds.value.includes(t.id) && t.can_edit && t.completion_status === 'completed');
-  if (!completed.length) return;
-  try {
-    await Promise.all(completed.map(t => api.patch(`/v1/todos/${t.id}/status`, { status: 'pending' }).then(() => { t.completion_status = 'pending'; })));
-    selectedIds.value = [];
-  } catch (err) {
-    toast('Failed to update some to-dos. Please try again.', 'error');
-  }
-}
-
 // Search autocomplete
 const suggestions     = ref([]);
 const showSuggestions = ref(false);
@@ -1029,62 +971,6 @@ function onSearchBlur() {
   setTimeout(() => { showSuggestions.value = false; }, 160);
 }
 
-const followUpPrompt = reactive({ open: false, todoId: null, count: 0, loading: false });
-const completing = ref(null);
-
-async function markDone(todo) {
-  completing.value = todo.id;
-  try {
-    await api.patch(`/v1/todos/${todo.id}/status`, { status: 'completed' });
-    todo.completion_status = 'completed';
-    // Non-blocking check for pending follow-ups
-    try {
-      const res = await api.get('/v1/followups', {
-        params: { todo_id: todo.id, completion_status: 'pending', per_page: 1, view: 'DateRange', from_date: '2000-01-01', to_date: '2099-12-31' },
-      });
-      const count = res.data.meta?.total ?? 0;
-      if (count > 0) {
-        followUpPrompt.todoId = todo.id;
-        followUpPrompt.count  = count;
-        followUpPrompt.open   = true;
-      }
-    } catch (_) { /* non-critical */ }
-  } catch (e) {
-    toast(e.response?.data?.message ?? 'Failed to update to-do. Please try again.', 'error');
-  } finally {
-    completing.value = null;
-  }
-}
-
-async function markPending(todo) {
-  completing.value = todo.id;
-  try {
-    await api.patch(`/v1/todos/${todo.id}/status`, { status: 'pending' });
-    todo.completion_status = 'pending';
-  } catch (e) {
-    toast(e.response?.data?.message ?? 'Failed to update to-do. Please try again.', 'error');
-  } finally {
-    completing.value = null;
-  }
-}
-
-async function completeFollowUps() {
-  followUpPrompt.loading = true;
-  try {
-    await api.patch(`/v1/todos/${followUpPrompt.todoId}/complete-followups`);
-  } catch (e) {
-    toast(e.response?.data?.message ?? 'Failed to complete follow-ups.', 'error');
-  } finally {
-    followUpPrompt.open    = false;
-    followUpPrompt.todoId  = null;
-    followUpPrompt.loading = false;
-  }
-}
-
-function dismissFollowUpPrompt() {
-  followUpPrompt.open   = false;
-  followUpPrompt.todoId = null;
-}
 
 // Edit To-Do modal
 function openEditModal(todo) {
@@ -1245,7 +1131,6 @@ function handleModalEscape(e) {
   if (remarkModal.value.open) { closeRemarkModal(); return; }
   if (taskChangeModal.value.open) { closeTaskChangeModal(); return; }
   if (deleteTodoModal.open) { closeDeleteTodoModal(); return; }
-  if (followUpPrompt.open) { dismissFollowUpPrompt(); return; }
   if (editModal.value.open) { closeEditModal(); return; }
   if (fuModal.value.open) { closeFuModal(); return; }
   if (addModal.value.open) { closeAddModal(); return; }
@@ -1347,16 +1232,6 @@ onMounted(async () => {
   padding: 6px 16px; cursor: pointer; font-size: 13px; font-weight: 600;
 }
 .btn-export-sel:hover { filter: brightness(0.9); }
-.btn-done-sel {
-  background: var(--primary); color: white; border: none; border-radius: 999px;
-  padding: 6px 16px; cursor: pointer; font-size: 13px; font-weight: 600;
-}
-.btn-done-sel:hover { background: var(--primary-hover); }
-.btn-pending-sel {
-  background: var(--surface); color: var(--text-2); border: 1px solid var(--border);
-  border-radius: 999px; padding: 6px 16px; cursor: pointer; font-size: 13px; font-weight: 600;
-}
-.btn-pending-sel:hover { background: var(--surface-2); }
 
 /* Toolbar */
 .toolbar {
@@ -1405,8 +1280,8 @@ onMounted(async () => {
 .record-count { display: flex; align-items: center; gap: 10px; }
 .count-label { font-size: 14px; font-weight: 700; color: var(--text-1); letter-spacing: -0.2px; }
 .count-badge { background: var(--primary-soft); color: var(--primary-text); font-size: 11.5px; font-weight: 700; padding: 4px 12px; border-radius: 999px; }
-.table-scroll { overflow-x: hidden; }
-table { width: 100%; border-collapse: collapse; font-size: 12px; table-layout: fixed; }
+.table-scroll { overflow-x: auto; }
+table { width: 100%; min-width: 1320px; border-collapse: collapse; font-size: 12px; table-layout: fixed; }
 thead th {
   background: var(--surface-2); color: var(--text-2); font-size: 11px; font-weight: 700;
   text-transform: uppercase; letter-spacing: 0.55px; padding: 10px 12px;
@@ -1417,6 +1292,7 @@ thead th:last-child { border-right: none; }
 tbody td { padding: 8px 12px; border-bottom: 1px solid var(--border-soft); border-right: 1px solid var(--border-soft); color: var(--text-1); vertical-align: middle; font-size: 13px; white-space: nowrap; overflow: hidden; }
 tbody td.td-company { white-space: normal; word-break: break-word; overflow: visible; }
 tbody td.td-task { white-space: normal; overflow: visible; }
+tbody td.td-user { white-space: normal; word-break: break-word; overflow: visible; }
 tbody td:last-child { border-right: none; }
 tbody tr:last-child td { border-bottom: none; }
 tbody tr:hover { background: var(--surface-2); }
@@ -1455,10 +1331,6 @@ tbody tr:hover { background: var(--surface-2); }
   cursor: pointer; border: none; transition: background 0.12s, transform 0.06s;
 }
 .icon-btn:active { transform: scale(0.92); }
-.btn-complete { background: var(--success-soft); color: var(--success); }
-.btn-complete:hover { background: var(--success); color: #fff; }
-.btn-undo { background: var(--surface-2); color: var(--text-2); }
-.btn-undo:hover { background: var(--text-2); color: var(--surface); }
 .btn-edit { background: var(--warning-soft); }
 .btn-edit:hover { background: color-mix(in srgb, var(--warning) 40%, white); }
 .btn-delete { background: var(--danger-soft); color: var(--danger); }
@@ -1477,7 +1349,7 @@ tbody tr:hover { background: var(--surface-2); }
 }
 .fu-add-btn:hover { background: color-mix(in srgb, var(--followup) 40%, white); border-color: color-mix(in srgb, var(--followup) 55%, white); }
 .fu-add-btn:active { transform: scale(0.93); }
-.actions-cell { display: flex; gap: 4px; align-items: center; }
+.actions-cell { display: flex; gap: 4px; align-items: center; flex-wrap: nowrap; }
 
 /* Month input */
 .month-input {

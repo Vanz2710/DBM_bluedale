@@ -301,7 +301,11 @@
         </div>
         <div class="reassign-info">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-          Transfer all contacts owned by one user to another — useful when a staff member leaves or changes role.
+          Transfer contacts owned by one user to another — useful when a staff member leaves or changes role.
+        </div>
+        <div class="reassign-mode-toggle">
+          <button type="button" class="mode-btn" :class="{ active: reassignMode === 'all' }" @click="setReassignMode('all')">All contacts</button>
+          <button type="button" class="mode-btn" :class="{ active: reassignMode === 'specific' }" @click="setReassignMode('specific')">Select specific contacts</button>
         </div>
         <div class="reassign-grid">
           <div class="form-field">
@@ -322,6 +326,39 @@
             </select>
           </div>
         </div>
+
+        <div v-if="reassignMode === 'specific' && reassignForm.from_user_id" class="reassign-contacts-picker">
+          <div v-if="reassignContactsLoading" class="reassign-contacts-loading">Loading contacts…</div>
+          <div v-else-if="reassignContacts.length === 0" class="reassign-contacts-empty">
+            This user owns no contacts.
+          </div>
+          <template v-else>
+            <div class="reassign-contacts-search">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <input type="text" v-model="reassignContactSearch" placeholder="Search contacts…">
+              <button v-if="reassignContactSearch" type="button" class="reassign-search-clear" @click="reassignContactSearch = ''" aria-label="Clear search">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+            <div class="reassign-contacts-head">
+              <label class="reassign-select-all">
+                <input type="checkbox" :checked="allContactsSelected" @change="toggleSelectAllContacts">
+                Select all ({{ filteredReassignContacts.length }})
+              </label>
+              <span class="reassign-selected-count">{{ selectedContactIds.size }} selected</span>
+            </div>
+            <div class="reassign-contacts-list">
+              <div v-if="filteredReassignContacts.length === 0" class="reassign-contacts-empty">
+                No contacts match "{{ reassignContactSearch }}".
+              </div>
+              <label v-for="c in filteredReassignContacts" :key="c.id" class="reassign-contact-row">
+                <input type="checkbox" :checked="selectedContactIds.has(c.id)" @change="toggleContact(c.id)">
+                <span>{{ c.name }}</span>
+              </label>
+            </div>
+          </template>
+        </div>
+
         <div v-if="reassignError" class="form-error" style="padding: 0 20px 16px;">{{ reassignError }}</div>
         <div v-if="reassignResult !== null" class="reassign-success">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
@@ -329,9 +366,9 @@
         </div>
         <div class="form-actions" style="padding: 0 20px 20px;">
           <button class="btn btn-danger"
-            :disabled="!reassignForm.from_user_id || !reassignForm.to_user_id || reassignLoading"
+            :disabled="!canSubmitReassign || reassignLoading"
             @click="openReassignConfirm">
-            Reassign All Contacts
+            {{ reassignMode === 'specific' ? `Reassign Selected Contacts (${selectedContactIds.size})` : 'Reassign All Contacts' }}
           </button>
         </div>
       </div>
@@ -344,7 +381,7 @@
           <div class="modal-head">
             <div>
               <div class="modal-title">Confirm Bulk Reassign</div>
-              <div class="modal-sub">This will move all contacts to the new owner.</div>
+              <div class="modal-sub">{{ reassignMode === 'specific' ? 'This will move the selected contacts to the new owner.' : 'This will move all contacts to the new owner.' }}</div>
             </div>
             <button class="modal-close" @click="reassignModal.open = false"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
           </div>
@@ -354,7 +391,7 @@
               <line x1="12" y1="9" x2="12" y2="13"/><circle cx="12" cy="17" r="1" fill="#f59e0b" stroke="none"/>
             </svg>
             <p class="modal-confirm-text">
-              Move <strong>all contacts</strong> from
+              Move <strong>{{ reassignMode === 'specific' ? `${selectedContactIds.size} selected contact(s)` : 'all contacts' }}</strong> from
               <strong>{{ activeUsers.find(u => u.id == reassignForm.from_user_id)?.name }}</strong>
               to
               <strong>{{ activeUsers.find(u => u.id == reassignForm.to_user_id)?.name }}</strong>?
@@ -943,7 +980,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue';
+import { ref, reactive, computed, watch, onMounted } from 'vue';
 import api from '../api.js';
 import LoadingSpinner from '../components/LoadingSpinner.vue';
 
@@ -1571,8 +1608,72 @@ const reassignError  = ref('');
 const reassignLoading = ref(false);
 const reassignModal = reactive({ open: false, loading: false });
 
+const reassignMode = ref('all'); // 'all' | 'specific'
+const reassignContacts = ref([]);
+const reassignContactsLoading = ref(false);
+const reassignContactSearch = ref('');
+const selectedContactIds = ref(new Set());
+
+const filteredReassignContacts = computed(() => {
+  const q = reassignContactSearch.value.trim().toLowerCase();
+  if (!q) return reassignContacts.value;
+  return reassignContacts.value.filter(c => c.name.toLowerCase().includes(q));
+});
+const allContactsSelected = computed(() =>
+  filteredReassignContacts.value.length > 0 &&
+  filteredReassignContacts.value.every(c => selectedContactIds.value.has(c.id))
+);
+const canSubmitReassign = computed(() => {
+  if (!reassignForm.from_user_id || !reassignForm.to_user_id) return false;
+  if (reassignMode.value === 'specific') return selectedContactIds.value.size > 0;
+  return true;
+});
+
+function setReassignMode(mode) {
+  if (reassignMode.value === mode) return;
+  reassignMode.value = mode;
+  reassignError.value = '';
+  if (mode === 'specific' && reassignForm.from_user_id) loadReassignContacts();
+}
+
+function toggleContact(id) {
+  const next = new Set(selectedContactIds.value);
+  if (next.has(id)) next.delete(id); else next.add(id);
+  selectedContactIds.value = next;
+}
+
+function toggleSelectAllContacts() {
+  const next = new Set(selectedContactIds.value);
+  const selectAll = !allContactsSelected.value;
+  for (const c of filteredReassignContacts.value) {
+    if (selectAll) next.add(c.id); else next.delete(c.id);
+  }
+  selectedContactIds.value = next;
+}
+
+async function loadReassignContacts() {
+  reassignContactsLoading.value = true;
+  reassignContacts.value = [];
+  reassignContactSearch.value = '';
+  selectedContactIds.value = new Set();
+  try {
+    const res = await api.get('/v1/contacts', {
+      params: { user_id: reassignForm.from_user_id, per_page: 500, sort_by: 'name', sort_dir: 'asc' },
+    });
+    reassignContacts.value = res.data.data ?? [];
+  } catch (e) {
+    reassignError.value = 'Could not load contacts for this user.';
+  } finally {
+    reassignContactsLoading.value = false;
+  }
+}
+
+watch(() => reassignForm.from_user_id, () => {
+  if (reassignMode.value === 'specific') loadReassignContacts();
+});
+
 function openReassignConfirm() {
-  if (!reassignForm.from_user_id || !reassignForm.to_user_id) return;
+  if (!canSubmitReassign.value) return;
   reassignModal.loading = false;
   reassignModal.open = true;
 }
@@ -1582,13 +1683,19 @@ async function confirmReassign() {
   reassignError.value = '';
   reassignResult.value = null;
   try {
-    const res = await api.post('/v1/contacts/bulk-reassign', {
+    const payload = {
       from_user_id: reassignForm.from_user_id,
       to_user_id:   reassignForm.to_user_id,
-    });
+    };
+    if (reassignMode.value === 'specific') {
+      payload.contact_ids = Array.from(selectedContactIds.value);
+    }
+    const res = await api.post('/v1/contacts/bulk-reassign', payload);
     reassignResult.value = res.data.count;
     reassignForm.from_user_id = '';
     reassignForm.to_user_id   = '';
+    reassignContacts.value = [];
+    selectedContactIds.value = new Set();
     reassignModal.open = false;
   } catch (e) {
     reassignError.value = e.response?.data?.message ?? 'Reassignment failed.';
@@ -1948,6 +2055,60 @@ tbody tr:hover { background: var(--app-bg); }
 .reassign-arrow {
   color: var(--text-3); padding-bottom: 6px; flex-shrink: 0;
 }
+.reassign-mode-toggle {
+  display: flex; gap: 0; margin: 0 20px 18px;
+  border: 1.5px solid var(--border); border-radius: var(--radius-sm);
+  overflow: hidden; width: fit-content;
+}
+.mode-btn {
+  padding: 8px 16px; border: none; border-right: 1.5px solid var(--border);
+  background: var(--surface); font-size: 12.5px; font-weight: 600;
+  color: var(--text-3); cursor: pointer; transition: background .15s, color .15s;
+}
+.mode-btn:last-child { border-right: none; }
+.mode-btn:hover:not(.active) { background: var(--app-bg); color: var(--text-1); }
+.mode-btn.active { background: var(--primary); color: #fff; }
+.reassign-contacts-picker {
+  margin: 0 20px 20px; border: 1px solid var(--border); border-radius: var(--radius);
+  background: var(--surface); overflow: hidden;
+}
+.reassign-contacts-loading, .reassign-contacts-empty {
+  padding: 20px; text-align: center; font-size: 13px; color: var(--text-3);
+}
+.reassign-contacts-search {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 12px; border-bottom: 1px solid var(--border);
+  background: var(--surface); color: var(--text-3);
+}
+.reassign-contacts-search input {
+  flex: 1; border: none; outline: none; box-shadow: none; background: transparent;
+  font-size: 13px; color: var(--text-1); min-width: 0;
+}
+.reassign-contacts-search input::placeholder { color: var(--text-3); }
+.reassign-search-clear {
+  display: flex; align-items: center; justify-content: center;
+  border: none; background: none; padding: 2px; color: var(--text-3);
+  cursor: pointer; border-radius: 50%; flex-shrink: 0;
+}
+.reassign-search-clear:hover { color: var(--text-1); background: var(--app-bg); }
+.reassign-contacts-list .reassign-contacts-empty { padding: 16px; }
+.reassign-contacts-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 14px; background: var(--app-bg); border-bottom: 1px solid var(--border);
+}
+.reassign-select-all {
+  display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600;
+  color: var(--text-1); cursor: pointer;
+}
+.reassign-select-all input[type="checkbox"] { width: 15px; height: 15px; cursor: pointer; accent-color: var(--primary); }
+.reassign-selected-count { font-size: 12px; color: var(--text-3); font-weight: 600; }
+.reassign-contacts-list { max-height: 260px; overflow-y: auto; padding: 4px 0; }
+.reassign-contact-row {
+  display: flex; align-items: center; gap: 10px; padding: 8px 14px;
+  font-size: 13px; color: var(--text-1); cursor: pointer; transition: background .1s;
+}
+.reassign-contact-row:hover { background: var(--app-bg); }
+.reassign-contact-row input[type="checkbox"] { width: 15px; height: 15px; cursor: pointer; accent-color: var(--primary); flex-shrink: 0; }
 .reassign-success {
   display: flex; align-items: center; gap: 6px;
   margin: 0 20px 16px; padding: 10px 14px;

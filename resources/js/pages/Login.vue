@@ -11,7 +11,7 @@
         </div>
 
         <div class="left-bottom">
-          <h2 class="left-heading">Bluedale CRM System</h2>
+          <h2 class="left-heading">CRM Bluedale (new 2026)</h2>
           <p class="left-sub">Your complete CRM workspace — built for the Bluedale team.</p>
         </div>
 

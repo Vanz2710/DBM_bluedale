@@ -42,7 +42,6 @@ class DeptTaskController extends Controller
                 COUNT(*) as total,
                 SUM(status = 'pending') as pending,
                 SUM(status = 'in_progress') as in_progress,
-                SUM(status = 'waiting_approval') as waiting,
                 SUM(status = 'completed') as completed,
                 SUM(status = 'cancelled') as cancelled,
                 SUM(status NOT IN ('completed','cancelled') AND due_date IS NOT NULL AND due_date < CURDATE()) as overdue
@@ -52,7 +51,6 @@ class DeptTaskController extends Controller
         $total      = (int) ($statsRow->total ?? 0);
         $pending    = (int) ($statsRow->pending ?? 0);
         $inProgress = (int) ($statsRow->in_progress ?? 0);
-        $waiting    = (int) ($statsRow->waiting ?? 0);
         $completed  = (int) ($statsRow->completed ?? 0);
         $cancelled  = (int) ($statsRow->cancelled ?? 0);
         $overdue    = (int) ($statsRow->overdue ?? 0);
@@ -78,7 +76,6 @@ class DeptTaskController extends Controller
         $byStatus = [
             ['label' => 'Pending',          'value' => $pending,    'color' => '#94a3b8'],
             ['label' => 'In Progress',       'value' => $inProgress, 'color' => '#3b82f6'],
-            ['label' => 'Waiting Approval',  'value' => $waiting,    'color' => '#f59e0b'],
             ['label' => 'Completed',         'value' => $completed,  'color' => '#10b981'],
             ['label' => 'Cancelled',         'value' => $cancelled,  'color' => '#6b7280'],
         ];
@@ -118,7 +115,7 @@ class DeptTaskController extends Controller
             ->map(fn($t) => $this->formatTask($t));
 
         return response()->json([
-            'stats'        => compact('total', 'pending', 'inProgress', 'waiting', 'completed', 'cancelled', 'overdue'),
+            'stats'        => compact('total', 'pending', 'inProgress', 'completed', 'cancelled', 'overdue'),
             'byDepartment' => $byDepartment,
             'byStatus'     => $byStatus,
             'weeklyRate'   => $weeklyRate,
@@ -274,7 +271,7 @@ class DeptTaskController extends Controller
         $sortDir = $request->sort_dir === 'asc' ? 'asc' : 'desc';
         $q->orderBy($sortBy, $sortDir);
 
-        $statusLabel = fn($s) => ['pending' => 'Pending', 'in_progress' => 'In Progress', 'waiting_approval' => 'Waiting Approval', 'completed' => 'Completed', 'cancelled' => 'Cancelled'][$s] ?? $s;
+        $statusLabel = fn($s) => ['pending' => 'Pending', 'in_progress' => 'In Progress', 'completed' => 'Completed', 'cancelled' => 'Cancelled'][$s] ?? $s;
 
         $getVal = fn($t, $col) => match ($col) {
             'no'          => null,
@@ -346,6 +343,116 @@ class DeptTaskController extends Controller
         ]);
     }
 
+    // Renders the Calendar tab's current month as an actual month-grid worksheet
+    // (not a row list — CSV can't represent a grid, so this format is Excel-only).
+    // Uses the same HTML-table-as-.xls trick as export() above for consistency.
+    public function calendarExport(Request $request)
+    {
+        $authUser = $request->user();
+        $isAdmin  = $this->isAdmin($request);
+
+        $monthInput = (string) $request->input('month', '');
+        $monthStart = preg_match('/^\d{4}-\d{2}$/', $monthInput)
+            ? Carbon::createFromFormat('Y-m-d', $monthInput . '-01')->startOfMonth()
+            : Carbon::today()->startOfMonth();
+
+        // Same Monday-first, 6-week (42-day) grid the Calendar tab renders client-side.
+        $gridStart = $monthStart->copy()->startOfWeek(Carbon::MONDAY);
+        $gridEnd   = $gridStart->copy()->addDays(41);
+
+        $showClosed = $request->boolean('show_closed');
+
+        $q = DeptTask::with(['department', 'assignee:id,name'])
+            ->whereBetween('due_date', [$gridStart->toDateString(), $gridEnd->toDateString()]);
+
+        if (!$isAdmin) {
+            $q->where('assigned_to', $authUser->id);
+        } elseif ($request->filled('assigned_to')) {
+            $q->where('assigned_to', $request->assigned_to);
+        }
+        if ($request->filled('department_id')) {
+            $q->where('department_id', $request->department_id);
+        }
+        if (!$showClosed) {
+            $q->whereNotIn('status', ['completed', 'cancelled']);
+        }
+        $q->orderByRaw("FIELD(priority, 'critical','high','medium','low')");
+
+        $byDate = [];
+        foreach ($q->get() as $t) {
+            $byDate[$t->due_date->toDateString()][] = $t;
+        }
+
+        $scopeLabel = $isAdmin
+            ? ($request->filled('assigned_to') ? 'Assignee: ' . (User::find($request->assigned_to)?->name ?? '—') : 'All Tasks')
+            : 'My Tasks';
+        if ($request->filled('department_id')) {
+            $dept = Department::find($request->department_id);
+            $scopeLabel .= $dept ? ' · ' . $dept->name : '';
+        }
+
+        $priorityColor = fn($p) => ['critical' => '#dc2626', 'high' => '#f97316', 'medium' => '#3b82f6', 'low' => '#64748b'][$p] ?? '#64748b';
+        $weekdays      = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+        $filename      = 'Task_Calendar_' . $monthStart->format('Y-m') . '.xls';
+
+        return response()->stream(function () use ($monthStart, $gridStart, $byDate, $scopeLabel, $priorityColor, $weekdays) {
+            $esc = fn($v) => htmlspecialchars((string) ($v ?? ''), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+
+            $titleStyle = 'font-family:Arial,sans-serif;font-size:14pt;font-weight:bold;color:#000000;padding:8pt;border:1pt solid #000000;background:#ffffff;';
+            $metaStyle  = 'font-family:Arial,sans-serif;font-size:9pt;color:#555555;padding:0 8pt 8pt;border:1pt solid #000000;border-top:none;background:#ffffff;';
+            $wkStyle    = 'font-family:Arial,sans-serif;font-size:10pt;font-weight:bold;color:#ffffff;background:#1d4ed8;border:1pt solid #000000;padding:5pt;text-align:center;';
+            $wkEndStyle = 'font-family:Arial,sans-serif;font-size:10pt;font-weight:bold;color:#ffffff;background:#1e40af;border:1pt solid #000000;padding:5pt;text-align:center;';
+
+            echo "\xEF\xBB\xBF";
+            echo '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">';
+            echo '<head><meta charset="UTF-8"><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>Calendar</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]--></head>';
+            echo '<body><table style="border-collapse:collapse;"><colgroup>';
+            for ($i = 0; $i < 7; $i++) { echo '<col style="width:120pt">'; }
+            echo '</colgroup>';
+
+            echo '<tr><td colspan="7" style="' . $titleStyle . '">Task Calendar &mdash; ' . $esc($monthStart->format('F Y')) . '</td></tr>';
+            echo '<tr><td colspan="7" style="' . $metaStyle . '">' . $esc($scopeLabel) . ' &middot; Generated ' . $esc(now()->format('d M Y, g:i A')) . '</td></tr>';
+
+            echo '<tr>';
+            foreach ($weekdays as $i => $wd) {
+                echo '<th style="' . ($i >= 5 ? $wkEndStyle : $wkStyle) . '">' . $esc($wd) . '</th>';
+            }
+            echo '</tr>';
+
+            $cursor = $gridStart->copy();
+            for ($week = 0; $week < 6; $week++) {
+                echo '<tr style="height:80pt;">';
+                for ($day = 0; $day < 7; $day++) {
+                    $iso     = $cursor->toDateString();
+                    $inMonth = $cursor->month === $monthStart->month;
+                    $isToday = $iso === now()->toDateString();
+                    $weekend = $day >= 5;
+
+                    $bg       = $isToday ? '#fef3c7' : ($inMonth ? ($weekend ? '#f8fafc' : '#ffffff') : '#f1f5f9');
+                    $numColor = $inMonth ? '#000000' : '#94a3b8';
+                    $tdStyle  = "font-family:Arial,sans-serif;font-size:8.5pt;color:#000000;border:1pt solid #cbd5e1;background:{$bg};padding:4pt;vertical-align:top;mso-data-placement:same-cell;";
+
+                    echo '<td style="' . $tdStyle . '">';
+                    echo '<span style="font-weight:bold;color:' . $numColor . ';font-size:10pt;">' . $cursor->day . '</span><br>';
+                    foreach (($byDate[$iso] ?? []) as $t) {
+                        $marker = '<span style="color:' . $priorityColor($t->priority) . ';">&#9632;</span>';
+                        $label  = $esc($t->title) . ($t->assignee ? ' (' . $esc($t->assignee->name) . ')' : '');
+                        echo $marker . ' ' . $label . '<br>';
+                    }
+                    echo '</td>';
+                    $cursor->addDay();
+                }
+                echo '</tr>';
+            }
+
+            echo '</table></body></html>';
+        }, 200, [
+            'Content-Type'        => 'application/vnd.ms-excel; charset=UTF-8',
+            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+            'X-Accel-Buffering'   => 'no',
+        ]);
+    }
+
     public function store(Request $request): JsonResponse
     {
         // Task creation is admin-only for now. To let users create their own tasks,
@@ -360,9 +467,8 @@ class DeptTaskController extends Controller
             'department_id'   => 'required|exists:departments,id',
             'assigned_to'     => 'nullable|exists:users,id',
             'priority'        => 'required|in:low,medium,high,critical',
-            'status'          => 'nullable|in:pending,in_progress,waiting_approval,completed,cancelled',
+            'status'          => 'nullable|in:pending,in_progress,completed,cancelled',
             'due_date'        => 'nullable|date',
-            'requires_approval' => 'boolean',
             'is_recurring'    => 'boolean',
             'recurrence_type' => 'nullable|in:daily,weekly,monthly,quarterly',
         ]);
@@ -424,20 +530,14 @@ class DeptTaskController extends Controller
             abort(403, 'You are not allowed to edit this task.');
         }
 
-        // Freeze edits while awaiting approval — only admins may still change details
-        if ($task->status === 'waiting_approval' && !$this->isAdmin($request)) {
-            abort(403, 'This task is pending approval and cannot be edited.');
-        }
-
         $data = $request->validate([
             'title'             => 'sometimes|required|string|max:255',
             'description'       => 'nullable|string',
             'department_id'     => 'sometimes|exists:departments,id',
             'assigned_to'       => 'nullable|exists:users,id',
             'priority'          => 'sometimes|in:low,medium,high,critical',
-            'status'            => 'sometimes|in:pending,in_progress,waiting_approval,completed,cancelled',
+            'status'            => 'sometimes|in:pending,in_progress,completed,cancelled',
             'due_date'          => 'nullable|date',
-            'requires_approval' => 'boolean',
             'is_recurring'      => 'boolean',
             'recurrence_type'   => 'nullable|in:daily,weekly,monthly,quarterly',
         ]);
@@ -468,7 +568,6 @@ class DeptTaskController extends Controller
             ]);
         }
 
-        $this->maybeNotifyApproval($task, $oldStatus, $request->user());
         $this->maybeSpawnRecurrence($task, $oldStatus);
 
         return response()->json($this->formatTask($task));
@@ -495,7 +594,7 @@ class DeptTaskController extends Controller
     public function updateStatus(Request $request, int $id): JsonResponse
     {
         $data = $request->validate([
-            'status'         => 'required|in:pending,in_progress,waiting_approval,completed,cancelled',
+            'status'         => 'required|in:pending,in_progress,completed,cancelled',
             'board_position' => 'nullable|integer',
         ]);
 
@@ -508,30 +607,16 @@ class DeptTaskController extends Controller
         $task->update($data);
         $task->load(['department', 'assignee:id,name,email', 'creator:id,name']);
 
-        $this->maybeNotifyApproval($task, $oldStatus, $actor);
         $this->maybeSpawnRecurrence($task, $oldStatus);
 
-        // Approver sent the task back for changes (waiting_approval → in_progress)
-        if ($oldStatus === 'waiting_approval' && $task->status === 'in_progress'
-            && $task->assigned_to && $task->assigned_to !== $actor->id) {
-            DeptNotification::create([
-                'user_id' => $task->assigned_to,
-                'task_id' => $task->id,
-                'type'    => 'rejected',
-                'message' => "{$actor->name} requested changes on \"{$task->title}\".",
-            ]);
-        }
-
-        // Notify assignee when someone else completes (or approves) their task
+        // Notify assignee when someone else completes their task
         if ($task->status === 'completed' && $oldStatus !== 'completed'
             && $task->assigned_to && $task->assigned_to !== $actor->id) {
             DeptNotification::create([
                 'user_id' => $task->assigned_to,
                 'task_id' => $task->id,
                 'type'    => 'completed',
-                'message' => $oldStatus === 'waiting_approval'
-                    ? "Your task \"{$task->title}\" was approved and marked complete."
-                    : "Your task \"{$task->title}\" has been marked as completed.",
+                'message' => "Your task \"{$task->title}\" has been marked as completed.",
             ]);
         }
 
@@ -784,14 +869,6 @@ class DeptTaskController extends Controller
 
     /**
      * Enforce the task workflow state machine.
-     *
-     * Approver = an admin who is NOT the task's assignee (no self-approval).
-     * Assignee  = the person doing the work.
-     *
-     * Approval gate: requires_approval tasks must pass through waiting_approval
-     * before reaching completed, and only an approver (non-assignee admin) can
-     * make that final step. Even admins who are also the assignee must submit
-     * and have another admin approve.
      */
     private function assertCanTransition(DeptTask $task, string $to, $user): void
     {
@@ -803,8 +880,6 @@ class DeptTaskController extends Controller
         $isAdmin    = $user->hasAnyRole(['admin', 'super-admin']);
         $isAssignee = $task->assigned_to === $user->id;
         $isCreator  = $task->created_by  === $user->id;
-        // Approver = admin who is not doing the work themselves
-        $isApprover = $isAdmin && !$isAssignee;
 
         // Must be involved with the task.
         if (!$isAdmin && !$isAssignee && !$isCreator) {
@@ -819,40 +894,6 @@ class DeptTaskController extends Controller
         // Reopening a finished task is admin-only.
         if (in_array($from, ['completed', 'cancelled'], true) && !$isAdmin) {
             abort(403, 'Only an admin can reopen a finished task.');
-        }
-
-        // Only the assignee (to withdraw) or an approver (to approve/reject) may act on a submitted task.
-        if ($from === 'waiting_approval' && !$isApprover && !$isAssignee) {
-            abort(403, 'Only the assignee or an approver can act on a submitted task.');
-        }
-
-        // Sequential guard: completed must come from waiting_approval for approval tasks.
-        // This blocks pending→completed and in_progress→completed shortcuts for everyone.
-        if ($to === 'completed' && $task->requires_approval && $from !== 'waiting_approval') {
-            abort(422, 'This task must be submitted for approval before it can be marked complete.');
-        }
-
-        // Approval gate: only a non-assignee admin can move a submitted task to completed.
-        if ($to === 'completed' && $task->requires_approval && !$isApprover) {
-            abort(403, 'This task requires admin approval. You cannot approve your own work.');
-        }
-    }
-
-    private function maybeNotifyApproval(DeptTask $task, string $oldStatus, $actor): void
-    {
-        if ($task->status !== 'waiting_approval' || $oldStatus === 'waiting_approval') {
-            return;
-        }
-
-        // Notify all admins who are not the submitter — they are the potential approvers.
-        $admins = User::role(['admin', 'super-admin'])->where('id', '!=', $actor->id)->pluck('id');
-        foreach ($admins as $adminId) {
-            DeptNotification::create([
-                'user_id' => $adminId,
-                'task_id' => $task->id,
-                'type'    => 'approval_needed',
-                'message' => "{$actor->name} submitted \"{$task->title}\" for approval.",
-            ]);
         }
     }
 
@@ -888,7 +929,6 @@ class DeptTaskController extends Controller
             'priority'          => $task->priority,
             'status'            => 'pending',
             'due_date'          => $nextDue,
-            'requires_approval' => $task->requires_approval,
             'is_recurring'      => true,
             'recurrence_type'   => $task->recurrence_type,
             'board_position'    => DeptTask::where('department_id', $task->department_id)->where('status', 'pending')->count(),
@@ -924,7 +964,6 @@ class DeptTaskController extends Controller
             'due_date'        => $task->due_date?->format('Y-m-d'),
             'due_date_fmt'    => $task->due_date?->format('d M Y'),
             'is_overdue'      => $task->is_overdue,
-            'requires_approval'=> $task->requires_approval,
             'is_recurring'    => $task->is_recurring,
             'recurrence_type' => $task->recurrence_type,
             'next_recurrence_date' => $task->next_recurrence_date?->format('d M Y'),

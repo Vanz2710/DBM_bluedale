@@ -273,7 +273,7 @@ function handleTaskNotif(item) {
 }
 
 function taskTypeLabel(type) {
-  return { assigned: 'ASSIGNED', approval_needed: 'NEEDS APPROVAL', completed: 'COMPLETED', rejected: 'CHANGES REQUESTED', overdue: 'OVERDUE' }[type] ?? 'TASK';
+  return { assigned: 'ASSIGNED', completed: 'COMPLETED', overdue: 'OVERDUE' }[type] ?? 'TASK';
 }
 
 function tagClass(item) {

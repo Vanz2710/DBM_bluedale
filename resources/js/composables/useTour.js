@@ -600,13 +600,13 @@ export const PAGE_TOURS = {
     {
       target: '.page-header-actions',
       title: 'Create a New Task',
-      body: 'Click New Task to assign work to any team member. Set the title, department, assignee, priority (Low / Medium / High / Critical), due date, and whether the task requires approval before it can be marked complete.',
+      body: 'Click New Task to assign work to any team member. Set the title, department, assignee, priority (Low / Medium / High / Critical), and due date.',
       position: 'bottom-left',
     },
     {
       target: '[data-tour="deptask-tab-dashboard"]',
       title: 'Dashboard — Stats at a Glance',
-      body: 'Live counts for total, overdue, in-progress, waiting approval, and completed tasks. Click any stat card to jump to the Table filtered to those tasks. Charts show breakdown by department, status, and weekly completion rate.',
+      body: 'Live counts for total, overdue, in-progress, and completed tasks. Click any stat card to jump to the Table filtered to those tasks. Charts show breakdown by department, status, and weekly completion rate.',
       position: 'bottom',
     },
     {
@@ -630,7 +630,7 @@ export const PAGE_TOURS = {
     {
       target: '[data-tour="deptask-tab-board"]',
       title: 'Board — Kanban View',
-      body: 'Tasks appear as draggable cards across columns: Pending → In Progress → Waiting Approval → Completed. Drag a card to move it. Overdue cards are flagged in red. Click any card to view details, add comments, attach files, approve or reject submissions, or override the status directly.',
+      body: 'Tasks appear as draggable cards across columns: Pending → In Progress → Completed. Drag a card to move it. Overdue cards are flagged in red. Click any card to view details, add comments, attach files, or override the status directly.',
       position: 'bottom',
     },
     {
@@ -669,7 +669,7 @@ export const PAGE_TOURS = {
     {
       target: '.mw-action',
       title: 'Advance a Task',
-      body: 'Each row has a quick action button. Start begins a Pending task. Complete finishes it — or Submit if the task requires approval first. It then moves to Awaiting Approval until an admin reviews and approves it.',
+      body: 'Each row has a quick action button. Start begins a Pending task. Complete finishes it right away.',
       position: 'bottom',
     },
     {
