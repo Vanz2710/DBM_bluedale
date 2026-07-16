@@ -506,7 +506,7 @@
                 <span class="sort-indicator" v-html="tableSort.field === 'due_date' ? (tableSort.dir === 'asc' ? ICO.sortAsc : ICO.sortDesc) : ICO.sortNone"></span>
               </th>
               <th @click="toggleSort('department_id')" class="sortable">Dept</th>
-              <th @click="toggleSort('title')" class="sortable">
+              <th @click="toggleSort('title')" class="sortable col-details">
                 Details / Task
                 <span class="sort-indicator" v-html="tableSort.field === 'title' ? (tableSort.dir === 'asc' ? ICO.sortAsc : ICO.sortDesc) : ICO.sortNone"></span>
               </th>
@@ -515,7 +515,7 @@
                 <th @click="toggleSort('priority')" class="sortable">Priority</th>
                 <th @click="toggleSort('status')" class="sortable">Status</th>
               </template>
-              <th>Actions</th>
+              <th class="col-actions">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -534,8 +534,11 @@
                   {{ task.department?.name }}
                 </span>
               </td>
-              <td>
-                <span class="task-cell-title">{{ task.title }}</span><span v-if="task.description" class="task-cell-desc"> - {{ task.description }}</span>
+              <td class="col-details" :title="task.description || task.title">
+                <div class="task-cell-wrap">
+                  <span class="task-cell-title">{{ task.title }}</span>
+                  <span v-if="task.description" class="task-cell-desc">{{ task.description }}</span>
+                </div>
               </td>
               <template v-if="tableExpanded">
                 <td class="text-2">{{ task.assignee?.name || '—' }}</td>
@@ -815,7 +818,8 @@
               <span v-else-if="selectedTask.status === 'completed'" class="dp-status-note dp-status-note--done"><span v-html="ICO.check"></span> Task completed</span>
               <span v-else-if="selectedTask.status === 'cancelled'" class="dp-status-note">Task cancelled</span>
 
-              <span v-else class="dp-no-action">No action available</span>
+              <span v-else-if="isAdmin || selectedTask.created_by === currentUserId" class="dp-status-note">Use the controls below to update this task</span>
+              <span v-else class="dp-no-action">Only {{ selectedTask.assignee?.name || 'the assignee' }} can update this task</span>
             </div>
 
             <!-- Row 2: Admin / creator utilities -->
@@ -2588,7 +2592,11 @@ onMounted(async () => {
     weeklyAssigneeFilter.value  = currentUserName.value;
   }
 
-  await loadBoardTasks();
+  if (currentView.value === 'dashboard') {
+    await loadDashboard();
+  } else {
+    await loadBoardTasks();
+  }
   loadNotifications();
 });
 </script>
@@ -2938,7 +2946,14 @@ select.field-input { cursor: pointer; }
 .filter-actions { display: flex; gap: 6px; margin-left: auto; }
 
 /* ── Table ────────────────────────────────────────────────────────────────── */
-.table-wrap  { border: 1px solid var(--border); border-radius: var(--radius); overflow-x: auto; }
+.table-wrap  {
+  border: 1px solid var(--border); border-radius: var(--radius); overflow-x: auto;
+  scrollbar-width: thin; scrollbar-color: var(--border) transparent;
+}
+.table-wrap::-webkit-scrollbar { height: 10px; }
+.table-wrap::-webkit-scrollbar-track { background: transparent; }
+.table-wrap::-webkit-scrollbar-thumb { background: var(--border); border-radius: 999px; }
+.table-wrap::-webkit-scrollbar-thumb:hover { background: var(--text-3); }
 .data-table  { width: 100%; border-collapse: collapse; font-size: 12.5px; }
 .data-table.compact { font-size: 12.5px; }
 .data-table thead tr { background: var(--surface-2); }
@@ -2960,10 +2975,22 @@ select.field-input { cursor: pointer; }
 .data-table tr:last-child td { border-bottom: none; }
 .data-table tr:hover td { background: var(--surface-2); }
 .table-row   { cursor: pointer; }
-.actions-cell { white-space: nowrap; }
+.actions-cell {
+  white-space: nowrap; width: 1%;
+  position: sticky; right: 0; background: var(--surface); box-shadow: -6px 0 8px -6px rgba(15,23,42,0.12);
+}
+.col-actions  {
+  width: 1%; position: sticky; right: 0; background: var(--surface-2);
+  box-shadow: -6px 0 8px -6px rgba(15,23,42,0.12);
+}
 .empty-cell  { text-align: center; color: var(--text-3); padding: 32px; }
-.task-cell-title { font-weight: 700; color: var(--text-1); }
-.task-cell-desc  { font-weight: 400; color: var(--text-3); }
+.col-details      { min-width: 260px; max-width: 420px; white-space: normal; }
+.task-cell-wrap   { display: flex; flex-direction: column; gap: 2px; padding: 3px 0; }
+.task-cell-title  { font-weight: 700; font-size: 15px; line-height: 1.35; color: var(--text-1); }
+.task-cell-desc   {
+  font-weight: 400; font-size: 14px; line-height: 1.4; color: var(--text-1);
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
 
 /* ── Pills / tags ─────────────────────────────────────────────────────────── */
 .priority-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex-shrink: 0; margin-right: 4px; }
