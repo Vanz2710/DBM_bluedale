@@ -211,6 +211,7 @@ import { ref, computed, onMounted, reactive } from 'vue';
 import { useRoute } from 'vue-router';
 import api from '../api.js';
 import LoadingSpinner from '../components/LoadingSpinner.vue';
+import { useLookups } from '../composables/useLookups.js';
 
 const TAB_GROUPS = [
   {
@@ -246,6 +247,12 @@ const TAB_GROUPS = [
 ];
 
 const tabs = TAB_GROUPS.flatMap(g => g.tabs);
+
+// Admin edits here (statuses/types/categories/industries/tasks/forecast lookups/etc.)
+// must bust the useLookups() module-level singleton, or pages relying on it
+// (ForecastList, ForecastSummary, ForecastFormModal) keep showing the pre-edit list
+// for the rest of the browser session.
+const { invalidate: invalidateLookups } = useLookups();
 
 // Curated defaults for the simple swatch picker — the native <input type="color">
 // (full OS palette) is tucked behind "Advanced" for anyone who wants a precise hex.
@@ -321,6 +328,7 @@ async function confirmMerge() {
     mergeModal.open   = false;
     selectedIds.value = [];
     await loadItems();
+    invalidateLookups();
     showToast(`Merged ${mergedCount} item(s) into "${name}".`);
   } catch (e) {
     const errors = e.response?.data?.errors;
@@ -369,6 +377,7 @@ async function addItem() {
     items.value.push(res.data.data ?? res.data);
     newName.value = '';
     if (isColorTab.value) { newColor.value = '#1d4ed8'; newColorAdvanced.value = false; }
+    invalidateLookups();
   } catch (e) {
     const errors = e.response?.data?.errors;
     addError.value = errors
@@ -402,6 +411,7 @@ async function saveEdit(item) {
     const idx = items.value.findIndex(i => i.id === item.id);
     if (idx !== -1) items.value[idx] = updated;
     cancelEdit();
+    invalidateLookups();
   } catch (e) {
     const errors = e.response?.data?.errors;
     editError.value = errors
@@ -419,6 +429,7 @@ async function confirmDeleteItem() {
     items.value = items.value.filter(i => i.id !== deleteModal.item.id);
     selectedIds.value = selectedIds.value.filter(id => id !== deleteModal.item.id);
     closeDeleteModal();
+    invalidateLookups();
   } catch (e) {
     addError.value = e.response?.data?.message ?? 'Failed to delete item.';
     closeDeleteModal();
