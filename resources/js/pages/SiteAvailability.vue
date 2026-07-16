@@ -19,48 +19,85 @@
     <div v-if="error" class="error-msg">{{ error }}</div>
 
     <div class="action-bar">
-      <div class="action-bar-filters">
-        <div class="field">
-          <label>Product</label>
-          <select v-model="productFilter" @change="load">
-            <option value="">All types</option>
-            <option v-for="product in productOptions" :key="product" :value="product">{{ product }}</option>
-          </select>
-        </div>
-        <div class="field">
-          <label>Search</label>
-          <input v-model="search" placeholder="Place or company…" @keyup.enter="load">
-        </div>
-        <button class="btn-search" @click="load">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          Search
-        </button>
-        <button class="btn-clear" @click="clearFilters">Clear</button>
-      </div>
-      <div class="action-bar-actions">
-        <div class="action-group-secondary">
-          <button class="btn-add" @click="openEntryModal()">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            Add Booking
+      <div class="action-bar-main">
+        <div class="action-bar-filters">
+          <div class="field">
+            <label>Product</label>
+            <select v-model="productFilter" @change="load">
+              <option value="">All types</option>
+              <option v-for="product in productOptions" :key="product" :value="product">{{ product }}</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Search</label>
+            <input v-model="search" placeholder="Place or company…" @keyup.enter="load">
+          </div>
+          <button class="btn-ghost-action" @click="load">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            Search
           </button>
-          <button type="button" class="btn-register" @click="openRegisterModal">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            Register Product
-          </button>
+          <button class="btn-ghost-action" @click="clearFilters">Clear</button>
         </div>
-        <div class="action-group-primary">
+        <div class="action-bar-actions">
           <button type="button" class="btn-map-toggle" :class="{ active: showMapView }" @click="toggleMapView">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>
             {{ showMapView ? 'Table View' : 'Map View' }}
           </button>
-          <button class="btn-proposal" :disabled="selectedProductIds.length === 0" @click="openProposalWizard">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-            Generate Proposal
-            <span v-if="selectedProductIds.length > 0" class="proposal-count">{{ selectedProductIds.length }}</span>
+          <button type="button" class="btn-ghost-action" @click="openRegisterModal">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Register Product
+          </button>
+          <button class="btn-add" @click="openEntryModal()">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Add Booking
           </button>
         </div>
       </div>
+
+      <div class="action-bar-landmark">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="10" r="3"/><path d="M12 2a8 8 0 0 0-8 8c0 5.25 8 14 8 14s8-8.75 8-14a8 8 0 0 0-8-8z"/></svg>
+        <span class="landmark-label">Near a Place</span>
+        <input v-model="landmarkQuery" class="landmark-query-input" placeholder="e.g. KLCC, Sunway Pyramid" @keyup.enter="searchLandmark">
+        <select v-model.number="landmarkRadiusKm" class="landmark-radius-select" aria-label="Search radius">
+          <option :value="1">1 km</option>
+          <option :value="3">3 km</option>
+          <option :value="5">5 km</option>
+          <option :value="10">10 km</option>
+          <option :value="15">15 km</option>
+        </select>
+        <button class="btn-ghost-action" :disabled="landmarkSearching || !landmarkQuery.trim()" @click="searchLandmark">
+          {{ landmarkSearching ? 'Finding…' : 'Find Nearby' }}
+        </button>
+      </div>
     </div>
+
+    <!-- Landmark search results banner -->
+    <div v-if="nearbyMode" class="landmark-banner">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="10" r="3"/><path d="M12 2a8 8 0 0 0-8 8c0 5.25 8 14 8 14s8-8.75 8-14a8 8 0 0 0-8-8z"/></svg>
+      <span>{{ displayRows.length }} site(s) within {{ landmarkRadiusKm }}km of "{{ landmarkResult.label }}"</span>
+      <button type="button" class="landmark-banner-clear" @click="clearLandmarkSearch">Clear</button>
+    </div>
+
+    <!-- Contextual selection bar — only appears once sites are ticked -->
+    <Transition name="selection-bar">
+      <div v-if="selectedProductIds.length > 0" class="selection-bar">
+        <div class="selection-bar-info">
+          <span class="selection-bar-count">{{ selectedProductIds.length }}</span>
+          <span>site{{ selectedProductIds.length === 1 ? '' : 's' }} selected</span>
+          <button type="button" class="selection-bar-clear" @click="selectedProductIds = []">Clear selection</button>
+        </div>
+        <div class="selection-bar-actions">
+          <button type="button" class="btn-compile" @click="openCompileModal">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+            Compile Sites
+          </button>
+          <button type="button" class="btn-proposal" @click="openProposalWizard">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+            Generate Proposal
+          </button>
+        </div>
+      </div>
+    </Transition>
 
     <!-- Staged for Review section — only shown when there are pending products -->
     <div v-if="pendingRows.length > 0" class="staged-section">
@@ -139,7 +176,7 @@
     <div class="table-card">
       <div class="table-title">
         <span class="table-title-name">Site Availability</span>
-        <span class="table-title-count">{{ confirmedRows.length }} Product(s)</span>
+        <span class="table-title-count">{{ displayRows.length }} Product(s)</span>
         <div class="table-title-controls">
           <div class="view-toggle">
             <button :class="{ active: tableViewMode === 'month' }" @click="tableViewMode = 'month'">Month</button>
@@ -173,7 +210,7 @@
           </tr>
           <tr>
             <th class="select-col" @click.stop>
-              <input type="checkbox" :checked="allRowsSelected" :disabled="confirmedRows.length === 0" @change="toggleAllRows">
+              <input type="checkbox" :checked="allRowsSelected" :disabled="displayRows.length === 0" @change="toggleAllRows">
             </th>
             <th class="place-col">Place</th>
             <th
@@ -196,8 +233,10 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-if="confirmedRows.length === 0">
-            <td :colspan="columns.length + 2" class="empty-state">No confirmed products yet. Register a product to get started.</td>
+          <tr v-if="displayRows.length === 0">
+            <td :colspan="columns.length + 2" class="empty-state">
+              {{ nearbyMode ? `No sites found within ${landmarkRadiusKm}km of "${landmarkResult.label}".` : 'No confirmed products yet. Register a product to get started.' }}
+            </td>
           </tr>
           <tr v-for="(row, i) in pagedRows" :key="row.id" class="product-row">
             <td class="select-col" @click.stop>
@@ -226,6 +265,7 @@
                   <span class="badge badge-product">{{ row.product_type }}</span>
                   <span class="badge" :class="`badge-status-${row.status.toLowerCase().replace(/ /g, '-')}`">{{ row.status }}</span>
                   <span class="badge badge-type">{{ row.type }}</span>
+                  <span v-if="nearbyMode && landmarkDistances.has(row.id)" class="badge badge-distance">{{ formatDistance(landmarkDistances.get(row.id)) }}</span>
                 </div>
               </div>
             </td>
@@ -504,6 +544,63 @@
         </div><!-- /detail-body -->
       </section>
     </div>
+
+    <!-- Compile Sites Modal — gallery for grabbing photos + Excel export for proposal copy/paste -->
+    <Teleport to="body">
+    <div v-if="compileModalOpen" class="modal-backdrop">
+      <section class="compile-modal" role="dialog" aria-modal="true">
+        <header class="compile-header">
+          <div>
+            <h2>Compile Sites</h2>
+            <p>{{ selectedProducts.length }} site(s) selected — click a photo to open it full-size for saving, or export the list below</p>
+          </div>
+          <button type="button" class="detail-close" @click="closeCompileModal">&times;</button>
+        </header>
+
+        <div class="compile-body">
+          <div v-if="selectedProducts.length === 0" class="compile-empty">No sites selected. Close this and tick sites from the table or map first.</div>
+          <div v-else class="compile-grid">
+            <article v-for="product in selectedProducts" :key="product.id" class="compile-card">
+              <button type="button" class="compile-card-remove" :aria-label="`Remove ${product.site_name} from compile list`" title="Remove from list" @click="removeFromCompile(product.id)">&times;</button>
+              <div class="compile-card-photos">
+                <a v-if="product.site_photo_url" class="compile-photo-link" :href="product.site_photo_url" target="_blank" rel="noopener" :download="`${product.site_name}-site-photo.jpg`" title="Open full-size / save photo">
+                  <img :src="product.site_photo_url" alt="Site photo">
+                  <span class="compile-photo-tag">Site Photo</span>
+                </a>
+                <div v-else class="compile-photo-placeholder">No site photo</div>
+                <a v-if="product.site_map_photo_url" class="compile-photo-link" :href="product.site_map_photo_url" target="_blank" rel="noopener" :download="`${product.site_name}-map-photo.jpg`" title="Open full-size / save photo">
+                  <img :src="product.site_map_photo_url" alt="Map photo">
+                  <span class="compile-photo-tag">Map</span>
+                </a>
+                <div v-else class="compile-photo-placeholder">No map photo</div>
+              </div>
+              <div class="compile-card-info">
+                <div class="compile-card-name" :title="product.site_name">{{ product.site_name }}</div>
+                <div class="compile-card-badges">
+                  <span class="badge badge-product">{{ product.product_type }}</span>
+                  <span class="badge" :class="`badge-status-${product.status.toLowerCase().replace(/ /g, '-')}`">{{ product.status }}</span>
+                  <span class="badge" :class="compileAvailability(product).busy ? 'badge-busy' : 'badge-available'">{{ compileAvailability(product).label }}</span>
+                </div>
+                <div class="compile-card-meta">
+                  <div v-if="product.size" class="compile-meta-row"><span class="compile-meta-label">Size</span><span class="compile-meta-value">{{ product.size }}</span></div>
+                  <div v-if="product.state_city" class="compile-meta-row"><span class="compile-meta-label">Area</span><span class="compile-meta-value">{{ product.state_city }}</span></div>
+                  <div v-if="product.coordinate" class="compile-meta-row"><span class="compile-meta-label">Coord</span><span class="compile-meta-value">{{ product.coordinate }}</span></div>
+                </div>
+              </div>
+            </article>
+          </div>
+        </div>
+
+        <footer class="compile-footer">
+          <button type="button" class="btn-clear" @click="closeCompileModal">Close</button>
+          <button type="button" class="btn-add" :disabled="compileExporting || selectedProducts.length === 0" @click="exportCompiledSites">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            {{ compileExporting ? 'Exporting…' : 'Export to Excel' }}
+          </button>
+        </footer>
+      </section>
+    </div>
+    </Teleport>
 
     <!-- Add / Edit Booking Modal -->
     <BookingEntryModal
@@ -1083,7 +1180,7 @@ const error = ref('');
 const search = ref('');
 const year = ref(new Date().getFullYear());
 const productFilter = ref('');
-const productOptions = ref(['Billboard', 'Temp Board', 'Lamp Post Bunting']);
+const productOptions = ref(['Billboard', 'Temp Board', 'Lamp Post Bunting', 'JKR Signage']);
 const statusOptions = ref(['Existing', 'Raw New']);
 const typeOptions = ref(['A1', 'A2', 'Ongoing', 'Reject']);
 const selectedProduct = ref(null);
@@ -1281,6 +1378,18 @@ const showMapView = ref(false);
 const mapEl = ref(null);
 let leafletMap = null;
 let mapMarkers = [];
+let landmarkMarker = null;
+let landmarkCircle = null;
+
+// Landmark ("near a place") search state
+const landmarkQuery = ref('');
+const landmarkRadiusKm = ref(5);
+const landmarkSearching = ref(false);
+const landmarkResult = ref(null); // { lat, lng, label }
+
+// Compile Sites modal state
+const compileModalOpen = ref(false);
+const compileExporting = ref(false);
 
 // Register Product modal state
 const showRegisterModal = ref(false);
@@ -1329,16 +1438,36 @@ const placeOptions = computed(() => [...confirmedRows.value].sort((a, b) => a.si
 const confirmedRows = computed(() => rows.value.filter((r) => !r.is_pending));
 const pendingRows = computed(() => rows.value.filter((r) => r.is_pending));
 
+// ── Landmark ("near a place") distance filter — layers on top of confirmedRows ──
+const nearbyMode = computed(() => !!landmarkResult.value);
+const landmarkDistances = computed(() => {
+  const map = new Map();
+  if (!landmarkResult.value) return map;
+  confirmedRows.value.forEach((row) => {
+    const coord = parseCoordinate(row.coordinate);
+    if (!coord) return;
+    const distanceKm = haversineKm(landmarkResult.value.lat, landmarkResult.value.lng, coord.lat, coord.lng);
+    if (distanceKm <= landmarkRadiusKm.value) map.set(row.id, distanceKm);
+  });
+  return map;
+});
+const displayRows = computed(() => {
+  if (!nearbyMode.value) return confirmedRows.value;
+  return confirmedRows.value
+    .filter((r) => landmarkDistances.value.has(r.id))
+    .sort((a, b) => landmarkDistances.value.get(a.id) - landmarkDistances.value.get(b.id));
+});
+
 // ── Pagination (client-side, table display only) ──
 const currentPage = ref(1);
 const rowsPerPage = ref(15);
-const totalPages = computed(() => Math.max(1, Math.ceil(confirmedRows.value.length / rowsPerPage.value)));
+const totalPages = computed(() => Math.max(1, Math.ceil(displayRows.value.length / rowsPerPage.value)));
 const pagedRows = computed(() => {
   const start = (currentPage.value - 1) * rowsPerPage.value;
-  return confirmedRows.value.slice(start, start + rowsPerPage.value);
+  return displayRows.value.slice(start, start + rowsPerPage.value);
 });
 const pageStartIndex = computed(() => (currentPage.value - 1) * rowsPerPage.value);
-const pageRangeEnd = computed(() => Math.min(pageStartIndex.value + rowsPerPage.value, confirmedRows.value.length));
+const pageRangeEnd = computed(() => Math.min(pageStartIndex.value + rowsPerPage.value, displayRows.value.length));
 const pageNumbers = computed(() => {
   const total = totalPages.value;
   const cur = currentPage.value;
@@ -1351,9 +1480,13 @@ function goToPage(pg) {
   if (pg === '...' || pg < 1 || pg > totalPages.value) return;
   currentPage.value = pg;
 }
-// Clamp current page if the row count shrinks (filter/delete/discard)
-watch([() => confirmedRows.value.length, rowsPerPage], () => {
+// Clamp current page if the row count shrinks (filter/delete/discard/landmark search)
+watch([() => displayRows.value.length, rowsPerPage], () => {
   if (currentPage.value > totalPages.value) currentPage.value = totalPages.value;
+});
+// Live-resize the map circle/marker when the radius is adjusted mid-search
+watch(landmarkRadiusKm, () => {
+  if (landmarkResult.value && showMapView.value) nextTick(refreshMapMarkers);
 });
 const stagedCollapsed = ref(false);
 const allRowsSelected = computed(() => pagedRows.value.length > 0 && pagedRows.value.every((row) => selectedProductIds.value.includes(row.id)));
@@ -1527,6 +1660,46 @@ function toggleProductSelection(productId) {
   }
 
   selectedProductIds.value = [...selectedProductIds.value, productId];
+}
+
+// --- Compile Sites modal ---
+function openCompileModal() { compileModalOpen.value = true; }
+function closeCompileModal() { compileModalOpen.value = false; }
+function removeFromCompile(productId) { toggleProductSelection(productId); }
+
+function compileAvailability(product) {
+  const now = new Date();
+  const booking = (product.bookings || []).find((b) => b.year === now.getFullYear() && b.month === now.getMonth() + 1);
+  if (!booking) return { label: 'Available', busy: false };
+  return { label: `Booked — ${booking.company_name}`, busy: true };
+}
+
+async function exportCompiledSites() {
+  if (selectedProductIds.value.length === 0) return;
+  compileExporting.value = true;
+  try {
+    const params = new URLSearchParams({ product_ids: selectedProductIds.value.join(',') });
+    const token = localStorage.getItem('crm_token');
+    const resp = await fetch(`/api/v1/site-availability/export?${params}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!resp.ok) throw new Error(`Server error ${resp.status}`);
+    const blob = await resp.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Site_Compile_${new Date().toISOString().slice(0, 10)}.xls`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 500);
+    showToast('Exported to Excel');
+  } catch (err) {
+    console.error('[Compile Export]', err);
+    showToast('Failed to export. Please try again.');
+  } finally {
+    compileExporting.value = false;
+  }
 }
 
 function toggleAllRows() {
@@ -2098,7 +2271,7 @@ function closeProposalWizard() {
 
 // ── Billboard overlay editor ──────────────────────────────────────────────────
 
-const BILLBOARD_TYPES = ['Billboard', 'Temp Board', 'Lamp Post Bunting']
+const BILLBOARD_TYPES = ['Billboard', 'Temp Board', 'Lamp Post Bunting', 'JKR Signage']
 function isBillboardType(type) { return BILLBOARD_TYPES.includes(type) }
 
 function openOverlayEditor(product) {
@@ -2459,6 +2632,48 @@ function parseCoordinate(coord) {
   return { lat: parts[0], lng: parts[1] };
 }
 
+// --- Landmark ("near a place") search ---
+function haversineKm(lat1, lng1, lat2, lng2) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) ** 2
+    + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function formatDistance(km) {
+  if (km == null) return '';
+  return km < 1 ? `${Math.round(km * 1000)}m away` : `${km.toFixed(1)}km away`;
+}
+
+async function searchLandmark() {
+  const q = landmarkQuery.value.trim();
+  if (!q) return;
+  landmarkSearching.value = true;
+  try {
+    const res = await api.get('/v1/site-availability/geocode', { params: { q } });
+    landmarkResult.value = {
+      lat: parseFloat(res.data.lat),
+      lng: parseFloat(res.data.lng),
+      label: res.data.display_name || q,
+    };
+    currentPage.value = 1;
+    if (showMapView.value) nextTick(refreshMapMarkers);
+  } catch (err) {
+    showToast(err.response?.data?.error || `Could not find a location for "${q}".`);
+  } finally {
+    landmarkSearching.value = false;
+  }
+}
+
+function clearLandmarkSearch() {
+  landmarkQuery.value = '';
+  landmarkResult.value = null;
+  currentPage.value = 1;
+  if (showMapView.value) nextTick(refreshMapMarkers);
+}
+
 // --- Google Maps link parsing (also used by the Register Product modal) ---
 function parseMapsLink(url) {
   // Normalise URL-encoded spaces after commas (Google search redirects use "lat,+lng")
@@ -2542,9 +2757,13 @@ function refreshMapMarkers() {
   if (!leafletMap) return;
   mapMarkers.forEach((m) => m.remove());
   mapMarkers = [];
+  if (landmarkMarker) { landmarkMarker.remove(); landmarkMarker = null; }
+  if (landmarkCircle) { landmarkCircle.remove(); landmarkCircle = null; }
   const bounds = [];
 
   rows.value.forEach((row) => {
+    if (nearbyMode.value && !landmarkDistances.value.has(row.id)) return;
+
     const coord = parseCoordinate(row.coordinate);
     if (!coord) return;
 
@@ -2570,6 +2789,20 @@ function refreshMapMarkers() {
     mapMarkers.push(marker);
     bounds.push([coord.lat, coord.lng]);
   });
+
+  if (landmarkResult.value) {
+    const pinIcon = L.divIcon({
+      html: `<div style="background:#f59e0b;width:32px;height:32px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);display:flex;align-items:center;justify-content:center;border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.4)"><div style="width:8px;height:8px;border-radius:50%;background:white;transform:rotate(45deg)"></div></div>`,
+      className: '', iconSize: [32, 32], iconAnchor: [16, 32], popupAnchor: [0, -30],
+    });
+    landmarkMarker = L.marker([landmarkResult.value.lat, landmarkResult.value.lng], { icon: pinIcon, zIndexOffset: 1000 })
+      .addTo(leafletMap)
+      .bindPopup(`<b>${landmarkResult.value.label}</b><br>Search center · ${landmarkRadiusKm.value}km radius`);
+    landmarkCircle = L.circle([landmarkResult.value.lat, landmarkResult.value.lng], {
+      radius: landmarkRadiusKm.value * 1000, color: '#f59e0b', fillColor: '#f59e0b', fillOpacity: 0.08, weight: 1.5,
+    }).addTo(leafletMap);
+    bounds.push([landmarkResult.value.lat, landmarkResult.value.lng]);
+  }
 
   if (bounds.length > 0) {
     leafletMap.fitBounds(bounds, { padding: [50, 50], maxZoom: 14 });
@@ -3004,8 +3237,11 @@ onMounted(() => {
 }
 /* Action bar */
 .action-bar {
-  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px;
-  margin-bottom: 12px; display: flex; justify-content: space-between; align-items: flex-end;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  margin-bottom: 12px; overflow: hidden;
+}
+.action-bar-main {
+  padding: 12px 14px; display: flex; justify-content: space-between; align-items: flex-end;
   gap: 14px; flex-wrap: wrap;
 }
 .action-bar-filters {
@@ -3014,14 +3250,35 @@ onMounted(() => {
 .action-bar-actions {
   display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
 }
-.action-group-secondary { display: flex; gap: 8px; }
-.action-group-primary { display: flex; gap: 8px; padding-left: 8px; border-left: 1px solid var(--border); }
-.btn-search {
+/* Secondary "near a place" search — visually set apart from the main filter row
+   as an opt-in tool, not another field competing with Product/Search for attention. */
+.action-bar-landmark {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 10px 14px; background: var(--surface-2); border-top: 1px solid var(--border); color: var(--text-2);
+}
+.action-bar-landmark > svg { flex-shrink: 0; color: var(--text-3); }
+.landmark-label {
+  font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.7px; color: var(--text-2); flex-shrink: 0;
+}
+.landmark-query-input {
+  height: 34px; border: 1.5px solid var(--border); border-radius: var(--radius-sm); padding: 0 12px;
+  font-size: 12.5px; outline: none; background: var(--surface); color: var(--text-1); flex: 1; min-width: 180px;
+}
+.landmark-query-input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); }
+.landmark-radius-select {
+  height: 34px; border: 1.5px solid var(--border); border-radius: var(--radius-sm); padding: 0 8px;
+  font-size: 12px; font-weight: 600; outline: none; background: var(--surface); color: var(--text-1); flex-shrink: 0;
+}
+/* Shared ghost/secondary button — filter-apply and occasional-use actions
+   (Search, Clear, Register Product, Find Nearby) all read at the same, de-emphasised
+   weight so the one true primary action (Add Booking, blue) stands out. */
+.btn-ghost-action {
   height: 36px; border: 1.5px solid var(--border); border-radius: var(--radius-sm); padding: 0 14px;
   font-size: 13px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;
-  background: var(--text-1); color: var(--primary-on);
+  background: var(--surface-2); color: var(--text-2); white-space: nowrap;
 }
-.btn-search:hover { opacity: 0.88; }
+.btn-ghost-action:hover:not(:disabled) { background: var(--border); color: var(--text-1); }
+.btn-ghost-action:disabled { opacity: 0.5; cursor: not-allowed; }
 .proposal-count {
   display: inline-flex; align-items: center; justify-content: center;
   min-width: 20px; height: 20px; padding: 0 5px;
@@ -3042,14 +3299,14 @@ onMounted(() => {
 }
 .field input:focus, .field select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); }
 .req-star { color: var(--danger); font-weight: 700; margin-left: 1px; }
-.btn-add, .btn-dark, .btn-clear, .btn-proposal {
+.btn-add, .btn-dark, .btn-clear, .btn-proposal, .btn-compile {
   height: 36px; border: none; border-radius: var(--radius-sm); padding: 0 16px;
   font-size: 13px; font-weight: 600; cursor: pointer;
   display: inline-flex; align-items: center; gap: 6px;
 }
 .btn-add { background: var(--primary); color: var(--primary-on); box-shadow: 0 6px 18px -6px rgba(29,78,216,0.4); }
 .btn-add:hover { background: var(--primary-hover); }
-.btn-add:disabled, .btn-proposal:disabled { background: var(--text-3); cursor: not-allowed; box-shadow: none; }
+.btn-add:disabled, .btn-proposal:disabled, .btn-compile:disabled { background: var(--text-3); cursor: not-allowed; box-shadow: none; }
 .btn-dark { background: var(--text-1); color: var(--primary-on); }
 .btn-dark:hover { opacity: 0.88; }
 .btn-clear { background: var(--surface-2); color: var(--text-2); border: 1px solid var(--border); }
@@ -3057,10 +3314,46 @@ onMounted(() => {
 /* Deliberately its own accent (not a theme token) — the one CTA that must read
    as distinct from the primary blue "Add" actions elsewhere on this page. */
 .btn-proposal { background: #0f766e; color: var(--primary-on); }
+.btn-compile { background: var(--primary-soft); color: var(--primary-text); }
+.btn-compile:hover:not(:disabled) { background: var(--border); }
 .error-msg {
   background: var(--danger-soft); color: var(--danger); border: 1px solid var(--danger-soft); border-radius: var(--radius-sm);
   padding: 10px 14px; margin-bottom: 14px; font-size: 13px; font-weight: 600;
 }
+.landmark-banner {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--info-soft); color: var(--info); border: 1px solid var(--info-soft); border-radius: var(--radius-sm);
+  padding: 9px 14px; margin-bottom: 14px; font-size: 12.5px; font-weight: 700;
+}
+.landmark-banner svg { flex-shrink: 0; }
+.landmark-banner span { flex: 1; }
+.landmark-banner-clear {
+  height: 26px; padding: 0 12px; border: none; border-radius: var(--radius-sm);
+  background: var(--surface); color: var(--info); font-size: 11.5px; font-weight: 700; cursor: pointer; flex-shrink: 0;
+}
+.landmark-banner-clear:hover { filter: brightness(0.95); }
+
+/* Contextual selection bar — replaces static, always-visible Compile/Proposal buttons.
+   Only takes up space once the user has actually ticked sites to act on. */
+.selection-bar {
+  display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;
+  background: var(--primary-text); color: var(--primary-on); border-radius: var(--radius);
+  padding: 10px 16px; margin-bottom: 12px;
+}
+.selection-bar-info { display: flex; align-items: center; gap: 10px; font-size: 13px; font-weight: 600; }
+.selection-bar-count {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 22px; height: 22px; padding: 0 6px;
+  background: var(--primary); border-radius: 999px; font-size: 12px; font-weight: 800;
+}
+.selection-bar-clear {
+  border: none; background: transparent; color: rgba(255,255,255,0.7);
+  font-size: 12px; font-weight: 600; text-decoration: underline; cursor: pointer; padding: 0;
+}
+.selection-bar-clear:hover { color: #fff; }
+.selection-bar-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.selection-bar-enter-active, .selection-bar-leave-active { transition: opacity 0.18s ease, transform 0.18s ease; }
+.selection-bar-enter-from, .selection-bar-leave-to { opacity: 0; transform: translateY(-6px); }
 .table-card {
   background: var(--surface); border-radius: var(--radius); border: 1px solid var(--border);
   overflow: hidden; position: relative;
@@ -3196,6 +3489,9 @@ onMounted(() => {
 .badge-type { background: var(--warning-soft); color: var(--warning); }
 .badge-status-existing { background: var(--success-soft); color: var(--success); }
 .badge-status-raw-new { background: var(--primary-soft); color: var(--primary-text); }
+.badge-distance { background: var(--info-soft); color: var(--info); }
+.badge-available { background: var(--success-soft); color: var(--success); }
+.badge-busy { background: var(--danger-soft); color: var(--danger); }
 
 /* Month header + cells — widths distributed by table-layout: fixed */
 .gantt-table .month-th { /* width auto-distributed */ }
@@ -3485,6 +3781,56 @@ onMounted(() => {
 .landmark-col-remove { width: 36px !important; padding: 10px 12px 10px 0 !important; }
 
 /* Wizard modal */
+/* Compile Sites modal */
+.compile-modal {
+  width: min(980px, 96vw); max-height: 88vh; background: var(--surface); color: var(--text-1);
+  display: flex; flex-direction: column; overflow: hidden; border-radius: var(--radius-lg);
+  box-shadow: 0 20px 60px rgba(0,0,0,0.22);
+}
+.compile-header {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  gap: 12px; padding: 18px 20px 14px; border-bottom: 1px solid var(--border); flex-shrink: 0;
+}
+.compile-header h2 { margin: 0 0 2px; font-size: 15px; font-weight: 700; color: var(--text-1); }
+.compile-header p { margin: 0; font-size: 12px; color: var(--text-2); font-weight: 500; max-width: 560px; }
+.compile-body { flex: 1; overflow: auto; padding: 20px; }
+.compile-empty { text-align: center; padding: 40px; color: var(--text-3); font-size: 13px; font-weight: 600; }
+.compile-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px;
+}
+.compile-card {
+  position: relative; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  overflow: hidden; box-shadow: var(--shadow-sm); display: flex; flex-direction: column;
+}
+.compile-card-remove {
+  position: absolute; top: 6px; right: 6px; z-index: 1; width: 22px; height: 22px;
+  border: none; border-radius: 50%; background: rgba(15,23,42,0.55); color: #fff;
+  font-size: 15px; line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center;
+}
+.compile-card-remove:hover { background: var(--danger); }
+.compile-card-photos { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--border); }
+.compile-photo-link { position: relative; display: block; aspect-ratio: 4/3; overflow: hidden; background: var(--surface-2); }
+.compile-photo-link img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.15s; }
+.compile-photo-link:hover img { transform: scale(1.05); }
+.compile-photo-tag {
+  position: absolute; left: 4px; bottom: 4px; padding: 1px 6px; border-radius: var(--radius-sm);
+  background: rgba(15,23,42,0.65); color: #fff; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px;
+}
+.compile-photo-placeholder {
+  aspect-ratio: 4/3; display: flex; align-items: center; justify-content: center;
+  background: var(--surface-2); color: var(--text-3); font-size: 10.5px; font-weight: 600; font-style: italic; text-align: center; padding: 8px;
+}
+.compile-card-info { padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 6px; }
+.compile-card-name { font-size: 12.5px; font-weight: 700; color: var(--text-1); line-height: 1.35; }
+.compile-card-badges { display: flex; flex-wrap: wrap; gap: 4px; }
+.compile-card-meta { display: flex; flex-direction: column; gap: 3px; margin-top: 2px; }
+.compile-meta-row { display: flex; gap: 5px; font-size: 10.5px; }
+.compile-meta-label { flex-shrink: 0; font-weight: 700; color: var(--text-3); }
+.compile-meta-value { font-weight: 600; color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.compile-footer {
+  display: flex; justify-content: flex-end; gap: 8px; padding: 14px 20px; border-top: 1px solid var(--border);
+  background: var(--surface-2); flex-shrink: 0;
+}
 .wizard-modal {
   width: min(900px, 96vw); max-height: 85vh; background: var(--surface); color: var(--text-1);
   display: flex; flex-direction: column; border-radius: var(--radius-lg);
@@ -3799,13 +4145,6 @@ onMounted(() => {
   padding: 14px 20px; border-top: 1px solid var(--border); background: var(--surface);
 }
 .wizard-footer-right { display: flex; gap: 8px; }
-.btn-register {
-  height: 36px; border: none; border-radius: var(--radius-sm); padding: 0 14px;
-  font-size: 13px; font-weight: 700; cursor: pointer;
-  background: var(--text-1); color: var(--primary-on); white-space: nowrap;
-  display: inline-flex; align-items: center; gap: 6px;
-}
-.btn-register:hover { opacity: 0.88; }
 .btn-map-toggle {
   height: 36px; border: 1.5px solid var(--border); border-radius: var(--radius-sm); padding: 0 14px;
   font-size: 13px; font-weight: 700; cursor: pointer;
@@ -3978,9 +4317,12 @@ onMounted(() => {
   .page { padding: 18px 14px; }
   .page-header { align-items: stretch; flex-direction: column; }
   .field, .field.company-field, .field.place-field, .field.small { width: 100%; min-width: 0; }
-  .btn-add, .btn-dark, .btn-clear, .btn-proposal, .btn-search { width: 100%; justify-content: center; }
-  .action-group-secondary, .action-group-primary { flex-direction: column; width: 100%; }
-  .action-group-primary { border-left: none; border-top: 1px solid var(--border); padding-left: 0; padding-top: 8px; }
+  .btn-add, .btn-dark, .btn-clear, .btn-proposal, .btn-compile, .btn-ghost-action, .btn-map-toggle { width: 100%; justify-content: center; }
+  .action-bar-filters, .action-bar-actions { flex-direction: column; width: 100%; align-items: stretch; }
+  .action-bar-landmark { flex-direction: column; align-items: stretch; }
+  .landmark-query-input { min-width: 0; }
+  .selection-bar { flex-direction: column; align-items: stretch; }
+  .selection-bar-actions { flex-direction: column; }
   .staged-card { flex-wrap: wrap; }
   .staged-card-meta { border: none; padding: 0; }
   .detail-body { padding: 14px 12px; }

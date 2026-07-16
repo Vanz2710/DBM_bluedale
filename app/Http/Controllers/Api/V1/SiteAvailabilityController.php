@@ -8,6 +8,7 @@ use App\Models\AdvertisingProductBooking;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -16,7 +17,7 @@ use setasign\Fpdi\Fpdi;
 
 class SiteAvailabilityController extends Controller
 {
-    private const PRODUCTS = ['Billboard', 'Temp Board', 'Lamp Post Bunting'];
+    private const PRODUCTS = ['Billboard', 'Temp Board', 'Lamp Post Bunting', 'JKR Signage'];
     private const STATUSES = ['Existing', 'Raw New'];
     private const TYPES = ['A1', 'A2', 'ongoing', 'reject'];
 
@@ -426,6 +427,146 @@ class SiteAvailabilityController extends Controller
         }
 
         return response()->json(['error' => 'Could not extract coordinates from this link.'], 422);
+    }
+
+    /**
+     * Resolves a landmark/place name (e.g. "KLCC") to a coordinate via OpenStreetMap's
+     * free Nominatim geocoder, so the frontend can find sites within a radius of it.
+     * Results are cached for a day — Nominatim's usage policy caps requests at ~1/sec
+     * and repeated searches for the same landmark are common (KLCC, Sunway Pyramid, etc.).
+     */
+    public function geocode(Request $request)
+    {
+        $request->validate(['q' => ['required', 'string', 'max:200']]);
+        $query = trim($request->input('q'));
+
+        $cacheKey = 'site-availability:geocode:' . md5(strtolower($query));
+
+        $result = Cache::remember($cacheKey, now()->addDay(), function () use ($query) {
+            try {
+                $response = Http::withHeaders([
+                    'User-Agent' => config('app.name', 'Bluedale CRM') . ' Site Availability (internal tool)',
+                ])->get('https://nominatim.openstreetmap.org/search', [
+                    'q' => $query,
+                    'format' => 'json',
+                    'limit' => 1,
+                    'countrycodes' => 'my',
+                ]);
+
+                $first = $response->successful() ? ($response->json()[0] ?? null) : null;
+                if (!$first) {
+                    return null;
+                }
+
+                return [
+                    'lat' => $first['lat'],
+                    'lng' => $first['lon'],
+                    'display_name' => $first['display_name'],
+                ];
+            } catch (\Exception) {
+                return null;
+            }
+        });
+
+        if (!$result) {
+            return response()->json(['error' => "Could not find a location for \"{$query}\"."], 422);
+        }
+
+        return response()->json($result);
+    }
+
+    /**
+     * Exports the given sites as an Excel-openable table (same HTML-table technique used
+     * by the other export() endpoints in this codebase) so staff can copy/paste rows
+     * straight into a client proposal document.
+     */
+    public function exportSites(Request $request)
+    {
+        $request->validate([
+            'product_ids' => ['required', 'string'],
+        ]);
+
+        $ids = array_filter(array_map('intval', explode(',', $request->input('product_ids'))));
+
+        $products = AdvertisingProduct::with('bookings')
+            ->whereIn('id', $ids)
+            ->orderBy('product_type')
+            ->orderBy('site_name')
+            ->get();
+
+        $now = CarbonImmutable::now();
+
+        $availability = function (AdvertisingProduct $product) use ($now) {
+            $current = $product->bookings->first(fn ($b) => (int) $b->year === $now->year && (int) $b->month === $now->month);
+            return $current ? "Booked \xE2\x80\x94 {$current->company_name}" : 'Available';
+        };
+
+        $landmarks = function (AdvertisingProduct $product) {
+            return collect($product->nearest_landmarks ?: [])
+                ->filter(fn ($l) => trim($l['place'] ?? '') !== '')
+                ->map(fn ($l) => trim(($l['distance'] ? $l['distance'] . ' to ' : '') . $l['place']))
+                ->implode('; ');
+        };
+
+        $columns = ['no', 'site_name', 'product_type', 'status', 'type', 'size', 'state_city', 'coordinate', 'availability', 'landmarks', 'contact_name', 'contact_mobile'];
+        $labels = [
+            'no' => 'No', 'site_name' => 'Site Name', 'product_type' => 'Product Type', 'status' => 'Status',
+            'type' => 'Type', 'size' => 'Size', 'state_city' => 'Area', 'coordinate' => 'Coordinate',
+            'availability' => 'Availability', 'landmarks' => 'Nearest Landmarks',
+            'contact_name' => 'Contact Name', 'contact_mobile' => 'Contact Mobile',
+        ];
+        $widths = [
+            'no' => 28, 'site_name' => 260, 'product_type' => 90, 'status' => 80, 'type' => 60,
+            'size' => 80, 'state_city' => 120, 'coordinate' => 130, 'availability' => 150,
+            'landmarks' => 260, 'contact_name' => 130, 'contact_mobile' => 100,
+        ];
+
+        $getVal = fn (AdvertisingProduct $p, string $col) => match ($col) {
+            'no' => null,
+            'site_name' => $p->site_name,
+            'product_type' => $p->product_type,
+            'status' => $p->status,
+            'type' => $p->type,
+            'size' => $p->size ?? '',
+            'state_city' => $p->state_city ?? '',
+            'coordinate' => $p->coordinate ?? '',
+            'availability' => $availability($p),
+            'landmarks' => $landmarks($p),
+            'contact_name' => $p->contact_name ?? '',
+            'contact_mobile' => $p->contact_mobile ?? '',
+            default => '',
+        };
+
+        $filename = 'Site_Compile_' . now()->format('Y-m-d') . '.xls';
+
+        return response()->stream(function () use ($products, $columns, $labels, $widths, $getVal) {
+            $esc = fn ($v) => htmlspecialchars((string) ($v ?? ''), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+            $thStyle = 'font-family:Arial,sans-serif;font-size:10pt;font-weight:bold;color:#000000;background:#ffffff;border:1pt solid #000000;padding:6pt 9pt;white-space:nowrap;text-align:left;';
+            $tdStyle = 'font-family:Arial,sans-serif;font-size:10pt;color:#000000;border:1pt solid #000000;padding:5pt 9pt;vertical-align:top;';
+            echo "\xEF\xBB\xBF";
+            echo '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">';
+            echo '<head><meta charset="UTF-8"><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>Sites</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]--></head>';
+            echo '<body><table style="border-collapse:collapse;"><colgroup>';
+            foreach ($columns as $col) { echo '<col style="width:' . ($widths[$col] ?? 100) . 'pt">'; }
+            echo '</colgroup><thead><tr>';
+            foreach ($columns as $col) { echo '<th style="' . $thStyle . '">' . $esc($labels[$col] ?? $col) . '</th>'; }
+            echo '</tr></thead><tbody>';
+            $no = 1;
+            foreach ($products as $p) {
+                echo '<tr>';
+                foreach ($columns as $col) {
+                    $val = $col === 'no' ? $no : $getVal($p, $col);
+                    echo '<td style="' . $tdStyle . '">' . $esc($val) . '</td>';
+                }
+                echo '</tr>';
+                $no++;
+            }
+            echo '</tbody></table></body></html>';
+        }, 200, [
+            'Content-Type' => 'application/vnd.ms-excel; charset=UTF-8',
+            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+            'X-Accel-Buffering' => 'no',
+        ]);
     }
 
     public function proposal(Request $request)
