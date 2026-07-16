@@ -113,14 +113,22 @@ class ContactAnalysisController extends Controller
         [$from, $to] = $this->dates($request);
         $uid = $this->userId($request);
 
-        $base = Contact::whereBetween('created_at', ["{$from} 00:00:00", "{$to} 23:59:59"])
-            ->when($uid,                             fn ($q) => $q->where('user_id', $uid))
-            ->when($request->filled('status_id'),    fn ($q) => $q->where('status_id', $request->status_id))
-            ->when($request->filled('industry_id'),  fn ($q) => $q->where('industry_id', $request->industry_id));
+        $latestTodo = ToDo::select('contact_id', DB::raw('MAX(todo_date) as last_todo_date'))
+            ->when($uid, fn ($q) => $q->where('user_id', $uid))
+            ->groupBy('contact_id');
+
+        // "Effective" = a to-do logged within the last 60 days; excludes leads added but never worked.
+        $base = Contact::leftJoinSub($latestTodo, 'lt', 'contacts.id', '=', 'lt.contact_id')
+            ->whereBetween('contacts.created_at', ["{$from} 00:00:00", "{$to} 23:59:59"])
+            ->whereNotNull('lt.last_todo_date')
+            ->whereRaw('DATEDIFF(CURDATE(), lt.last_todo_date) <= 60')
+            ->when($uid,                             fn ($q) => $q->where('contacts.user_id', $uid))
+            ->when($request->filled('status_id'),    fn ($q) => $q->where('contacts.status_id', $request->status_id))
+            ->when($request->filled('industry_id'),  fn ($q) => $q->where('contacts.industry_id', $request->industry_id));
 
         $total   = (clone $base)->count();
         $sources = (clone $base)
-            ->selectRaw("COALESCE(NULLIF(lead_source,''), 'unknown') as source, count(*) as cnt")
+            ->selectRaw("COALESCE(NULLIF(contacts.lead_source,''), 'unknown') as source, count(*) as cnt")
             ->groupBy('source')
             ->orderByDesc('cnt')
             ->get()
@@ -205,6 +213,8 @@ class ContactAnalysisController extends Controller
             ->when($search, fn ($q) => $q->where('contacts.name', 'like', "%{$search}%"));
 
         match ($health) {
+            'effective'   => $query->whereNotNull('lt.last_todo_date')
+                                   ->whereRaw('DATEDIFF(CURDATE(), lt.last_todo_date) <= 60'),
             'active'      => $query->whereNotNull('lt.last_todo_date')
                                    ->whereRaw('DATEDIFF(CURDATE(), lt.last_todo_date) < 30'),
             'at_risk'     => $query->whereNotNull('lt.last_todo_date')
@@ -245,15 +255,17 @@ class ContactAnalysisController extends Controller
             ->when($uid, fn ($q) => $q->where('user_id', $uid))
             ->groupBy('contact_id');
 
-        $summary = DB::table('contacts as c')
-            ->leftJoinSub($summaryLatest, 'lt', 'c.id', '=', 'lt.contact_id')
-            ->when($uid, fn ($q) => $q->where('c.user_id', $uid))
+        // Contact::query() (not DB::table) so trashed contacts are excluded, matching the paginated rows above.
+        $summary = Contact::query()
+            ->leftJoinSub($summaryLatest, 'lt', 'contacts.id', '=', 'lt.contact_id')
+            ->when($uid, fn ($q) => $q->where('contacts.user_id', $uid))
             ->selectRaw("
                 COUNT(*) as total,
                 SUM(CASE WHEN lt.last_todo_date IS NOT NULL AND DATEDIFF(CURDATE(), lt.last_todo_date) < 30              THEN 1 ELSE 0 END) as active,
                 SUM(CASE WHEN lt.last_todo_date IS NOT NULL AND DATEDIFF(CURDATE(), lt.last_todo_date) BETWEEN 30 AND 60 THEN 1 ELSE 0 END) as at_risk,
                 SUM(CASE WHEN lt.last_todo_date IS NOT NULL AND DATEDIFF(CURDATE(), lt.last_todo_date) > 60              THEN 1 ELSE 0 END) as dormant,
-                SUM(CASE WHEN lt.last_todo_date IS NULL                                                                  THEN 1 ELSE 0 END) as no_activity
+                SUM(CASE WHEN lt.last_todo_date IS NULL                                                                  THEN 1 ELSE 0 END) as no_activity,
+                SUM(CASE WHEN lt.last_todo_date IS NOT NULL AND DATEDIFF(CURDATE(), lt.last_todo_date) <= 60             THEN 1 ELSE 0 END) as effective
             ")
             ->first();
 
@@ -271,6 +283,7 @@ class ContactAnalysisController extends Controller
                 'at_risk'     => (int) ($summary->at_risk     ?? 0),
                 'dormant'     => (int) ($summary->dormant     ?? 0),
                 'no_activity' => (int) ($summary->no_activity ?? 0),
+                'effective'   => (int) ($summary->effective   ?? 0),
             ],
         ]);
     }
@@ -280,11 +293,19 @@ class ContactAnalysisController extends Controller
     {
         $uid = $this->userId($request);
 
+        $latestTodo = ToDo::select('contact_id', DB::raw('MAX(todo_date) as last_todo_date'))
+            ->when($uid, fn ($q) => $q->where('user_id', $uid))
+            ->groupBy('contact_id');
+
+        // "Effective" = a to-do logged within the last 60 days; excludes dormant/never-worked contacts.
         $rows = Contact::select([
                 DB::raw("COALESCE(cs.name, 'No Status') as status_name"),
                 DB::raw('COUNT(*) as cnt'),
             ])
             ->leftJoin('contact_statuses as cs', 'contacts.status_id', '=', 'cs.id')
+            ->leftJoinSub($latestTodo, 'lt', 'contacts.id', '=', 'lt.contact_id')
+            ->whereNotNull('lt.last_todo_date')
+            ->whereRaw('DATEDIFF(CURDATE(), lt.last_todo_date) <= 60')
             ->when($uid, fn ($q) => $q->where('contacts.user_id', $uid))
             ->when($request->filled('industry_id'), fn ($q) => $q->where('contacts.industry_id', $request->input('industry_id')))
             ->groupBy('cs.id', 'cs.name')

@@ -167,9 +167,9 @@
         <div class="ca-card-top">
           <div>
             <div class="ca-card-title">Pipeline Snapshot</div>
-            <div class="ca-card-sub">All contacts distributed by current status</div>
+            <div class="ca-card-sub">Effective contacts (active in the last 60 days) by current status</div>
           </div>
-          <span class="ca-card-total">{{ statusDistData.total }} total</span>
+          <span class="ca-card-total">{{ statusDistData.total }} effective</span>
         </div>
         <div v-if="loading.statusDist" class="ca-chart-loading" style="height:120px">Loading…</div>
         <template v-else>
@@ -198,9 +198,9 @@
         <div class="ca-card-top">
           <div>
             <div class="ca-card-title">Lead Source</div>
-            <div class="ca-card-sub">New contacts in period by acquisition channel</div>
+            <div class="ca-card-sub">New contacts in period, still effective today, by acquisition channel</div>
           </div>
-          <span class="ca-card-total">{{ sourceData.total }} added</span>
+          <span class="ca-card-total">{{ sourceData.total }} effective</span>
         </div>
         <div v-if="loading.source" class="ca-chart-loading" style="height:120px">Loading…</div>
         <template v-else>
@@ -561,11 +561,11 @@ const PER_PAGE_OPTIONS = [10, 20, 50];
 
 const engData    = ref([]);
 const engMeta    = reactive({ current_page: 1, last_page: 1, total: 0, per_page: 10 });
-const engSummary = ref({ total: 0, active: 0, at_risk: 0, dormant: 0, no_activity: 0 });
+const engSummary = ref({ total: 0, active: 0, at_risk: 0, dormant: 0, no_activity: 0, effective: 0 });
 const engSectionRef = ref(null);
 
 const engFilters = reactive({
-  health:    '',
+  health:    'effective',
   q:         '',
   sort_by:   'days_inactive',
   sort_dir:  'desc',
@@ -573,6 +573,7 @@ const engFilters = reactive({
 });
 
 const HEALTH_TABS = [
+  { key: 'effective',   label: 'Effective',       countKey: 'effective' },
   { key: '',            label: 'All',             countKey: 'total' },
   { key: 'active',      label: 'Active',          countKey: 'active' },
   { key: 'at_risk',     label: 'At Risk',         countKey: 'at_risk' },
