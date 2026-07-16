@@ -25,14 +25,14 @@
         <span class="field-val">{{ todo.user?.name || 'Unassigned' }}</span>
       </div>
       <div class="field-item">
-        <span class="field-key">To-Do Date</span>
+        <span class="field-key">Deadline</span>
         <span class="field-val" :class="{ 'val-overdue': isOverdue }">
           {{ fmtDate(todo.todo_date) }}
           <span v-if="isOverdue" class="overdue-tag">Overdue</span>
         </span>
       </div>
       <div class="field-item">
-        <span class="field-key">Date Created</span>
+        <span class="field-key">To-Do Date</span>
         <span class="field-val">{{ fmtDate(todo.date_created) || '—' }}</span>
       </div>
       <div class="field-item">

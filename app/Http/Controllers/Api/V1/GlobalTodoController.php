@@ -210,7 +210,7 @@ class GlobalTodoController extends Controller
     {
         $ALLOWED = ['no','todo_date','date_created','status','type','company','user','task','remark','completion'];
         $LABELS  = [
-            'no' => 'No', 'todo_date' => 'To Do Date', 'date_created' => 'Date Created',
+            'no' => 'No', 'todo_date' => 'Deadline', 'date_created' => 'To Do Date',
             'status' => 'Status', 'type' => 'Type', 'company' => 'Company',
             'user' => 'User', 'task' => 'Task', 'remark' => 'Remark', 'completion' => 'Completion',
         ];
