@@ -103,6 +103,9 @@
       </GridLayout>
     </div>
 
+    <!-- Data freshness footnote -->
+    <p class="dash-footnote">Data shown effective as of 15th July 2026.</p>
+
     <!-- Widget picker modal -->
     <Teleport to="body">
       <Transition name="modal">
@@ -575,6 +578,14 @@ onMounted(async () => {
 
 /* Grid canvas */
 .grid-canvas { width: 100%; }
+
+/* Data freshness footnote */
+.dash-footnote {
+  margin: 20px 2px 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-3);
+}
 
 /* Widget shell — fills the vgl-item */
 .widget-shell {

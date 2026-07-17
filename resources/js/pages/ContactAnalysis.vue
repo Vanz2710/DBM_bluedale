@@ -372,6 +372,9 @@
       </template>
     </div>
 
+    <!-- Data freshness remark -->
+    <p class="ca-footnote">Data effective 1st July 2026 onwards.</p>
+
   </div>
 </template>
 
@@ -948,6 +951,7 @@ onUnmounted(() => {
 .ca-card-title { font-size: 16px; font-weight: 800; color: var(--text-1); margin: 0; letter-spacing: -0.01em; }
 .ca-card-sub   { font-size: 12px; color: var(--text-3); margin: 3px 0 0; }
 .ca-card-total { font-size: 13px; color: var(--text-3); white-space: nowrap; flex-shrink: 0; align-self: center; }
+.ca-footnote { margin: 4px 2px 0; font-size: 12px; font-weight: 600; color: var(--text-3); }
 
 /* ── Charts / loading ────────────────────────────────────────────────────── */
 .ca-chart-loading { display: flex; align-items: center; justify-content: center; font-size: 13px; color: var(--text-3); }
