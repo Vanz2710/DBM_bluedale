@@ -170,6 +170,7 @@
         <span class="legend-item"><span class="legend-dot" style="background:#2563eb"></span>Billboard</span>
         <span class="legend-item"><span class="legend-dot" style="background:#dc2626"></span>Temp Board</span>
         <span class="legend-item"><span class="legend-dot" style="background:#16a34a"></span>Lamp Post Bunting</span>
+        <span class="legend-item"><span class="legend-dot" style="background:#7c3aed"></span>JKR Signage</span>
       </div>
     </div>
 
@@ -552,7 +553,7 @@
         <header class="compile-header">
           <div>
             <h2>Compile Sites</h2>
-            <p>{{ selectedProducts.length }} site(s) selected — click a photo to open it full-size for saving, or export the list below</p>
+            <p>{{ selectedProducts.length }} site(s) selected — click a photo to preview it, use the <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> icon to save it, or export below</p>
           </div>
           <button type="button" class="detail-close" @click="closeCompileModal">&times;</button>
         </header>
@@ -563,15 +564,35 @@
             <article v-for="product in selectedProducts" :key="product.id" class="compile-card">
               <button type="button" class="compile-card-remove" :aria-label="`Remove ${product.site_name} from compile list`" title="Remove from list" @click="removeFromCompile(product.id)">&times;</button>
               <div class="compile-card-photos">
-                <a v-if="product.site_photo_url" class="compile-photo-link" :href="product.site_photo_url" target="_blank" rel="noopener" :download="`${product.site_name}-site-photo.jpg`" title="Open full-size / save photo">
-                  <img :src="product.site_photo_url" alt="Site photo">
+                <div v-if="product.site_photo_url" class="compile-photo-link">
+                  <a class="compile-photo-view" :href="product.site_photo_url" target="_blank" rel="noopener" title="Preview full-size in a new tab">
+                    <img :src="product.site_photo_url" alt="Site photo">
+                  </a>
                   <span class="compile-photo-tag">Site Photo</span>
-                </a>
+                  <a
+                    class="compile-photo-download"
+                    :href="product.site_photo_url"
+                    :download="`${sanitizeFilename(product.site_name)}-site-photo.jpg`"
+                    title="Download this photo"
+                    aria-label="Download site photo"
+                    @click.stop
+                  ><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></a>
+                </div>
                 <div v-else class="compile-photo-placeholder">No site photo</div>
-                <a v-if="product.site_map_photo_url" class="compile-photo-link" :href="product.site_map_photo_url" target="_blank" rel="noopener" :download="`${product.site_name}-map-photo.jpg`" title="Open full-size / save photo">
-                  <img :src="product.site_map_photo_url" alt="Map photo">
+                <div v-if="product.site_map_photo_url" class="compile-photo-link">
+                  <a class="compile-photo-view" :href="product.site_map_photo_url" target="_blank" rel="noopener" title="Preview full-size in a new tab">
+                    <img :src="product.site_map_photo_url" alt="Map photo">
+                  </a>
                   <span class="compile-photo-tag">Map</span>
-                </a>
+                  <a
+                    class="compile-photo-download"
+                    :href="product.site_map_photo_url"
+                    :download="`${sanitizeFilename(product.site_name)}-map-photo.jpg`"
+                    title="Download this photo"
+                    aria-label="Download map photo"
+                    @click.stop
+                  ><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></a>
+                </div>
                 <div v-else class="compile-photo-placeholder">No map photo</div>
               </div>
               <div class="compile-card-info">
@@ -593,6 +614,17 @@
 
         <footer class="compile-footer">
           <button type="button" class="btn-clear" @click="closeCompileModal">Close</button>
+          <button
+            v-if="compilePhotoCount > 0"
+            type="button"
+            class="btn-dark"
+            :disabled="downloadingAllPhotos"
+            title="Downloads every site/map photo across all selected sites, one file at a time"
+            @click="downloadAllPhotos"
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            {{ downloadingAllPhotos ? 'Downloading…' : `Download All Photos (${compilePhotoCount})` }}
+          </button>
           <button type="button" class="btn-add" :disabled="compileExporting || selectedProducts.length === 0" @click="exportCompiledSites">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             {{ compileExporting ? 'Exporting…' : 'Export to Excel' }}
@@ -1667,9 +1699,66 @@ function openCompileModal() { compileModalOpen.value = true; }
 function closeCompileModal() { compileModalOpen.value = false; }
 function removeFromCompile(productId) { toggleProductSelection(productId); }
 
+// Windows/macOS/Linux all reject some subset of \ / : * ? " < > | in a filename.
+// Malaysian road names routinely contain "/" as part of the actual road number
+// (e.g. "Jalan PJU 1a/41", "Along Jalan SS 4B/10") — 17 of 180 sites in this DB
+// do today — so leaving it to the browser's own `download` sanitization produces
+// unpredictable, differently-mangled results per browser instead of a filename
+// that still clearly reads as the same site. Sanitize ourselves for a
+// consistent, trackable result, and cap length so it stays scannable in a
+// folder listing (longest current site_name is 95 chars).
+function sanitizeFilename(name) {
+  return (name || 'site')
+    .replace(/[\\/:*?"<>|]/g, '-')
+    .replace(/-{2,}/g, '-')
+    .replace(/\s{2,}/g, ' ')
+    .trim()
+    .slice(0, 90);
+}
+
+const downloadingAllPhotos = ref(false);
+const compilePhotoCount = computed(() => selectedProducts.value.reduce(
+  (n, p) => n + (p.site_photo_url ? 1 : 0) + (p.site_map_photo_url ? 1 : 0), 0,
+));
+
+// Same document.createElement('a') + click() technique as exportCompiledSites()
+// below, just looped — same-origin storage URLs so `download` reliably saves
+// instead of navigating. Staggered because firing many programmatic downloads
+// in the same tick makes some browsers silently drop all but the first one.
+async function downloadAllPhotos() {
+  const items = [];
+  selectedProducts.value.forEach((p) => {
+    const safeName = sanitizeFilename(p.site_name);
+    if (p.site_photo_url) items.push({ url: p.site_photo_url, name: `${safeName}-site-photo.jpg` });
+    if (p.site_map_photo_url) items.push({ url: p.site_map_photo_url, name: `${safeName}-map-photo.jpg` });
+  });
+  if (items.length === 0) return;
+  downloadingAllPhotos.value = true;
+  showToast(`Downloading ${items.length} photo${items.length === 1 ? '' : 's'}…`);
+  for (const item of items) {
+    const a = document.createElement('a');
+    a.href = item.url;
+    a.download = item.name;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    await new Promise((resolve) => setTimeout(resolve, 350));
+  }
+  downloadingAllPhotos.value = false;
+}
+
 function compileAvailability(product) {
+  // product.bookings is already scoped server-side to the currently browsed year
+  // (see load()) — "now" only has a meaningful month within that scope when the
+  // browsed year is the real current year. Comparing against real-world "now"
+  // unconditionally made this always report "Available" while browsing any other
+  // year, even for a site that's actually booked in the month being looked at.
   const now = new Date();
-  const booking = (product.bookings || []).find((b) => b.year === now.getFullYear() && b.month === now.getMonth() + 1);
+  const isCurrentYear = Number(year.value) === now.getFullYear();
+  const targetMonth = isCurrentYear ? now.getMonth() + 1 : null;
+  const booking = targetMonth
+    ? (product.bookings || []).find((b) => b.year === Number(year.value) && b.month === targetMonth)
+    : null;
   if (!booking) return { label: 'Available', busy: false };
   return { label: `Booked — ${booking.company_name}`, busy: true };
 }
@@ -2725,12 +2814,14 @@ function defaultRegisterLandmarks() {
 function markerColor(productType) {
   if (productType === 'Billboard') return '#2563eb';
   if (productType === 'Lamp Post Bunting') return '#16a34a';
+  if (productType === 'JKR Signage') return '#7c3aed';
   return '#dc2626';
 }
 
 function markerLabel(productType) {
   if (productType === 'Billboard') return 'BB';
   if (productType === 'Lamp Post Bunting') return 'LB';
+  if (productType === 'JKR Signage') return 'JK';
   return 'TB';
 }
 
@@ -2853,9 +2944,14 @@ async function submitRegisterProduct() {
       nearest_landmarks:  registerForm.value.nearest_landmarks.filter((lm) => lm.category || lm.place),
     });
     upsertRow(res.data.data);
+    // Auto-add to the working selection (append, not replace — registering several
+    // products in a row before compiling them should keep all of them selected)
+    // so the site is immediately visible in Compile Sites / Generate Proposal
+    // without the user having to remember to tick its checkbox afterward.
+    selectedProductIds.value = [...selectedProductIds.value, res.data.data.id];
     closeRegisterModal();
     if (showMapView.value) refreshMapMarkers();
-    showToast('Product registered successfully');
+    showToast('Product registered — added to your selection');
   } catch (e) {
     const errors = e.response?.data?.errors;
     registerError.value = errors ? Object.values(errors).flat().join(' ') : 'Failed to register product.';
@@ -3193,6 +3289,7 @@ function bookingDuration(booking) {
 function avatarLabel(row) {
   if (row.product_type === 'Billboard') return 'BB';
   if (row.product_type === 'Lamp Post Bunting') return 'LB';
+  if (row.product_type === 'JKR Signage') return 'JK';
   return 'TB';
 }
 
@@ -3810,12 +3907,21 @@ onMounted(() => {
 .compile-card-remove:hover { background: var(--danger); }
 .compile-card-photos { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--border); }
 .compile-photo-link { position: relative; display: block; aspect-ratio: 4/3; overflow: hidden; background: var(--surface-2); }
-.compile-photo-link img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.15s; }
-.compile-photo-link:hover img { transform: scale(1.05); }
+.compile-photo-view { display: block; width: 100%; height: 100%; cursor: zoom-in; }
+.compile-photo-view img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.15s; }
+.compile-photo-link:hover .compile-photo-view img { transform: scale(1.05); }
 .compile-photo-tag {
   position: absolute; left: 4px; bottom: 4px; padding: 1px 6px; border-radius: var(--radius-sm);
   background: rgba(15,23,42,0.65); color: #fff; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px;
+  pointer-events: none;
 }
+.compile-photo-download {
+  position: absolute; top: 4px; right: 4px; z-index: 1; width: 22px; height: 22px;
+  border-radius: 50%; background: rgba(15,23,42,0.65); color: #fff;
+  display: flex; align-items: center; justify-content: center; cursor: pointer;
+  transition: background 0.15s, transform 0.15s;
+}
+.compile-photo-download:hover { background: var(--primary); transform: scale(1.08); }
 .compile-photo-placeholder {
   aspect-ratio: 4/3; display: flex; align-items: center; justify-content: center;
   background: var(--surface-2); color: var(--text-3); font-size: 10.5px; font-weight: 600; font-style: italic; text-align: center; padding: 8px;
