@@ -594,7 +594,7 @@ export const PAGE_TOURS = {
     {
       target: '.tab-bar',
       title: 'Task Manager — Seven Views',
-      body: 'Seven tabs cover every angle: Dashboard (stats & charts), Calendar (month view of due dates), Table (searchable list with date-range filtering, doubling as the audit log), This Week (weekly report), Board (kanban drag-and-drop), People (tasks grouped by assignee), and Files (all attached documents). Click any tab to switch.',
+      body: 'Seven tabs cover every angle: Dashboard (stats & charts), Calendar (month view of due dates), Table (searchable list with date-range filtering, doubling as the audit log), Department (weekly outstanding-task report, switchable between grouped, single-department, and combined views), Board (kanban drag-and-drop), People (tasks grouped by assignee), and Files (all attached documents). Click any tab to switch.',
       position: 'bottom',
     },
     {
@@ -623,8 +623,8 @@ export const PAGE_TOURS = {
     },
     {
       target: '[data-tour="deptask-tab-weekly"]',
-      title: 'This Week — Outstanding Report',
-      body: 'Printable report of all outstanding tasks grouped by department for the selected week. Use the navigation arrows to move between weeks, filter by assignee for individual workload reviews, and click Print A4 to export for team meetings.',
+      title: 'Department — Outstanding Report',
+      body: 'Printable report of outstanding tasks for the selected week. Use the Weekly / Department Focus / All Together toggle to switch between the full department breakdown, one department\'s tasks, or a single combined list — the navigation arrows move between weeks, the assignee filter narrows to one person, and Print A4 exports whichever view is currently active.',
       position: 'bottom',
     },
     {

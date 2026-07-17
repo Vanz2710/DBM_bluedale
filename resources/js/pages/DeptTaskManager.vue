@@ -581,6 +581,14 @@
           <span class="week-nav-label">{{ weeklyDisplayLabel }}</span>
           <button class="btn-icon" @click="weekNav(1)" aria-label="Next week" v-html="ICO.chevronR"></button>
         </div>
+        <div class="scope-toggle" role="group" aria-label="Report grouping">
+          <button :class="['scope-btn', weeklyGroupMode === 'weekly' && 'active']" @click="setWeeklyGroupMode('weekly')">Weekly</button>
+          <button :class="['scope-btn', weeklyGroupMode === 'department' && 'active']" @click="setWeeklyGroupMode('department')">Department Focus</button>
+          <button :class="['scope-btn', weeklyGroupMode === 'all' && 'active']" @click="setWeeklyGroupMode('all')">All Together</button>
+        </div>
+        <select v-if="weeklyGroupMode === 'department'" v-model="weeklyDeptFocus" class="field-input sm">
+          <option v-for="d in departments" :key="d.id" :value="d.id">{{ d.name }}</option>
+        </select>
         <select v-if="isAdmin" v-model="weeklyAssigneeFilter" class="field-input sm">
           <option value="">All Assignees</option>
           <option v-for="u in users" :key="u.id" :value="u.name">{{ u.name }}</option>
@@ -593,7 +601,7 @@
       <div class="weekly-report card" id="weekly-print-area">
         <div class="wr-header">
           <div>
-            <div class="wr-title">Weekly Outstanding Task Report</div>
+            <div class="wr-title">{{ weeklyReportTitle }}</div>
             <div class="wr-meta">
               <span><strong>Month:</strong> {{ weeklyMonthLabel }}</span>
               <span><strong>Week:</strong> {{ weeklyData.week_start }} to {{ weeklyData.week_end }}</span>
@@ -602,16 +610,51 @@
           <div v-if="weeklySummary.total" class="wr-summary-chips">
             <span class="wr-chip"><span class="hm-dot" style="background:var(--primary)"></span>{{ weeklySummary.total }} outstanding</span>
             <span v-if="weeklySummary.overdue" class="wr-chip wr-chip--danger"><span class="hm-dot" style="background:#ef4444"></span>{{ weeklySummary.overdue }} overdue</span>
-            <span class="wr-chip"><span class="hm-dot" style="background:#94a3b8"></span>{{ weeklySummary.depts }} {{ weeklySummary.depts === 1 ? 'dept' : 'depts' }}</span>
+            <span v-if="weeklyGroupMode === 'department' && focusedDept" class="wr-chip"
+              :style="{color: focusedDept.color, borderColor: focusedDept.color+'44', background: focusedDept.color+'10'}">
+              <span class="hm-dot" :style="{background: focusedDept.color}"></span>{{ focusedDept.name }}
+            </span>
+            <span v-else class="wr-chip"><span class="hm-dot" style="background:#94a3b8"></span>{{ weeklySummary.depts }} {{ weeklySummary.depts === 1 ? 'dept' : 'depts' }}</span>
           </div>
         </div>
 
-        <div v-if="!filteredWeeklyDepts.length" class="empty-state">
+        <div v-if="weeklyIsEmpty" class="empty-state">
           <span class="empty-icon" v-html="ICO.check"></span>
-          <p>{{ weeklyAssigneeFilter ? 'No tasks for this person this week.' : 'All clear — no outstanding tasks this week.' }}</p>
+          <p>{{ weeklyEmptyMessage }}</p>
         </div>
 
-        <div class="wr-grid">
+        <div v-else-if="weeklyGroupMode === 'all'" class="table-wrap">
+          <table class="data-table compact">
+            <thead>
+              <tr><th>Due</th><th>Department</th><th>Task</th><th>Assignee</th><th>Priority</th><th>Status</th></tr>
+            </thead>
+            <tbody>
+              <tr v-for="task in weeklyFlatTasks" :key="task.id"
+                class="table-row" @click="openTaskDetail(task)">
+                <td class="wr-date" :class="task.is_overdue && 'text-danger'">{{ task.due_date || '—' }}</td>
+                <td>
+                  <span class="dept-pill" :style="{background: task.department.color+'22', color: task.department.color}">
+                    {{ task.department.name }}
+                  </span>
+                </td>
+                <td>{{ task.title }}</td>
+                <td class="text-2">{{ task.assignee || '—' }}</td>
+                <td>
+                  <span class="kc-priority" :style="{background: priorityColor(task.priority)+'22', color: priorityColor(task.priority)}">
+                    {{ task.priority }}
+                  </span>
+                </td>
+                <td>
+                  <span :class="['status-badge', 'st-'+task.status, task.is_overdue && 'st-overdue']">
+                    {{ task.is_overdue ? 'Overdue' : statusLabel(task.status) }}
+                  </span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div v-else class="wr-grid">
           <div v-for="deptRow in filteredWeeklyDepts" :key="deptRow.department.id" class="wr-dept-block">
             <div class="wr-dept-header" :style="{background: deptRow.department.color+'18', borderLeft: '3px solid '+deptRow.department.color}">
               <span :style="{color: deptRow.department.color, fontWeight: 700}">{{ deptRow.department.name }}</span>
@@ -1289,6 +1332,11 @@ function setFilesView(mode) {
   localStorage.setItem('dtm_files_view', mode);
 }
 
+function setWeeklyGroupMode(mode) {
+  weeklyGroupMode.value = mode;
+  localStorage.setItem('dtm_weekly_group', mode);
+}
+
 // ─── Auth state ───────────────────────────────────────────────────────────────
 const authUser        = computed(() => getStoredUser());
 const isAdmin         = computed(() => (authUser.value.roles || []).some(r => ['admin', 'super-admin'].includes(r)));
@@ -1301,6 +1349,8 @@ const tableFilters = reactive({ search: '', department_id: '', status: '', prior
 const tableSort    = reactive({ field: 'created_at', dir: 'desc' });
 const weeklyWeekStart      = ref('');
 const weeklyAssigneeFilter = ref('');
+const weeklyGroupMode      = ref(localStorage.getItem('dtm_weekly_group') || 'weekly'); // 'weekly' | 'department' | 'all'
+const weeklyDeptFocusRaw   = ref('');
 
 // ─── Modal / panel state ──────────────────────────────────────────────────────
 const showModal    = ref(false);
@@ -1456,8 +1506,18 @@ const weeklyMonthLabel = computed(() => {
   return d.toLocaleString('default', { month: 'long', year: 'numeric' }).toUpperCase();
 });
 
+const weeklyDeptFocus = computed({
+  get: () => weeklyDeptFocusRaw.value || (departments.value[0]?.id ?? ''),
+  set: (v) => { weeklyDeptFocusRaw.value = v; },
+});
+
+const focusedDept = computed(() => departments.value.find(d => String(d.id) === String(weeklyDeptFocus.value)) || null);
+
 const filteredWeeklyDepts = computed(() => {
   let depts = weeklyData.value.departments || [];
+  if (weeklyGroupMode.value === 'department' && weeklyDeptFocus.value) {
+    depts = depts.filter(d => String(d.department.id) === String(weeklyDeptFocus.value));
+  }
   if (weeklyAssigneeFilter.value) {
     depts = depts.map(dept => ({
       ...dept,
@@ -1465,6 +1525,34 @@ const filteredWeeklyDepts = computed(() => {
     }));
   }
   return depts.filter(d => d.tasks.length > 0);
+});
+
+// Flat, chronologically-sorted view of the same filtered data for "All Together" mode.
+const weeklyFlatTasks = computed(() => {
+  const all = filteredWeeklyDepts.value.flatMap(dept =>
+    dept.tasks.map(t => ({ ...t, department: dept.department }))
+  );
+  return all.slice().sort((a, b) => (a.due_date_sort || '9999-99-99').localeCompare(b.due_date_sort || '9999-99-99'));
+});
+
+const weeklyIsEmpty = computed(() => (
+  weeklyGroupMode.value === 'all' ? weeklyFlatTasks.value.length === 0 : filteredWeeklyDepts.value.length === 0
+));
+
+const weeklyEmptyMessage = computed(() => {
+  const who = weeklyAssigneeFilter.value;
+  if (weeklyGroupMode.value === 'department') {
+    const name = focusedDept.value?.name || 'this department';
+    return who ? `No tasks for ${who} in ${name} this week.` : `All clear — no outstanding tasks for ${name} this week.`;
+  }
+  if (who) return `No tasks for ${who} this week.`;
+  return 'All clear — no outstanding tasks this week.';
+});
+
+const weeklyReportTitle = computed(() => {
+  if (weeklyGroupMode.value === 'department') return `Outstanding Task Report — ${focusedDept.value?.name || 'Department'}`;
+  if (weeklyGroupMode.value === 'all') return 'Outstanding Task Report — All Departments';
+  return 'Weekly Outstanding Task Report';
 });
 
 const weeklySummary = computed(() => {
@@ -2255,11 +2343,16 @@ function printWeekly() {
   const we      = weeklyData.value.week_end   || '';
   const fmtNow  = new Date().toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' });
 
+  const title = weeklyReportTitle.value;
+  const deptChip = (weeklyGroupMode.value === 'department' && focusedDept.value)
+    ? `<span style="color:${focusedDept.value.color}">${focusedDept.value.name}</span>`
+    : `<span>${summary.depts} dept${summary.depts !== 1 ? 's' : ''}</span>`;
+
   const meta = `<div style="margin-bottom:12px">
   <div class="doc-co">Bluedale Group of Companies</div>
   <div class="doc-title-line">
     <div>
-      <div class="doc-title">Weekly Outstanding Task Report</div>
+      <div class="doc-title">${title}</div>
       <div class="doc-meta"><span><b>Month:</b> ${weeklyMonthLabel.value}</span><span><b>Week:</b> ${ws} to ${we}</span></div>
     </div>
     <div class="doc-generated">Generated: ${fmtNow}</div>
@@ -2268,11 +2361,17 @@ function printWeekly() {
 <div class="doc-summary">
   <span>${summary.total} outstanding</span>
   ${summary.overdue ? `<span class="s-danger">${summary.overdue} overdue</span>` : ''}
-  <span>${summary.depts} dept${summary.depts !== 1 ? 's' : ''}</span>
+  ${deptChip}
 </div>`;
 
-  if (!depts.length) {
-    openPrintWindow(wrapDoc('Weekly Outstanding Task Report', meta, '<p class="empty-msg">No outstanding tasks this week.</p>'));
+  if (weeklyIsEmpty.value) {
+    openPrintWindow(wrapDoc(title, meta, `<p class="empty-msg">${weeklyEmptyMessage.value}</p>`));
+    return;
+  }
+
+  // "All Together" prints as one flat, chronologically-sorted table — same shape as the on-screen view.
+  if (weeklyGroupMode.value === 'all') {
+    openPrintWindow(wrapDoc(title, meta, flatTable(weeklyFlatTasks.value, 'No outstanding tasks this week.')));
     return;
   }
 
@@ -2310,7 +2409,7 @@ function printWeekly() {
   }).join('');
 
   const grid = `<table class="wkly"><thead><tr><th class="th-date">Due</th>${deptTh}</tr></thead><tbody>${bodyRows}</tbody></table>`;
-  openPrintWindow(wrapDoc('Weekly Outstanding Task Report', meta, grid));
+  openPrintWindow(wrapDoc(title, meta, grid));
 }
 
 async function exportTable() {

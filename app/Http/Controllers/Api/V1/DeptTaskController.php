@@ -685,13 +685,14 @@ class DeptTaskController extends Controller
         $tasksByDept = [];
         foreach ($departments as $dept) {
             $tasks = ($allWeeklyTasks[$dept->id] ?? collect())->map(fn($t) => [
-                'id'         => $t->id,
-                'title'      => $t->title,
-                'due_date'   => $t->due_date?->format('d/m'),
-                'status'     => $t->status,
-                'priority'   => $t->priority,
-                'assignee'   => $t->assignee?->name,
-                'is_overdue' => $t->is_overdue,
+                'id'             => $t->id,
+                'title'          => $t->title,
+                'due_date'       => $t->due_date?->format('d/m'),
+                'due_date_sort'  => $t->due_date?->format('Y-m-d'),
+                'status'         => $t->status,
+                'priority'       => $t->priority,
+                'assignee'       => $t->assignee?->name,
+                'is_overdue'     => $t->is_overdue,
             ]);
             $tasksByDept[] = [
                 'department' => $dept,
