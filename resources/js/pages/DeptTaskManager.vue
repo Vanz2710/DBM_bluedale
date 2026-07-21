@@ -12,7 +12,7 @@
           <span v-html="ICO.settings"></span>
           Manage Departments
         </router-link>
-        <button v-if="isAdmin" class="btn-primary" @click="openTaskModal()">
+        <button v-if="can('manage dept-tasks')" class="btn-primary" @click="openTaskModal()">
           <span v-html="ICO.plus"></span>
           New Task
         </button>
@@ -271,9 +271,9 @@
         <div class="cal-grid">
           <div v-for="day in calendarDays" :key="day.key"
             class="cal-day"
-            :class="{ 'cal-day--muted': !day.inMonth, 'cal-day--today': day.isToday, 'cal-day--addable': isAdmin }"
-            :title="isAdmin ? 'Click to add a task due ' + day.date : ''"
-            @click="isAdmin && openTaskModal(null, boardFilters.department_id || null, day.date)">
+            :class="{ 'cal-day--muted': !day.inMonth, 'cal-day--today': day.isToday, 'cal-day--addable': can('manage dept-tasks') }"
+            :title="can('manage dept-tasks') ? 'Click to add a task due ' + day.date : ''"
+            @click="can('manage dept-tasks') && openTaskModal(null, boardFilters.department_id || null, day.date)">
             <span class="cal-day-num">{{ day.day }}</span>
             <div class="cal-pill-stack">
               <div v-for="task in (calendarTasksByDate[day.date] || []).slice(0, 3)" :key="task.id"
@@ -1205,6 +1205,7 @@ import { ref, reactive, computed, onMounted, onUnmounted, watch, nextTick } from
 import { useRoute, useRouter } from 'vue-router';
 import { Chart, registerables } from 'chart.js';
 import api from '../api.js';
+import { usePermissions } from '../composables/usePermissions.js';
 
 Chart.register(...registerables);
 
@@ -1342,6 +1343,7 @@ const authUser        = computed(() => getStoredUser());
 const isAdmin         = computed(() => (authUser.value.roles || []).some(r => ['admin', 'super-admin'].includes(r)));
 const currentUserId   = computed(() => authUser.value.id ?? null);
 const currentUserName = computed(() => authUser.value.name ?? '');
+const { can }          = usePermissions();
 
 // ─── Filters ──────────────────────────────────────────────────────────────────
 const boardFilters = reactive({ department_id: '', assigned_to: '' });

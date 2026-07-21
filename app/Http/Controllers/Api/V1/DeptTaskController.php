@@ -131,9 +131,9 @@ class DeptTaskController extends Controller
 
     public function users(Request $request): JsonResponse
     {
-        if (!$this->isAdmin($request)) {
-            abort(403);
-        }
+        // Anyone reaching this endpoint already holds 'manage dept-tasks' (enforced by the
+        // route's can: middleware), so every such user needs the full roster for the
+        // assignee/department pickers — not just admins.
         return response()->json(
             User::select('id', 'name', 'email', 'role', 'department_id')
                 ->with('department:id,name,color')
@@ -455,12 +455,8 @@ class DeptTaskController extends Controller
 
     public function store(Request $request): JsonResponse
     {
-        // Task creation is admin-only for now. To let users create their own tasks,
-        // remove this guard and the matching v-if="isAdmin" on the New Task buttons.
-        if (!$this->isAdmin($request)) {
-            abort(403, 'Only admins can create tasks.');
-        }
-
+        // Anyone with 'manage dept-tasks' may create tasks (enforced by the route's
+        // can: middleware) — not just admins.
         $data = $request->validate([
             'title'           => 'required|string|max:255',
             'description'     => 'nullable|string',
@@ -472,6 +468,13 @@ class DeptTaskController extends Controller
             'is_recurring'    => 'boolean',
             'recurrence_type' => 'nullable|in:daily,weekly,monthly,quarterly',
         ]);
+
+        // Non-admins may only create tasks assigned to themselves (or unassigned) — matches
+        // the read-only "Assigned To" field the New Task modal shows them. Admins can assign
+        // to anyone with module access, checked below.
+        if (!$this->isAdmin($request) && !empty($data['assigned_to']) && (int) $data['assigned_to'] !== $request->user()->id) {
+            return response()->json(['message' => 'You can only create tasks assigned to yourself.'], 403);
+        }
 
         if (!empty($data['assigned_to'])) {
             $assignee = User::findOrFail($data['assigned_to']);
