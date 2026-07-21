@@ -624,7 +624,7 @@ export const PAGE_TOURS = {
     {
       target: '[data-tour="deptask-tab-weekly"]',
       title: 'Department — Outstanding Report',
-      body: 'Printable report of outstanding tasks for the selected week. Use the Weekly / Department Focus / All Together toggle to switch between the full department breakdown, one department\'s tasks, or a single combined list — the navigation arrows move between weeks, the assignee filter narrows to one person, and Print A4 exports whichever view is currently active.',
+      body: 'Printable report of outstanding tasks for the selected week. Use the By Department / Department Focus / All Together toggle to switch between the full department breakdown, one department\'s tasks, or a single combined list — the navigation arrows move between weeks, the assignee filter narrows to one person, and Print A4 exports whichever view is currently active.',
       position: 'bottom',
     },
     {

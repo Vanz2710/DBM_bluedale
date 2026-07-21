@@ -78,7 +78,7 @@
               </button>
               <span class="mw-prio" :style="{ background: priorityColor(task.priority) }" :title="task.priority"></span>
               <div class="mw-main">
-                <div class="mw-title">{{ task.title }}</div>
+                <div class="mw-title"><span v-if="task.is_important" class="imp-star" title="Important" v-html="ICO.star"></span>{{ task.title }}</div>
                 <div class="mw-sub">
                   <span v-if="task.department" class="mw-dept" :style="{ color: task.department.color }">{{ task.department.name }}</span>
                   <span v-if="task.due_date_fmt" class="mw-due" :class="grp.key === 'overdue' && 'text-danger'">{{ task.due_date_fmt }}</span>
@@ -103,7 +103,7 @@
           <div v-show="doneOpen" class="mw-list">
             <div v-for="task in buckets.done" :key="task.id" class="mw-row mw-row--done" @click="openTaskDetail(task)">
               <span class="mw-check mw-check--done" v-html="ICO.check"></span>
-              <div class="mw-main"><div class="mw-title">{{ task.title }}</div></div>
+              <div class="mw-main"><div class="mw-title"><span v-if="task.is_important" class="imp-star" title="Important" v-html="ICO.star"></span>{{ task.title }}</div></div>
               <span v-if="task.due_date_fmt" class="mw-due">{{ task.due_date_fmt }}</span>
             </div>
           </div>
@@ -152,6 +152,7 @@
           <div v-for="t in dashData.recentTasks" :key="t.id"
             class="task-row-item" @click="openTaskDetail(t)">
             <span class="priority-dot" :style="{background: priorityColor(t.priority)}"></span>
+            <span v-if="t.is_important" class="imp-star" title="Important" v-html="ICO.star"></span>
             <span class="task-row-title">{{ t.title }}</span>
             <span class="dept-pill" :style="{background: t.department?.color+'22', color: t.department?.color}">
               {{ t.department?.name }}
@@ -212,7 +213,7 @@
                 </span>
                 <span v-if="task.is_overdue" class="overdue-badge">Overdue</span>
               </div>
-              <div class="kc-title">{{ task.title }}</div>
+              <div class="kc-title"><span v-if="task.is_important" class="imp-star" title="Important" v-html="ICO.star"></span>{{ task.title }}</div>
               <div class="kc-dept">
                 <span class="dept-color-dot" :style="{background: task.department?.color}"></span>
                 <span :style="{color: task.department?.color}">{{ task.department?.name }}</span>
@@ -237,7 +238,12 @@
     <!-- ── Calendar ──────────────────────────────────────────────────────────── -->
     <div v-else-if="currentView === 'calendar'" class="dtm-section">
       <div class="section-toolbar">
-        <div class="cal-nav">
+        <div v-if="calendarViewMode === 'list'" class="cal-nav">
+          <button class="btn-icon" @click="calendarListYearNav(-1)" aria-label="Previous year" v-html="ICO.chevronL"></button>
+          <span class="cal-nav-label">{{ calendarListYear }}</span>
+          <button class="btn-icon" @click="calendarListYearNav(1)" aria-label="Next year" v-html="ICO.chevronR"></button>
+        </div>
+        <div v-else-if="calendarViewMode === 'grid'" class="cal-nav">
           <button class="btn-icon" @click="calendarNav(-1)" aria-label="Previous month" v-html="ICO.chevronL"></button>
           <span class="cal-nav-label">{{ calendarMonthLabel }}</span>
           <button class="btn-icon" @click="calendarNav(1)" aria-label="Next month" v-html="ICO.chevronR"></button>
@@ -256,13 +262,75 @@
           <span v-html="showClosed ? ICO.eyeOff : ICO.eye"></span>
           {{ showClosed ? 'Hide closed' : 'Show closed' }}
         </button>
-        <button class="btn-ghost sm" @click="openCalendarExportModal()">
+        <button v-if="calendarViewMode !== 'important'" class="btn-ghost sm" @click="openCalendarExportModal()">
           <span v-html="ICO.download"></span> Export
         </button>
+        <div class="pv-toggle">
+          <button class="pv-btn" :class="calendarViewMode === 'grid' && 'active'" @click="calendarViewMode = 'grid'" title="Grid view" v-html="ICO.calendarDays"></button>
+          <button class="pv-btn" :class="calendarViewMode === 'list' && 'active'" @click="calendarViewMode = 'list'" title="List view" v-html="ICO.list"></button>
+          <button class="pv-btn" :class="calendarViewMode === 'important' && 'active'" @click="calendarViewMode = 'important'" title="Important tasks" v-html="ICO.star"></button>
+        </div>
+      </div>
+
+      <div v-if="calendarViewMode !== 'important'" class="cal-legend">
+        <span class="cal-legend-hint">Colour = department:</span>
+        <span v-for="d in departments" :key="d.id" class="cal-legend-item">
+          <span class="cal-legend-dot" :style="{ background: d.color }"></span>{{ d.name }}
+        </span>
       </div>
 
       <div v-if="boardLoading" class="view-loading">
         <div class="spinner"></div>
+      </div>
+      <div v-else-if="calendarViewMode === 'important'" class="pg-block">
+        <div class="pg-task-area">
+          <div class="pg-col-labels">
+            <span>Task</span>
+            <span>Department</span>
+            <span>Due Date</span>
+            <span>Status</span>
+          </div>
+          <div v-for="task in calendarImportantTasks" :key="task.id"
+            class="pg-task-row"
+            :class="task.is_overdue && 'pg-task-row--ov'"
+            :style="{ borderLeftColor: priorityColor(task.priority) }"
+            @click="openTaskDetail(task)">
+            <div class="pg-task-info">
+              <span class="pg-task-name">{{ task.title }}</span>
+              <span v-if="task.description" class="pg-task-hint">{{ task.description.slice(0, 80) }}{{ task.description.length > 80 ? '…' : '' }}</span>
+            </div>
+            <div class="pg-task-dept-cell">
+              <span v-if="task.department" class="dept-pill" :style="{ background: task.department.color + '22', color: task.department.color }">
+                {{ task.department.name }}
+              </span>
+              <span v-else class="pg-task-empty">—</span>
+            </div>
+            <span class="pg-task-due" :class="task.is_overdue && 'text-danger'">
+              {{ task.due_date_fmt || '—' }}
+            </span>
+            <span :class="['status-badge', 'st-' + task.status, task.is_overdue && 'st-overdue']">
+              {{ task.is_overdue ? 'Overdue' : statusLabel(task.status) }}
+            </span>
+          </div>
+          <div v-if="!calendarImportantTasks.length" class="pg-no-tasks">No important tasks flagged yet.</div>
+        </div>
+      </div>
+      <div v-else-if="calendarViewMode === 'list'" class="cal-year">
+        <div v-for="mo in calendarYearMonths" :key="mo.key" class="cal-year-month">
+          <div class="cal-year-month-head">{{ mo.name }}</div>
+          <div class="cal-year-month-rows">
+            <div v-for="task in mo.tasks" :key="task.id"
+              class="cal-year-row" :class="task.is_overdue && 'cal-year-row--overdue'"
+              :style="{ borderLeftColor: priorityColor(task.priority), background: task.department ? task.department.color + '14' : undefined }"
+              :title="task.title + (task.department ? ' · ' + task.department.name : '') + (task.assignee ? ' · ' + task.assignee.name : '')"
+              @click="openTaskDetail(task)">
+              <span class="cal-year-row-date">{{ dayOfMonth(task.due_date) }}</span>
+              <span v-if="task.is_important" class="imp-star" title="Important" v-html="ICO.star"></span>
+              <span class="cal-year-row-title">{{ task.title }}</span>
+            </div>
+            <div v-if="!mo.tasks.length" class="cal-year-empty">No tasks</div>
+          </div>
+        </div>
       </div>
       <div v-else class="cal-wrap">
         <div class="cal-head-row">
@@ -278,9 +346,10 @@
             <div class="cal-pill-stack">
               <div v-for="task in (calendarTasksByDate[day.date] || []).slice(0, 3)" :key="task.id"
                 class="cal-pill" :class="task.is_overdue && 'cal-pill--overdue'"
-                :style="{ borderLeftColor: priorityColor(task.priority), background: task.is_overdue ? undefined : priorityColor(task.priority) + '22' }"
+                :style="{ borderLeftColor: priorityColor(task.priority), background: task.department ? task.department.color + '22' : 'var(--surface-2)' }"
+                :title="task.title + (task.department ? ' · ' + task.department.name : '') + (task.assignee ? ' · ' + task.assignee.name : '')"
                 @click.stop="openTaskDetail(task)">
-                <span class="cal-pill-title">{{ task.title }}</span>
+                <span class="cal-pill-title"><span v-if="task.is_important" class="imp-star" title="Important" v-html="ICO.star"></span>{{ task.title }}</span>
                 <span v-if="task.assignee" class="cal-pill-who">{{ initials(task.assignee.name) }}</span>
               </div>
               <button v-if="(calendarTasksByDate[day.date] || []).length > 3" type="button"
@@ -371,7 +440,7 @@
               :style="{ borderLeftColor: priorityColor(task.priority) }"
               @click="openTaskDetail(task)">
               <div class="pg-task-info">
-                <span class="pg-task-name">{{ task.title }}</span>
+                <span class="pg-task-name"><span v-if="task.is_important" class="imp-star" title="Important" v-html="ICO.star"></span>{{ task.title }}</span>
                 <span v-if="task.description" class="pg-task-hint">{{ task.description.slice(0, 80) }}{{ task.description.length > 80 ? '…' : '' }}</span>
               </div>
               <div class="pg-task-dept-cell">
@@ -420,7 +489,7 @@
               :class="task.is_overdue && 'pc-task--ov'"
               :style="{ borderLeftColor: priorityColor(task.priority) }"
               @click="openTaskDetail(task)">
-              <span class="pc-task-title">{{ task.title }}</span>
+              <span class="pc-task-title"><span v-if="task.is_important" class="imp-star" title="Important" v-html="ICO.star"></span>{{ task.title }}</span>
               <span :class="['status-badge', 'st-' + task.status, task.is_overdue && 'st-overdue']">
                 {{ task.is_overdue ? 'Overdue' : statusLabel(task.status) }}
               </span>
@@ -536,7 +605,7 @@
               </td>
               <td class="col-details" :title="task.description || task.title">
                 <div class="task-cell-wrap">
-                  <span class="task-cell-title">{{ task.title }}</span>
+                  <span class="task-cell-title"><span v-if="task.is_important" class="imp-star" title="Important" v-html="ICO.star"></span>{{ task.title }}</span>
                   <span v-if="task.description" class="task-cell-desc">{{ task.description }}</span>
                 </div>
               </td>
@@ -582,7 +651,7 @@
           <button class="btn-icon" @click="weekNav(1)" aria-label="Next week" v-html="ICO.chevronR"></button>
         </div>
         <div class="scope-toggle" role="group" aria-label="Report grouping">
-          <button :class="['scope-btn', weeklyGroupMode === 'weekly' && 'active']" @click="setWeeklyGroupMode('weekly')">Weekly</button>
+          <button :class="['scope-btn', weeklyGroupMode === 'weekly' && 'active']" @click="setWeeklyGroupMode('weekly')">By Department</button>
           <button :class="['scope-btn', weeklyGroupMode === 'department' && 'active']" @click="setWeeklyGroupMode('department')">Department Focus</button>
           <button :class="['scope-btn', weeklyGroupMode === 'all' && 'active']" @click="setWeeklyGroupMode('all')">All Together</button>
         </div>
@@ -637,7 +706,7 @@
                     {{ task.department.name }}
                   </span>
                 </td>
-                <td>{{ task.title }}</td>
+                <td><span v-if="task.is_important" class="imp-star" title="Important" v-html="ICO.star"></span>{{ task.title }}</td>
                 <td class="text-2">{{ task.assignee || '—' }}</td>
                 <td>
                   <span class="kc-priority" :style="{background: priorityColor(task.priority)+'22', color: priorityColor(task.priority)}">
@@ -668,7 +737,7 @@
                 <tr v-for="task in deptRow.tasks" :key="task.id"
                   class="table-row" @click="openTaskDetail(task)">
                   <td class="wr-date" :class="task.is_overdue && 'text-danger'">{{ task.due_date || '—' }}</td>
-                  <td>{{ task.title }}</td>
+                  <td><span v-if="task.is_important" class="imp-star" title="Important" v-html="ICO.star"></span>{{ task.title }}</td>
                   <td class="text-2">{{ task.assignee || '—' }}</td>
                   <td>
                     <span class="kc-priority" :style="{background: priorityColor(task.priority)+'22', color: priorityColor(task.priority)}">
@@ -799,7 +868,7 @@
                 <span class="dept-color-dot" :style="{background: selectedTask.department?.color}"></span>
                 {{ selectedTask.department?.name }}
               </span>
-              <h2 class="dp-title">{{ selectedTask.title }}</h2>
+              <h2 class="dp-title"><span v-if="selectedTask.is_important" class="imp-star" title="Important" v-html="ICO.star"></span>{{ selectedTask.title }}</h2>
             </div>
             <button class="btn-icon" @click="selectedTask = null" v-html="ICO.x" title="Close" aria-label="Close panel"></button>
           </div>
@@ -1008,6 +1077,17 @@
               </span>
             </div>
             <div class="field-row">
+              <label class="checkbox-label">
+                <input type="checkbox" v-model="form.is_important" />
+                Important Task
+              </label>
+              <span class="field-hint">
+                {{ form.is_important
+                    ? 'Flagged as important — shown with a star everywhere this task appears.'
+                    : 'Not marked as important.' }}
+              </span>
+            </div>
+            <div class="field-row">
               <label class="field-label">Description</label>
               <textarea v-model="form.description" class="field-textarea" rows="4" placeholder="Task description…"></textarea>
             </div>
@@ -1176,9 +1256,10 @@
             <div class="day-tasks-list">
               <button v-for="task in dayTasksModal.tasks" :key="task.id" type="button"
                 class="cal-pill" :class="task.is_overdue && 'cal-pill--overdue'"
-                :style="{ borderLeftColor: priorityColor(task.priority), background: task.is_overdue ? undefined : priorityColor(task.priority) + '22' }"
+                :style="{ borderLeftColor: priorityColor(task.priority), background: task.department ? task.department.color + '22' : 'var(--surface-2)' }"
+                :title="task.title + (task.department ? ' · ' + task.department.name : '') + (task.assignee ? ' · ' + task.assignee.name : '')"
                 @click="openDayTask(task)">
-                <span class="cal-pill-title">{{ task.title }}</span>
+                <span class="cal-pill-title"><span v-if="task.is_important" class="imp-star" title="Important" v-html="ICO.star"></span>{{ task.title }}</span>
                 <span v-if="task.assignee" class="cal-pill-who">{{ initials(task.assignee.name) }}</span>
               </button>
             </div>
@@ -1242,6 +1323,7 @@ const ICO = {
   grid:      _i('<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/>'),
   folder:    _i('<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>'),
   calendarDays: _i('<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="14" x2="8" y2="14"/><line x1="12" y1="14" x2="12" y2="14"/><line x1="16" y1="14" x2="16" y2="14"/><line x1="8" y1="18" x2="8" y2="18"/><line x1="12" y1="18" x2="12" y2="18"/>'),
+  star: _i('<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>'),
   settings: _i('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>'),
 };
 
@@ -1369,7 +1451,7 @@ const newComment   = ref('');
 const quickStatus  = ref('');
 const form         = reactive({
   title: '', description: '', department_id: '', assigned_to: '', priority: 'medium',
-  status: 'pending', due_date: '',
+  status: 'pending', due_date: '', is_important: false,
   is_recurring: false, recurrence_type: 'weekly',
 });
 // Non-admins see a read-only "Assigned To" field (no picker) — this resolves what it should
@@ -1436,6 +1518,7 @@ const kanbanCols = computed(() => {
 // ─── Calendar view ────────────────────────────────────────────────────────────
 const CAL_WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const calendarMonth = ref(new Date());
+const calendarViewMode = ref('grid'); // 'grid' | 'list' | 'important'
 
 const calendarMonthLabel = computed(() =>
   calendarMonth.value.toLocaleDateString('default', { month: 'long', year: 'numeric' })
@@ -1451,6 +1534,20 @@ const calendarFilteredTasks = computed(() => {
   return boardTasks.value.filter(t => t.status !== 'completed' && t.status !== 'cancelled');
 });
 
+// Important tab: every flagged task regardless of month/year — this one is browsed by nothing
+// but its own filters, so it isn't scoped to calendarMonth/calendarListYear like the other two modes.
+const calendarImportantTasks = computed(() =>
+  calendarFilteredTasks.value
+    .filter(t => t.is_important)
+    .slice()
+    .sort((a, b) => {
+      if (!a.due_date && !b.due_date) return a.title.localeCompare(b.title);
+      if (!a.due_date) return 1;
+      if (!b.due_date) return -1;
+      return a.due_date.localeCompare(b.due_date) || a.title.localeCompare(b.title);
+    })
+);
+
 // Grouped once per recompute so each day cell is an O(1) lookup instead of a re-filter.
 const calendarTasksByDate = computed(() => {
   const map = {};
@@ -1459,6 +1556,32 @@ const calendarTasksByDate = computed(() => {
     (map[t.due_date] ??= []).push(t);
   }
   return map;
+});
+
+// List toggle is a full-year board (Jan–Dec columns), navigated by year only — independent of the grid's month nav.
+const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+const calendarListYear = ref(new Date().getFullYear());
+function calendarListYearNav(delta) {
+  calendarListYear.value += delta;
+}
+function dayOfMonth(due_date) {
+  return due_date ? Number(due_date.split('-')[2]) : '';
+}
+
+// Same tasks + closed-visibility rule as the grid, bucketed by month for the given year.
+const calendarYearMonths = computed(() => {
+  const year = calendarListYear.value;
+  const byMonth = Array.from({ length: 12 }, () => []);
+  for (const t of calendarFilteredTasks.value) {
+    if (!t.due_date) continue;
+    const [ty, tm] = t.due_date.split('-').map(Number);
+    if (ty === year) byMonth[tm - 1].push(t);
+  }
+  return MONTH_NAMES.map((name, i) => ({
+    key: i,
+    name,
+    tasks: byMonth[i].slice().sort((a, b) => a.due_date.localeCompare(b.due_date) || a.title.localeCompare(b.title)),
+  }));
 });
 
 const calendarDays = computed(() => {
@@ -1563,7 +1686,7 @@ const weeklyEmptyMessage = computed(() => {
 const weeklyReportTitle = computed(() => {
   if (weeklyGroupMode.value === 'department') return `Outstanding Task Report — ${focusedDept.value?.name || 'Department'}`;
   if (weeklyGroupMode.value === 'all') return 'Outstanding Task Report — All Departments';
-  return 'Weekly Outstanding Task Report';
+  return 'Outstanding Task Report — By Department';
 });
 
 const weeklySummary = computed(() => {
@@ -1904,14 +2027,14 @@ function openTaskModal(task = null, deptId = null, dueDate = null) {
     Object.assign(form, {
       title: task.title, description: task.description || '', department_id: task.department_id,
       assigned_to: task.assigned_to || '', priority: task.priority, status: task.status,
-      due_date: task.due_date || '',
+      due_date: task.due_date || '', is_important: !!task.is_important,
       is_recurring: !!task.is_recurring, recurrence_type: task.recurrence_type || 'weekly',
     });
   } else {
     Object.assign(form, {
       title: '', description: '', department_id: deptId || '',
       assigned_to: isAdmin.value ? '' : currentUserId.value,
-      priority: 'medium', status: 'pending', due_date: dueDate || '',
+      priority: 'medium', status: 'pending', due_date: dueDate || '', is_important: false,
       is_recurring: false, recurrence_type: 'weekly',
     });
   }
@@ -2285,6 +2408,7 @@ body { font-family:Arial,'Helvetica Neue',sans-serif; font-size:10px; color:#000
 .ti-name.ov { font-weight:700; }
 .ti-sub { display:block; font-size:8px; color:#555; margin-top:1px; }
 .ov-tag { display:inline-block; font-size:7px; font-weight:800; background:#000; color:#fff; padding:1px 3px; margin-left:3px; vertical-align:middle; letter-spacing:0.04em; }
+.imp-mark { color:#f59e0b; margin-right:3px; }
 
 /* ── Flat table (history / table export) ── */
 .flat { width:100%; border-collapse:collapse; font-size:10px; }
@@ -2336,7 +2460,7 @@ function flatTable(tasks, emptyMsg) {
     const who  = t.assignee?.name  || t.assignee  || '—';
     const date = t.due_date_fmt || t.due_date || '—';
     return `<tr>
-      <td ${ov ? 'class="td-ov"' : ''}>${t.title}</td>
+      <td ${ov ? 'class="td-ov"' : ''}>${t.is_important ? '<span class="imp-mark">★</span>' : ''}${t.title}</td>
       <td class="td-dept">${dept}</td>
       <td class="td-muted">${who}</td>
       <td><span class="st">${_PU(t.priority)}</span></td>
@@ -2410,7 +2534,7 @@ function printWeekly() {
       const items = slot.map(t => {
         const ov = t.is_overdue;
         return `<div class="ti">
-          <span class="ti-name ${ov ? 'ov' : ''}">${t.title}${ov ? '<span class="ov-tag">OVERDUE</span>' : ''}</span>
+          <span class="ti-name ${ov ? 'ov' : ''}">${t.is_important ? '<span class="imp-mark">★</span>' : ''}${t.title}${ov ? '<span class="ov-tag">OVERDUE</span>' : ''}</span>
           <span class="ti-sub">${t.assignee ? t.assignee + ' · ' : ''}${_PU(t.priority)} · ${ov ? 'OVERDUE' : _SU(t.status)}</span>
         </div>`;
       }).join('');
@@ -3020,8 +3144,8 @@ select.field-input { cursor: pointer; }
   padding: 4px 7px; border-radius: var(--radius-sm); border-left: 4px solid transparent;
   background: var(--surface-2); font-size: 12px; line-height: 1.3; cursor: pointer;
 }
-.cal-pill:hover                       { background: var(--border); }
-.cal-pill--overdue                    { background: var(--danger-soft); }
+.cal-pill:hover                       { filter: brightness(0.96); }
+.cal-pill--overdue                    { outline: 1.5px dashed var(--danger); outline-offset: -2px; }
 .cal-pill-title                       { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 700; color: var(--text-1); }
 .cal-pill--overdue .cal-pill-title    { color: var(--danger); }
 .cal-pill-who   { flex-shrink: 0; font-size: 10.5px; font-weight: 700; color: var(--text-2); }
@@ -3031,6 +3155,11 @@ select.field-input { cursor: pointer; }
   font-size: 11.5px; font-weight: 600; color: var(--text-2); padding: 2px 4px;
 }
 .cal-more:hover { color: var(--primary); text-decoration: underline; }
+
+.cal-legend      { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; padding: 2px 2px 14px; }
+.cal-legend-hint { font-size: 11.5px; font-weight: 700; color: var(--text-3); }
+.cal-legend-item { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; font-weight: 600; color: var(--text-2); }
+.cal-legend-dot  { width: 9px; height: 9px; border-radius: 999px; flex-shrink: 0; }
 
 .day-tasks-list { display: flex; flex-direction: column; gap: 6px; max-height: 50vh; overflow-y: auto; }
 .day-tasks-list .cal-pill {
@@ -3045,6 +3174,41 @@ select.field-input { cursor: pointer; }
   .cal-pill-who    { display: none; }
   .cal-nav-label   { min-width: 110px; font-size: 17px; }
 }
+
+/* ── Calendar: List (year board) view ─────────────────────────────────────── */
+.cal-year {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 14px; align-items: start;
+}
+.cal-year-month {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-sm);
+}
+.cal-year-month-head {
+  padding: 9px 14px; background: var(--primary-soft); border-bottom: 2px solid var(--primary);
+  font-size: 12.5px; font-weight: 800; color: var(--primary-text);
+}
+.cal-year-month-rows {
+  display: flex; flex-direction: column;
+  max-height: 340px; overflow-y: auto;
+}
+.cal-year-row {
+  display: flex; align-items: baseline; gap: 8px; padding: 6px 10px;
+  border-left: 3px solid var(--border); border-bottom: 1px solid var(--border-soft);
+  cursor: pointer; transition: filter 0.12s;
+}
+.cal-year-row:last-child     { border-bottom: none; }
+.cal-year-row:hover          { filter: brightness(0.97); }
+.cal-year-row--overdue       { outline: 1.5px dashed var(--danger); outline-offset: -2px; }
+.cal-year-row-date {
+  flex-shrink: 0; width: 18px; font-size: 11px; font-weight: 700; color: var(--text-3);
+}
+.cal-year-row-title {
+  font-size: 12.5px; font-weight: 600; color: var(--text-1);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.cal-year-row--overdue .cal-year-row-title { color: var(--danger); }
+.cal-year-empty { padding: 10px 14px; font-size: 11.5px; color: var(--text-3); text-align: center; }
 
 /* ── Filter bar ───────────────────────────────────────────────────────────── */
 .filter-bar {
@@ -3106,6 +3270,9 @@ select.field-input { cursor: pointer; }
 .priority-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex-shrink: 0; margin-right: 4px; }
 .dept-pill    { font-size: 11.5px; font-weight: 600; padding: 3px 10px; border-radius: 999px; white-space: nowrap; }
 .status-badge { font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 999px; white-space: nowrap; }
+/* Important-task marker — reuses ICO.star (outline) but forces it solid gold via CSS, which wins over the baked-in fill="none". */
+.imp-star { display: inline-flex; flex-shrink: 0; color: #f59e0b; }
+.imp-star svg { fill: currentColor; }
 .st-pending          { background: var(--surface-2); color: var(--text-2); border: 1px solid var(--border); }
 .st-in_progress      { background: #dbeafe; color: #1d4ed8; }
 .st-completed        { background: #dcfce7; color: #15803d; }

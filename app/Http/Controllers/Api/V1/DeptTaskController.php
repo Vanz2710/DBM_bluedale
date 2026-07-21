@@ -465,6 +465,7 @@ class DeptTaskController extends Controller
             'priority'        => 'required|in:low,medium,high,critical',
             'status'          => 'nullable|in:pending,in_progress,completed,cancelled',
             'due_date'        => 'nullable|date',
+            'is_important'    => 'boolean',
             'is_recurring'    => 'boolean',
             'recurrence_type' => 'nullable|in:daily,weekly,monthly,quarterly',
         ]);
@@ -541,6 +542,7 @@ class DeptTaskController extends Controller
             'priority'          => 'sometimes|in:low,medium,high,critical',
             'status'            => 'sometimes|in:pending,in_progress,completed,cancelled',
             'due_date'          => 'nullable|date',
+            'is_important'      => 'boolean',
             'is_recurring'      => 'boolean',
             'recurrence_type'   => 'nullable|in:daily,weekly,monthly,quarterly',
         ]);
@@ -968,6 +970,7 @@ class DeptTaskController extends Controller
             'due_date'        => $task->due_date?->format('Y-m-d'),
             'due_date_fmt'    => $task->due_date?->format('d M Y'),
             'is_overdue'      => $task->is_overdue,
+            'is_important'    => $task->is_important,
             'is_recurring'    => $task->is_recurring,
             'recurrence_type' => $task->recurrence_type,
             'next_recurrence_date' => $task->next_recurrence_date?->format('d M Y'),

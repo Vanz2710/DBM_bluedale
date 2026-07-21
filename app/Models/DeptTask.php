@@ -13,7 +13,7 @@ class DeptTask extends Model
 
     protected $fillable = [
         'title', 'description', 'department_id', 'assigned_to', 'created_by',
-        'priority', 'status', 'due_date',
+        'priority', 'status', 'due_date', 'is_important',
         'is_recurring', 'recurrence_type', 'next_recurrence_date', 'board_position',
     ];
 
@@ -21,6 +21,7 @@ class DeptTask extends Model
         'due_date'             => 'date',
         'next_recurrence_date' => 'date',
         'is_recurring'         => 'boolean',
+        'is_important'         => 'boolean',
     ];
 
     protected $appends = ['is_overdue'];
