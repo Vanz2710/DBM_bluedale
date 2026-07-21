@@ -66,6 +66,18 @@ class ContactController extends Controller
         return response()->json($contacts);
     }
 
+    // Shared by daily() and export() so the on-screen order always matches the exported order.
+    private function applyContactSort($query, ?string $sort): void
+    {
+        if ($sort === 'name_asc') {
+            $query->orderBy('name', 'asc');
+        } elseif ($sort === 'name_desc') {
+            $query->orderBy('name', 'desc');
+        } else {
+            $query->orderBy('created_at', in_array($sort, ['asc', 'desc']) ? $sort : 'desc');
+        }
+    }
+
     public function daily(Request $request)
     {
         $date     = $request->input('date');
@@ -94,8 +106,7 @@ class ContactController extends Controller
         if ($v = $request->input('type_id'))     $query->where('type_id', $v);
         if ($v = $request->input('category_id')) $query->where('category_id', $v);
 
-        $sort = $request->input('sort', 'desc');
-        $query->orderBy('created_at', in_array($sort, ['asc', 'desc']) ? $sort : 'desc');
+        $this->applyContactSort($query, $request->input('sort'));
 
         $contacts = $query->paginate($perPage);
 
@@ -122,7 +133,6 @@ class ContactController extends Controller
 
     public function export(Request $request)
     {
-        $sort          = in_array($request->input('sort'), ['asc', 'desc']) ? $request->input('sort') : 'desc';
         $withIncharges = $request->boolean('with_incharges');
 
         $ALLOWED = ['no','date_added','user','status','type','industry','company','category','address','remarks','pic_names','pic_emails','pic_mobiles','pic_offices'];
@@ -160,7 +170,7 @@ class ContactController extends Controller
             if ($v = $request->input('type_id'))     $query->where('type_id', $v);
             if ($v = $request->input('category_id')) $query->where('category_id', $v);
         }
-        $query->orderBy('created_at', $sort);
+        $this->applyContactSort($query, $request->input('sort'));
 
         $format   = $request->input('format') === 'csv' ? 'csv' : 'xls';
         $filename = 'Contacts_' . now()->format('Y-m-d') . '.' . $format;

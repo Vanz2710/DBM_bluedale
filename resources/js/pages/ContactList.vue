@@ -47,70 +47,13 @@
           </div>
         </div>
       </div>
-      <div class="filter-group wide search-group">
-        <label>Search</label>
-        <div class="search-wrap">
-          <input
-            v-model="search"
-            @input="onSearchInput"
-            @keydown.down.prevent="moveSuggestion(1)"
-            @keydown.up.prevent="moveSuggestion(-1)"
-            @keyup.enter="onSearchEnter"
-            @keydown.esc="showSuggestions = false"
-            @blur="onSearchBlur"
-            @focus="search.trim() && suggestions.length && (showSuggestions = true)"
-            placeholder="Search by company name…"
-            autocomplete="off"
-            role="combobox"
-            aria-autocomplete="list"
-            :aria-expanded="showSuggestions"
-          >
-          <div v-if="showSuggestions && suggestions.length" class="suggestions-dropdown" role="listbox">
-            <div
-              v-for="(s, si) in suggestions"
-              :key="s.id"
-              class="suggestion-item"
-              :class="{ 'suggestion-item-active': si === activeSuggestion }"
-              role="option"
-              :aria-selected="si === activeSuggestion"
-              @mousedown.prevent="pickSuggestion(s.name)"
-            >{{ s.name }}</div>
-          </div>
-        </div>
-      </div>
-      <div class="filter-group">
-        <label>User</label>
-        <select v-model="userId" @change="load(1)">
-          <option value="">All Users</option>
-          <option v-for="u in users" :key="u.id" :value="u.id">{{ u.name }}</option>
-        </select>
-      </div>
-      <div class="filter-group">
-        <label>Status</label>
-        <select v-model="statusId" @change="load(1)">
-          <option value="">All</option>
-          <option v-for="s in lookups.statuses" :key="s.id" :value="s.id">{{ s.name }}</option>
-        </select>
-      </div>
-      <div class="filter-group">
-        <label>Type</label>
-        <select v-model="typeId" @change="load(1)">
-          <option value="">All</option>
-          <option v-for="t in lookups.types" :key="t.id" :value="t.id">{{ t.name }}</option>
-        </select>
-      </div>
-      <div class="filter-group">
-        <label>Category</label>
-        <select v-model="categoryId" @change="load(1)">
-          <option value="">All</option>
-          <option v-for="c in lookups.categories" :key="c.id" :value="c.id">{{ c.name }}</option>
-        </select>
-      </div>
       <div class="filter-group">
         <label>Sort</label>
         <select v-model="sort" @change="load(1)">
           <option value="desc">Newest First</option>
           <option value="asc">Oldest First</option>
+          <option value="name_asc">Name (A–Z)</option>
+          <option value="name_desc">Name (Z–A)</option>
         </select>
       </div>
       <div class="filter-group">
@@ -128,57 +71,6 @@
 
     <!-- Summary toolbar -->
     <div v-else-if="tab === 'summary'" class="toolbar">
-      <div class="filter-group">
-        <label>Year</label>
-        <select v-model="summaryYear" @change="applySummaryFilters">
-          <option v-for="y in summaryYears" :key="y" :value="y">{{ y }}</option>
-        </select>
-      </div>
-      <div class="filter-group wide search-group">
-        <label>Search</label>
-        <div class="search-wrap">
-          <input
-            v-model="summaryFilters.search"
-            @input="onSummarySearchInput"
-            @keydown.down.prevent="moveSummarySuggestion(1)"
-            @keydown.up.prevent="moveSummarySuggestion(-1)"
-            @keyup.enter="onSummarySearchEnter"
-            @keydown.esc="summaryShowSuggestions = false"
-            @blur="onSummarySearchBlur"
-            @focus="summaryFilters.search.trim() && summarySuggestions.length && (summaryShowSuggestions = true)"
-            placeholder="Company name…"
-            autocomplete="off"
-            role="combobox"
-            aria-autocomplete="list"
-            :aria-expanded="summaryShowSuggestions"
-          >
-          <div v-if="summaryShowSuggestions && summarySuggestions.length" class="suggestions-dropdown" role="listbox">
-            <div
-              v-for="(s, si) in summarySuggestions"
-              :key="s.id"
-              class="suggestion-item"
-              :class="{ 'suggestion-item-active': si === summaryActiveSuggestion }"
-              role="option"
-              :aria-selected="si === summaryActiveSuggestion"
-              @mousedown.prevent="pickSummarySuggestion(s.name)"
-            >{{ s.name }}</div>
-          </div>
-        </div>
-      </div>
-      <div class="filter-group">
-        <label>User</label>
-        <select v-model="summaryFilters.user_id" @change="applySummaryFilters">
-          <option value="">All Users</option>
-          <option v-for="u in users" :key="u.id" :value="u.id">{{ u.name }}</option>
-        </select>
-      </div>
-      <div class="filter-group">
-        <label>Status</label>
-        <select v-model="summaryFilters.status_id" @change="applySummaryFilters">
-          <option value="">All</option>
-          <option v-for="s in lookups.statuses" :key="s.id" :value="s.id">{{ s.name }}</option>
-        </select>
-      </div>
       <div class="filter-group">
         <label>Type</label>
         <select v-model="summaryFilters.type_id" @change="applySummaryFilters">
@@ -874,9 +766,33 @@
               <tr>
                 <th class="col-check"><input type="checkbox" @change="toggleAllContacts" ref="contactSelectAllRef" :indeterminate.prop="contactSomeSelected" aria-label="Select all contacts"></th>
                 <th class="col-date">Date Added</th>
-                <th class="col-user">User</th>
-                <th class="col-status">Status</th>
-                <th class="col-type">Type</th>
+                <th class="col-user th-filter">
+                  <div class="col-head">
+                    <span>User</span>
+                    <select v-model="userId" @change="load(1)" class="col-filter-sel">
+                      <option value="">All Users</option>
+                      <option v-for="u in users" :key="u.id" :value="u.id">{{ u.name }}</option>
+                    </select>
+                  </div>
+                </th>
+                <th class="col-status th-filter">
+                  <div class="col-head">
+                    <span>Status</span>
+                    <select v-model="statusId" @change="load(1)" class="col-filter-sel">
+                      <option value="">All</option>
+                      <option v-for="s in lookups.statuses" :key="s.id" :value="s.id">{{ s.name }}</option>
+                    </select>
+                  </div>
+                </th>
+                <th class="col-type th-filter">
+                  <div class="col-head">
+                    <span>Type</span>
+                    <select v-model="typeId" @change="load(1)" class="col-filter-sel">
+                      <option value="">All</option>
+                      <option v-for="t in lookups.types" :key="t.id" :value="t.id">{{ t.name }}</option>
+                    </select>
+                  </div>
+                </th>
                 <th class="col-industry th-filter">
                   <div class="col-head">
                     <span>Industry</span>
@@ -886,8 +802,49 @@
                     </select>
                   </div>
                 </th>
-                <th class="col-name">Company Name</th>
-                <th class="col-category">Category</th>
+                <th class="col-name th-filter">
+                  <div class="col-head">
+                    <span>Company Name</span>
+                    <div class="search-wrap col-header-search">
+                      <input
+                        v-model="search"
+                        @input="onSearchInput"
+                        @keydown.down.prevent="moveSuggestion(1)"
+                        @keydown.up.prevent="moveSuggestion(-1)"
+                        @keyup.enter="onSearchEnter"
+                        @keydown.esc="showSuggestions = false"
+                        @blur="onSearchBlur"
+                        @focus="search.trim() && suggestions.length && (showSuggestions = true)"
+                        placeholder="Search…"
+                        autocomplete="off"
+                        role="combobox"
+                        aria-autocomplete="list"
+                        :aria-expanded="showSuggestions"
+                        class="col-filter-input"
+                      >
+                      <div v-if="showSuggestions && suggestions.length" class="suggestions-dropdown" role="listbox">
+                        <div
+                          v-for="(s, si) in suggestions"
+                          :key="s.id"
+                          class="suggestion-item"
+                          :class="{ 'suggestion-item-active': si === activeSuggestion }"
+                          role="option"
+                          :aria-selected="si === activeSuggestion"
+                          @mousedown.prevent="pickSuggestion(s.name)"
+                        >{{ s.name }}</div>
+                      </div>
+                    </div>
+                  </div>
+                </th>
+                <th class="col-category th-filter">
+                  <div class="col-head">
+                    <span>Category</span>
+                    <select v-model="categoryId" @change="load(1)" class="col-filter-sel">
+                      <option value="">All</option>
+                      <option v-for="c in lookups.categories" :key="c.id" :value="c.id">{{ c.name }}</option>
+                    </select>
+                  </div>
+                </th>
                 <th class="col-remark">Remarks</th>
                 <th class="col-action">Actions</th>
               </tr>
@@ -925,6 +882,10 @@
                     <button v-if="can('create todos')" class="action-chip chip-task" title="Add To-Do" @click="openAddTaskModal(c)">
                       <span class="chip-icon" v-html="CI.clipboard"></span>
                       <span class="chip-label">To-Do</span>
+                    </button>
+                    <button v-if="can('create forecasts')" class="action-chip chip-forecast" title="Add Forecast" @click="openForecastAdd(c)">
+                      <span class="chip-icon" v-html="CI.trending"></span>
+                      <span class="chip-label">Forecast</span>
                     </button>
                     <button v-if="can('edit contacts') && c.can_edit" class="action-chip chip-edit" title="Edit Contact" @click="openEditContactModal(c)">
                       <span class="chip-icon" v-html="CI.edit"></span>
@@ -989,10 +950,66 @@
             <thead>
               <tr>
                 <th class="col-check"><input type="checkbox" @change="toggleAllSummary" ref="summarySelectAllRef" :indeterminate.prop="summarySomeSelected" aria-label="Select all contacts"></th>
-                <th class="sum-name-col">Company</th>
-                <th class="sum-user-col">User</th>
-                <th class="sum-status-col">Status</th>
-                <th class="sum-activity-col">Activity {{ summaryYear }}</th>
+                <th class="sum-name-col th-filter">
+                  <div class="col-head">
+                    <span>Company</span>
+                    <div class="search-wrap col-header-search">
+                      <input
+                        v-model="summaryFilters.search"
+                        @input="onSummarySearchInput"
+                        @keydown.down.prevent="moveSummarySuggestion(1)"
+                        @keydown.up.prevent="moveSummarySuggestion(-1)"
+                        @keyup.enter="onSummarySearchEnter"
+                        @keydown.esc="summaryShowSuggestions = false"
+                        @blur="onSummarySearchBlur"
+                        @focus="summaryFilters.search.trim() && summarySuggestions.length && (summaryShowSuggestions = true)"
+                        placeholder="Search…"
+                        autocomplete="off"
+                        role="combobox"
+                        aria-autocomplete="list"
+                        :aria-expanded="summaryShowSuggestions"
+                        class="col-filter-input"
+                      >
+                      <div v-if="summaryShowSuggestions && summarySuggestions.length" class="suggestions-dropdown" role="listbox">
+                        <div
+                          v-for="(s, si) in summarySuggestions"
+                          :key="s.id"
+                          class="suggestion-item"
+                          :class="{ 'suggestion-item-active': si === summaryActiveSuggestion }"
+                          role="option"
+                          :aria-selected="si === summaryActiveSuggestion"
+                          @mousedown.prevent="pickSummarySuggestion(s.name)"
+                        >{{ s.name }}</div>
+                      </div>
+                    </div>
+                  </div>
+                </th>
+                <th class="sum-user-col th-filter">
+                  <div class="col-head">
+                    <span>User</span>
+                    <select v-model="summaryFilters.user_id" @change="applySummaryFilters" class="col-filter-sel">
+                      <option value="">All Users</option>
+                      <option v-for="u in users" :key="u.id" :value="u.id">{{ u.name }}</option>
+                    </select>
+                  </div>
+                </th>
+                <th class="sum-status-col th-filter">
+                  <div class="col-head">
+                    <span>Status</span>
+                    <select v-model="summaryFilters.status_id" @change="applySummaryFilters" class="col-filter-sel">
+                      <option value="">All</option>
+                      <option v-for="s in lookups.statuses" :key="s.id" :value="s.id">{{ s.name }}</option>
+                    </select>
+                  </div>
+                </th>
+                <th class="sum-activity-col th-filter">
+                  <div class="col-head">
+                    <span>Activity</span>
+                    <select v-model="summaryYear" @change="applySummaryFilters" class="col-filter-sel">
+                      <option v-for="y in summaryYears" :key="y" :value="y">{{ y }}</option>
+                    </select>
+                  </div>
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -2906,7 +2923,7 @@ table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .col-name     { min-width: 160px; }
 .col-category { width: 110px; }
 .col-remark   { width: 200px; }
-.col-action   { width: 160px; white-space: nowrap; }
+.col-action   { width: 220px; white-space: nowrap; }
 
 thead th {
   background: var(--surface-2);
@@ -2927,6 +2944,8 @@ thead th:last-child { border-right: none; }
 .col-head span { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.55px; color: var(--text-2); white-space: nowrap; }
 .col-filter-sel { width: 100%; height: 22px; font-size: 11px; padding: 0 4px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text-1); cursor: pointer; }
 .col-filter-sel:focus { outline: 1px solid var(--primary); }
+.col-filter-input { width: 100%; height: 22px; font-size: 11px; padding: 0 6px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text-1); }
+.col-filter-input:focus { outline: 1px solid var(--primary); }
 tbody td {
   padding: 13px 14px;
   border-bottom: 1px solid var(--border-soft);
@@ -2993,8 +3012,9 @@ tbody tr:last-child td { border-bottom: none; }
 }
 .maps-link:hover { background: var(--primary); color: var(--primary-on); }
 
-/* Action buttons */
-.action-btns { display: flex; gap: 5px; align-items: center; }
+/* Action buttons: wrap onto a second line instead of forcing the table to
+   scroll when the sidebar is open and squeezes the available width. */
+.action-btns { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
 
 .action-chip {
   display: inline-flex;
@@ -3014,9 +3034,10 @@ tbody tr:last-child td { border-bottom: none; }
 .chip-icon svg { width: 14px; height: 14px; }
 .chip-label { letter-spacing: 0.2px; }
 
-.chip-task   { background: var(--info-soft);    color: var(--info); }
-.chip-edit   { background: var(--primary-soft); color: var(--primary-text); }
-.chip-delete { background: var(--danger-soft);  color: var(--danger); }
+.chip-task     { background: var(--info-soft);    color: var(--info); }
+.chip-forecast { background: var(--success-soft); color: var(--success); }
+.chip-edit     { background: var(--primary-soft); color: var(--primary-text); }
+.chip-delete   { background: var(--danger-soft);  color: var(--danger); }
 
 /* Inline remark text */
 .remark-inline-btn {
@@ -4089,6 +4110,8 @@ tbody tr:last-child td { border-bottom: none; }
   max-height: 260px;
   overflow-y: auto;
 }
+/* Sits inside .table-scroll's clipping box, so keep it short and let it overhang the narrow input. */
+.col-header-search .suggestions-dropdown { left: 0; right: auto; width: 240px; max-height: 170px; }
 .suggestion-item {
   padding: 10px 16px;
   font-size: 13px;

@@ -59,36 +59,6 @@
           <input type="month" v-model="toMonth" @change="onRangeChange" class="month-input">
         </div>
       </template>
-      <div class="filter-group wide search-group">
-        <label>Search</label>
-        <div class="search-wrap">
-          <input
-            v-model="search"
-            @input="onSearchInput"
-            @keyup.enter="load(); showSuggestions = false"
-            @keydown.esc="showSuggestions = false"
-            @blur="onSearchBlur"
-            @focus="search.trim() && suggestions.length && (showSuggestions = true)"
-            placeholder="Company name…"
-            autocomplete="off"
-          >
-          <div v-if="showSuggestions && suggestions.length" class="suggestions-dropdown">
-            <div
-              v-for="s in suggestions"
-              :key="s.id"
-              class="suggestion-item"
-              @mousedown.prevent="pickSuggestion(s.name)"
-            >{{ s.name }}</div>
-          </div>
-        </div>
-      </div>
-      <div class="filter-group">
-        <label>User</label>
-        <select v-model="userId" @change="page = 1; load()">
-          <option value="">All Users</option>
-          <option v-for="u in users" :key="u.id" :value="u.id">{{ u.name }}</option>
-        </select>
-      </div>
       <div class="filter-group">
         <label>Completion</label>
         <select v-model="statusFilter" @change="page = 1; load()">
@@ -157,8 +127,41 @@
                   </select>
                 </div>
               </th>
-              <th>Company</th>
-              <th>User</th>
+              <th class="th-filter">
+                <div class="col-head">
+                  <span>Company</span>
+                  <div class="search-wrap col-header-search">
+                    <input
+                      v-model="search"
+                      @input="onSearchInput"
+                      @keyup.enter="load(); showSuggestions = false"
+                      @keydown.esc="showSuggestions = false"
+                      @blur="onSearchBlur"
+                      @focus="search.trim() && suggestions.length && (showSuggestions = true)"
+                      placeholder="Search…"
+                      autocomplete="off"
+                      class="col-filter-input"
+                    >
+                    <div v-if="showSuggestions && suggestions.length" class="suggestions-dropdown">
+                      <div
+                        v-for="s in suggestions"
+                        :key="s.id"
+                        class="suggestion-item"
+                        @mousedown.prevent="pickSuggestion(s.name)"
+                      >{{ s.name }}</div>
+                    </div>
+                  </div>
+                </div>
+              </th>
+              <th class="th-filter">
+                <div class="col-head">
+                  <span>User</span>
+                  <select v-model="userId" @change="page = 1; load()" class="col-filter-sel">
+                    <option value="">All Users</option>
+                    <option v-for="u in users" :key="u.id" :value="u.id">{{ u.name }}</option>
+                  </select>
+                </div>
+              </th>
               <th class="th-filter">
                 <div class="col-head">
                   <span>Task</span>
@@ -1408,7 +1411,7 @@ tbody tr:hover { background: var(--surface-2); }
 }
 .fu-add-btn:hover { background: color-mix(in srgb, var(--followup) 40%, white); border-color: color-mix(in srgb, var(--followup) 55%, white); }
 .fu-add-btn:active { transform: scale(0.93); }
-.actions-cell { display: flex; gap: 4px; align-items: center; flex-wrap: nowrap; }
+.actions-cell { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; }
 
 /* Month input */
 .month-input {
@@ -1485,6 +1488,13 @@ tbody tr:hover { background: var(--surface-2); }
   background: var(--surface); color: var(--text-1); cursor: pointer;
 }
 .col-filter-sel:focus { outline: 1px solid var(--primary); }
+.col-filter-input {
+  width: 100%; height: 22px; font-size: 11px; padding: 0 6px;
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--surface); color: var(--text-1);
+}
+.col-filter-input:focus { outline: 1px solid var(--primary); }
+.col-header-search .suggestions-dropdown { left: 0; right: auto; width: 240px; max-height: 170px; }
 
 /* Edit modal company chip */
 .edit-company-chip {

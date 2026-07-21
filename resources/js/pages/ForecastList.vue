@@ -19,20 +19,6 @@
         <input type="text" v-model="filters.q" @keyup.enter="applyFilters" placeholder="Company, product, user…">
       </div>
       <div class="filter-group">
-        <label>Snapshot</label>
-        <select v-model="filters.contact_status_id" @change="applyFilters">
-          <option value="">All Statuses</option>
-          <option v-for="s in lookups.statuses" :key="s.id" :value="s.id">{{ s.name }}</option>
-        </select>
-      </div>
-      <div v-if="isAdmin" class="filter-group">
-        <label>User</label>
-        <select v-model="filters.user_id" @change="applyFilters">
-          <option value="">All Users</option>
-          <option v-for="u in lookups.users" :key="u.id" :value="u.id">{{ u.name }}</option>
-        </select>
-      </div>
-      <div class="filter-group">
         <label>Year</label>
         <select v-model="filters.year" @change="applyFilters">
           <option value="">All Years</option>
@@ -79,7 +65,7 @@
             <col style="width:120px">   <!-- amount -->
             <col style="width:112px">   <!-- forecast date -->
             <col style="width:140px">   <!-- result -->
-            <col style="width:82px">    <!-- assigned -->
+            <col style="width:104px">   <!-- assigned -->
             <col style="width:100px">   <!-- updated -->
             <col style="width:76px">    <!-- actions -->
           </colgroup>
@@ -105,7 +91,15 @@
                   </select>
                 </div>
               </th>
-              <th>Snapshot</th>
+              <th class="th-filter">
+                <div class="col-head">
+                  <span>Snapshot</span>
+                  <select v-model="filters.contact_status_id" @change="applyFilters" class="col-filter-sel">
+                    <option value="">All</option>
+                    <option v-for="s in lookups.statuses" :key="s.id" :value="s.id">{{ s.name }}</option>
+                  </select>
+                </div>
+              </th>
               <th class="sortable" @click="changeSort('amount')">Amount <span class="sort-icon" v-html="sortIcon('amount')"></span></th>
               <th class="sortable" @click="changeSort('forecast_date')">Forecast Date <span class="sort-icon" v-html="sortIcon('forecast_date')"></span></th>
               <th class="th-filter">
@@ -118,7 +112,16 @@
                   </select>
                 </div>
               </th>
-              <th>Assigned</th>
+              <th :class="{ 'th-filter': isAdmin }">
+                <div v-if="isAdmin" class="col-head">
+                  <span>Assigned</span>
+                  <select v-model="filters.user_id" @change="applyFilters" class="col-filter-sel">
+                    <option value="">All</option>
+                    <option v-for="u in lookups.users" :key="u.id" :value="u.id">{{ u.name }}</option>
+                  </select>
+                </div>
+                <template v-else>Assigned</template>
+              </th>
               <th class="sortable" @click="changeSort('forecast_updatedate')">Updated <span class="sort-icon" v-html="sortIcon('forecast_updatedate')"></span></th>
               <th>Actions</th>
             </tr>
@@ -762,7 +765,7 @@ tbody tr:hover { background: var(--surface-2); }
 .btn-edit:hover { background: color-mix(in srgb, var(--warning) 40%, white); }
 .btn-del  { background: var(--danger-soft); }
 .btn-del:hover  { background: color-mix(in srgb, var(--danger) 35%, white); }
-.actions-cell { display: flex; gap: 4px; }
+.actions-cell { display: flex; gap: 4px; flex-wrap: wrap; }
 .empty-state { text-align: center; padding: 48px; color: var(--text-3); font-size: 14px; }
 
 /* Pager */

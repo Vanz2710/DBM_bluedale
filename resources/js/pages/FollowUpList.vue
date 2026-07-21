@@ -68,10 +68,6 @@
           <option value="">All</option>
         </select>
       </div>
-      <div class="filter-group wide">
-        <label>Search Company</label>
-        <input type="text" v-model="search" @keyup.enter="load" placeholder="Company name…">
-      </div>
       <div class="toolbar-actions">
         <button class="btn btn-primary" @click="load">Search</button>
         <button class="btn btn-export" @click="openExportModal()">Export</button>
@@ -123,7 +119,12 @@
                   </select>
                 </div>
               </th>
-              <th>Company</th>
+              <th class="th-filter">
+                <div class="col-head">
+                  <span>Company</span>
+                  <input type="text" v-model="search" @keyup.enter="load" placeholder="Search…" class="col-filter-input">
+                </div>
+              </th>
               <th class="th-filter">
                 <div class="col-head">
                   <span>Status</span>
@@ -1055,6 +1056,12 @@ tbody tr:hover { background: var(--surface-2); }
   background: var(--surface); color: var(--text-1); cursor: pointer;
 }
 .col-filter-sel:focus { outline: 1px solid var(--primary); }
+.col-filter-input {
+  width: 100%; height: 22px; font-size: 11px; padding: 0 6px;
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--surface); color: var(--text-1);
+}
+.col-filter-input:focus { outline: 1px solid var(--primary); }
 
 .row-num {
   display: inline-flex; align-items: center; justify-content: center;
@@ -1091,7 +1098,7 @@ tbody tr:hover { background: var(--surface-2); }
 .btn-complete:hover:not(:disabled) { background: color-mix(in srgb, var(--success) 30%, white); }
 .btn-undo     { background: var(--surface-2); color: var(--text-3); }
 .btn-undo:hover:not(:disabled) { background: var(--border); color: var(--text-2); }
-.actions-cell { display: flex; gap: 4px; }
+.actions-cell { display: flex; gap: 4px; flex-wrap: wrap; }
 .empty-state { text-align: center; padding: 48px; color: var(--text-3); font-size: 14px; }
 
 .pager {
