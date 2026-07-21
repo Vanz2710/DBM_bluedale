@@ -3049,7 +3049,7 @@ tbody tr:last-child td { border-bottom: none; }
 .col-check { width: 32px; text-align: center; }
 
 /* Summary table — scoped column widths so activity always gets room */
-.summary-table { table-layout: fixed; width: 100%; }
+.summary-table { table-layout: fixed; width: 100%; min-width: 920px; }
 .summary-table .col-check      { width: 36px; text-align: center; vertical-align: middle; }
 .summary-table .sum-user-col   { width: 110px; vertical-align: middle; }
 .summary-table .sum-status-col { width: 110px; vertical-align: middle; }

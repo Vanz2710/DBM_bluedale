@@ -707,7 +707,7 @@ onMounted(async () => {
 .fstat-pending { background: var(--warning-soft); }
 .fstat-pending strong { color: var(--warning); }
 .table-scroll { overflow-x: auto; }
-table { width: 100%; border-collapse: collapse; font-size: 12px; table-layout: fixed; }
+table { width: 100%; min-width: 1190px; border-collapse: collapse; font-size: 12px; table-layout: fixed; }
 thead th {
   background: var(--surface-2); color: var(--text-2); font-size: 11px; font-weight: 700;
   text-transform: uppercase; letter-spacing: 0.55px; padding: 10px 12px;
