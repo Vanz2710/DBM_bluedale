@@ -867,7 +867,7 @@
 
             <!-- Row 2: Admin / creator utilities -->
             <div v-if="isAdmin || selectedTask.created_by === currentUserId" class="dp-util-row">
-              <span class="dp-util-badge">Admin</span>
+              <span class="dp-util-badge">{{ isAdmin ? 'Admin' : 'Creator' }}</span>
               <template v-if="isAdmin">
                 <span class="dp-util-lbl">Status</span>
                 <select v-model="quickStatus" @change="quickUpdateStatus" class="field-input sm" aria-label="Override task status">
@@ -963,7 +963,7 @@
               </div>
               <div v-else>
                 <label class="field-label">Assigned To</label>
-                <div class="field-input field-readonly">{{ currentUserName }}</div>
+                <div class="field-input field-readonly">{{ formAssigneeName }}</div>
               </div>
             </div>
             <div class="field-row three-col">
@@ -1371,6 +1371,15 @@ const form         = reactive({
   title: '', description: '', department_id: '', assigned_to: '', priority: 'medium',
   status: 'pending', due_date: '',
   is_recurring: false, recurrence_type: 'weekly',
+});
+// Non-admins see a read-only "Assigned To" field (no picker) — this resolves what it should
+// say. Matters once a non-admin can *edit* their own task (not just create it): the task may
+// have been created unassigned, or reassigned by an admin afterwards, so it can't just always
+// show "me" the way the create flow's default does.
+const formAssigneeName = computed(() => {
+  if (!form.assigned_to) return 'Unassigned';
+  if (form.assigned_to === currentUserId.value) return currentUserName.value;
+  return users.value.find(u => u.id === form.assigned_to)?.name ?? 'Unknown user';
 });
 
 // ─── Drag & drop state ────────────────────────────────────────────────────────
