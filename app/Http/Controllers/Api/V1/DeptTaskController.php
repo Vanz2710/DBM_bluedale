@@ -9,24 +9,40 @@ use App\Models\DeptTask;
 use App\Models\DeptTaskComment;
 use App\Models\User;
 use App\Support\Csv;
+use App\Support\XlsxExport;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use App\Models\DeptTaskAttachment;
+use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
+use PhpOffice\PhpSpreadsheet\RichText\RichText;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Style\Border;
+use PhpOffice\PhpSpreadsheet\Style\Color;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
 
 class DeptTaskController extends Controller
 {
+    // "Admin-tier" for this module: sees/manages every task, not just their own.
+    // Supervisor is included here — task deletion is the sole exception (see destroy()),
+    // which stays restricted to admin/super-admin only.
     private function isAdmin(Request $request): bool
     {
-        return $request->user()->hasAnyRole(['admin', 'super-admin']);
+        return $this->isElevatedUser($request->user());
+    }
+
+    private function isElevatedUser($user): bool
+    {
+        return $user->hasAnyRole(['admin', 'super-admin', 'supervisor']);
     }
 
     public function dashboard(Request $request): JsonResponse
     {
         $authUser = $request->user();
-        $isAdmin  = $authUser->hasAnyRole(['admin', 'super-admin']);
+        $isAdmin  = $this->isAdmin($request);
 
         // Non-admins are locked to their own stats only — ignore any user_id param,
         // same rule index()/weekly()/report() already enforce for this controller.
@@ -164,7 +180,7 @@ class DeptTaskController extends Controller
     public function index(Request $request): JsonResponse
     {
         $authUser = $request->user();
-        $isAdmin  = $authUser->hasAnyRole(['admin', 'super-admin']);
+        $isAdmin  = $this->isAdmin($request);
 
         $q = DeptTask::with(['department', 'assignee:id,name,email', 'creator:id,name']);
 
@@ -287,7 +303,7 @@ class DeptTaskController extends Controller
             default       => '',
         };
 
-        $filename = 'Task_Export_' . now()->format('Y-m-d') . '.' . $format;
+        $filename = 'Task_Export_' . now()->format('Y-m-d') . '.' . ($format === 'csv' ? 'csv' : 'xlsx');
 
         if ($format === 'csv') {
             return response()->stream(function () use ($q, $selected, $LABELS, $getVal) {
@@ -311,36 +327,8 @@ class DeptTaskController extends Controller
             ]);
         }
 
-        return response()->stream(function () use ($q, $selected, $LABELS, $WIDTHS, $getVal) {
-            $esc     = fn($v) => htmlspecialchars((string) ($v ?? ''), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
-            $thStyle = 'font-family:Arial,sans-serif;font-size:10pt;font-weight:bold;color:#000000;background:#ffffff;border:1pt solid #000000;padding:6pt 9pt;white-space:nowrap;text-align:left;';
-            $tdStyle = 'font-family:Arial,sans-serif;font-size:10pt;color:#000000;border:1pt solid #000000;padding:5pt 9pt;vertical-align:top;';
-            echo "\xEF\xBB\xBF";
-            echo '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">';
-            echo '<head><meta charset="UTF-8"><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>Tasks</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]--></head>';
-            echo '<body><table style="border-collapse:collapse;"><colgroup>';
-            foreach ($selected as $col) { echo '<col style="width:' . ($WIDTHS[$col] ?? 100) . 'pt">'; }
-            echo '</colgroup><thead><tr>';
-            foreach ($selected as $col) { echo '<th style="' . $thStyle . '">' . $esc($LABELS[$col] ?? $col) . '</th>'; }
-            echo '</tr></thead><tbody>';
-            $no = 1;
-            $q->chunk(300, function ($tasks) use (&$no, $selected, $esc, $tdStyle, $getVal) {
-                foreach ($tasks as $t) {
-                    echo '<tr>';
-                    foreach ($selected as $col) {
-                        $val = $col === 'no' ? $no : $getVal($t, $col);
-                        echo '<td style="' . $tdStyle . '">' . $esc($val) . '</td>';
-                    }
-                    echo '</tr>';
-                    $no++;
-                }
-            });
-            echo '</tbody></table></body></html>';
-        }, 200, [
-            'Content-Type'        => 'application/vnd.ms-excel; charset=UTF-8',
-            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
-            'X-Accel-Buffering'   => 'no',
-        ]);
+        $spreadsheet = XlsxExport::flatTable('Tasks', $selected, $LABELS, $WIDTHS, $q->lazy(300), $getVal);
+        return XlsxExport::download($spreadsheet, $filename);
     }
 
     // Renders the Calendar tab's current month as an actual month-grid worksheet
@@ -391,66 +379,76 @@ class DeptTaskController extends Controller
             $scopeLabel .= $dept ? ' · ' . $dept->name : '';
         }
 
-        $priorityColor = fn($p) => ['critical' => '#dc2626', 'high' => '#f97316', 'medium' => '#3b82f6', 'low' => '#64748b'][$p] ?? '#64748b';
+        $priorityColor = fn($p) => ['critical' => 'DC2626', 'high' => 'F97316', 'medium' => '3B82F6', 'low' => '64748B'][$p] ?? '64748B';
         $weekdays      = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-        $filename      = 'Task_Calendar_' . $monthStart->format('Y-m') . '.xls';
+        $filename      = 'Task_Calendar_' . $monthStart->format('Y-m') . '.xlsx';
 
-        return response()->stream(function () use ($monthStart, $gridStart, $byDate, $scopeLabel, $priorityColor, $weekdays) {
-            $esc = fn($v) => htmlspecialchars((string) ($v ?? ''), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Calendar');
+        foreach (range('A', 'G') as $letter) {
+            $sheet->getColumnDimension($letter)->setWidth(24);
+        }
 
-            $titleStyle = 'font-family:Arial,sans-serif;font-size:14pt;font-weight:bold;color:#000000;padding:8pt;border:1pt solid #000000;background:#ffffff;';
-            $metaStyle  = 'font-family:Arial,sans-serif;font-size:9pt;color:#555555;padding:0 8pt 8pt;border:1pt solid #000000;border-top:none;background:#ffffff;';
-            $wkStyle    = 'font-family:Arial,sans-serif;font-size:10pt;font-weight:bold;color:#ffffff;background:#1d4ed8;border:1pt solid #000000;padding:5pt;text-align:center;';
-            $wkEndStyle = 'font-family:Arial,sans-serif;font-size:10pt;font-weight:bold;color:#ffffff;background:#1e40af;border:1pt solid #000000;padding:5pt;text-align:center;';
+        $sheet->mergeCells('A1:G1');
+        XlsxExport::writeText($sheet, 'A1', 'Task Calendar — ' . $monthStart->format('F Y'));
+        $sheet->getStyle('A1')->applyFromArray(['font' => ['bold' => true, 'size' => 14]]);
+        $sheet->getRowDimension(1)->setRowHeight(22);
 
-            echo "\xEF\xBB\xBF";
-            echo '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">';
-            echo '<head><meta charset="UTF-8"><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>Calendar</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]--></head>';
-            echo '<body><table style="border-collapse:collapse;"><colgroup>';
-            for ($i = 0; $i < 7; $i++) { echo '<col style="width:120pt">'; }
-            echo '</colgroup>';
+        $sheet->mergeCells('A2:G2');
+        XlsxExport::writeText($sheet, 'A2', $scopeLabel . ' · Generated ' . now()->format('d M Y, g:i A'));
+        $sheet->getStyle('A2')->applyFromArray(['font' => ['size' => 9, 'color' => ['rgb' => '555555']]]);
 
-            echo '<tr><td colspan="7" style="' . $titleStyle . '">Task Calendar &mdash; ' . $esc($monthStart->format('F Y')) . '</td></tr>';
-            echo '<tr><td colspan="7" style="' . $metaStyle . '">' . $esc($scopeLabel) . ' &middot; Generated ' . $esc(now()->format('d M Y, g:i A')) . '</td></tr>';
-
-            echo '<tr>';
-            foreach ($weekdays as $i => $wd) {
-                echo '<th style="' . ($i >= 5 ? $wkEndStyle : $wkStyle) . '">' . $esc($wd) . '</th>';
-            }
-            echo '</tr>';
-
-            $cursor = $gridStart->copy();
-            for ($week = 0; $week < 6; $week++) {
-                echo '<tr style="height:80pt;">';
-                for ($day = 0; $day < 7; $day++) {
-                    $iso     = $cursor->toDateString();
-                    $inMonth = $cursor->month === $monthStart->month;
-                    $isToday = $iso === now()->toDateString();
-                    $weekend = $day >= 5;
-
-                    $bg       = $isToday ? '#fef3c7' : ($inMonth ? ($weekend ? '#f8fafc' : '#ffffff') : '#f1f5f9');
-                    $numColor = $inMonth ? '#000000' : '#94a3b8';
-                    $tdStyle  = "font-family:Arial,sans-serif;font-size:8.5pt;color:#000000;border:1pt solid #cbd5e1;background:{$bg};padding:4pt;vertical-align:top;mso-data-placement:same-cell;";
-
-                    echo '<td style="' . $tdStyle . '">';
-                    echo '<span style="font-weight:bold;color:' . $numColor . ';font-size:10pt;">' . $cursor->day . '</span><br>';
-                    foreach (($byDate[$iso] ?? []) as $t) {
-                        $marker = '<span style="color:' . $priorityColor($t->priority) . ';">&#9632;</span>';
-                        $label  = $esc($t->title) . ($t->assignee ? ' (' . $esc($t->assignee->name) . ')' : '');
-                        echo $marker . ' ' . $label . '<br>';
-                    }
-                    echo '</td>';
-                    $cursor->addDay();
-                }
-                echo '</tr>';
-            }
-
-            echo '</table></body></html>';
-        }, 200, [
-            'Content-Type'        => 'application/vnd.ms-excel; charset=UTF-8',
-            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
-            'X-Accel-Buffering'   => 'no',
+        foreach ($weekdays as $i => $wd) {
+            XlsxExport::writeText($sheet, Coordinate::stringFromColumnIndex($i + 1) . '3', $wd);
+        }
+        $sheet->getStyle('A3:G3')->applyFromArray([
+            'font'      => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
+            'fill'      => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '1D4ED8']],
+            'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
+            'borders'   => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => '000000']]],
         ]);
+        $sheet->getStyle('F3:G3')->applyFromArray(['fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '1E40AF']]]);
+
+        $cursor   = $gridStart->copy();
+        $todayIso = now()->toDateString();
+        for ($week = 0; $week < 6; $week++) {
+            $rowNum = 4 + $week;
+            $sheet->getRowDimension($rowNum)->setRowHeight(80);
+            for ($day = 0; $day < 7; $day++) {
+                $coord   = Coordinate::stringFromColumnIndex($day + 1) . $rowNum;
+                $iso     = $cursor->toDateString();
+                $inMonth = $cursor->month === $monthStart->month;
+                $isToday = $iso === $todayIso;
+                $weekend = $day >= 5;
+
+                // A single RichText cell so the day number and each task's priority
+                // marker can carry their own colour — a plain string cell can only be one colour.
+                $rich = new RichText();
+                $dayRun = $rich->createTextRun((string) $cursor->day);
+                $dayRun->getFont()->setBold(true)->setSize(10)->setColor(new Color($inMonth ? '000000' : '94A3B8'));
+
+                foreach (($byDate[$iso] ?? []) as $t) {
+                    $rich->createTextRun("\n");
+                    $marker = $rich->createTextRun('■ ');
+                    $marker->getFont()->setColor(new Color($priorityColor($t->priority)))->setSize(8);
+                    $label = $rich->createTextRun($t->title . ($t->assignee ? ' (' . $t->assignee->name . ')' : ''));
+                    $label->getFont()->setSize(8);
+                }
+                $sheet->setCellValue($coord, $rich);
+
+                $bg = $isToday ? 'FEF3C7' : ($inMonth ? ($weekend ? 'F8FAFC' : 'FFFFFF') : 'F1F5F9');
+                $sheet->getStyle($coord)->applyFromArray([
+                    'fill'      => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => $bg]],
+                    'borders'   => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'CBD5E1']]],
+                    'alignment' => ['vertical' => Alignment::VERTICAL_TOP, 'wrapText' => true],
+                ]);
+
+                $cursor->addDay();
+            }
+        }
+
+        return XlsxExport::download($spreadsheet, $filename);
     }
 
     public function store(Request $request): JsonResponse
@@ -516,7 +514,7 @@ class DeptTaskController extends Controller
         ])->findOrFail($id);
 
         $user = $request->user();
-        if (!$user->hasAnyRole(['admin', 'super-admin'])
+        if (!$this->isAdmin($request)
             && $task->assigned_to !== $user->id
             && $task->created_by  !== $user->id) {
             abort(403);
@@ -580,8 +578,9 @@ class DeptTaskController extends Controller
 
     public function destroy(Request $request, int $id): JsonResponse
     {
-        // Only admins may delete tasks
-        if (!$this->isAdmin($request)) {
+        // Task deletion stays admin/super-admin only — deliberately narrower than isAdmin()
+        // above, which now also covers supervisors for view/create/edit.
+        if (!$request->user()->hasAnyRole(['admin', 'super-admin'])) {
             abort(403, 'Only admins can delete tasks.');
         }
 
@@ -633,7 +632,7 @@ class DeptTaskController extends Controller
         $task = DeptTask::findOrFail($taskId);
         $user = $request->user();
 
-        if (!$user->hasAnyRole(['admin', 'super-admin'])
+        if (!$this->isAdmin($request)
             && $task->assigned_to !== $user->id
             && $task->created_by  !== $user->id) {
             abort(403, 'You can only comment on tasks you are involved in.');
@@ -654,7 +653,7 @@ class DeptTaskController extends Controller
     {
         $user  = $request->user();
         $query = DeptTaskComment::where('task_id', $taskId)->where('id', $commentId);
-        if (!$user->hasAnyRole(['admin', 'super-admin'])) {
+        if (!$this->isAdmin($request)) {
             $query->where('user_id', $user->id);
         }
         $query->firstOrFail()->delete();
@@ -664,7 +663,7 @@ class DeptTaskController extends Controller
     public function weekly(Request $request): JsonResponse
     {
         $authUser = $request->user();
-        $isAdmin  = $authUser->hasAnyRole(['admin', 'super-admin']);
+        $isAdmin  = $this->isAdmin($request);
 
         $weekStart = $request->filled('week_start')
             ? Carbon::parse($request->week_start)->startOfDay()
@@ -715,7 +714,7 @@ class DeptTaskController extends Controller
     public function report(Request $request): JsonResponse
     {
         $authUser = $request->user();
-        $isAdmin  = $authUser->hasAnyRole(['admin', 'super-admin']);
+        $isAdmin  = $this->isAdmin($request);
 
         $dateFrom = $request->filled('date_from') ? Carbon::parse($request->date_from) : Carbon::now()->subDays(30);
         $dateTo   = $request->filled('date_to')   ? Carbon::parse($request->date_to)   : Carbon::now();
@@ -758,14 +757,14 @@ class DeptTaskController extends Controller
         $task = DeptTask::findOrFail($taskId);
         $user = $request->user();
 
-        if (!$user->hasAnyRole(['admin', 'super-admin'])
+        if (!$this->isAdmin($request)
             && $task->assigned_to !== $user->id
             && $task->created_by  !== $user->id) {
             abort(403, 'You can only attach files to tasks you are involved in.');
         }
 
         $request->validate([
-            'file' => 'required|file|max:20480|mimes:pdf,doc,docx,xls,xlsx,ppt,pptx,txt,csv,jpg,jpeg,png,gif,webp,zip',
+            'file' => 'required|file|max:20480|mimes:pdf,doc,docx,docm,xls,xlsx,xlsm,ppt,pptx,pptm,txt,csv,jpg,jpeg,png,gif,webp,zip',
         ]);
 
         $file = $request->file('file');
@@ -796,7 +795,7 @@ class DeptTaskController extends Controller
     {
         $user  = $request->user();
         $query = DeptTaskAttachment::where('task_id', $taskId)->where('id', $attachmentId);
-        if (!$user->hasAnyRole(['admin', 'super-admin'])) {
+        if (!$this->isAdmin($request)) {
             $query->where('user_id', $user->id);
         }
         $attachment = $query->firstOrFail();
@@ -883,7 +882,7 @@ class DeptTaskController extends Controller
             return;
         }
 
-        $isAdmin    = $user->hasAnyRole(['admin', 'super-admin']);
+        $isAdmin    = $this->isElevatedUser($user);
         $isAssignee = $task->assigned_to === $user->id;
         $isCreator  = $task->created_by  === $user->id;
 
