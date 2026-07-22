@@ -96,7 +96,7 @@
           <colgroup>
             <col style="width:34px">   <!-- checkbox -->
             <col v-if="!isSingleDayView || columnsExpanded" style="width:92px">   <!-- date -->
-            <col style="width:110px">  <!-- status -->
+            <col style="width:130px">  <!-- status -->
             <col style="width:80px">   <!-- type -->
             <col style="min-width:200px"> <!-- company - absorbs remaining space -->
             <col style="width:100px">  <!-- user -->
@@ -111,7 +111,7 @@
               <th v-if="!isSingleDayView || columnsExpanded">Deadline</th>
               <th class="th-filter">
                 <div class="col-head">
-                  <span>Status</span>
+                  <span>Company Status</span>
                   <select v-model="colStatusFilter" @change="page = 1; load()" class="col-filter-sel">
                     <option value="">All</option>
                     <option v-for="s in addLookups.statuses" :key="s.id" :value="s.id">{{ s.name }}</option>

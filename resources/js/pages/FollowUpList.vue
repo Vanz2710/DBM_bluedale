@@ -60,7 +60,7 @@
       </template>
 
       <div class="filter-group">
-        <label>Status</label>
+        <label>Completion</label>
         <select v-model="completionStatus" @change="load">
           <option value="pending">Pending</option>
           <option value="completed">Completed</option>
@@ -99,7 +99,7 @@
             <col v-if="!isSingleDayView || columnsExpanded" style="width:126px">   <!-- date -->
             <col style="width:112px">   <!-- action type -->
             <col>                       <!-- company -->
-            <col style="width:120px">   <!-- status -->
+            <col style="width:130px">   <!-- status -->
             <col style="width:82px">    <!-- type -->
             <col style="width:78px">    <!-- user -->
             <col style="width:112px">   <!-- task -->
@@ -127,7 +127,7 @@
               </th>
               <th class="th-filter">
                 <div class="col-head">
-                  <span>Status</span>
+                  <span>Company Status</span>
                   <select v-model="colStatusFilter" @change="page = 1; load()" class="col-filter-sel">
                     <option value="">All</option>
                     <option v-for="s in lookups.statuses" :key="s.id" :value="s.id">{{ s.name }}</option>
