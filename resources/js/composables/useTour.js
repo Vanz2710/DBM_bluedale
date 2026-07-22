@@ -29,12 +29,6 @@ export const TOUR_STEPS = [
     position: 'right',
   },
   {
-    target: '[data-tour="nav-marketing"]',
-    title: 'Marketing AI',
-    body: 'The new Marketing AI feature uses behaviour-based micro-segmentation, an AI email assistant, and next-best-action recommendations to help you prioritise and personalise outreach.',
-    position: 'right',
-  },
-  {
     target: '[data-tour="notification-bell"]',
     title: 'Notifications',
     body: 'Your notification bell shows announcements, overdue items, tasks due today, and upcoming deadlines. Click it for a quick preview, or open the Notifications page for the full view.',
@@ -87,7 +81,7 @@ export const PAGE_TOURS = {
     {
       target: '.toolbar',
       title: 'Filter & Search',
-      body: 'Narrow down contacts by date added, company name, assigned user, status, type, or category. Use Export to download the filtered list as an Excel file.',
+      body: 'Set a date-added range, choose a sort order (newest, oldest, or company name), and pick how many rows to show per page. Use Export to download the filtered list as an Excel file.',
       position: 'bottom',
     },
     {
@@ -99,7 +93,7 @@ export const PAGE_TOURS = {
     {
       target: '.table-wrap',
       title: 'Contact List',
-      body: 'Each row is a contact record. Click any company name to open the full record where you can log tasks, follow-ups, calls, emails, and deals.',
+      body: 'Each row is a contact record. Filter by name, assigned user, status, type, industry, or category directly from the column headers. Click any company name to open the full record where you can log tasks, follow-ups, calls, emails, and deals.',
       position: 'bottom',
     },
   ],
@@ -114,7 +108,7 @@ export const PAGE_TOURS = {
     {
       target: '.toolbar',
       title: 'Filter & Search',
-      body: 'Narrow down contacts by date added, company name, assigned user, status, type, or category. Use Export to download the filtered list as an Excel file.',
+      body: 'Set a date-added range, choose a sort order (newest, oldest, or company name), and pick how many rows to show per page. Use Export to download the filtered list as an Excel file.',
       position: 'bottom',
     },
     {
@@ -126,7 +120,7 @@ export const PAGE_TOURS = {
     {
       target: '.table-wrap',
       title: 'Contact List',
-      body: 'Each row is a contact record. Click any company name to open the full record where you can log tasks, follow-ups, calls, emails, and deals.',
+      body: 'Each row is a contact record. Filter by name, assigned user, status, type, industry, or category directly from the column headers. Click any company name to open the full record where you can log tasks, follow-ups, calls, emails, and deals.',
       position: 'bottom',
     },
   ],
@@ -141,13 +135,13 @@ export const PAGE_TOURS = {
     {
       target: '.toolbar',
       title: 'Summary Filters',
-      body: 'Filter by year, company name, assigned user, status, type, category, or industry. Hit Search to apply — Reset clears all filters and restores defaults.',
+      body: 'Filter by contact type, category, or industry. Hit Search to apply — Reset clears all filters and restores defaults.',
       position: 'bottom',
     },
     {
       target: '.table-wrap',
       title: 'Monthly Activity Grid',
-      body: 'Each row shows a contact and its 12-month activity grid for the selected year. Green cells mean a task was logged that month; grey means no activity. Click any row to open the contact\'s full record.',
+      body: 'Each row shows a contact and its 12-month activity grid — filter by company name, assigned user, status, or year directly from the column headers. Green cells mean a task was logged that month; grey means no activity. Click any row to open the contact\'s full record.',
       position: 'bottom',
     },
   ],
@@ -162,7 +156,7 @@ export const PAGE_TOURS = {
     {
       target: '.toolbar',
       title: 'Filter To-Dos',
-      body: 'Filter by view period (All, Day, Month, Year), date, company name, assigned user, or completion status. Hit Search to apply.',
+      body: 'Switch between Date Range (specific from/to dates) and Month Range (whole months at a time), and narrow by completion status. Hit Search to apply.',
       position: 'bottom',
     },
     {
@@ -174,7 +168,7 @@ export const PAGE_TOURS = {
     {
       target: '.table-wrap',
       title: 'To-Do Records',
-      body: 'Each row shows the due date, company, task type, and remark. Use the checkmark to mark a task complete, or the undo button to revert it to pending.',
+      body: 'Each row shows the due date, company, task type, and remark. Filter by company status, contact type, company name, assigned user, or task type directly from the column headers, and use Show all columns to reveal more detail. The checkmark marks a task complete; the undo button reverts it to pending.',
       position: 'bottom',
     },
   ],
@@ -189,13 +183,13 @@ export const PAGE_TOURS = {
     {
       target: '.toolbar',
       title: 'Filter Forecasts',
-      body: 'Narrow forecasts by company or product name, product type, forecast result, assigned user, or date range. Click Search to apply — Reset clears all filters.',
+      body: 'Search by company, product, or user, or narrow by year and date range. Click Search to apply — Reset clears all filters.',
       position: 'bottom',
     },
     {
       target: '.table-wrap',
       title: 'Forecast Records',
-      body: 'Each row is a deal showing the company, product, amount, date, and result. The totals bar at the top shows your confirmed and pending pipeline value. Click the edit button to update any entry.',
+      body: 'Each row is a deal showing the company, product, amount, date, and result — filter any of these directly from the column headers (admins also get an Assigned filter). The totals bar at the top shows your confirmed and pending pipeline value. Click the edit button to update any entry.',
       position: 'bottom',
     },
   ],
@@ -364,7 +358,7 @@ export const PAGE_TOURS = {
     {
       target: '.toolbar',
       title: 'Filter Follow-Ups',
-      body: 'Switch between Date Range (specific from/to dates) and Month Range (whole months at a time). Narrow results by Action Type (Call, Email, Meeting…), completion Status, or search by company name. Hit Search to apply.',
+      body: 'Switch between Date Range (specific from/to dates) and Month Range (whole months at a time), and narrow by completion status. Hit Search to apply.',
       position: 'bottom',
     },
     {
@@ -611,8 +605,8 @@ export const PAGE_TOURS = {
     },
     {
       target: '[data-tour="deptask-tab-calendar"]',
-      title: 'Calendar — Month View',
-      body: 'See every task laid out by due date across the month. Use the arrows to move between months, filter by department or assignee just like the Board, and click any task pill to open its detail panel. Admins can click empty space on a day to create a new task due that date.',
+      title: 'Calendar — Grid, List & Important',
+      body: 'Three ways to browse: Grid (month view), List (a scrollable year-by-month board), and Important (starred tasks only). The colour legend shows each task\'s department — click the (?) icon for the full legend covering colours, priority borders, and markers. Use the arrows to move between months or years, scope to My Tasks or All Tasks, filter by department, and click any task to open its detail panel. Admins can click empty space on a day to create a new task due that date.',
       position: 'bottom',
     },
     {
@@ -681,7 +675,7 @@ export const PAGE_TOURS = {
     {
       target: '[data-tour="deptask-tab-calendar"]',
       title: 'Calendar View',
-      body: 'See your tasks laid out by due date across the month. Use the arrows to move between months and click any task to open its detail panel.',
+      body: 'Three ways to browse your tasks: Grid (month view), List (a year-by-month board), and Important (starred tasks only). The colour legend shows each task\'s department — click the (?) icon for the full legend. Use the arrows to move between months or years and click any task to open its detail panel.',
       position: 'bottom',
     },
     {

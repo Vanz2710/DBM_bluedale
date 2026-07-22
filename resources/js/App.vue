@@ -59,6 +59,7 @@
         </div>
       </nav>
 
+      <template v-if="toolGroups.length">
       <div class="sidebar-divider"></div>
 
       <!-- Tools section -->
@@ -96,6 +97,7 @@
           </Transition>
         </div>
       </nav>
+      </template>
 
       <div class="sidebar-footer">Bluedale CRM Platform</div>
     </aside>
@@ -258,10 +260,17 @@ watch(tour.active, val => { if (val) collapsed.value = false; });
 
 // Pages that have separate admin/user tours — append role suffix before lookup
 const ROLE_SPLIT_TOURS = ['dept-tasks'];
+// dept-tasks' own admin-tier check (DeptTaskManager.vue's `isAdmin`) includes supervisor,
+// which is broader than isAdminOrSuperAdmin (used elsewhere for real admin-only gating) —
+// mirror it here so a supervisor gets the tour matching the UI they actually see.
+const isDeptTaskAdminTier = computed(() => {
+  const roles = currentUser.value?.roles ?? [];
+  return roles.includes('admin') || roles.includes('super-admin') || roles.includes('supervisor');
+});
 function tourKeyFor(routeName) {
   if (routeName === 'list') return 'list-' + (route.query.tab || 'contacts');
   if (ROLE_SPLIT_TOURS.includes(routeName)) {
-    return routeName + (isAdminOrSuperAdmin.value ? '-admin' : '-user');
+    return routeName + (isDeptTaskAdminTier.value ? '-admin' : '-user');
   }
   return routeName;
 }
