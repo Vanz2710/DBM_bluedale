@@ -591,7 +591,14 @@
       "Bash(php -l app/Support/XlsxExport.php)",
       "Bash(php -l app/Http/Controllers/Api/V1/FollowUpController.php)",
       "Bash(echo \"---exit: $?---\")",
-      "Bash(echo \"---exit code: $?---\")"
+      "Bash(echo \"---exit code: $?---\")",
+      "Bash(tar --force-local -czf crm-update-2026-07-22.tar.gz app/Support/XlsxExport.php app/Http/Controllers/Api/V1/ContactController.php app/Http/Controllers/Api/V1/DeptTaskController.php app/Http/Controllers/Api/V1/FollowUpController.php app/Http/Controllers/Api/V1/GlobalTodoController.php app/Http/Controllers/Api/V1/SiteAvailabilityController.php config/app.php public/build/)",
+      "Bash(tar -tzf crm-update-2026-07-22.tar.gz)",
+      "Bash(py build_pptx_admin.py)",
+      "Bash(py check_pptx_admin.py)",
+      "Bash(unzip -p Bluedale_CRM_Administrator_Manual.pptx docProps/core.xml)",
+      "Bash(curl -s -H \"Authorization: Bearer 63|2rM2IVmjg2nfNt3300WgBmzDYR5Tj07wWkim6CGh98e08118\" -H \"Accept: application/json\" \"http://localhost/api/v1/dept/dashboard\")",
+      "Bash(py build_pptx_enduser.py)"
     ],
     "additionalDirectories": [
       "\\tmp\\ammar_crm\\app\\Http\\Controllers\\Api\\V1",
