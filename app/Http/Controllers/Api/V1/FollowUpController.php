@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ContactEditGrant;
 use App\Models\FollowUp;
 use App\Support\Csv;
+use App\Support\XlsxExport;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -232,7 +233,7 @@ class FollowUpController extends Controller
             default        => '',
         };
 
-        $filename = 'FollowUp_Export_' . now()->format('Y-m-d') . '.' . $format;
+        $filename = 'FollowUp_Export_' . now()->format('Y-m-d') . '.' . ($format === 'csv' ? 'csv' : 'xlsx');
 
         if ($format === 'csv') {
             return response()->stream(function () use ($query, $selected, $LABELS, $getVal) {
@@ -256,36 +257,8 @@ class FollowUpController extends Controller
             ]);
         }
 
-        return response()->stream(function () use ($query, $selected, $LABELS, $WIDTHS, $getVal) {
-            $esc     = fn($v) => htmlspecialchars((string) ($v ?? ''), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
-            $thStyle = 'font-family:Arial,sans-serif;font-size:10pt;font-weight:bold;color:#000000;background:#ffffff;border:1pt solid #000000;padding:6pt 9pt;white-space:nowrap;text-align:left;';
-            $tdStyle = 'font-family:Arial,sans-serif;font-size:10pt;color:#000000;border:1pt solid #000000;padding:5pt 9pt;vertical-align:top;';
-            echo "\xEF\xBB\xBF";
-            echo '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">';
-            echo '<head><meta charset="UTF-8"><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>FollowUps</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]--></head>';
-            echo '<body><table style="border-collapse:collapse;"><colgroup>';
-            foreach ($selected as $col) { echo '<col style="width:' . ($WIDTHS[$col] ?? 100) . 'pt">'; }
-            echo '</colgroup><thead><tr>';
-            foreach ($selected as $col) { echo '<th style="' . $thStyle . '">' . $esc($LABELS[$col] ?? $col) . '</th>'; }
-            echo '</tr></thead><tbody>';
-            $no = 1;
-            $query->chunk(300, function ($rows) use (&$no, $selected, $esc, $tdStyle, $getVal) {
-                foreach ($rows as $f) {
-                    echo '<tr>';
-                    foreach ($selected as $col) {
-                        $val = $col === 'no' ? $no : $getVal($f, $col);
-                        echo '<td style="' . $tdStyle . '">' . $esc($val) . '</td>';
-                    }
-                    echo '</tr>';
-                    $no++;
-                }
-            });
-            echo '</tbody></table></body></html>';
-        }, 200, [
-            'Content-Type'        => 'application/vnd.ms-excel; charset=UTF-8',
-            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
-            'X-Accel-Buffering'   => 'no',
-        ]);
+        $spreadsheet = XlsxExport::flatTable('FollowUps', $selected, $LABELS, $WIDTHS, $query->lazy(300), $getVal);
+        return XlsxExport::download($spreadsheet, $filename);
     }
 
     private ?array $_grantedOwnerIds = null;

@@ -1876,7 +1876,7 @@ async function executeExport(format = 'xls') {
     const url  = URL.createObjectURL(blob);
     const a    = document.createElement('a');
     a.href     = url;
-    a.download = `Contacts_${date}.${format}`;
+    a.download = `Contacts_${date}.${format === 'csv' ? 'csv' : 'xlsx'}`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);

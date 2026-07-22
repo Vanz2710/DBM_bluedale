@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Models\AdvertisingProduct;
 use App\Models\AdvertisingProductBooking;
+use App\Support\XlsxExport;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
@@ -537,36 +538,10 @@ class SiteAvailabilityController extends Controller
             default => '',
         };
 
-        $filename = 'Site_Compile_' . now()->format('Y-m-d') . '.xls';
+        $filename = 'Site_Compile_' . now()->format('Y-m-d') . '.xlsx';
 
-        return response()->stream(function () use ($products, $columns, $labels, $widths, $getVal) {
-            $esc = fn ($v) => htmlspecialchars((string) ($v ?? ''), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
-            $thStyle = 'font-family:Arial,sans-serif;font-size:10pt;font-weight:bold;color:#000000;background:#ffffff;border:1pt solid #000000;padding:6pt 9pt;white-space:nowrap;text-align:left;';
-            $tdStyle = 'font-family:Arial,sans-serif;font-size:10pt;color:#000000;border:1pt solid #000000;padding:5pt 9pt;vertical-align:top;';
-            echo "\xEF\xBB\xBF";
-            echo '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">';
-            echo '<head><meta charset="UTF-8"><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>Sites</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]--></head>';
-            echo '<body><table style="border-collapse:collapse;"><colgroup>';
-            foreach ($columns as $col) { echo '<col style="width:' . ($widths[$col] ?? 100) . 'pt">'; }
-            echo '</colgroup><thead><tr>';
-            foreach ($columns as $col) { echo '<th style="' . $thStyle . '">' . $esc($labels[$col] ?? $col) . '</th>'; }
-            echo '</tr></thead><tbody>';
-            $no = 1;
-            foreach ($products as $p) {
-                echo '<tr>';
-                foreach ($columns as $col) {
-                    $val = $col === 'no' ? $no : $getVal($p, $col);
-                    echo '<td style="' . $tdStyle . '">' . $esc($val) . '</td>';
-                }
-                echo '</tr>';
-                $no++;
-            }
-            echo '</tbody></table></body></html>';
-        }, 200, [
-            'Content-Type' => 'application/vnd.ms-excel; charset=UTF-8',
-            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
-            'X-Accel-Buffering' => 'no',
-        ]);
+        $spreadsheet = XlsxExport::flatTable('Sites', $columns, $labels, $widths, $products, $getVal);
+        return XlsxExport::download($spreadsheet, $filename);
     }
 
     public function proposal(Request $request)

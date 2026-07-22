@@ -974,7 +974,7 @@ async function executeExport(format = 'xls') {
     const url  = URL.createObjectURL(blob);
     const a    = document.createElement('a');
     a.href     = url;
-    a.download = `ToDo_Export_${new Date().toISOString().slice(0, 10)}.${format}`;
+    a.download = `ToDo_Export_${new Date().toISOString().slice(0, 10)}.${format === 'csv' ? 'csv' : 'xlsx'}`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
