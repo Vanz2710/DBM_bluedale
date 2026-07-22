@@ -8,7 +8,7 @@
         <p class="page-subtitle">{{ isAdmin ? 'Department tasks, board view, and reports' : 'My assigned tasks' }}</p>
       </div>
       <div class="page-header-actions">
-        <router-link v-if="isAdmin" class="btn-ghost" :to="{ path: '/admin', query: { tab: 'departments' } }">
+        <router-link v-if="isTrueAdmin" class="btn-ghost" :to="{ path: '/admin', query: { tab: 'departments' } }">
           <span v-html="ICO.settings"></span>
           Manage Departments
         </router-link>
@@ -277,6 +277,7 @@
         <span v-for="d in departments" :key="d.id" class="cal-legend-item">
           <span class="cal-legend-dot" :style="{ background: d.color }"></span>{{ d.name }}
         </span>
+        <button type="button" class="cal-legend-help" title="What do the colours and markers mean?" @click="showLegendHelp = true" v-html="ICO.help"></button>
       </div>
 
       <div v-if="boardLoading" class="view-loading">
@@ -624,7 +625,7 @@
               </template>
               <td @click.stop class="actions-cell">
                 <button class="btn-icon" @click="openTaskModal(task)" title="Edit" aria-label="Edit task" v-html="ICO.edit"></button>
-                <button class="btn-icon danger" @click="deleteTask(task.id)" title="Delete" aria-label="Delete task" v-html="ICO.trash"></button>
+                <button v-if="isTrueAdmin" class="btn-icon danger" @click="deleteTask(task.id)" title="Delete" aria-label="Delete task" v-html="ICO.trash"></button>
               </td>
             </tr>
           </tbody>
@@ -911,9 +912,7 @@
             </div>
           </div>
 
-          <div v-if="selectedTask.description" class="dp-description">
-            {{ selectedTask.description }}
-          </div>
+          <div v-if="selectedTask.description" class="dp-description" v-html="linkify(selectedTask.description)"></div>
 
           <div class="dp-actions">
             <!-- Row 1: Workflow actions -->
@@ -936,7 +935,7 @@
 
             <!-- Row 2: Admin / creator utilities -->
             <div v-if="isAdmin || selectedTask.created_by === currentUserId" class="dp-util-row">
-              <span class="dp-util-badge">{{ isAdmin ? 'Admin' : 'Creator' }}</span>
+              <span class="dp-util-badge">{{ dpUtilRoleLabel }}</span>
               <template v-if="isAdmin">
                 <span class="dp-util-lbl">Status</span>
                 <select v-model="quickStatus" @change="quickUpdateStatus" class="field-input sm" aria-label="Override task status">
@@ -949,7 +948,7 @@
               <button class="btn-ghost sm" @click="openTaskModal(selectedTask)">
                 <span v-html="ICO.edit"></span> Edit
               </button>
-              <button v-if="isAdmin" class="btn-ghost sm danger dp-delete-btn" @click="deleteTask(selectedTask.id)">
+              <button v-if="isTrueAdmin" class="btn-ghost sm danger dp-delete-btn" @click="deleteTask(selectedTask.id)">
                 <span v-html="ICO.trash"></span> Delete
               </button>
             </div>
@@ -960,7 +959,7 @@
               Attachments ({{ (selectedTask.attachments || []).length }})
               <label class="attach-upload-btn" :class="attachmentUploading && 'uploading'">
                 <input type="file" @change="uploadAttachment" style="display:none"
-                  accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.jpg,.jpeg,.png,.gif,.webp,.zip" />
+                  accept=".pdf,.doc,.docx,.docm,.xls,.xlsx,.xlsm,.ppt,.pptx,.pptm,.txt,.csv,.jpg,.jpeg,.png,.gif,.webp,.zip" />
                 <span v-html="ICO.paperclip"></span>
                 {{ attachmentUploading ? 'Uploading…' : 'Attach File' }}
               </label>
@@ -1089,7 +1088,7 @@
             </div>
             <div class="field-row">
               <label class="field-label">Description</label>
-              <textarea v-model="form.description" class="field-textarea" rows="4" placeholder="Task description…"></textarea>
+              <textarea v-model="form.description" class="field-textarea" rows="4" placeholder="Task description… paste a link (Google Drive, etc.) and it'll be clickable"></textarea>
             </div>
             <div v-if="formError" class="form-error">{{ formError }}</div>
           </div>
@@ -1268,6 +1267,46 @@
       </div>
     </transition>
 
+    <!-- ── Calendar Legend Help Modal ─────────────────────────────────────────── -->
+    <transition name="modal-fade">
+      <div v-if="showLegendHelp" class="modal-backdrop" @click.self="showLegendHelp = false">
+        <div class="modal-box modal-sm">
+          <div class="modal-header">
+            <h3 class="modal-title">Calendar Legend</h3>
+            <button class="btn-icon" @click="showLegendHelp = false" v-html="ICO.x"></button>
+          </div>
+          <div class="modal-body legend-help-body">
+            <div class="lh-section">
+              <div class="lh-section-title">Colour fill — Department</div>
+              <div class="lh-dept-grid">
+                <span v-for="d in departments" :key="d.id" class="lh-dept-item">
+                  <span class="lh-dot" :style="{ background: d.color }"></span>{{ d.name }}
+                </span>
+              </div>
+            </div>
+
+            <div class="lh-section">
+              <div class="lh-section-title">Left border — Priority</div>
+              <div class="lh-row"><span class="lh-bar" style="background:#10b981"></span>Low</div>
+              <div class="lh-row"><span class="lh-bar" style="background:#3b82f6"></span>Medium</div>
+              <div class="lh-row"><span class="lh-bar" style="background:#f59e0b"></span>High</div>
+              <div class="lh-row"><span class="lh-bar" style="background:#ef4444"></span>Critical</div>
+            </div>
+
+            <div class="lh-section">
+              <div class="lh-section-title">Markers</div>
+              <div class="lh-row"><span class="imp-star lh-marker" v-html="ICO.star"></span> Important task</div>
+              <div class="lh-row"><span class="lh-initials lh-marker">AB</span> Assignee's initials</div>
+              <div class="lh-row"><span class="lh-dash-demo lh-marker"></span> Overdue (past due date)</div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button @click="showLegendHelp = false" class="btn-primary">Got it</button>
+          </div>
+        </div>
+      </div>
+    </transition>
+
     <!-- ── Toast notifications ───────────────────────────────────────────────── -->
     <div class="toast-container" aria-live="polite">
       <transition-group name="toast-slide">
@@ -1325,6 +1364,7 @@ const ICO = {
   calendarDays: _i('<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="14" x2="8" y2="14"/><line x1="12" y1="14" x2="12" y2="14"/><line x1="16" y1="14" x2="16" y2="14"/><line x1="8" y1="18" x2="8" y2="18"/><line x1="12" y1="18" x2="12" y2="18"/>'),
   star: _i('<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>'),
   settings: _i('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>'),
+  help:     _i('<circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/>'),
 };
 
 // ─── View state ───────────────────────────────────────────────────────────────
@@ -1340,9 +1380,11 @@ function getStoredUser() {
   }
 }
 
-// Admins get the full management console; users get a focused personal surface.
+// Admin-tier roles (admin/super-admin/supervisor) get the full management console
+// and can see/manage every task; plain users get a focused personal surface scoped
+// to their own tasks only.
 const _authUserInit = getStoredUser();
-const _isAdminInit  = (_authUserInit.roles || []).some(r => ['admin', 'super-admin'].includes(r));
+const _isAdminInit  = (_authUserInit.roles || []).some(r => ['admin', 'super-admin', 'supervisor'].includes(r));
 
 const ADMIN_VIEWS = [
   { id: 'dashboard',   label: 'Dashboard',  icon: ICO.chart },
@@ -1422,7 +1464,12 @@ function setWeeklyGroupMode(mode) {
 
 // ─── Auth state ───────────────────────────────────────────────────────────────
 const authUser        = computed(() => getStoredUser());
-const isAdmin         = computed(() => (authUser.value.roles || []).some(r => ['admin', 'super-admin'].includes(r)));
+// "Admin-tier" for this module: sees/manages every task, not just their own — mirrors
+// DeptTaskController::isAdmin() on the backend. Supervisor is included; task deletion is
+// the sole exception (see isTrueAdmin below), which stays restricted to admin/super-admin.
+const isAdmin         = computed(() => (authUser.value.roles || []).some(r => ['admin', 'super-admin', 'supervisor'].includes(r)));
+const isTrueAdmin     = computed(() => (authUser.value.roles || []).some(r => ['admin', 'super-admin'].includes(r)));
+const dpUtilRoleLabel = computed(() => isTrueAdmin.value ? 'Admin' : (isAdmin.value ? 'Supervisor' : 'Creator'));
 const currentUserId   = computed(() => authUser.value.id ?? null);
 const currentUserName = computed(() => authUser.value.name ?? '');
 const { can }          = usePermissions();
@@ -1447,6 +1494,7 @@ const deletePendingFn     = ref(null);
 const attachmentUploading = ref(false);
 const selectedTask      = ref(null);
 const dayTasksModal = reactive({ open: false, label: '', tasks: [] });
+const showLegendHelp = ref(false);
 const newComment   = ref('');
 const quickStatus  = ref('');
 const form         = reactive({
@@ -2199,6 +2247,25 @@ function deleteAttachmentFile(attachmentId) {
   });
 }
 
+// ─── Description hyperlinks ────────────────────────────────────────────────────
+// Task descriptions are plain text (a <textarea>, no rich editor) — this only
+// affects the *display* in the detail panel. Escape the raw text first (never
+// trust it), then re-introduce only the <a> tags we build ourselves, so this
+// can't become an XSS vector via a description containing markup of its own.
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+const URL_PATTERN = /(https?:\/\/[^\s<]+|www\.[^\s<]+)/gi;
+function linkify(text) {
+  if (!text) return '';
+  return escapeHtml(text).replace(URL_PATTERN, (match) => {
+    const href = match.startsWith('http') ? match : `https://${match}`;
+    return `<a href="${href}" target="_blank" rel="noopener noreferrer" class="desc-link">${match}</a>`;
+  });
+}
+
 function formatFileSize(bytes) {
   if (!bytes) return '';
   if (bytes < 1024) return bytes + ' B';
@@ -2636,7 +2703,7 @@ async function executeExport(format) {
     const url  = URL.createObjectURL(blob);
     const a    = document.createElement('a');
     a.href     = url;
-    a.download = `Task_Export_${new Date().toISOString().slice(0, 10)}.${format}`;
+    a.download = `Task_Export_${new Date().toISOString().slice(0, 10)}.${format === 'csv' ? 'csv' : 'xlsx'}`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -2675,7 +2742,7 @@ async function exportCalendar() {
     const url  = URL.createObjectURL(blob);
     const a    = document.createElement('a');
     a.href     = url;
-    a.download = `Task_Calendar_${month}.xls`;
+    a.download = `Task_Calendar_${month}.xlsx`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -2784,6 +2851,7 @@ function handleEscapeKey(e) {
   if (exportModal.value.open)  { exportModal.value.open = false; return; }
   if (calendarExportModal.value.open) { calendarExportModal.value.open = false; return; }
   if (dayTasksModal.open)      { dayTasksModal.open = false; return; }
+  if (showLegendHelp.value)    { showLegendHelp.value = false; return; }
   if (showModal.value)         { showModal.value = false; return; }
   if (selectedTask.value)      { selectedTask.value = null; return; }
 }
@@ -3160,6 +3228,36 @@ select.field-input { cursor: pointer; }
 .cal-legend-hint { font-size: 11.5px; font-weight: 700; color: var(--text-3); }
 .cal-legend-item { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; font-weight: 600; color: var(--text-2); }
 .cal-legend-dot  { width: 9px; height: 9px; border-radius: 999px; flex-shrink: 0; }
+.cal-legend-help {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 20px; height: 20px; border-radius: 999px; margin-left: 2px;
+  background: none; border: 1px solid var(--border); color: var(--text-3);
+  cursor: pointer; flex-shrink: 0; padding: 0;
+}
+.cal-legend-help:hover { background: var(--surface-2); color: var(--text-1); border-color: var(--text-3); }
+.cal-legend-help svg { width: 13px; height: 13px; }
+
+/* ── Calendar legend help modal ──────────────────────────────────────────── */
+.legend-help-body { gap: 20px; }
+.lh-section       { display: flex; flex-direction: column; gap: 8px; }
+.lh-section-title { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; color: var(--text-3); }
+.lh-dept-grid     { display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.lh-dept-item     { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: var(--text-2); }
+.lh-dot           { width: 9px; height: 9px; border-radius: 999px; flex-shrink: 0; }
+.lh-row           { display: flex; align-items: center; gap: 10px; font-size: 13.5px; color: var(--text-1); }
+.lh-bar           { width: 4px; height: 16px; border-radius: 2px; flex-shrink: 0; }
+.lh-marker        { flex-shrink: 0; }
+.lh-initials {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 22px; height: 18px; padding: 0 5px; border-radius: 999px;
+  background: var(--surface-2); color: var(--text-2);
+  font-size: 10.5px; font-weight: 700;
+}
+.lh-dash-demo {
+  width: 22px; height: 16px; border-radius: var(--radius-sm);
+  outline: 1.5px dashed var(--danger); outline-offset: -2px;
+  background: var(--surface-2);
+}
 
 .day-tasks-list { display: flex; flex-direction: column; gap: 6px; max-height: 50vh; overflow-y: auto; }
 .day-tasks-list .cal-pill {
@@ -3320,6 +3418,7 @@ select.field-input { cursor: pointer; }
 .dp-meta-item:last-child:nth-child(odd) { grid-column: 1 / -1; }
 .dp-meta-lbl    { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-3); }
 .dp-description { padding: 16px 22px; font-size: 13.5px; color: var(--text-2); line-height: 1.6; border-bottom: 1px solid var(--border); white-space: pre-wrap; }
+.dp-description :deep(.desc-link) { color: var(--primary); text-decoration: underline; word-break: break-all; }
 .dp-actions     { display: flex; flex-direction: column; border-bottom: 1px solid var(--border); }
 .dp-action-row  { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding: 14px 22px; min-height: 52px; }
 .dp-util-row    { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding: 10px 22px 12px; border-top: 1px solid var(--border); background: var(--surface-2); }
