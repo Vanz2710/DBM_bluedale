@@ -93,8 +93,12 @@
             </button>
             <component
               :is="widgetComponents[item.type]"
-              v-if="widgetComponents[item.type]"
+              v-if="widgetComponents[item.type] && canShowWidget(item.type)"
             />
+            <div v-else-if="widgetComponents[item.type]" class="widget-locked">
+              <Lock :size="18" />
+              <span>You don't have permission to view this widget</span>
+            </div>
             <div v-else class="widget-unknown">
               Unknown: {{ item.type }}
             </div>
@@ -104,7 +108,7 @@
     </div>
 
     <!-- Data freshness footnote -->
-    <p class="dash-footnote">Data shown effective as of 15th July 2026.</p>
+    <p class="dash-footnote">Data shown reflects live activity as of {{ footnoteDate }}.</p>
 
     <!-- Widget picker modal -->
     <Teleport to="body">
@@ -117,7 +121,7 @@
             </div>
             <div class="widget-catalog">
               <button
-                v-for="w in WIDGET_CATALOG"
+                v-for="w in visibleCatalog"
                 :key="w.type"
                 class="catalog-card"
                 @click="addWidget(w)"
@@ -137,12 +141,15 @@
 </template>
 
 <script setup>
-import { ref, watch, onMounted, onUnmounted, nextTick, defineAsyncComponent } from 'vue';
+import { ref, computed, watch, onMounted, onUnmounted, nextTick, defineAsyncComponent } from 'vue';
 import { GridLayout, GridItem } from 'grid-layout-plus';
-import { Plus, X, LayoutGrid, Move, TrendingUp, Users, BarChart2, ClipboardList, Target, CalendarCheck, Briefcase, Zap, AlertTriangle, BarChart3, Megaphone } from 'lucide-vue-next';
+import { Plus, X, LayoutGrid, Move, TrendingUp, Users, BarChart2, ClipboardList, Target, CalendarCheck, Briefcase, Zap, AlertTriangle, BarChart3, Megaphone, Kanban, Lock } from 'lucide-vue-next';
 import api from '../api.js';
 import LoadingSpinner from './LoadingSpinner.vue';
 import { getStoredUser } from '../utils/storage.js';
+import { usePermissions } from '../composables/usePermissions.js';
+
+const { can } = usePermissions();
 
 // --- Registry (lazy-loaded — only fetched when a widget is actually on the canvas) ---
 const widgetComponents = {
@@ -157,6 +164,7 @@ const widgetComponents = {
   AtRiskContactsWidget:     defineAsyncComponent(() => import('./widgets/AtRiskContactsWidget.vue')),
   ForecastPipelineWidget:   defineAsyncComponent(() => import('./widgets/ForecastPipelineWidget.vue')),
   AnnouncementsWidget:      defineAsyncComponent(() => import('./widgets/AnnouncementsWidget.vue')),
+  TaskManagerWidget:        defineAsyncComponent(() => import('./widgets/TaskManagerWidget.vue')),
 };
 
 const WIDGET_CATALOG = [
@@ -166,6 +174,7 @@ const WIDGET_CATALOG = [
     description: 'Line chart of CRM entries by month',
     icon: TrendingUp,
     defaultSize: { w: 8, h: 5 },
+    permission: 'view analytics',
   },
   {
     type: 'RecentContactsWidget',
@@ -173,6 +182,7 @@ const WIDGET_CATALOG = [
     description: 'Latest added contacts with quick links',
     icon: Users,
     defaultSize: { w: 4, h: 6 },
+    permission: 'view contacts',
   },
   {
     type: 'KpiStatsWidget',
@@ -180,13 +190,15 @@ const WIDGET_CATALOG = [
     description: 'Key contact counts at a glance',
     icon: BarChart2,
     defaultSize: { w: 4, h: 4 },
+    permission: 'view analytics',
   },
   {
     type: 'TasksWidget',
-    label: 'Pending Tasks',
-    description: 'Upcoming to-dos needing attention',
+    label: 'Today\'s To-Dos',
+    description: 'To-dos due today, at a glance',
     icon: ClipboardList,
     defaultSize: { w: 8, h: 5 },
+    permission: 'view todos',
   },
   {
     type: 'KpiTargetWidget',
@@ -194,6 +206,7 @@ const WIDGET_CATALOG = [
     description: 'This month\'s targets vs actuals with progress bars',
     icon: Target,
     defaultSize: { w: 4, h: 6 },
+    permission: 'view performance',
   },
   {
     type: 'UpcomingFollowUpsWidget',
@@ -201,6 +214,7 @@ const WIDGET_CATALOG = [
     description: 'Pending follow-ups due in the next 7 days',
     icon: CalendarCheck,
     defaultSize: { w: 4, h: 5 },
+    permission: 'view followups',
   },
   {
     type: 'DealPipelineWidget',
@@ -208,6 +222,7 @@ const WIDGET_CATALOG = [
     description: 'Open deals, pipeline value, and stage breakdown',
     icon: Briefcase,
     defaultSize: { w: 4, h: 6 },
+    permission: 'view deals',
   },
   {
     type: 'PredictiveSummaryWidget',
@@ -215,13 +230,15 @@ const WIDGET_CATALOG = [
     description: 'At-risk contacts, weighted pipeline, and overdue risk',
     icon: Zap,
     defaultSize: { w: 4, h: 5 },
+    permission: 'view contacts',
   },
   {
     type: 'AtRiskContactsWidget',
     label: 'At-Risk Contacts',
-    description: 'Contacts with no activity in 30+ days',
+    description: 'Contacts with no activity in 60+ days',
     icon: AlertTriangle,
     defaultSize: { w: 4, h: 5 },
+    permission: 'view contacts',
   },
   {
     type: 'ForecastPipelineWidget',
@@ -229,6 +246,7 @@ const WIDGET_CATALOG = [
     description: 'Weighted deal pipeline forecast by close month',
     icon: BarChart3,
     defaultSize: { w: 8, h: 5 },
+    permission: 'view contacts',
   },
   {
     type: 'AnnouncementsWidget',
@@ -236,6 +254,14 @@ const WIDGET_CATALOG = [
     description: 'Latest company-wide notices from administrators',
     icon: Megaphone,
     defaultSize: { w: 4, h: 5 },
+  },
+  {
+    type: 'TaskManagerWidget',
+    label: 'Task Manager',
+    description: 'Overdue, in-progress, and pending counts from the department task manager',
+    icon: Kanban,
+    defaultSize: { w: 4, h: 4 },
+    permission: 'manage dept-tasks',
   },
 ];
 
@@ -255,6 +281,14 @@ const _now       = new Date();
 const _hour      = _now.getHours();
 const greeting   = _hour < 12 ? 'Good morning' : _hour < 18 ? 'Good afternoon' : 'Good evening';
 const todayLabel = _now.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+const footnoteDate = _now.toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' });
+
+// --- Permissions ----------------------------------------------------------
+function canShowWidget(type) {
+  const cat = WIDGET_CATALOG.find(w => w.type === type);
+  return !cat?.permission || can(cat.permission);
+}
+const visibleCatalog = computed(() => WIDGET_CATALOG.filter(w => !w.permission || can(w.permission)));
 
 // --- State --------------------------------------------------------------
 const layout        = ref([]);
@@ -671,6 +705,18 @@ onMounted(async () => {
   align-items: center;
   justify-content: center;
   font-size: 12px;
+  color: var(--text-3);
+}
+.widget-locked {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 18px;
+  text-align: center;
+  font-size: 12.5px;
   color: var(--text-3);
 }
 

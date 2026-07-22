@@ -45,7 +45,7 @@ Chart.register(
 
 const tabs = [
   { key: 'trend',    label: 'Trend',    title: 'Monthly Pipeline',     sub: 'New contacts added per month (last 12 months)' },
-  { key: 'tasks',    label: 'Tasks',    title: 'Monthly Task Activity', sub: 'Tasks scheduled per month (last 12 months)' },
+  { key: 'tasks',    label: 'To-Dos',   title: 'Monthly To-Do Activity', sub: 'To-dos scheduled per month (last 12 months)' },
   { key: 'status',   label: 'Status',   title: 'Contacts by Status',   sub: 'Current status distribution' },
   { key: 'industry', label: 'Industry', title: 'Contacts by Industry',  sub: 'Top industries represented' },
 ];
@@ -89,7 +89,7 @@ async function buildChart() {
       data: {
         labels: months.map(r => r.label),
         datasets: [{
-          label: activeTab.value === 'trend' ? 'Contacts' : 'Tasks',
+          label: activeTab.value === 'trend' ? 'Contacts' : 'To-Dos',
           data: months.map(r => r.count),
           backgroundColor: months.map((_, i) => i === months.length - 1 ? color : `rgba(${gradientRgb},0.55)`),
           borderRadius: 5,

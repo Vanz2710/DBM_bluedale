@@ -33,8 +33,8 @@ const contacts = ref([]);
 const loading = ref(true);
 
 function badgeClass(days) {
-  if (days >= 90) return 'ar-badge--critical';
-  if (days >= 60) return 'ar-badge--high';
+  if (days >= 120) return 'ar-badge--critical';
+  if (days >= 90) return 'ar-badge--high';
   return 'ar-badge--medium';
 }
 

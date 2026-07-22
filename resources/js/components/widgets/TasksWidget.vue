@@ -2,7 +2,7 @@
   <div class="tw-widget">
     <div class="tw-head">
       <div class="tw-title-wrap">
-        <span class="tw-title">Tasks To Do</span>
+        <span class="tw-title">To-Dos Due Today</span>
         <span class="tw-sub">Today · {{ tasks.length }} pending</span>
       </div>
       <router-link :to="{ path: '/list', query: { tab: 'tasks' } }" class="tw-view-all">View All</router-link>
