@@ -624,7 +624,9 @@
       "Bash(grep -iE '\\\\.md$|key\\\\.jks|key\\\\.properties|ephemeral')",
       "Bash(git -C \"/c/Users/paula/OneDrive/Desktop/KLTG_App\" remote -v)",
       "Bash(rm -rf \"/c/Users/paula/AppData/Local/Temp/claude/c--xampp-htdocs-library-crm-v2/93e63a28-00b4-4b08-b051-7148ab2169d8/scratchpad/KLTG_App_push\")",
-      "Bash(curl -s -H \"Authorization: Bearer 64|dDRDbuyKGdrquOaRIC740G9YB49gSXk3fTHAz6X879f5b6b4\" -H \"Accept: application/json\" http://localhost/api/v1/dept/weekly)"
+      "Bash(curl -s -H \"Authorization: Bearer 64|dDRDbuyKGdrquOaRIC740G9YB49gSXk3fTHAz6X879f5b6b4\" -H \"Accept: application/json\" http://localhost/api/v1/dept/weekly)",
+      "Bash(tar --force-local -czf crm-update-2026-07-23.tar.gz app/Http/Controllers/Api/V1/DeptTaskController.php public/build/)",
+      "Bash(tar -tzf crm-update-2026-07-23.tar.gz)"
     ],
     "additionalDirectories": [
       "\\tmp\\ammar_crm\\app\\Http\\Controllers\\Api\\V1",
