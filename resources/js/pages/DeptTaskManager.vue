@@ -642,15 +642,10 @@
       </div>
     </div>
 
-    <!-- ── This Week ─────────────────────────────────────────────────────────── -->
+    <!-- ── Department Report ─────────────────────────────────────────────────── -->
     <div v-else-if="currentView === 'weekly'" class="dtm-section">
 
       <div class="section-toolbar no-print">
-        <div class="week-nav">
-          <button class="btn-icon" @click="weekNav(-1)" aria-label="Previous week" v-html="ICO.chevronL"></button>
-          <span class="week-nav-label">{{ weeklyDisplayLabel }}</span>
-          <button class="btn-icon" @click="weekNav(1)" aria-label="Next week" v-html="ICO.chevronR"></button>
-        </div>
         <div class="scope-toggle" role="group" aria-label="Report grouping">
           <button :class="['scope-btn', weeklyGroupMode === 'weekly' && 'active']" @click="setWeeklyGroupMode('weekly')">By Department</button>
           <button :class="['scope-btn', weeklyGroupMode === 'department' && 'active']" @click="setWeeklyGroupMode('department')">Department Focus</button>
@@ -673,8 +668,7 @@
           <div>
             <div class="wr-title">{{ weeklyReportTitle }}</div>
             <div class="wr-meta">
-              <span><strong>Month:</strong> {{ weeklyMonthLabel }}</span>
-              <span><strong>Week:</strong> {{ weeklyData.week_start }} to {{ weeklyData.week_end }}</span>
+              <span><strong>Generated:</strong> {{ weeklyGeneratedLabel }}</span>
             </div>
           </div>
           <div v-if="weeklySummary.total" class="wr-summary-chips">
@@ -1416,7 +1410,7 @@ const tableLastPage   = ref(1);
 const tableTotal      = ref(0);
 const tablePageFrom   = ref(0);
 const tablePageTo     = ref(0);
-const weeklyData    = ref({ week_start: '', week_end: '', departments: [] });
+const weeklyData    = ref({ generated_at: '', departments: [] });
 const notifications = ref([]);
 const toasts        = ref([]);
 const boardLoading  = ref(false);
@@ -1478,7 +1472,6 @@ const { can }          = usePermissions();
 const boardFilters = reactive({ department_id: '', assigned_to: '' });
 const tableFilters = reactive({ search: '', department_id: '', status: '', priority: '', assigned_to: '', date_from: '', date_to: '' });
 const tableSort    = reactive({ field: 'created_at', dir: 'desc' });
-const weeklyWeekStart      = ref('');
 const weeklyAssigneeFilter = ref('');
 const weeklyGroupMode      = ref(localStorage.getItem('dtm_weekly_group') || 'weekly'); // 'weekly' | 'department' | 'all'
 const weeklyDeptFocusRaw   = ref('');
@@ -1680,12 +1673,12 @@ const statCards = computed(() => {
   ];
 });
 
-const weeklyMonthLabel = computed(() => {
-  if (!weeklyData.value.week_start) return '';
-  const parts = weeklyData.value.week_start.split('/');
-  if (parts.length < 3) return '';
+const weeklyGeneratedLabel = computed(() => {
+  if (!weeklyData.value.generated_at) return '';
+  const parts = weeklyData.value.generated_at.split('/');
+  if (parts.length < 3) return weeklyData.value.generated_at;
   const d = new Date(parts[2], parts[1] - 1, parts[0]);
-  return d.toLocaleString('default', { month: 'long', year: 'numeric' }).toUpperCase();
+  return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 });
 
 const weeklyDeptFocus = computed({
@@ -1725,10 +1718,10 @@ const weeklyEmptyMessage = computed(() => {
   const who = weeklyAssigneeFilter.value;
   if (weeklyGroupMode.value === 'department') {
     const name = focusedDept.value?.name || 'this department';
-    return who ? `No tasks for ${who} in ${name} this week.` : `All clear — no outstanding tasks for ${name} this week.`;
+    return who ? `No outstanding tasks for ${who} in ${name}.` : `All clear — no outstanding tasks for ${name}.`;
   }
-  if (who) return `No tasks for ${who} this week.`;
-  return 'All clear — no outstanding tasks this week.';
+  if (who) return `No outstanding tasks for ${who}.`;
+  return 'All clear — no outstanding tasks.';
 });
 
 const weeklyReportTitle = computed(() => {
@@ -1744,11 +1737,6 @@ const weeklySummary = computed(() => {
     overdue: all.filter(t => t.is_overdue).length,
     depts:   filteredWeeklyDepts.value.length,
   };
-});
-
-const weeklyDisplayLabel = computed(() => {
-  if (!weeklyData.value.week_start) return '';
-  return `${weeklyData.value.week_start} – ${weeklyData.value.week_end}`;
 });
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -1772,13 +1760,6 @@ function initials(name) {
 function toLocalDate(d) {
   const pad = n => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-}
-
-function weekNav(delta) {
-  const d = new Date(weeklyWeekStart.value + 'T00:00:00');
-  d.setDate(d.getDate() + delta * 7);
-  weeklyWeekStart.value = toLocalDate(d);
-  loadWeeklyData();
 }
 
 function formatDate(dt) {
@@ -2041,11 +2022,10 @@ async function loadTableTasks() {
 
 async function loadWeeklyData() {
   try {
-    const params = weeklyWeekStart.value ? { week_start: weeklyWeekStart.value } : {};
-    const res = await api.get('/v1/dept/weekly', { params });
+    const res = await api.get('/v1/dept/weekly');
     weeklyData.value = res.data;
   } catch (e) {
-    showToast(e.response?.data?.message || 'Could not load weekly report', 'error');
+    showToast(e.response?.data?.message || 'Could not load department report', 'error');
   }
 }
 
@@ -2541,8 +2521,6 @@ function flatTable(tasks, emptyMsg) {
 function printWeekly() {
   const depts   = filteredWeeklyDepts.value;
   const summary = weeklySummary.value;
-  const ws      = weeklyData.value.week_start || '';
-  const we      = weeklyData.value.week_end   || '';
   const fmtNow  = new Date().toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' });
 
   const title = weeklyReportTitle.value;
@@ -2555,7 +2533,6 @@ function printWeekly() {
   <div class="doc-title-line">
     <div>
       <div class="doc-title">${title}</div>
-      <div class="doc-meta"><span><b>Month:</b> ${weeklyMonthLabel.value}</span><span><b>Week:</b> ${ws} to ${we}</span></div>
     </div>
     <div class="doc-generated">Generated: ${fmtNow}</div>
   </div>
@@ -2573,19 +2550,19 @@ function printWeekly() {
 
   // "All Together" prints as one flat, chronologically-sorted table — same shape as the on-screen view.
   if (weeklyGroupMode.value === 'all') {
-    openPrintWindow(wrapDoc(title, meta, flatTable(weeklyFlatTasks.value, 'No outstanding tasks this week.')));
+    openPrintWindow(wrapDoc(title, meta, flatTable(weeklyFlatTasks.value, 'No outstanding tasks.')));
     return;
   }
 
-  // Collect and sort all unique due dates (format "d/m" e.g. "15/6")
+  // Collect and sort all unique due dates (format "d/m/Y" e.g. "15/6/2026")
   const dateSet = new Set();
   depts.forEach(d => d.tasks.forEach(t => dateSet.add(t.due_date || '')));
   const allDates = [...dateSet].sort((a, b) => {
     if (!a) return 1;
     if (!b) return -1;
-    const [da, ma] = a.split('/').map(Number);
-    const [db, mb] = b.split('/').map(Number);
-    return ma !== mb ? ma - mb : da - db;
+    const [da, ma, ya] = a.split('/').map(Number);
+    const [db, mb, yb] = b.split('/').map(Number);
+    return ya !== yb ? ya - yb : (ma !== mb ? ma - mb : da - db);
   });
 
   // Department column headers
@@ -2876,13 +2853,6 @@ onUnmounted(() => {
 });
 
 onMounted(async () => {
-  const now = new Date();
-
-  // Use toLocalDate() — toISOString() converts to UTC and shifts the date in UTC+8
-  const day    = now.getDay();
-  const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() + (day === 0 ? -6 : 1 - day));
-  weeklyWeekStart.value = toLocalDate(monday);
-
   window.addEventListener('keydown', handleEscapeKey);
 
   await loadMeta();
@@ -3379,9 +3349,7 @@ select.field-input { cursor: pointer; }
 .text-danger { color: #dc2626 !important; }
 .text-2      { color: var(--text-2); }
 
-/* ── This Week nav + chips ────────────────────────────────────────────────── */
-.week-nav       { display: flex; align-items: center; gap: 6px; }
-.week-nav-label { font-size: 13.5px; font-weight: 600; color: var(--text-1); min-width: 200px; text-align: center; }
+/* ── Department report chips ─────────────────────────────────────────────── */
 .wr-header      { display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid var(--border); }
 .wr-summary-chips { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .wr-chip        { display: flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--border); font-size: 12.5px; color: var(--text-2); font-weight: 500; }

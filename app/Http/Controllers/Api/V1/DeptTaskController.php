@@ -665,22 +665,13 @@ class DeptTaskController extends Controller
         $authUser = $request->user();
         $isAdmin  = $this->isAdmin($request);
 
-        $weekStart = $request->filled('week_start')
-            ? Carbon::parse($request->week_start)->startOfDay()
-            : Carbon::now()->startOfWeek();
-        $weekEnd = $weekStart->copy()->endOfWeek();
-
         $departments = Department::orderBy('id')->get();
 
-        // Single query for all tasks, grouped by department in PHP (no N+1)
-        $allWeeklyTasks = DeptTask::whereIn('department_id', $departments->pluck('id'))
+        // Single query for all outstanding tasks, grouped by department in PHP (no N+1)
+        $allTasks = DeptTask::whereIn('department_id', $departments->pluck('id'))
             ->when(!$isAdmin, fn($q) => $q->where('assigned_to', $authUser->id))
             ->whereNotIn('status', ['completed', 'cancelled'])
             ->whereNotNull('due_date')
-            ->where(function ($q) use ($weekStart, $weekEnd) {
-                $q->whereBetween('due_date', [$weekStart->toDateString(), $weekEnd->toDateString()])
-                  ->orWhere('due_date', '<', $weekStart->toDateString());
-            })
             ->with('assignee:id,name')
             ->orderBy('due_date')
             ->get()
@@ -688,10 +679,10 @@ class DeptTaskController extends Controller
 
         $tasksByDept = [];
         foreach ($departments as $dept) {
-            $tasks = ($allWeeklyTasks[$dept->id] ?? collect())->map(fn($t) => [
+            $tasks = ($allTasks[$dept->id] ?? collect())->map(fn($t) => [
                 'id'             => $t->id,
                 'title'          => $t->title,
-                'due_date'       => $t->due_date?->format('d/m'),
+                'due_date'       => $t->due_date?->format('d/m/Y'),
                 'due_date_sort'  => $t->due_date?->format('Y-m-d'),
                 'status'         => $t->status,
                 'priority'       => $t->priority,
@@ -705,8 +696,7 @@ class DeptTaskController extends Controller
         }
 
         return response()->json([
-            'week_start'   => $weekStart->format('d/m/Y'),
-            'week_end'     => $weekEnd->format('d/m/Y'),
+            'generated_at' => Carbon::now()->format('d/m/Y'),
             'departments'  => $tasksByDept,
         ]);
     }
