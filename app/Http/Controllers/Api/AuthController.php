@@ -19,6 +19,14 @@ class AuthController extends Controller
     private const INACTIVITY_DAYS = 14;
     private const MAX_ATTEMPTS    = 3;
 
+    /**
+     * A real bcrypt hash (cost 12) of a random throwaway value, used only to burn
+     * the same CPU time as a genuine password check when the username is unknown.
+     * It must be a valid 60-char bcrypt string — Hash::check() throws on anything
+     * else, which would turn a bad username into a 500 and defeat the whole point.
+     */
+    private const DUMMY_HASH = '$2y$12$vTiDEOs2LKMDWzPcSP1Mpu2/ESZu7VV64PDDyX/Ks0fmlWQXS8hWu';
+
     public function login(Request $request)
     {
         $request->validate([
@@ -30,7 +38,7 @@ class AuthController extends Controller
 
         // Timing-safe: always run bcrypt even when user not found to prevent username enumeration.
         if (!$user) {
-            Hash::check($request->password, '$2y$12$abcdefghijklmnopqrstuuABCDEFGHIJKLMNOPQRSTUVWXYZ012345');
+            Hash::check($request->password, self::DUMMY_HASH);
             throw ValidationException::withMessages([
                 'username' => ['The provided credentials are incorrect.'],
             ]);
