@@ -480,7 +480,8 @@ const ALL_GROUPS = [
       { key: 'forecast-summary', to: '/forecasts/summary', icon: SVGI.trending, label: 'Forecast Summary',  activeRoutes: ['forecast-summary'],              permission: 'view forecast summary', searchOnly: true },
       { key: 'projects',  to: '/projects',  icon: SVGI.layers,    label: 'Projects',  activeRoutes: ['projects', 'project-add', 'project-edit'], adminOnly: true },
       { key: 'deals',     to: '/deals',     icon: SVGI.briefcase, label: 'Deals',     activeRoutes: ['deals', 'deal-add', 'deal-edit'],           adminOnly: true },
-      { key: 'import',    to: '/import',    icon: SVGI.download,  label: 'Import Data', activeRoutes: ['import'], permission: 'import contacts' },
+      // 'Import Data' nav entry removed 2026-07-29 (unused) — Import.vue, ImportController, and the
+      // import/preview + import/process routes are still in the codebase, just unreachable now.
     ],
   },
   {

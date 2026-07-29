@@ -39,6 +39,7 @@ use App\Http\Controllers\Api\V1\EmailSettingsController;
 use App\Http\Controllers\Api\V1\EmailImageController;
 use App\Http\Controllers\Api\V1\PredictiveController;
 use App\Http\Controllers\Api\V1\ContactEditGrantController;
+use App\Http\Controllers\Api\V1\TaskAccessGrantController;
 use App\Http\Controllers\Api\V1\SystemSettingsController;
 use App\Http\Controllers\Api\V1\UserSignatureController;
 use App\Http\Controllers\Api\V1\UserPreparedByController;
@@ -218,11 +219,12 @@ Route::middleware(['auth:sanctum', 'maintenance'])->group(function () {
             Route::delete('contacts/{contact}/todos/{todo}', [ToDoController::class, 'destroy']);
         });
 
-        // Import
-        Route::middleware('can:import contacts')->group(function () {
-            Route::post('import/preview', [ImportController::class, 'preview']);
-            Route::post('import/process', [ImportController::class, 'process']);
-        });
+        // Import — disabled 2026-07-29, unused. ImportController and Import.vue are left in
+        // place; these routes are commented out so the feature is unreachable rather than deleted.
+        // Route::middleware('can:import contacts')->group(function () {
+        //     Route::post('import/preview', [ImportController::class, 'preview']);
+        //     Route::post('import/process', [ImportController::class, 'process']);
+        // });
 
         // Social Media Reminders
         Route::middleware('can:manage social-media')->group(function () {
@@ -359,6 +361,10 @@ Route::middleware(['auth:sanctum', 'maintenance'])->group(function () {
             Route::get('contact-edit-grants', [ContactEditGrantController::class, 'index']);
             Route::post('contact-edit-grants', [ContactEditGrantController::class, 'store']);
             Route::delete('contact-edit-grants/{id}', [ContactEditGrantController::class, 'destroy']);
+
+            Route::get('task-access-grants', [TaskAccessGrantController::class, 'index']);
+            Route::post('task-access-grants', [TaskAccessGrantController::class, 'store']);
+            Route::delete('task-access-grants/{id}', [TaskAccessGrantController::class, 'destroy']);
 
             Route::get('user-activity/overview', [UserActivityController::class, 'overview']);
             Route::get('user-activity/security-events', [UserActivityController::class, 'securityEvents']);

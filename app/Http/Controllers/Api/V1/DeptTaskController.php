@@ -7,6 +7,7 @@ use App\Models\Department;
 use App\Models\DeptNotification;
 use App\Models\DeptTask;
 use App\Models\DeptTaskComment;
+use App\Models\TaskAccessGrant;
 use App\Models\User;
 use App\Support\Csv;
 use App\Support\XlsxExport;
@@ -26,34 +27,113 @@ use PhpOffice\PhpSpreadsheet\Style\Fill;
 
 class DeptTaskController extends Controller
 {
-    // "Admin-tier" for this module: sees/manages every task, not just their own.
-    // Supervisor is included here — task deletion is the sole exception (see destroy()),
-    // which stays restricted to admin/super-admin only.
+    // True admin-tier: unrestricted access to every task. Supervisor is deliberately
+    // NOT included — as of 2026-07-29 a supervisor only sees/manages tasks for
+    // themselves plus whichever accounts a super-admin has explicitly granted them
+    // via TaskAccessGrant (see scopedUserIds()/grantedTargetIds() below). This replaced
+    // the earlier blanket "supervisor = admin-tier" rule after supervisor feedback that
+    // they could see tasks made for the super-admin's own account.
     private function isAdmin(Request $request): bool
     {
-        return $this->isElevatedUser($request->user());
+        return $request->user()->hasAnyRole(['admin', 'super-admin']);
     }
 
-    private function isElevatedUser($user): bool
+    // Roles that receive elevated workflow powers (cancel/reopen a task, moderate
+    // someone else's comment/attachment) once a task falls within their visibility
+    // scope. Plain "user"-type roles never get these, even if directly granted view/edit
+    // access to another account's tasks via TaskAccessGrant.
+    private function isElevatedRole($user): bool
     {
         return $user->hasAnyRole(['admin', 'super-admin', 'supervisor']);
     }
 
+    // Account ids explicitly granted to this user via TaskAccessGrant (not including self).
+    private function grantedTargetIds(Request $request): array
+    {
+        return TaskAccessGrant::where('user_id', $request->user()->id)
+            ->pluck('target_user_id')
+            ->map(fn($id) => (int) $id)
+            ->all();
+    }
+
+    // Account ids whose tasks this user may view/edit: themselves plus any grants.
+    // Only meaningful when isAdmin() is false — full admins are never restricted.
+    private function scopedUserIds(Request $request): array
+    {
+        return array_values(array_unique([(int) $request->user()->id, ...$this->grantedTargetIds($request)]));
+    }
+
+    private function inIds(?int $assignedTo, array $ids): bool
+    {
+        return $assignedTo !== null && \in_array($assignedTo, $ids, true);
+    }
+
+    // Shared read-access rule for a single task: full admin, the creator (matters for
+    // unassigned tasks), the assignee, or — new — an explicitly granted account's task.
+    private function canAccessTask(Request $request, DeptTask $task): bool
+    {
+        if ($this->isAdmin($request)) return true;
+        $user = $request->user();
+        if ($task->created_by === $user->id) return true;
+        return $this->inIds($task->assigned_to, $this->scopedUserIds($request));
+    }
+
+    // Whether $request's user may moderate (delete/rename) someone ELSE's comment or
+    // attachment on the given task: full admins always; supervisors (and other elevated
+    // roles) only when the task's assignee is within their granted scope.
+    private function canModerate(Request $request, int $taskId): bool
+    {
+        if ($this->isAdmin($request)) return true;
+        $user = $request->user();
+        if (!$this->isElevatedRole($user)) return false;
+        $assignedTo = DeptTask::whereKey($taskId)->value('assigned_to');
+        return $this->inIds($assignedTo !== null ? (int) $assignedTo : null, $this->scopedUserIds($request));
+    }
+
+    // Shared list-scoping rule used by index()/export()/calendarExport(): full admins can
+    // filter to any single assignee (or none, for everyone); everyone else is locked to
+    // their own scope, narrowed to one assignee only if that assignee is within scope.
+    private function applyAssigneeScope($query, Request $request)
+    {
+        if ($this->isAdmin($request)) {
+            if ($request->filled('assigned_to')) {
+                $query->where('assigned_to', $request->assigned_to);
+            }
+            return $query;
+        }
+
+        $scoped    = $this->scopedUserIds($request);
+        $requested = $request->filled('assigned_to') ? (int) $request->input('assigned_to') : null;
+
+        if ($requested !== null && \in_array($requested, $scoped, true)) {
+            $query->where('assigned_to', $requested);
+        } else {
+            $query->whereIn('assigned_to', $scoped);
+        }
+
+        return $query;
+    }
+
     public function dashboard(Request $request): JsonResponse
     {
-        $authUser = $request->user();
-        $isAdmin  = $this->isAdmin($request);
+        $isAdmin = $this->isAdmin($request);
 
-        // Non-admins are locked to their own stats only — ignore any user_id param,
-        // same rule index()/weekly()/report() already enforce for this controller.
-        $userId = $isAdmin
-            ? ($request->filled('user_id') ? (int) $request->input('user_id') : null)
-            : $authUser->id;
+        // Full admins: no filter (all), or one specific user_id if they asked for it.
+        // Everyone else (including supervisors): locked to their own scope — themselves
+        // plus any TaskAccessGrant'd accounts — narrowed to one of those ids if they
+        // asked for a specific (in-scope) user_id, otherwise the whole scope aggregated.
+        if ($isAdmin) {
+            $userIds = $request->filled('user_id') ? [(int) $request->input('user_id')] : null;
+        } else {
+            $scoped = $this->scopedUserIds($request);
+            $requested = $request->filled('user_id') ? (int) $request->input('user_id') : null;
+            $userIds = ($requested !== null && \in_array($requested, $scoped, true)) ? [$requested] : $scoped;
+        }
 
         $today = Carbon::today();
 
         // Single aggregated query instead of 7 separate COUNTs
-        $statsRow = DeptTask::when($userId, fn($q) => $q->where('assigned_to', $userId))
+        $statsRow = DeptTask::when($userIds, fn($q) => $q->whereIn('assigned_to', $userIds))
             ->selectRaw("
                 COUNT(*) as total,
                 SUM(status = 'pending') as pending,
@@ -74,10 +154,10 @@ class DeptTaskController extends Controller
         // Active-only count so the dept bar chart reflects current workload, not all-time history.
         // Zero-task departments are filtered out to avoid flat bars cluttering the chart.
         $byDepartment = Department::withCount([
-            'tasks as tasks_count'     => fn($q) => $q->when($userId, fn($q2) => $q2->where('assigned_to', $userId))
+            'tasks as tasks_count'     => fn($q) => $q->when($userIds, fn($q2) => $q2->whereIn('assigned_to', $userIds))
                                                       ->whereNotIn('status', ['completed', 'cancelled']),
-            'tasks as pending_count'   => fn($q) => $q->when($userId, fn($q2) => $q2->where('assigned_to', $userId))->where('status', 'pending'),
-            'tasks as completed_count' => fn($q) => $q->when($userId, fn($q2) => $q2->where('assigned_to', $userId))->where('status', 'completed'),
+            'tasks as pending_count'   => fn($q) => $q->when($userIds, fn($q2) => $q2->whereIn('assigned_to', $userIds))->where('status', 'pending'),
+            'tasks as completed_count' => fn($q) => $q->when($userIds, fn($q2) => $q2->whereIn('assigned_to', $userIds))->where('status', 'completed'),
         ])->get()
           ->map(fn($d) => [
               'name'      => $d->name,
@@ -99,13 +179,13 @@ class DeptTaskController extends Controller
         // Two queries instead of 12 (6 weeks × 2): aggregate by ISO week then map in PHP
         $sixWeeksStart = $today->copy()->startOfWeek()->subWeeks(5)->startOfDay();
 
-        $createdByWeek = DeptTask::when($userId, fn($q) => $q->where('assigned_to', $userId))
+        $createdByWeek = DeptTask::when($userIds, fn($q) => $q->whereIn('assigned_to', $userIds))
             ->where('created_at', '>=', $sixWeeksStart)
             ->selectRaw("DATE_FORMAT(created_at, '%x%v') as yw, COUNT(*) as cnt")
             ->groupBy('yw')
             ->pluck('cnt', 'yw');
 
-        $completedByWeek = DeptTask::when($userId, fn($q) => $q->where('assigned_to', $userId))
+        $completedByWeek = DeptTask::when($userIds, fn($q) => $q->whereIn('assigned_to', $userIds))
             ->where('status', 'completed')
             ->where('updated_at', '>=', $sixWeeksStart)
             ->selectRaw("DATE_FORMAT(updated_at, '%x%v') as yw, COUNT(*) as cnt")
@@ -125,7 +205,7 @@ class DeptTaskController extends Controller
         }
 
         $recentTasks = DeptTask::with(['department', 'assignee', 'creator'])
-            ->when($userId, fn($q) => $q->where('assigned_to', $userId))
+            ->when($userIds, fn($q) => $q->whereIn('assigned_to', $userIds))
             ->whereNotIn('status', ['completed', 'cancelled'])
             ->latest('updated_at')->limit(8)->get()
             ->map(fn($t) => $this->formatTask($t));
@@ -136,7 +216,7 @@ class DeptTaskController extends Controller
             'byStatus'     => $byStatus,
             'weeklyRate'   => $weeklyRate,
             'recentTasks'  => $recentTasks,
-            'scoped_user'  => $userId,
+            'scoped_user'  => ($userIds && \count($userIds) === 1) ? $userIds[0] : null,
         ]);
     }
 
@@ -147,14 +227,19 @@ class DeptTaskController extends Controller
 
     public function users(Request $request): JsonResponse
     {
-        // Anyone reaching this endpoint already holds 'manage dept-tasks' (enforced by the
-        // route's can: middleware), so every such user needs the full roster for the
-        // assignee/department pickers — not just admins.
-        return response()->json(
-            User::select('id', 'name', 'email', 'role', 'department_id')
-                ->with('department:id,name,color')
-                ->orderBy('name')->get()
-        );
+        // Full admins get the whole roster for the assignee/department pickers. Everyone
+        // else (including supervisors) only gets themselves plus whichever accounts have
+        // been explicitly granted to them — this is what actually drives the People tab,
+        // filter dropdowns, and reassignment picker down to the right scope, since those
+        // UI pieces just render whatever this endpoint returns.
+        $query = User::select('id', 'name', 'email', 'role', 'department_id')
+            ->with('department:id,name,color');
+
+        if (!$this->isAdmin($request)) {
+            $query->whereIn('id', $this->scopedUserIds($request));
+        }
+
+        return response()->json($query->orderBy('name')->get());
     }
 
     public function notifications(Request $request): JsonResponse
@@ -179,17 +264,8 @@ class DeptTaskController extends Controller
 
     public function index(Request $request): JsonResponse
     {
-        $authUser = $request->user();
-        $isAdmin  = $this->isAdmin($request);
-
         $q = DeptTask::with(['department', 'assignee:id,name,email', 'creator:id,name']);
-
-        // Non-admins are locked to their own tasks only — ignore any assigned_to param
-        if (!$isAdmin) {
-            $q->where('assigned_to', $authUser->id);
-        } elseif ($request->filled('assigned_to')) {
-            $q->where('assigned_to', $request->assigned_to);
-        }
+        $this->applyAssigneeScope($q, $request);
 
         if ($request->filled('department_id')) {
             $q->where('department_id', $request->department_id);
@@ -232,9 +308,6 @@ class DeptTaskController extends Controller
 
     public function export(Request $request)
     {
-        $authUser = $request->user();
-        $isAdmin  = $this->isAdmin($request);
-
         $ALLOWED = ['no', 'title', 'department', 'assigned_to', 'priority', 'status', 'due_date', 'created_by', 'created_at', 'description'];
         $LABELS  = [
             'no' => 'No', 'title' => 'Task', 'department' => 'Department',
@@ -254,12 +327,8 @@ class DeptTaskController extends Controller
 
         // Same filters as index() — export reflects whatever the Table tab is currently showing.
         $q = DeptTask::with(['department', 'assignee:id,name,email', 'creator:id,name']);
+        $this->applyAssigneeScope($q, $request);
 
-        if (!$isAdmin) {
-            $q->where('assigned_to', $authUser->id);
-        } elseif ($request->filled('assigned_to')) {
-            $q->where('assigned_to', $request->assigned_to);
-        }
         if ($request->filled('department_id')) {
             $q->where('department_id', $request->department_id);
         }
@@ -336,8 +405,7 @@ class DeptTaskController extends Controller
     // Uses the same HTML-table-as-.xls trick as export() above for consistency.
     public function calendarExport(Request $request)
     {
-        $authUser = $request->user();
-        $isAdmin  = $this->isAdmin($request);
+        $isAdmin = $this->isAdmin($request);
 
         $monthInput = (string) $request->input('month', '');
         $monthStart = preg_match('/^\d{4}-\d{2}$/', $monthInput)
@@ -352,12 +420,8 @@ class DeptTaskController extends Controller
 
         $q = DeptTask::with(['department', 'assignee:id,name'])
             ->whereBetween('due_date', [$gridStart->toDateString(), $gridEnd->toDateString()]);
+        $this->applyAssigneeScope($q, $request);
 
-        if (!$isAdmin) {
-            $q->where('assigned_to', $authUser->id);
-        } elseif ($request->filled('assigned_to')) {
-            $q->where('assigned_to', $request->assigned_to);
-        }
         if ($request->filled('department_id')) {
             $q->where('department_id', $request->department_id);
         }
@@ -373,7 +437,7 @@ class DeptTaskController extends Controller
 
         $scopeLabel = $isAdmin
             ? ($request->filled('assigned_to') ? 'Assignee: ' . (User::find($request->assigned_to)?->name ?? '—') : 'All Tasks')
-            : 'My Tasks';
+            : (\count($this->scopedUserIds($request)) > 1 ? 'My Team' : 'My Tasks');
         if ($request->filled('department_id')) {
             $dept = Department::find($request->department_id);
             $scopeLabel .= $dept ? ' · ' . $dept->name : '';
@@ -468,11 +532,12 @@ class DeptTaskController extends Controller
             'recurrence_type' => 'nullable|in:daily,weekly,monthly,quarterly',
         ]);
 
-        // Non-admins may only create tasks assigned to themselves (or unassigned) — matches
-        // the read-only "Assigned To" field the New Task modal shows them. Admins can assign
-        // to anyone with module access, checked below.
-        if (!$this->isAdmin($request) && !empty($data['assigned_to']) && (int) $data['assigned_to'] !== $request->user()->id) {
-            return response()->json(['message' => 'You can only create tasks assigned to yourself.'], 403);
+        // Non-admins may only create tasks assigned to themselves or an explicitly granted
+        // account (or leave it unassigned) — matches the "Assigned To" field the New Task
+        // modal shows them. Admins can assign to anyone with module access, checked below.
+        if (!$this->isAdmin($request) && !empty($data['assigned_to'])
+            && !\in_array((int) $data['assigned_to'], $this->scopedUserIds($request), true)) {
+            return response()->json(['message' => 'You can only create tasks assigned to yourself or an account granted to you.'], 403);
         }
 
         if (!empty($data['assigned_to'])) {
@@ -513,10 +578,7 @@ class DeptTaskController extends Controller
             'attachments.user:id,name',
         ])->findOrFail($id);
 
-        $user = $request->user();
-        if (!$this->isAdmin($request)
-            && $task->assigned_to !== $user->id
-            && $task->created_by  !== $user->id) {
+        if (!$this->canAccessTask($request, $task)) {
             abort(403);
         }
 
@@ -527,8 +589,15 @@ class DeptTaskController extends Controller
     {
         $task = DeptTask::findOrFail($id);
 
-        // Only admins or the task's creator may edit task details
-        if (!$this->isAdmin($request) && $task->created_by !== $request->user()->id) {
+        // Only admins, the task's creator, or someone explicitly granted this task's
+        // assignee account (e.g. a supervisor's TaskAccessGrant) may edit task details.
+        // Deliberately narrower than canAccessTask()/scopedUserIds(): being merely the
+        // assignee (without also being the creator or a grantee) still doesn't grant edit
+        // rights — that asymmetry is pre-existing and unrelated to this grant feature.
+        $canEdit = $this->isAdmin($request)
+            || $task->created_by === $request->user()->id
+            || $this->inIds($task->assigned_to, $this->grantedTargetIds($request));
+        if (!$canEdit) {
             abort(403, 'You are not allowed to edit this task.');
         }
 
@@ -547,13 +616,17 @@ class DeptTaskController extends Controller
 
         // A status change via the edit form must obey the same workflow rules
         if (array_key_exists('status', $data) && $data['status'] !== $task->status) {
-            $this->assertCanTransition($task, $data['status'], $request->user());
+            $this->assertCanTransition($task, $data['status'], $request);
         }
 
         if (!empty($data['assigned_to']) && $data['assigned_to'] !== $task->assigned_to) {
             $assignee = User::findOrFail($data['assigned_to']);
             if (!$assignee->can('manage dept-tasks')) {
                 return response()->json(['message' => 'The assigned user does not have Task Manager access.'], 422);
+            }
+            // Non-admins may only hand a task off to themselves or a granted account.
+            if (!$this->isAdmin($request) && !\in_array((int) $data['assigned_to'], $this->scopedUserIds($request), true)) {
+                return response()->json(['message' => 'You can only reassign to yourself or an account granted to you.'], 403);
             }
         }
 
@@ -578,8 +651,8 @@ class DeptTaskController extends Controller
 
     public function destroy(Request $request, int $id): JsonResponse
     {
-        // Task deletion stays admin/super-admin only — deliberately narrower than isAdmin()
-        // above, which now also covers supervisors for view/create/edit.
+        // Task deletion stays admin/super-admin only — even a supervisor with full
+        // view/edit scope over an account's tasks cannot delete them.
         if (!$request->user()->hasAnyRole(['admin', 'super-admin'])) {
             abort(403, 'Only admins can delete tasks.');
         }
@@ -605,7 +678,7 @@ class DeptTaskController extends Controller
         $task  = DeptTask::findOrFail($id);
         $actor = $request->user();
 
-        $this->assertCanTransition($task, $data['status'], $actor);
+        $this->assertCanTransition($task, $data['status'], $request);
 
         $oldStatus = $task->status;
         $task->update($data);
@@ -632,9 +705,7 @@ class DeptTaskController extends Controller
         $task = DeptTask::findOrFail($taskId);
         $user = $request->user();
 
-        if (!$this->isAdmin($request)
-            && $task->assigned_to !== $user->id
-            && $task->created_by  !== $user->id) {
+        if (!$this->canAccessTask($request, $task)) {
             abort(403, 'You can only comment on tasks you are involved in.');
         }
 
@@ -653,7 +724,7 @@ class DeptTaskController extends Controller
     {
         $user  = $request->user();
         $query = DeptTaskComment::where('task_id', $taskId)->where('id', $commentId);
-        if (!$this->isAdmin($request)) {
+        if (!$this->canModerate($request, $taskId)) {
             $query->where('user_id', $user->id);
         }
         $query->firstOrFail()->delete();
@@ -662,14 +733,14 @@ class DeptTaskController extends Controller
 
     public function weekly(Request $request): JsonResponse
     {
-        $authUser = $request->user();
-        $isAdmin  = $this->isAdmin($request);
+        $isAdmin    = $this->isAdmin($request);
+        $scopedIds  = $isAdmin ? [] : $this->scopedUserIds($request);
 
         $departments = Department::orderBy('id')->get();
 
         // Single query for all outstanding tasks, grouped by department in PHP (no N+1)
         $allTasks = DeptTask::whereIn('department_id', $departments->pluck('id'))
-            ->when(!$isAdmin, fn($q) => $q->where('assigned_to', $authUser->id))
+            ->when(!$isAdmin, fn($q) => $q->whereIn('assigned_to', $scopedIds))
             ->whereNotIn('status', ['completed', 'cancelled'])
             ->whereNotNull('due_date')
             ->with('assignee:id,name')
@@ -703,14 +774,14 @@ class DeptTaskController extends Controller
 
     public function report(Request $request): JsonResponse
     {
-        $authUser = $request->user();
-        $isAdmin  = $this->isAdmin($request);
+        $isAdmin   = $this->isAdmin($request);
+        $scopedIds = $isAdmin ? [] : $this->scopedUserIds($request);
 
         $dateFrom = $request->filled('date_from') ? Carbon::parse($request->date_from) : Carbon::now()->subDays(30);
         $dateTo   = $request->filled('date_to')   ? Carbon::parse($request->date_to)   : Carbon::now();
 
         $tasks = DeptTask::with(['department', 'assignee:id,name', 'creator:id,name'])
-            ->when(!$isAdmin, fn($q) => $q->where('assigned_to', $authUser->id))
+            ->when(!$isAdmin, fn($q) => $q->whereIn('assigned_to', $scopedIds))
             ->where(function ($q) use ($dateFrom, $dateTo) {
                 $q->whereBetween('created_at', [$dateFrom->startOfDay(), $dateTo->endOfDay()])
                   ->orWhere(fn($inner) => $inner->where('status', 'completed')
@@ -745,11 +816,8 @@ class DeptTaskController extends Controller
     public function storeAttachment(Request $request, int $taskId): JsonResponse
     {
         $task = DeptTask::findOrFail($taskId);
-        $user = $request->user();
 
-        if (!$this->isAdmin($request)
-            && $task->assigned_to !== $user->id
-            && $task->created_by  !== $user->id) {
+        if (!$this->canAccessTask($request, $task)) {
             abort(403, 'You can only attach files to tasks you are involved in.');
         }
 
@@ -785,7 +853,7 @@ class DeptTaskController extends Controller
     {
         $user  = $request->user();
         $query = DeptTaskAttachment::where('task_id', $taskId)->where('id', $attachmentId);
-        if (!$this->isAdmin($request)) {
+        if (!$this->canModerate($request, $taskId)) {
             $query->where('user_id', $user->id);
         }
         $attachment = $query->firstOrFail();
@@ -806,9 +874,10 @@ class DeptTaskController extends Controller
         ]);
 
         if (!$isAdmin) {
-            $query->whereHas('task', function ($q) use ($user) {
-                $q->where('assigned_to', $user->id)
-                  ->orWhere('created_by',  $user->id);
+            $scopedIds = $this->scopedUserIds($request);
+            $query->whereHas('task', function ($q) use ($user, $scopedIds) {
+                $q->whereIn('assigned_to', $scopedIds)
+                  ->orWhere('created_by', $user->id);
             });
         }
 
@@ -838,12 +907,11 @@ class DeptTaskController extends Controller
 
     public function renameAttachment(Request $request, int $attachmentId): JsonResponse
     {
-        $user  = $request->user();
-        $query = DeptTaskAttachment::where('id', $attachmentId);
-        if (!$this->isAdmin($request)) {
-            $query->where('user_id', $user->id);
+        $attachment = DeptTaskAttachment::findOrFail($attachmentId);
+        $user       = $request->user();
+        if ($attachment->user_id !== $user->id && !$this->canModerate($request, $attachment->task_id)) {
+            abort(403);
         }
-        $attachment = $query->firstOrFail();
         $request->validate(['filename' => 'required|string|max:255']);
         $attachment->update(['filename' => trim($request->filename)]);
         return response()->json(['ok' => true, 'filename' => $attachment->filename]);
@@ -851,12 +919,11 @@ class DeptTaskController extends Controller
 
     public function deleteAttachmentDirect(Request $request, int $attachmentId): JsonResponse
     {
-        $user  = $request->user();
-        $query = DeptTaskAttachment::where('id', $attachmentId);
-        if (!$this->isAdmin($request)) {
-            $query->where('user_id', $user->id);
+        $attachment = DeptTaskAttachment::findOrFail($attachmentId);
+        $user       = $request->user();
+        if ($attachment->user_id !== $user->id && !$this->canModerate($request, $attachment->task_id)) {
+            abort(403);
         }
-        $attachment = $query->firstOrFail();
         Storage::disk('public')->delete($attachment->path);
         $attachment->delete();
         return response()->json(['ok' => true]);
@@ -865,16 +932,23 @@ class DeptTaskController extends Controller
     /**
      * Enforce the task workflow state machine.
      */
-    private function assertCanTransition(DeptTask $task, string $to, $user): void
+    private function assertCanTransition(DeptTask $task, string $to, Request $request): void
     {
         $from = $task->status;
         if ($from === $to) {
             return;
         }
 
-        $isAdmin    = $this->isElevatedUser($user);
-        $isAssignee = $task->assigned_to === $user->id;
-        $isCreator  = $task->created_by  === $user->id;
+        $user = $request->user();
+
+        // Elevated (admin/super-admin/supervisor) roles get cancel/reopen/bypass powers,
+        // but only for tasks within their scope — full admins always, supervisors only for
+        // themselves or an account explicitly granted to them via TaskAccessGrant.
+        $isFullAdmin = $this->isAdmin($request);
+        $isAdmin     = $isFullAdmin
+            || ($this->isElevatedRole($user) && $this->inIds($task->assigned_to, $this->scopedUserIds($request)));
+        $isAssignee  = $task->assigned_to === $user->id;
+        $isCreator   = $task->created_by  === $user->id;
 
         // Must be involved with the task.
         if (!$isAdmin && !$isAssignee && !$isCreator) {

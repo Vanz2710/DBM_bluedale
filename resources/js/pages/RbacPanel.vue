@@ -689,6 +689,114 @@
       </div>
     </div>
 
+    <!-- TASK ACCESS GRANTS TAB -->
+    <div v-if="activeTab === 'task-access'">
+      <div class="perm-info-banner">
+        <div class="perm-info-icon">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+        </div>
+        <div>
+          A supervisor sees only their own Task Manager tasks by default — not tasks made for other accounts, including admins. Use this to grant a supervisor view &amp; edit access to a specific staff account's tasks. Admin, super-admin, and other supervisor accounts can never be picked as a target here.
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <div class="table-header-bar">
+          <span class="table-header-title">Grant Task Manager Access</span>
+        </div>
+        <div class="grant-form-row">
+          <div class="form-field">
+            <label>Supervisor (receives access)</label>
+            <select v-model="taskAccessForm.user_id">
+              <option value="">— Select supervisor —</option>
+              <option v-for="u in supervisorUsers" :key="u.id" :value="u.id">{{ u.name }}</option>
+            </select>
+            <div v-if="!supervisorUsers.length" class="optional" style="margin-top: 4px;">No accounts with the "supervisor" role yet.</div>
+          </div>
+
+          <div class="grant-arrow-col">
+            <div class="grant-arrow-wrap">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="grant-arrow-icon"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+            </div>
+          </div>
+
+          <div class="form-field">
+            <label>Can view &amp; edit tasks for</label>
+            <select v-model="taskAccessForm.target_user_id">
+              <option value="">— Select account —</option>
+              <option v-for="u in grantableTaskTargets" :key="u.id" :value="u.id" :disabled="u.id === taskAccessForm.user_id">{{ u.name }}</option>
+            </select>
+          </div>
+
+          <div class="grant-controls-col">
+            <button class="btn btn-primary" @click="addTaskAccessGrant"
+              :disabled="!taskAccessForm.user_id || !taskAccessForm.target_user_id || taskAccessForm.user_id === taskAccessForm.target_user_id || taskAccessLoading">
+              Add Grant
+            </button>
+          </div>
+        </div>
+        <div v-if="taskAccessError" class="form-error">{{ taskAccessError }}</div>
+      </div>
+
+      <div class="table-wrap" style="margin-top: 16px;">
+        <div class="table-header-bar">
+          <span class="table-header-title">Active Grants</span>
+          <span class="count-badge">{{ taskAccessGrants.length }}</span>
+        </div>
+        <LoadingSpinner v-if="taskAccessLoading" />
+        <div v-else-if="taskAccessGrants.length === 0" class="empty-banner">
+          <div class="empty-title">No grants yet</div>
+          <div class="empty-sub">Use the form above to let a supervisor view and edit a staff account's tasks.</div>
+        </div>
+        <table v-else>
+          <thead>
+            <tr><th>#</th><th>Supervisor</th><th>Can view &amp; edit tasks of</th><th>Granted by</th><th>Action</th></tr>
+          </thead>
+          <tbody>
+            <tr v-for="(g, idx) in taskAccessGrants" :key="g.id">
+              <td class="num">{{ idx + 1 }}</td>
+              <td><span class="role-name">{{ g.user?.name ?? '—' }}</span></td>
+              <td>{{ g.target_user?.name ?? '—' }}</td>
+              <td class="muted">{{ g.granted_by?.name ?? '—' }}</td>
+              <td class="actions-cell">
+                <button class="act-btn act-red" @click="openRemoveTaskAccessModal(g)">Remove</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- REMOVE TASK ACCESS GRANT CONFIRM MODAL -->
+    <Teleport to="body">
+      <div v-if="removeTaskAccessModal.open" class="overlay">
+        <div class="modal">
+          <div class="modal-head">
+            <div>
+              <div class="modal-title">Remove Task Access Grant</div>
+              <div class="modal-sub">This will revoke view &amp; edit access immediately</div>
+            </div>
+            <button class="modal-close" @click="removeTaskAccessModal.open = false"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+          </div>
+          <div class="modal-body modal-form" style="gap: 12px;">
+            <div class="grant-confirm-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            </div>
+            <p class="grant-confirm-text">
+              Remove access for <strong>{{ removeTaskAccessModal.grant?.user?.name }}</strong> to view/edit
+              <strong>{{ removeTaskAccessModal.grant?.target_user?.name }}</strong>'s tasks?
+            </p>
+          </div>
+          <div class="modal-foot">
+            <button class="btn btn-ghost" @click="removeTaskAccessModal.open = false">Cancel</button>
+            <button class="btn btn-danger" @click="confirmRemoveTaskAccessGrant" :disabled="removeTaskAccessModal.loading">
+              {{ removeTaskAccessModal.loading ? 'Removing…' : 'Remove Grant' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
     <!-- REMOVE GRANT CONFIRM MODAL -->
     <Teleport to="body">
       <div v-if="removeGrantModal.open" class="overlay">
@@ -990,6 +1098,7 @@ const tabs = [
   { key: 'permissions', label: 'Permissions' },
   { key: 'users',       label: 'Users' },
   { key: 'grants',      label: 'Contact Grants' },
+  { key: 'task-access', label: 'Task Access' },
   { key: 'reassign',    label: 'Bulk Reassign' },
 ];
 
@@ -1171,6 +1280,7 @@ async function switchTab(key) {
     if (key === 'permissions') await loadPermissions();
     if (key === 'users')       await Promise.all([loadUsers(), loadRoles()]);
     if (key === 'grants')      await Promise.all([loadGrants(), loadUsers()]);
+    if (key === 'task-access') await Promise.all([loadTaskAccessGrants(), loadUsers()]);
     if (key === 'reassign')    await loadUsers();
   } finally {
     loading.value = false;
@@ -1556,6 +1666,63 @@ async function confirmRemoveGrant() {
   } catch (e) {
     handleError(e);
     removeGrantModal.loading = false;
+  }
+}
+
+// ── Task Manager Access Grants ──
+// Supervisors are the only valid grantees; admin/super-admin/supervisor accounts can
+// never be picked as a target, so a supervisor can structurally never be granted
+// visibility into another elevated account's (e.g. the super-admin's) tasks.
+const ELEVATED_ROLE_NAMES     = ['admin', 'super-admin', 'supervisor'];
+const supervisorUsers         = computed(() => activeUsers.value.filter(u => (u.roles || []).some(r => r.name === 'supervisor')));
+const grantableTaskTargets    = computed(() => activeUsers.value.filter(u => !(u.roles || []).some(r => ELEVATED_ROLE_NAMES.includes(r.name))));
+
+const taskAccessGrants        = ref([]);
+const taskAccessLoading       = ref(false);
+const taskAccessError         = ref('');
+const taskAccessForm          = reactive({ user_id: '', target_user_id: '' });
+const removeTaskAccessModal   = reactive({ open: false, grant: null, loading: false });
+
+async function loadTaskAccessGrants() {
+  const res = await api.get('/v1/task-access-grants');
+  taskAccessGrants.value = res.data;
+}
+
+async function addTaskAccessGrant() {
+  taskAccessError.value = '';
+  if (!taskAccessForm.user_id || !taskAccessForm.target_user_id) return;
+  taskAccessLoading.value = true;
+  try {
+    const res = await api.post('/v1/task-access-grants', {
+      user_id:        taskAccessForm.user_id,
+      target_user_id: taskAccessForm.target_user_id,
+    });
+    taskAccessGrants.value.unshift(res.data);
+    taskAccessForm.user_id        = '';
+    taskAccessForm.target_user_id = '';
+  } catch (e) {
+    taskAccessError.value = e.response?.data?.message ?? 'Failed to add grant.';
+  } finally {
+    taskAccessLoading.value = false;
+  }
+}
+
+function openRemoveTaskAccessModal(grant) {
+  removeTaskAccessModal.grant   = grant;
+  removeTaskAccessModal.loading = false;
+  removeTaskAccessModal.open    = true;
+}
+
+async function confirmRemoveTaskAccessGrant() {
+  if (!removeTaskAccessModal.grant) return;
+  removeTaskAccessModal.loading = true;
+  try {
+    await api.delete(`/v1/task-access-grants/${removeTaskAccessModal.grant.id}`);
+    taskAccessGrants.value = taskAccessGrants.value.filter(g => g.id !== removeTaskAccessModal.grant.id);
+    removeTaskAccessModal.open = false;
+  } catch (e) {
+    handleError(e);
+    removeTaskAccessModal.loading = false;
   }
 }
 

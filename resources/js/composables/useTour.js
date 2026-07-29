@@ -780,8 +780,8 @@ export const PAGE_TOURS = {
     },
     {
       target: '.view-tabs',
-      title: 'Six Tabs',
-      body: 'Access Control is split into six tabs: Pending Approvals, Roles, Permissions, Users, Contact Grants, and Bulk Reassign. We\'ll walk through each one — click any tab anytime to jump straight to it.',
+      title: 'Seven Tabs',
+      body: 'Access Control is split into seven tabs: Pending Approvals, Roles, Permissions, Users, Contact Grants, Task Access, and Bulk Reassign. We\'ll walk through each one — click any tab anytime to jump straight to it.',
       position: 'bottom',
     },
     {
@@ -812,6 +812,12 @@ export const PAGE_TOURS = {
       target: '[data-tour="rbac-tab-grants"]',
       title: 'Contact Grants',
       body: 'Grant one user access to another user\'s contacts without changing ownership. Enable the mutual option to share access both ways — useful for partners or stand-ins who cover each other\'s portfolios.',
+      position: 'bottom',
+    },
+    {
+      target: '[data-tour="rbac-tab-task-access"]',
+      title: 'Task Access',
+      body: 'By default a supervisor only sees their own Task Manager tasks — not tasks made for other accounts, including admins. Use this tab to grant a supervisor view & edit access to a specific staff account\'s tasks. Admin, super-admin, and other supervisor accounts can never be picked as a target.',
       position: 'bottom',
     },
     {
