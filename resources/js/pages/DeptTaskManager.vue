@@ -301,7 +301,7 @@
             </span>
             <div class="pg-task-info">
               <span class="pg-task-name">{{ task.title }}</span>
-              <span v-if="task.description" class="pg-task-hint">{{ task.description.slice(0, 80) }}{{ task.description.length > 80 ? '…' : '' }}</span>
+              <span v-if="task.description" class="pg-task-hint">{{ stripDescMarkup(task.description).slice(0, 80) }}{{ task.description.length > 80 ? '…' : '' }}</span>
             </div>
             <div class="pg-task-dept-cell">
               <span v-if="task.department" class="dept-pill" :style="{ background: task.department.color + '22', color: task.department.color }">
@@ -341,7 +341,7 @@
                 </span>
                 <div class="pg-task-info">
                   <span class="pg-task-name"><span v-if="task.is_important" class="imp-star" title="Important" v-html="ICO.star"></span>{{ task.title }}</span>
-                  <span v-if="task.description" class="pg-task-hint">{{ task.description.slice(0, 80) }}{{ task.description.length > 80 ? '…' : '' }}</span>
+                  <span v-if="task.description" class="pg-task-hint">{{ stripDescMarkup(task.description).slice(0, 80) }}{{ task.description.length > 80 ? '…' : '' }}</span>
                 </div>
                 <div class="pg-task-dept-cell">
                   <span v-if="task.department" class="dept-pill" :style="{ background: task.department.color + '22', color: task.department.color }">
@@ -470,7 +470,7 @@
               </span>
               <div class="pg-task-info">
                 <span class="pg-task-name"><span v-if="task.is_important" class="imp-star" title="Important" v-html="ICO.star"></span>{{ task.title }}</span>
-                <span v-if="task.description" class="pg-task-hint">{{ task.description.slice(0, 80) }}{{ task.description.length > 80 ? '…' : '' }}</span>
+                <span v-if="task.description" class="pg-task-hint">{{ stripDescMarkup(task.description).slice(0, 80) }}{{ task.description.length > 80 ? '…' : '' }}</span>
               </div>
               <div class="pg-task-dept-cell">
                 <span v-if="task.department" class="dept-pill"
@@ -632,7 +632,7 @@
               <td class="col-details" :title="task.description || task.title">
                 <div class="task-cell-wrap">
                   <span class="task-cell-title"><span v-if="task.is_important" class="imp-star" title="Important" v-html="ICO.star"></span>{{ task.title }}</span>
-                  <span v-if="task.description" class="task-cell-desc">{{ task.description }}</span>
+                  <span v-if="task.description" class="task-cell-desc">{{ stripDescMarkup(task.description) }}</span>
                 </div>
               </td>
               <template v-if="tableExpanded">
@@ -1107,7 +1107,10 @@
             </div>
             <div class="field-row">
               <label class="field-label">Description</label>
-              <textarea v-model="form.description" class="field-textarea" rows="4" placeholder="Task description… paste a link (Google Drive, etc.) and it'll be clickable"></textarea>
+              <div class="desc-toolbar">
+                <button type="button" class="desc-tb-btn" title="Bold (Ctrl+B)" @mousedown.prevent="toggleBoldSelection" v-html="ICO.bold"></button>
+              </div>
+              <textarea ref="descriptionInput" v-model="form.description" @keydown="handleDescriptionKeydown" class="field-textarea" rows="4" placeholder="Task description… select text and press Ctrl+B to bold it. Paste a link (Google Drive, etc.) and it'll be clickable"></textarea>
             </div>
             <div v-if="formError" class="form-error">{{ formError }}</div>
           </div>
@@ -1384,6 +1387,7 @@ const ICO = {
   star: _i('<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>'),
   settings: _i('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>'),
   help:     _i('<circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/>'),
+  bold:     _i('<path d="M14 12a4 4 0 0 0 0-8H6v8"/><path d="M15 20a4 4 0 0 0 0-8H6v8Z"/>'),
 };
 
 // ─── View state ───────────────────────────────────────────────────────────────
@@ -2248,23 +2252,57 @@ function deleteAttachmentFile(attachmentId) {
   });
 }
 
-// ─── Description hyperlinks ────────────────────────────────────────────────────
-// Task descriptions are plain text (a <textarea>, no rich editor) — this only
-// affects the *display* in the detail panel. Escape the raw text first (never
-// trust it), then re-introduce only the <a> tags we build ourselves, so this
-// can't become an XSS vector via a description containing markup of its own.
+// ─── Description formatting (bold + hyperlinks) ────────────────────────────────
+// Task descriptions are stored as plain text with a lightweight `**bold**`
+// markdown marker (no rich editor / no HTML) — this only affects the *display*
+// in the detail panel. Escape the raw text first (never trust it), then
+// re-introduce only the <strong>/<a> tags we build ourselves, so this can't
+// become an XSS vector via a description containing markup of its own.
 function escapeHtml(str) {
   const div = document.createElement('div');
   div.textContent = str;
   return div.innerHTML;
 }
 const URL_PATTERN = /(https?:\/\/[^\s<]+|www\.[^\s<]+)/gi;
+const BOLD_PATTERN = /\*\*([^\n*][^\n]*?)\*\*/g;
 function linkify(text) {
   if (!text) return '';
-  return escapeHtml(text).replace(URL_PATTERN, (match) => {
-    const href = match.startsWith('http') ? match : `https://${match}`;
-    return `<a href="${href}" target="_blank" rel="noopener noreferrer" class="desc-link">${match}</a>`;
+  return escapeHtml(text)
+    .replace(BOLD_PATTERN, '<strong>$1</strong>')
+    .replace(URL_PATTERN, (match) => {
+      const href = match.startsWith('http') ? match : `https://${match}`;
+      return `<a href="${href}" target="_blank" rel="noopener noreferrer" class="desc-link">${match}</a>`;
+    });
+}
+// Plain-text previews (list rows, table cells) can't render <strong>, so just
+// drop the ** markers instead of showing them literally.
+function stripDescMarkup(text) {
+  return (text || '').replace(/\*\*/g, '');
+}
+
+// ─── Description bold toolbar/shortcut ─────────────────────────────────────────
+const descriptionInput = ref(null);
+function toggleBoldSelection() {
+  const el = descriptionInput.value;
+  if (!el) return;
+  const { selectionStart: start, selectionEnd: end, value } = el;
+  if (start === end) return;
+  const selected = value.slice(start, end);
+  const isBold = selected.startsWith('**') && selected.endsWith('**') && selected.length >= 4;
+  const next = isBold ? selected.slice(2, -2) : `**${selected}**`;
+  form.description = value.slice(0, start) + next + value.slice(end);
+  nextTick(() => {
+    el.focus();
+    const selStart = isBold ? start : start + 2;
+    const selEnd = isBold ? start + next.length : start + next.length - 2;
+    el.setSelectionRange(selStart, selEnd);
   });
+}
+function handleDescriptionKeydown(e) {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'b') {
+    e.preventDefault();
+    toggleBoldSelection();
+  }
 }
 
 function formatFileSize(bytes) {
@@ -2971,6 +3009,13 @@ select.field-input { cursor: pointer; }
   outline: none; resize: vertical; font-family: inherit; transition: border-color 0.15s;
 }
 .field-textarea:focus { border-color: var(--primary); }
+.desc-toolbar { display: flex; gap: 4px; margin-bottom: 6px; }
+.desc-tb-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 26px; height: 26px; background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); color: var(--text-2); cursor: pointer; transition: background 0.15s, color 0.15s;
+}
+.desc-tb-btn:hover { background: var(--border); color: var(--text-1); }
 
 /* ── Stat cards ───────────────────────────────────────────────────────────── */
 .stat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 14px; margin-bottom: 28px; }
