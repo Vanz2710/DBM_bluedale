@@ -82,6 +82,7 @@
         </form>
 
         <p class="form-footer">Bluedale Group of Companies &copy; {{ year }}</p>
+        <p class="form-credit">Created by Vance Luke Evardo Tindoc</p>
       </div>
 
     </div>
@@ -410,6 +411,12 @@ async function handleLogin() {
   font-size: 11.5px;
   color: #94a3b8;
   margin: 28px 0 0;
+}
+.form-credit {
+  text-align: center;
+  font-size: 10.5px;
+  color: #b0bac6;
+  margin: 4px 0 0;
 }
 
 /* ── Mobile ─────────────────────────────────────────────────── */
