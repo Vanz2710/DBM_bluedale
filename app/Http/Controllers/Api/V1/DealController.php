@@ -141,6 +141,7 @@ class DealController extends Controller
     public function show(string $id)
     {
         $deal = Deal::with(['contact', 'user'])->findOrFail($id);
+        $this->abortIfHidden($deal);
 
         return response()->json(['data' => [
             'id'                  => $deal->id,
@@ -162,6 +163,7 @@ class DealController extends Controller
     public function update(Request $request, string $id)
     {
         $deal    = Deal::findOrFail($id);
+        $this->abortIfHidden($deal);
         $user    = Auth::user();
         $isAdmin = $user->hasRole(['admin', 'super-admin']);
 
@@ -198,7 +200,10 @@ class DealController extends Controller
 
     public function destroy(string $id)
     {
-        Deal::findOrFail($id)->delete();
+        $deal = Deal::findOrFail($id);
+        $this->abortIfHidden($deal);
+        $deal->delete();
+
         return response()->json(['status' => 'success']);
     }
 
@@ -286,5 +291,17 @@ class DealController extends Controller
                 ? date('d-m-Y', strtotime($d->created_at))
                 : $d->created_at?->format('d-m-Y'),
         ];
+    }
+
+    /**
+     * Non-admins may only touch their own deals. Returns 404 rather than 403 so the
+     * response doesn't confirm the record exists (same as ForecastController).
+     */
+    private function abortIfHidden(Deal $deal): void
+    {
+        $user = Auth::user();
+        if (!$user->hasRole(['admin', 'super-admin']) && (int) $deal->user_id !== $user->id) {
+            abort(404);
+        }
     }
 }

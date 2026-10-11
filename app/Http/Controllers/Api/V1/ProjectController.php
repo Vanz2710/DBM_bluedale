@@ -78,6 +78,7 @@ class ProjectController extends Controller
     public function show(string $id)
     {
         $project = Project::with(['contact', 'user'])->findOrFail($id);
+        $this->abortIfHidden($project);
 
         return response()->json(['data' => [
             'id'                => $project->id,
@@ -94,6 +95,7 @@ class ProjectController extends Controller
     public function update(Request $request, string $id)
     {
         $project = Project::findOrFail($id);
+        $this->abortIfHidden($project);
 
         $validated = $request->validate([
             'project_name'      => 'required|string|max:800',
@@ -109,7 +111,6 @@ class ProjectController extends Controller
             'project_enddate'   => $validated['project_enddate'],
             'project_remark'    => $validated['project_remark'] ?? null,
             'contact_id'        => $validated['contact_id'],
-            'user_id'           => Auth::id(),
         ]);
 
         return response()->json(['status' => 'success', 'data' => $project->fresh(['contact'])]);
@@ -117,13 +118,17 @@ class ProjectController extends Controller
 
     public function destroy(string $id)
     {
-        Project::findOrFail($id)->delete();
+        $project = Project::findOrFail($id);
+        $this->abortIfHidden($project);
+        $project->delete();
+
         return response()->json(['status' => 'success']);
     }
 
     public function remark(string $id)
     {
         $project = Project::findOrFail($id);
+        $this->abortIfHidden($project);
         return response()->json(['data' => ['project_remark' => $project->project_remark]]);
     }
 
@@ -208,5 +213,17 @@ class ProjectController extends Controller
                 ? date('d-m-Y', strtotime($p->updated_at))
                 : $p->updated_at?->format('d-m-Y'),
         ];
+    }
+
+    /**
+     * Non-admins may only touch their own projects. Returns 404 rather than 403 so the
+     * response doesn't confirm the record exists (same as ForecastController).
+     */
+    private function abortIfHidden(Project $project): void
+    {
+        $user = Auth::user();
+        if (!$user->hasRole(['admin', 'super-admin']) && (int) $project->user_id !== $user->id) {
+            abort(404);
+        }
     }
 }
