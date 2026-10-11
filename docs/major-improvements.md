@@ -4,7 +4,7 @@
 > Scope: backend (Laravel 13), frontend (Vue 3 SPA), database, UX, security, features.
 > Methodology: parallel deep-dives across `app/`, `resources/js/`, `database/migrations/`, `routes/`.
 >
-> **Companion docs:** `CRM_FEATURE_AUDIT.md` (Zoho-parity gaps) and `FEATURE_FILE_MAP.md` (where each feature lives).
+> **Companion docs:** `feature-audit.md` (Zoho-parity gaps) and `feature-file-map.md` (where each feature lives).
 > This document covers everything those two do NOT — code quality, security, UX, scalability, and net-new feature ideas.
 
 ---
@@ -671,7 +671,7 @@ If `WHATSAPP_APP_SECRET` is unset, webhook signing silently breaks at runtime.
 
 No "How to set up locally", no architecture overview for new devs.
 
-**Fix:** Expand README: prerequisites, setup commands, "where things live" map (reference FEATURE_FILE_MAP.md), how to add a new lookup type, how to add a webhook event.
+**Fix:** Expand README: prerequisites, setup commands, "where things live" map (reference feature-file-map.md), how to add a new lookup type, how to add a webhook event.
 
 ### 8.2 No API reference
 

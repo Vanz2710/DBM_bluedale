@@ -1,6 +1,6 @@
 # Production Readiness Checklist
 
-> **Production host: NetOnBoard cPanel** (shared hosting). The cPanel-specific guidance below replaces the earlier Railway plan. Follow `DEPLOY_CPANEL.md` for the deploy steps.
+> **Production host: NetOnBoard cPanel** (shared hosting). The cPanel-specific guidance below replaces the earlier Railway plan. Follow `deploy-cpanel.md` for the deploy steps.
 
 ## Priority 1 — Cache / Session / Queue driver
 > Redis is almost never available on shared cPanel — use file/database drivers
@@ -94,4 +94,4 @@ only; there is currently no external error-monitoring service wired up.
 - [ ] Document root in cPanel must point to `…/library_crm_v2/public`
 - [ ] Run `php artisan migrate --force` + `db:seed --class=RolesAndPermissionsSeeder --force`
 - [ ] `config:cache` / `route:cache` / `view:cache` after `.env` is final
-- [ ] Full steps: see `DEPLOY_CPANEL.md`
+- [ ] Full steps: see `deploy-cpanel.md`

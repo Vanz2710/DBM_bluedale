@@ -207,13 +207,13 @@ Work through all testing sections in order once staging is stable:
 - **Part E** — Bug log — resolve all Critical and High bugs before proceeding
 - **Part F** — Go/No-Go sign-off
 
-Do not open `DEPLOY_CPANEL.md` until all Part F boxes are checked.
+Do not open `deploy-cpanel.md` until all Part F boxes are checked.
 
 ---
 
 ## PRODUCTION LAUNCH — cPanel Deployment Gate
 
-Open items from `PRODUCTION_READINESS.md`:
+Open items from `production-readiness.md`:
 
 - [ ] Configure Redis on production server: set `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD` in `.env` — OR confirm file driver fallback is acceptable for load level
 - [ ] Run `php artisan permission:cache-reset` after first deploy to warm Spatie permission cache

@@ -51,3 +51,5 @@ Thumbs.db
 /.trae/
 /.windsurf/
 /.github/prompts/
+/project-docs/
+/.claude/settings.json

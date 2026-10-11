@@ -50,11 +50,9 @@ The app will be available at `http://localhost:8000`. The Vue SPA is served from
 | File | Contents |
 |------|----------|
 | [`CLAUDE.md`](CLAUDE.md) | Full architecture overview — stack, request flow, auth pattern, data model, RBAC. **Start here.** |
-| [`DEFERRED_WORK.md`](DEFERRED_WORK.md) | Known improvements deferred until features stabilise — scalability, data quality, frontend structure |
-| [`docs/FEATURE_FILE_MAP.md`](docs/FEATURE_FILE_MAP.md) | Maps each feature to its controller, model, and Vue page |
-| [`docs/CRM_FEATURE_AUDIT.md`](docs/CRM_FEATURE_AUDIT.md) | Feature completeness audit |
-| [`docs/CRM_BGOC_ERD_Tables.md`](docs/CRM_BGOC_ERD_Tables.md) | Legacy system schema reference |
-| [`docs/MAJOR_IMPROVEMENTS.md`](docs/MAJOR_IMPROVEMENTS.md) | Changelog of major changes from v1 |
+| [`docs/`](docs/README.md) | Index of everything else — feature map, UI standards, deployment, audits and roadmap |
+| [`docs/feature-file-map.md`](docs/feature-file-map.md) | Maps each feature to its controller, model, and Vue page |
+| [`docs/deferred-work.md`](docs/deferred-work.md) | Known improvements deferred until features stabilise — scalability, data quality, frontend structure |
 
 ---
 

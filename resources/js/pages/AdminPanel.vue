@@ -449,7 +449,7 @@ onMounted(loadItems);
 .page-title { font-size: 28px; font-weight: 800; letter-spacing: -0.5px; color: var(--text-1); margin: 0 0 4px; }
 .page-subtitle { font-size: 13.5px; color: var(--text-3); margin: 0; }
 
-/* ── Tab bar (underline style — standardised app-wide, see UI_DESIGN_STANDARDS.md) ── */
+/* ── Tab bar (underline style — standardised app-wide, see docs/ui-design-standards.md) ── */
 .tabs-bar { display: flex; gap: 24px; margin-bottom: 24px; flex-wrap: wrap; align-items: flex-end; border-bottom: 2px solid var(--border); }
 .tab-group-block { display: flex; flex-direction: column; gap: 6px; }
 .tab-group-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-3); padding-left: 2px; }
