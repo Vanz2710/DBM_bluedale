@@ -30,7 +30,7 @@ class AdvertisingProduct extends Model
 
     protected $casts = [
         'nearest_landmarks' => 'array',
-        'is_pending'        => 'boolean',
+        'is_pending' => 'boolean',
     ];
 
     protected $appends = ['site_photo_url', 'site_map_photo_url'];

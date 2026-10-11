@@ -14,7 +14,7 @@ class EmailSetting extends Model
     ];
 
     protected $casts = [
-        'smtp_password'    => 'encrypted',
+        'smtp_password' => 'encrypted',
         'tracking_enabled' => 'boolean',
     ];
 

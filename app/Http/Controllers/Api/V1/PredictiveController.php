@@ -21,6 +21,7 @@ class PredictiveController extends Controller
         if ($u->hasAnyRole(['admin', 'super-admin'])) {
             return $request->filled('user_id') ? (int) $request->input('user_id') : null;
         }
+
         return $u->id;
     }
 
@@ -38,7 +39,7 @@ class PredictiveController extends Controller
 
     public function summary(Request $request)
     {
-        $uid     = $this->resolveUserId($request);
+        $uid = $this->resolveUserId($request);
         $isAdmin = $request->user()->hasAnyRole(['admin', 'super-admin']);
         $touched = $this->lastTouchedExpr();
 
@@ -60,8 +61,8 @@ class PredictiveController extends Controller
         // Agents carrying more than 1.5× the average contact load (admin-only, all-agents view)
         $overloadedAgents = null;
         if ($isAdmin && ! $uid) {
-            $counts           = Contact::selectRaw('user_id, COUNT(*) as cnt')->groupBy('user_id')->pluck('cnt');
-            $avg              = $counts->count() > 0 ? $counts->avg() : 0;
+            $counts = Contact::selectRaw('user_id, COUNT(*) as cnt')->groupBy('user_id')->pluck('cnt');
+            $avg = $counts->count() > 0 ? $counts->avg() : 0;
             $overloadedAgents = $counts->filter(fn ($c) => $c > $avg * 1.5)->count();
         }
 
@@ -75,10 +76,10 @@ class PredictiveController extends Controller
             ->count();
 
         return response()->json([
-            'neglected'         => $neglected,
-            'pipeline_value'    => $pipelineValue !== null ? round((float) $pipelineValue, 2) : null,
+            'neglected' => $neglected,
+            'pipeline_value' => $pipelineValue !== null ? round((float) $pipelineValue, 2) : null,
             'overloaded_agents' => $overloadedAgents,
-            'unworked_opps'     => $unworkedOpps,
+            'unworked_opps' => $unworkedOpps,
         ]);
     }
 
@@ -103,14 +104,14 @@ class PredictiveController extends Controller
             $key = Carbon::parse($d->expected_close_date)->format('Y-m');
             if (! isset($byMonth[$key])) {
                 $byMonth[$key] = [
-                    'month'          => $key,
-                    'label'          => Carbon::parse($d->expected_close_date)->format('M Y'),
+                    'month' => $key,
+                    'label' => Carbon::parse($d->expected_close_date)->format('M Y'),
                     'expected_value' => 0,
-                    'total_value'    => 0,
-                    'deal_count'     => 0,
+                    'total_value' => 0,
+                    'deal_count' => 0,
                 ];
             }
-            $byMonth[$key]['total_value']    += (float) $d->value;
+            $byMonth[$key]['total_value'] += (float) $d->value;
             $byMonth[$key]['expected_value'] += (float) $d->value * ((float) ($d->probability ?? 50) / 100);
             $byMonth[$key]['deal_count']++;
         }
@@ -118,7 +119,7 @@ class PredictiveController extends Controller
         ksort($byMonth);
         $result = array_values($byMonth);
         foreach ($result as &$r) {
-            $r['total_value']    = round($r['total_value'], 2);
+            $r['total_value'] = round($r['total_value'], 2);
             $r['expected_value'] = round($r['expected_value'], 2);
         }
 
@@ -132,9 +133,9 @@ class PredictiveController extends Controller
 
     public function atRisk(Request $request)
     {
-        $uid       = $this->resolveUserId($request);
+        $uid = $this->resolveUserId($request);
         $threshold = max(1, (int) $request->input('threshold', 60));
-        $touched   = $this->lastTouchedExpr();
+        $touched = $this->lastTouchedExpr();
 
         $contacts = DB::table('contacts as c')
             ->join('contact_statuses as s', 'c.status_id', '=', 's.id')
@@ -162,8 +163,8 @@ class PredictiveController extends Controller
 
     public function pace(Request $request)
     {
-        $uid     = $this->resolveUserId($request);
-        $user    = $request->user();
+        $uid = $this->resolveUserId($request);
+        $user = $request->user();
         $isAdmin = $user->hasAnyRole(['admin', 'super-admin']);
 
         $rows = DB::table('contacts as c')
@@ -186,13 +187,13 @@ class PredictiveController extends Controller
         $maxTotal = $rows->max('total') ?: 1;
 
         $result = $rows->map(fn ($row) => [
-            'user_id'       => $row->user_id,
-            'name'          => $row->name,
-            'total'         => (int) $row->total,
-            'raw_count'     => (int) $row->raw_count,
+            'user_id' => $row->user_id,
+            'name' => $row->name,
+            'total' => (int) $row->total,
+            'raw_count' => (int) $row->raw_count,
             'engaged_count' => (int) $row->engaged_count,
-            'load_pct'      => round($row->total / $maxTotal * 100, 1),
-            'engaged_pct'   => $row->total > 0 ? round($row->engaged_count / $row->total * 100, 1) : 0,
+            'load_pct' => round($row->total / $maxTotal * 100, 1),
+            'engaged_pct' => $row->total > 0 ? round($row->engaged_count / $row->total * 100, 1) : 0,
         ]);
 
         return response()->json($result);
@@ -205,7 +206,7 @@ class PredictiveController extends Controller
 
     public function overdueRisk(Request $request)
     {
-        $uid     = $this->resolveUserId($request);
+        $uid = $this->resolveUserId($request);
         $touched = $this->lastTouchedExpr();
 
         $rows = DB::table('contacts as c')
@@ -226,11 +227,11 @@ class PredictiveController extends Controller
             ->limit(10)
             ->get()
             ->map(fn ($r) => [
-                'industry_id'   => $r->industry_id,
+                'industry_id' => $r->industry_id,
                 'industry_name' => $r->industry_name,
-                'total'         => (int) $r->total,
-                'unworked'      => (int) $r->unworked,
-                'unworked_pct'  => $r->total > 0 ? round($r->unworked / $r->total * 100, 1) : 0,
+                'total' => (int) $r->total,
+                'unworked' => (int) $r->unworked,
+                'unworked_pct' => $r->total > 0 ? round($r->unworked / $r->total * 100, 1) : 0,
             ]);
 
         return response()->json($rows);
@@ -245,7 +246,7 @@ class PredictiveController extends Controller
 
     public function deals(Request $request)
     {
-        $uid   = $this->resolveUserId($request);
+        $uid = $this->resolveUserId($request);
         $today = Carbon::today();
 
         $deals = Deal::with(['contact:id,name'])
@@ -270,15 +271,15 @@ class PredictiveController extends Controller
                 : 0;
 
             return [
-                'id'                  => $d->id,
-                'title'               => $d->title,
-                'contact_name'        => $d->contact?->name ?? '—',
-                'contact_id'          => $d->contact_id,
-                'value'               => (float) $d->value,
+                'id' => $d->id,
+                'title' => $d->title,
+                'contact_name' => $d->contact?->name ?? '—',
+                'contact_id' => $d->contact_id,
+                'value' => (float) $d->value,
                 'expected_close_date' => $d->expected_close_date?->format('Y-m-d'),
-                'probability'         => (int) ($d->probability ?? 50),
-                'recent_activity'     => $recentActivity,
-                'days_to_close'       => $daysToClose,
+                'probability' => (int) ($d->probability ?? 50),
+                'recent_activity' => $recentActivity,
+                'days_to_close' => $daysToClose,
             ];
         });
 
@@ -291,9 +292,9 @@ class PredictiveController extends Controller
 
     public function winRates(Request $request)
     {
-        $uid  = $this->resolveUserId($request);
+        $uid = $this->resolveUserId($request);
         $from = $request->input('from', Carbon::now()->subYear()->toDateString());
-        $to   = $request->input('to',   Carbon::now()->toDateString());
+        $to = $request->input('to', Carbon::now()->toDateString());
 
         $base = DB::table('deals as d')
             ->whereIn('d.status', ['won', 'lost'])
@@ -330,7 +331,7 @@ class PredictiveController extends Controller
             ->get();
 
         return response()->json([
-            'by_agent'    => $byAgent,
+            'by_agent' => $byAgent,
             'by_industry' => $byIndustry,
         ]);
     }
@@ -341,9 +342,9 @@ class PredictiveController extends Controller
 
     public function dealVelocity(Request $request)
     {
-        $uid  = $this->resolveUserId($request);
+        $uid = $this->resolveUserId($request);
         $from = $request->input('from', Carbon::now()->subYear()->toDateString());
-        $to   = $request->input('to',   Carbon::now()->toDateString());
+        $to = $request->input('to', Carbon::now()->toDateString());
 
         $avgDays = DB::table('deals')
             ->where('status', 'won')
@@ -352,10 +353,10 @@ class PredictiveController extends Controller
             ->selectRaw('AVG(DATEDIFF(updated_at, created_at)) as avg_days, COUNT(*) as sample_size')
             ->first();
 
-        $benchmark  = $avgDays?->avg_days ? (int) round($avgDays->avg_days) : null;
+        $benchmark = $avgDays?->avg_days ? (int) round($avgDays->avg_days) : null;
         $sampleSize = (int) ($avgDays?->sample_size ?? 0);
 
-        $today     = Carbon::today();
+        $today = Carbon::today();
         $openDeals = Deal::with(['contact:id,name'])
             ->where('status', 'open')
             ->when($uid, fn ($q) => $q->where('user_id', $uid))
@@ -363,26 +364,26 @@ class PredictiveController extends Controller
             ->limit(50)
             ->get()
             ->map(function ($d) use ($today, $benchmark) {
-                $daysOpen     = (int) Carbon::parse($d->created_at)->diffInDays($today);
-                $vsBenchmark  = $benchmark !== null ? $daysOpen - $benchmark : null;
-                $isStalling   = $benchmark !== null && $daysOpen > $benchmark * 1.5;
+                $daysOpen = (int) Carbon::parse($d->created_at)->diffInDays($today);
+                $vsBenchmark = $benchmark !== null ? $daysOpen - $benchmark : null;
+                $isStalling = $benchmark !== null && $daysOpen > $benchmark * 1.5;
 
                 return [
-                    'id'           => $d->id,
-                    'title'        => $d->title,
+                    'id' => $d->id,
+                    'title' => $d->title,
                     'contact_name' => $d->contact?->name ?? '—',
-                    'value'        => (float) $d->value,
-                    'days_open'    => $daysOpen,
+                    'value' => (float) $d->value,
+                    'days_open' => $daysOpen,
                     'vs_benchmark' => $vsBenchmark,
-                    'is_stalling'  => $isStalling,
+                    'is_stalling' => $isStalling,
                 ];
             });
 
         return response()->json([
             'benchmark_days' => $benchmark,
-            'sample_size'    => $sampleSize,
+            'sample_size' => $sampleSize,
             'stalling_count' => $openDeals->where('is_stalling', true)->count(),
-            'deals'          => $openDeals->values(),
+            'deals' => $openDeals->values(),
         ]);
     }
 
@@ -393,7 +394,7 @@ class PredictiveController extends Controller
 
     public function pipelineCoverage(Request $request)
     {
-        $uid  = $this->resolveUserId($request);
+        $uid = $this->resolveUserId($request);
         $user = $request->user();
 
         // Weighted pipeline per agent
@@ -411,19 +412,19 @@ class PredictiveController extends Controller
             ->pluck('target_value', 'user_id');
 
         $userIds = $pipeline->keys()->merge($targets->keys())->unique();
-        $names   = DB::table('users')->whereIn('id', $userIds)->pluck('name', 'id');
+        $names = DB::table('users')->whereIn('id', $userIds)->pluck('name', 'id');
 
         $result = $userIds->map(function ($userId) use ($pipeline, $targets, $names) {
             $weighted = (float) ($pipeline[$userId] ?? 0);
-            $target   = (float) ($targets[$userId] ?? 0);
+            $target = (float) ($targets[$userId] ?? 0);
 
             return [
-                'user_id'           => $userId,
-                'name'              => $names[$userId] ?? 'Unknown',
+                'user_id' => $userId,
+                'name' => $names[$userId] ?? 'Unknown',
                 'weighted_pipeline' => round($weighted, 2),
-                'target'            => round($target, 2),
-                'coverage_pct'      => $target > 0 ? round($weighted / $target * 100, 1) : null,
-                'gap'               => $target > 0 ? round(max(0, $target - $weighted), 2) : null,
+                'target' => round($target, 2),
+                'coverage_pct' => $target > 0 ? round($weighted / $target * 100, 1) : null,
+                'gap' => $target > 0 ? round(max(0, $target - $weighted), 2) : null,
             ];
         })->sortByDesc('weighted_pipeline')->values();
 

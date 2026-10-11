@@ -13,26 +13,26 @@ class PublicLeadController extends Controller
     {
         $validated = $request->validate([
             'company_name' => 'required|string|max:500|unique:contacts,name',
-            'pic_name'     => 'required|string|max:255',
-            'pic_phone'    => 'required|string|max:50',
-            'pic_email'    => 'nullable|email|max:255',
-            'message'      => 'nullable|string|max:800',
+            'pic_name' => 'required|string|max:255',
+            'pic_phone' => 'required|string|max:50',
+            'pic_email' => 'nullable|email|max:255',
+            'message' => 'nullable|string|max:800',
         ]);
 
-        $userId = (new RoundRobinAssigner())->nextUserId();
+        $userId = (new RoundRobinAssigner)->nextUserId();
 
         $contact = Contact::create([
-            'name'        => $validated['company_name'],
+            'name' => $validated['company_name'],
             'lead_source' => 'web_form',
-            'remark'      => $validated['message'] ?? null,
-            'user_id'     => $userId,
+            'remark' => $validated['message'] ?? null,
+            'user_id' => $userId,
         ]);
 
         if ($validated['pic_name']) {
             $contact->incharges()->create([
-                'name'         => $validated['pic_name'],
+                'name' => $validated['pic_name'],
                 'phone_mobile' => $validated['pic_phone'],
-                'email'        => $validated['pic_email'] ?? null,
+                'email' => $validated['pic_email'] ?? null,
             ]);
         }
 

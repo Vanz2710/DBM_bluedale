@@ -18,13 +18,13 @@ class UserActivityController extends Controller
     public function overview(Request $request)
     {
         $period = max(1, (int) $request->input('period', 30));
-        $since  = now()->subDays($period);
+        $since = now()->subDays($period);
 
         $users = User::with('roles:id,name')
             ->get(['id', 'name', 'username', 'email', 'last_login_at', 'login_count',
-                   'inactivity_flagged_at', 'is_approved', 'created_at']);
+                'inactivity_flagged_at', 'is_approved', 'created_at']);
 
-        $contactCounts  = Contact::selectRaw('user_id, COUNT(*) as cnt')
+        $contactCounts = Contact::selectRaw('user_id, COUNT(*) as cnt')
             ->groupBy('user_id')->pluck('cnt', 'user_id');
 
         $todosCounts = ToDo::selectRaw('user_id, COUNT(*) as cnt')
@@ -66,20 +66,20 @@ class UserActivityController extends Controller
             }
 
             return [
-                'id'                  => $user->id,
-                'name'                => $user->name,
-                'username'            => $user->username,
-                'roles'               => $user->roles->pluck('name'),
-                'last_login_at'       => $user->last_login_at?->format('d M Y H:i'),
-                'login_count'         => $user->login_count,
-                'days_since_login'    => $daysSince,
-                'status'              => $status,
-                'member_since'        => $user->created_at->format('d M Y'),
-                'contacts'            => $contactCounts[$user->id] ?? 0,
-                'todos_completed'     => $todosCounts[$user->id] ?? 0,
+                'id' => $user->id,
+                'name' => $user->name,
+                'username' => $user->username,
+                'roles' => $user->roles->pluck('name'),
+                'last_login_at' => $user->last_login_at?->format('d M Y H:i'),
+                'login_count' => $user->login_count,
+                'days_since_login' => $daysSince,
+                'status' => $status,
+                'member_since' => $user->created_at->format('d M Y'),
+                'contacts' => $contactCounts[$user->id] ?? 0,
+                'todos_completed' => $todosCounts[$user->id] ?? 0,
                 'followups_completed' => $followupCounts[$user->id] ?? 0,
-                'deals_created'       => $dealCounts[$user->id] ?? 0,
-                'projects_created'    => $projectCounts[$user->id] ?? 0,
+                'deals_created' => $dealCounts[$user->id] ?? 0,
+                'projects_created' => $projectCounts[$user->id] ?? 0,
             ];
         })->values();
 
@@ -92,13 +92,13 @@ class UserActivityController extends Controller
             ->orderByDesc('created_at')
             ->limit(100)
             ->get()
-            ->map(fn($a) => [
+            ->map(fn ($a) => [
                 'event_type' => 'password_change',
-                'label'      => 'Password Changed',
-                'title'      => $a->title,
-                'body'       => $a->body,
-                'actor'      => null,
-                'ts'         => $a->created_at->timestamp,
+                'label' => 'Password Changed',
+                'title' => $a->title,
+                'body' => $a->body,
+                'actor' => null,
+                'ts' => $a->created_at->timestamp,
                 'created_at' => $a->created_at->format('d M Y H:i'),
             ]);
 
@@ -108,20 +108,20 @@ class UserActivityController extends Controller
             ->orderByDesc('created_at')
             ->limit(200)
             ->get()
-            ->map(fn($log) => [
+            ->map(fn ($log) => [
                 'event_type' => $log->action,
-                'label'      => match ($log->action) {
+                'label' => match ($log->action) {
                     'restored_access' => 'Access Restored',
-                    'approved'        => 'User Approved',
-                    'created'         => 'User Created',
-                    'deleted'         => 'User Deleted',
-                    'restored'        => 'User Restored',
-                    default           => ucfirst($log->action),
+                    'approved' => 'User Approved',
+                    'created' => 'User Created',
+                    'deleted' => 'User Deleted',
+                    'restored' => 'User Restored',
+                    default => ucfirst($log->action),
                 },
-                'title'      => $log->entity_name ?? 'Unknown',
-                'body'       => $log->actor ? 'By ' . $log->actor->name : 'By system',
-                'actor'      => $log->actor?->name,
-                'ts'         => $log->created_at->timestamp,
+                'title' => $log->entity_name ?? 'Unknown',
+                'body' => $log->actor ? 'By '.$log->actor->name : 'By system',
+                'actor' => $log->actor?->name,
+                'ts' => $log->created_at->timestamp,
                 'created_at' => $log->created_at->format('d M Y H:i'),
             ]);
 

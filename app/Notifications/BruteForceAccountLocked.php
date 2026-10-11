@@ -21,11 +21,11 @@ class BruteForceAccountLocked extends Notification
     public function toMail(object $notifiable): MailMessage
     {
         return (new MailMessage)
-            ->subject('Security Alert: Account Permanently Locked — ' . $this->lockedUser->name)
-            ->greeting('Hello ' . ($notifiable->name ?? 'Admin') . ',')
+            ->subject('Security Alert: Account Permanently Locked — '.$this->lockedUser->name)
+            ->greeting('Hello '.($notifiable->name ?? 'Admin').',')
             ->line('An account has been **permanently locked** after too many consecutive failed login attempts.')
-            ->line('**Name:** ' . $this->lockedUser->name)
-            ->line('**Username:** ' . $this->lockedUser->username)
+            ->line('**Name:** '.$this->lockedUser->name)
+            ->line('**Username:** '.$this->lockedUser->username)
             ->line('This may indicate a brute-force attack or a user who has forgotten their password.')
             ->line('Please take one of the following actions from the Access Control panel:')
             ->line('• **Restore Access** — unlock the account and optionally reset their password via the Edit button')

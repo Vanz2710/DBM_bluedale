@@ -16,8 +16,8 @@ class EmailImageController extends Controller
         $path = $request->file('image')->store('email-images', 'public');
 
         $url = request()->getSchemeAndHttpHost()
-            . request()->getBaseUrl()
-            . '/storage/' . $path;
+            .request()->getBaseUrl()
+            .'/storage/'.$path;
 
         return response()->json(['url' => $url]);
     }

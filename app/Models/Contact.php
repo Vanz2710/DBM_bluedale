@@ -2,11 +2,6 @@
 
 namespace App\Models;
 
-use App\Models\ContactArea;
-use App\Models\ContactCategory;
-use App\Models\ContactIndustry;
-use App\Models\ContactStatus;
-use App\Models\ContactType;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -18,8 +13,8 @@ class Contact extends Model
 
     protected static function booted(): void
     {
-        static::creating(fn($m) => $m->created_by = Auth::id());
-        static::updating(fn($m) => $m->updated_by  = Auth::id());
+        static::creating(fn ($m) => $m->created_by = Auth::id());
+        static::updating(fn ($m) => $m->updated_by = Auth::id());
 
         // reminder_reads uses a polymorphic source_id with no FK — clean up manually
         // only on force-delete; soft-delete leaves children intact

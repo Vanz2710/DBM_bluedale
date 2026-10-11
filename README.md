@@ -64,3 +64,47 @@ php artisan db:seed --class=RolesAndPermissionsSeeder
 
 # 4. Start all services (Laravel + Vite HMR + queue + log tail)
 composer run dev
+
+# Optional: load fictional demo users and records (refuses to run in production)
+php artisan db:seed --class=DemoDataSeeder
+```
+
+The app will be available at `http://localhost:8000`. The Vue SPA is served from the Laravel catch-all route.
+
+---
+
+## Key Directories
+
+| Path | What's in it |
+|------|-------------|
+| `app/Http/Controllers/Api/V1/` | All feature API controllers |
+| `app/Models/` | Eloquent models |
+| `app/Services/` | Business logic services |
+| `resources/js/pages/` | Vue page components (one per route) |
+| `resources/js/components/` | Shared/reusable Vue components |
+| `resources/js/router/index.js` | SPA route definitions |
+| `routes/api.php` | All API endpoints |
+| `database/migrations/` | Full schema history |
+
+---
+
+## Documentation
+
+| File | Contents |
+|------|----------|
+| [`CLAUDE.md`](CLAUDE.md) | Full architecture overview — stack, request flow, auth pattern, data model, RBAC. **Start here.** |
+| [`docs/`](docs/README.md) | Index of everything else — feature map, UI standards, deployment, audits and roadmap |
+| [`docs/feature-file-map.md`](docs/feature-file-map.md) | Maps each feature to its controller, model, and Vue page |
+| [`docs/deferred-work.md`](docs/deferred-work.md) | Known improvements deferred until features stabilise — scalability, data quality, frontend structure |
+
+---
+
+## Development Commands
+
+```bash
+composer run dev        # Start Laravel + Vite + queue + log tail
+npm run build           # Production build
+php artisan migrate     # Run pending migrations
+composer run test       # Run test suite
+composer run setup      # Fresh install from scratch (migrate:fresh + seed)
+```

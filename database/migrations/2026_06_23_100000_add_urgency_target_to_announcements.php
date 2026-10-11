@@ -11,7 +11,7 @@ return new class extends Migration
         Schema::table('announcements', function (Blueprint $table) {
             $table->enum('urgency', ['normal', 'urgent'])->default('normal')->after('body');
             $table->foreignId('target_user_id')->nullable()->after('urgency')
-                  ->constrained('users')->nullOnDelete();
+                ->constrained('users')->nullOnDelete();
         });
     }
 

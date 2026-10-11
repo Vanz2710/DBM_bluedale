@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Models\EmailAudienceGroup;
 use App\Models\EmailCampaign;
 use App\Models\EmailTemplate;
 use App\Services\AudienceResolver;
@@ -20,7 +21,7 @@ class EmailCampaignController extends Controller
         $campaigns = EmailCampaign::with('audienceGroup:id,name')
             ->orderByDesc('updated_at')
             ->get()
-            ->map(fn($c) => $this->present($c));
+            ->map(fn ($c) => $this->present($c));
 
         return response()->json(['data' => $campaigns]);
     }
@@ -30,17 +31,17 @@ class EmailCampaignController extends Controller
         $data = $this->validateCampaign($request);
 
         $campaign = EmailCampaign::create([
-            'name'              => $data['name'],
-            'subject'           => $data['subject'] ?? '',
-            'preview_text'      => $data['preview_text'] ?? null,
-            'body'              => $data['body'] ?? null,
-            'sender_name'       => $data['sender_name'] ?? null,
-            'sender_email'      => $data['sender_email'] ?? null,
+            'name' => $data['name'],
+            'subject' => $data['subject'] ?? '',
+            'preview_text' => $data['preview_text'] ?? null,
+            'body' => $data['body'] ?? null,
+            'sender_name' => $data['sender_name'] ?? null,
+            'sender_email' => $data['sender_email'] ?? null,
             'audience_group_id' => $data['audience_group_id'] ?? null,
-            'scheduled_at'      => isset($data['scheduled_at']) ? Carbon::parse($data['scheduled_at']) : null,
-            'status'            => 'draft',
-            'user_id'           => $request->user()->id,
-            'audience_count'    => $this->audienceCount($data['audience_group_id'] ?? null),
+            'scheduled_at' => isset($data['scheduled_at']) ? Carbon::parse($data['scheduled_at']) : null,
+            'status' => 'draft',
+            'user_id' => $request->user()->id,
+            'audience_count' => $this->audienceCount($data['audience_group_id'] ?? null),
         ]);
 
         return response()->json(['data' => $this->present($campaign->fresh('audienceGroup'))], 201);
@@ -55,14 +56,14 @@ class EmailCampaignController extends Controller
         $data = $this->validateCampaign($request, true);
 
         $campaign->fill(array_filter([
-            'name'              => $data['name'] ?? null,
-            'subject'           => $data['subject'] ?? null,
-            'preview_text'      => $data['preview_text'] ?? null,
-            'body'              => $data['body'] ?? null,
-            'sender_name'       => $data['sender_name'] ?? null,
-            'sender_email'      => $data['sender_email'] ?? null,
-            'scheduled_at'      => isset($data['scheduled_at']) ? Carbon::parse($data['scheduled_at']) : null,
-        ], fn($v) => $v !== null));
+            'name' => $data['name'] ?? null,
+            'subject' => $data['subject'] ?? null,
+            'preview_text' => $data['preview_text'] ?? null,
+            'body' => $data['body'] ?? null,
+            'sender_name' => $data['sender_name'] ?? null,
+            'sender_email' => $data['sender_email'] ?? null,
+            'scheduled_at' => isset($data['scheduled_at']) ? Carbon::parse($data['scheduled_at']) : null,
+        ], fn ($v) => $v !== null));
 
         if (array_key_exists('audience_group_id', $data)) {
             $campaign->audience_group_id = $data['audience_group_id'];
@@ -81,13 +82,14 @@ class EmailCampaignController extends Controller
         }
 
         $campaign->delete();
+
         return response()->json(['message' => 'Campaign deleted.']);
     }
 
     public function duplicate(EmailCampaign $campaign)
     {
         $copy = $campaign->replicate(['sent_at', 'sent_count', 'delivered_count', 'opened_count', 'clicked_count', 'bounced_count', 'unsubscribed_count', 'open_rate', 'click_rate']);
-        $copy->name = $campaign->name . ' (copy)';
+        $copy->name = $campaign->name.' (copy)';
         $copy->status = 'draft';
         $copy->scheduled_at = null;
         $copy->save();
@@ -116,8 +118,8 @@ class EmailCampaignController extends Controller
         }
 
         return response()->json([
-            'data'    => $this->present($campaign->fresh('audienceGroup')),
-            'message' => "Sent {$result['sent']} email(s)" . ($result['failed'] ? ", {$result['failed']} failed." : '.'),
+            'data' => $this->present($campaign->fresh('audienceGroup')),
+            'message' => "Sent {$result['sent']} email(s)".($result['failed'] ? ", {$result['failed']} failed." : '.'),
         ]);
     }
 
@@ -144,7 +146,7 @@ class EmailCampaignController extends Controller
         }
 
         $campaign->update([
-            'status'       => 'scheduled',
+            'status' => 'scheduled',
             'scheduled_at' => Carbon::parse($data['scheduled_at']),
         ]);
 
@@ -160,7 +162,7 @@ class EmailCampaignController extends Controller
         } catch (\RuntimeException $e) {
             return response()->json(['message' => $e->getMessage()], 422);
         } catch (\Throwable $e) {
-            return response()->json(['message' => 'Send failed: ' . $e->getMessage()], 422);
+            return response()->json(['message' => 'Send failed: '.$e->getMessage()], 422);
         }
 
         return response()->json(['message' => "Test email sent to {$request->input('email')}."]);
@@ -174,14 +176,14 @@ class EmailCampaignController extends Controller
         $rows = $campaign->recipients()
             ->orderByDesc('opened_at')
             ->paginate(50)
-            ->through(fn($r) => [
-                'email'      => $r->email,
-                'name'       => $r->name,
-                'status'     => $r->status,
+            ->through(fn ($r) => [
+                'email' => $r->email,
+                'name' => $r->name,
+                'status' => $r->status,
                 'open_count' => $r->open_count,
                 'click_count' => $r->click_count,
-                'sent_at'    => $r->sent_at?->toISOString(),
-                'error'      => $r->error,
+                'sent_at' => $r->sent_at?->toISOString(),
+                'error' => $r->error,
             ]);
 
         return response()->json($rows);
@@ -197,10 +199,10 @@ class EmailCampaignController extends Controller
     public function templateStore(Request $request)
     {
         $data = $request->validate([
-            'name'     => 'required|string|max:255',
+            'name' => 'required|string|max:255',
             'category' => 'nullable|string|max:100',
-            'subject'  => 'required|string|max:500',
-            'body'     => 'required|string',
+            'subject' => 'required|string|max:500',
+            'body' => 'required|string',
         ]);
 
         return response()->json(['data' => EmailTemplate::create($data)], 201);
@@ -209,19 +211,21 @@ class EmailCampaignController extends Controller
     public function templateUpdate(Request $request, EmailTemplate $template)
     {
         $data = $request->validate([
-            'name'     => 'sometimes|string|max:255',
+            'name' => 'sometimes|string|max:255',
             'category' => 'nullable|string|max:100',
-            'subject'  => 'sometimes|string|max:500',
-            'body'     => 'sometimes|string',
+            'subject' => 'sometimes|string|max:500',
+            'body' => 'sometimes|string',
         ]);
 
         $template->update($data);
+
         return response()->json(['data' => $template]);
     }
 
     public function templateDestroy(EmailTemplate $template)
     {
         $template->delete();
+
         return response()->json(['message' => 'Template deleted.']);
     }
 
@@ -237,7 +241,7 @@ class EmailCampaignController extends Controller
             return 0;
         }
 
-        if (!$campaign->audience_group_id || !$campaign->audienceGroup) {
+        if (! $campaign->audience_group_id || ! $campaign->audienceGroup) {
             throw new \RuntimeException('Select an audience group before sending.');
         }
 
@@ -246,15 +250,15 @@ class EmailCampaignController extends Controller
             ->get(['email_contacts.id', 'email_contacts.full_name', 'email_contacts.email']);
 
         $now = now();
-        $rows = $contacts->map(fn($c) => [
+        $rows = $contacts->map(fn ($c) => [
             'email_campaign_id' => $campaign->id,
-            'email_contact_id'  => $c->id,
-            'email'             => $c->email,
-            'name'              => $c->full_name,
-            'status'            => 'pending',
-            'token'             => Str::random(40),
-            'created_at'        => $now,
-            'updated_at'        => $now,
+            'email_contact_id' => $c->id,
+            'email' => $c->email,
+            'name' => $c->full_name,
+            'status' => 'pending',
+            'token' => Str::random(40),
+            'created_at' => $now,
+            'updated_at' => $now,
         ])->all();
 
         if ($rows) {
@@ -267,12 +271,12 @@ class EmailCampaignController extends Controller
 
     private function audienceCount(?int $groupId): int
     {
-        if (!$groupId) {
+        if (! $groupId) {
             return 0;
         }
 
-        $group = \App\Models\EmailAudienceGroup::find($groupId);
-        if (!$group) {
+        $group = EmailAudienceGroup::find($groupId);
+        if (! $group) {
             return 0;
         }
 
@@ -284,43 +288,43 @@ class EmailCampaignController extends Controller
         $required = $partial ? 'sometimes' : 'required';
 
         return $request->validate([
-            'name'              => "{$required}|string|max:255",
-            'subject'           => 'nullable|string|max:500',
-            'preview_text'      => 'nullable|string|max:255',
-            'body'              => 'nullable|string',
-            'sender_name'       => 'nullable|string|max:255',
-            'sender_email'      => 'nullable|email|max:255',
+            'name' => "{$required}|string|max:255",
+            'subject' => 'nullable|string|max:500',
+            'preview_text' => 'nullable|string|max:255',
+            'body' => 'nullable|string',
+            'sender_name' => 'nullable|string|max:255',
+            'sender_email' => 'nullable|email|max:255',
             'audience_group_id' => 'nullable|integer|exists:email_audience_groups,id',
-            'scheduled_at'      => 'nullable|date',
+            'scheduled_at' => 'nullable|date',
         ]);
     }
 
     private function present(EmailCampaign $campaign): array
     {
         return [
-            'id'                 => $campaign->id,
-            'name'               => $campaign->name,
-            'subject'            => $campaign->subject,
-            'preview_text'       => $campaign->preview_text,
-            'body'               => $campaign->body,
-            'sender_name'        => $campaign->sender_name,
-            'sender_email'       => $campaign->sender_email,
-            'status'             => $campaign->status,
-            'audience_group_id'  => $campaign->audience_group_id,
-            'audience_group'     => $campaign->audienceGroup?->name,
-            'scheduled_at'       => $campaign->scheduled_at?->toISOString(),
-            'sent_at'            => $campaign->sent_at?->toISOString(),
-            'audience_count'     => $campaign->audience_count,
-            'sent_count'         => $campaign->sent_count,
-            'delivered_count'    => $campaign->delivered_count,
-            'opened_count'       => $campaign->opened_count,
-            'clicked_count'      => $campaign->clicked_count,
-            'bounced_count'      => $campaign->bounced_count,
+            'id' => $campaign->id,
+            'name' => $campaign->name,
+            'subject' => $campaign->subject,
+            'preview_text' => $campaign->preview_text,
+            'body' => $campaign->body,
+            'sender_name' => $campaign->sender_name,
+            'sender_email' => $campaign->sender_email,
+            'status' => $campaign->status,
+            'audience_group_id' => $campaign->audience_group_id,
+            'audience_group' => $campaign->audienceGroup?->name,
+            'scheduled_at' => $campaign->scheduled_at?->toISOString(),
+            'sent_at' => $campaign->sent_at?->toISOString(),
+            'audience_count' => $campaign->audience_count,
+            'sent_count' => $campaign->sent_count,
+            'delivered_count' => $campaign->delivered_count,
+            'opened_count' => $campaign->opened_count,
+            'clicked_count' => $campaign->clicked_count,
+            'bounced_count' => $campaign->bounced_count,
             'unsubscribed_count' => $campaign->unsubscribed_count,
-            'open_rate'          => $campaign->open_rate,
-            'click_rate'         => $campaign->click_rate,
-            'created_at'         => $campaign->created_at?->toISOString(),
-            'updated_at'         => $campaign->updated_at?->toISOString(),
+            'open_rate' => $campaign->open_rate,
+            'click_rate' => $campaign->click_rate,
+            'created_at' => $campaign->created_at?->toISOString(),
+            'updated_at' => $campaign->updated_at?->toISOString(),
         ];
     }
 }

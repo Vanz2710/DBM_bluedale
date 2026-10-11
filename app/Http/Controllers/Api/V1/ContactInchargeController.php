@@ -12,6 +12,7 @@ class ContactInchargeController extends Controller
     public function index(string $contactId)
     {
         $contact = Contact::findOrFail($contactId);
+
         return response()->json(['data' => $contact->incharges]);
     }
 
@@ -20,8 +21,8 @@ class ContactInchargeController extends Controller
         Contact::findOrFail($contactId);
 
         $validated = $request->validate([
-            'name'         => 'required|string|max:255',
-            'email'        => 'nullable|email|max:255',
+            'name' => 'required|string|max:255',
+            'email' => 'nullable|email|max:255',
             'phone_mobile' => 'nullable|string|max:50',
             'phone_office' => 'nullable|string|max:50',
         ]);
@@ -36,19 +37,21 @@ class ContactInchargeController extends Controller
         $pic = ContactIncharge::where('contact_id', $contactId)->findOrFail($id);
 
         $validated = $request->validate([
-            'name'         => 'sometimes|required|string|max:255',
-            'email'        => 'nullable|email|max:255',
+            'name' => 'sometimes|required|string|max:255',
+            'email' => 'nullable|email|max:255',
             'phone_mobile' => 'nullable|string|max:50',
             'phone_office' => 'nullable|string|max:50',
         ]);
 
         $pic->update($validated);
+
         return response()->json(['status' => 'success', 'data' => $pic]);
     }
 
     public function destroy(string $contactId, string $id)
     {
         ContactIncharge::where('contact_id', $contactId)->findOrFail($id)->delete();
+
         return response()->json(['status' => 'success']);
     }
 }

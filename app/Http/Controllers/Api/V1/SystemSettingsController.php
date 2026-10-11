@@ -19,6 +19,7 @@ class SystemSettingsController extends Controller
     public function index()
     {
         $settings = SystemSetting::all(['key', 'value', 'label', 'description']);
+
         return response()->json(['settings' => $settings]);
     }
 

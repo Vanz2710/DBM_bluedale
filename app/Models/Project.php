@@ -13,8 +13,8 @@ class Project extends Model
 
     protected static function booted(): void
     {
-        static::creating(fn($m) => $m->created_by = Auth::id());
-        static::updating(fn($m) => $m->updated_by  = Auth::id());
+        static::creating(fn ($m) => $m->created_by = Auth::id());
+        static::updating(fn ($m) => $m->updated_by = Auth::id());
     }
 
     protected $fillable = [
@@ -28,7 +28,7 @@ class Project extends Model
 
     protected $casts = [
         'project_startdate' => 'date',
-        'project_enddate'   => 'date',
+        'project_enddate' => 'date',
     ];
 
     public function user()

@@ -16,17 +16,18 @@ class AnalyticsController extends Controller
         if ($u->hasAnyRole(['admin', 'super-admin'])) {
             return $request->filled('user_id') ? (int) $request->user_id : null;
         }
+
         return $u->id;
     }
 
     public function summary(Request $request)
     {
-        $uid     = $this->userId($request);
+        $uid = $this->userId($request);
         $isAdmin = $request->user()->hasAnyRole(['admin', 'super-admin']);
 
         // Scoped base builders — use `contacts.user_id` to stay safe across joins
         $cBase = fn () => Contact::when($uid, fn ($q) => $q->where('contacts.user_id', $uid));
-        $tBase = fn () => ToDo::when($uid,    fn ($q) => $q->where('user_id', $uid));
+        $tBase = fn () => ToDo::when($uid, fn ($q) => $q->where('user_id', $uid));
 
         $totalContacts = $cBase()->count();
 
@@ -70,12 +71,12 @@ class AnalyticsController extends Controller
             DB::raw("DATE_FORMAT(created_at, '%Y-%m') as sort_key"),
             DB::raw('count(*) as count')
         )->where('created_at', '>=', now()->subMonths(11)->startOfMonth())
-         ->groupBy('sort_key')
-         ->pluck('count', 'sort_key');
+            ->groupBy('sort_key')
+            ->pluck('count', 'sort_key');
 
         $byMonth = collect();
         for ($i = 11; $i >= 0; $i--) {
-            $m   = now()->subMonths($i);
+            $m = now()->subMonths($i);
             $key = $m->format('Y-m');
             $byMonth->push(['label' => $m->format('M Y'), 'count' => (int) ($contactRaw[$key] ?? 0)]);
         }
@@ -85,12 +86,12 @@ class AnalyticsController extends Controller
             DB::raw("DATE_FORMAT(todo_date, '%Y-%m') as sort_key"),
             DB::raw('count(*) as count')
         )->where('todo_date', '>=', now()->subMonths(11)->startOfMonth())
-         ->groupBy('sort_key')
-         ->pluck('count', 'sort_key');
+            ->groupBy('sort_key')
+            ->pluck('count', 'sort_key');
 
         $byTasks = collect();
         for ($i = 11; $i >= 0; $i--) {
-            $m   = now()->subMonths($i);
+            $m = now()->subMonths($i);
             $key = $m->format('Y-m');
             $byTasks->push(['label' => $m->format('M Y'), 'count' => (int) ($todoRaw[$key] ?? 0)]);
         }
@@ -99,43 +100,49 @@ class AnalyticsController extends Controller
         $unassigned = $isAdmin ? Contact::whereNull('user_id')->count() : 0;
 
         // At-a-glance derived from already-fetched $byStatus
-        $activeCount   = 0;
+        $activeCount = 0;
         $existingCount = 0;
-        $rawCount      = 0;
+        $rawCount = 0;
         foreach ($byStatus as $row) {
             $lower = strtolower(trim($row->label));
-            if (in_array($lower, ['active', 'on going', 'ongoing'])) $activeCount   += (int) $row->count;
-            if (str_contains($lower, 'existing'))                     $existingCount += (int) $row->count;
-            if ($lower === 'raw')                                      $rawCount       = (int) $row->count;
+            if (in_array($lower, ['active', 'on going', 'ongoing'])) {
+                $activeCount += (int) $row->count;
+            }
+            if (str_contains($lower, 'existing')) {
+                $existingCount += (int) $row->count;
+            }
+            if ($lower === 'raw') {
+                $rawCount = (int) $row->count;
+            }
         }
 
         $tasksDueToday = $tBase()->whereDate('todo_date', today())->count();
 
         // Top items
-        $topAgent    = $isAdmin ? $byUser->first() : null;
+        $topAgent = $isAdmin ? $byUser->first() : null;
         $topIndustry = $byIndustry->first();
-        $topProduct  = $byCategory->first();
+        $topProduct = $byCategory->first();
 
         return response()->json([
-            'is_admin'        => $isAdmin,
-            'total_contacts'  => $totalContacts,
-            'this_month'      => $thisMonth,
-            'last_month'      => $lastMonth,
-            'unassigned'      => $unassigned,
-            'active_count'    => $activeCount,
-            'existing_count'  => $existingCount,
-            'raw_count'       => $rawCount,
+            'is_admin' => $isAdmin,
+            'total_contacts' => $totalContacts,
+            'this_month' => $thisMonth,
+            'last_month' => $lastMonth,
+            'unassigned' => $unassigned,
+            'active_count' => $activeCount,
+            'existing_count' => $existingCount,
+            'raw_count' => $rawCount,
             'tasks_due_today' => $tasksDueToday,
-            'top_agent'       => $topAgent,
-            'top_industry'    => $topIndustry,
-            'top_product'     => $topProduct,
-            'by_status'       => $byStatus,
-            'by_industry'     => $byIndustry,
-            'by_category'     => $byCategory,
-            'by_user'         => $byUser,
-            'by_type'         => $byType,
-            'by_month'        => $byMonth,
-            'by_tasks'        => $byTasks,
+            'top_agent' => $topAgent,
+            'top_industry' => $topIndustry,
+            'top_product' => $topProduct,
+            'by_status' => $byStatus,
+            'by_industry' => $byIndustry,
+            'by_category' => $byCategory,
+            'by_user' => $byUser,
+            'by_type' => $byType,
+            'by_month' => $byMonth,
+            'by_tasks' => $byTasks,
         ]);
     }
 }

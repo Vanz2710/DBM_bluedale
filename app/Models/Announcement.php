@@ -10,7 +10,7 @@ class Announcement extends Model
 
     protected $casts = [
         'published_at' => 'datetime',
-        'expires_at'   => 'datetime',
+        'expires_at' => 'datetime',
     ];
 
     public function author()
@@ -32,6 +32,6 @@ class Announcement extends Model
     {
         return $query->whereNotNull('published_at')
             ->where('published_at', '<=', now())
-            ->where(fn($q) => $q->whereNull('expires_at')->orWhere('expires_at', '>', now()));
+            ->where(fn ($q) => $q->whereNull('expires_at')->orWhere('expires_at', '>', now()));
     }
 }

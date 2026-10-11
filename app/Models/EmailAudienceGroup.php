@@ -10,7 +10,7 @@ class EmailAudienceGroup extends Model
     protected $fillable = ['name', 'description', 'type', 'filters', 'is_system', 'max_contacts'];
 
     protected $casts = [
-        'filters'   => 'array',
+        'filters' => 'array',
         'is_system' => 'boolean',
     ];
 

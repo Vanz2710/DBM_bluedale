@@ -31,17 +31,17 @@ use Illuminate\Validation\ValidationException;
 class AdminController extends Controller
 {
     private static array $map = [
-        'statuses'          => [ContactStatus::class,  'name'],
-        'types'             => [ContactType::class,     'name'],
-        'industries'        => [ContactIndustry::class, 'name'],
-        'categories'        => [ContactCategory::class, 'name'],
-        'areas'             => [ContactArea::class,     'name'],
-        'tasks'             => [Task::class,            'name'],
-        'departments'       => [Department::class,      'name'],
+        'statuses' => [ContactStatus::class,  'name'],
+        'types' => [ContactType::class,     'name'],
+        'industries' => [ContactIndustry::class, 'name'],
+        'categories' => [ContactCategory::class, 'name'],
+        'areas' => [ContactArea::class,     'name'],
+        'tasks' => [Task::class,            'name'],
+        'departments' => [Department::class,      'name'],
         'forecast-products' => [ForecastProduct::class, 'name'],
-        'forecast-types'    => [ForecastType::class,    'name'],
-        'forecast-results'  => [ForecastResult::class,  'name'],
-        'packages'          => [SocialMediaPackage::class, 'name'],
+        'forecast-types' => [ForecastType::class,    'name'],
+        'forecast-results' => [ForecastResult::class,  'name'],
+        'packages' => [SocialMediaPackage::class, 'name'],
     ];
 
     // Extra fields (beyond 'name') that a given entity's add/edit form may submit,
@@ -54,30 +54,31 @@ class AdminController extends Controller
     // instead of hardcoded table-name strings, so renaming a model's table can't
     // silently desync this map from the schema.
     private static array $usageMap = [
-        'statuses'          => [[Contact::class, 'status_id'], [Forecast::class, 'contact_status_id']],
-        'types'             => [[Contact::class, 'type_id'], [Forecast::class, 'contact_type_id']],
-        'industries'        => [[Contact::class, 'industry_id']],
-        'categories'        => [[Contact::class, 'category_id']],
-        'areas'             => [[Contact::class, 'area_id']],
-        'tasks'             => [[ToDo::class, 'task_id'], [PerformanceTarget::class, 'task_id']],
-        'departments'       => [[DeptTask::class, 'department_id'], [User::class, 'department_id']],
+        'statuses' => [[Contact::class, 'status_id'], [Forecast::class, 'contact_status_id']],
+        'types' => [[Contact::class, 'type_id'], [Forecast::class, 'contact_type_id']],
+        'industries' => [[Contact::class, 'industry_id']],
+        'categories' => [[Contact::class, 'category_id']],
+        'areas' => [[Contact::class, 'area_id']],
+        'tasks' => [[ToDo::class, 'task_id'], [PerformanceTarget::class, 'task_id']],
+        'departments' => [[DeptTask::class, 'department_id'], [User::class, 'department_id']],
         'forecast-products' => [[Forecast::class, 'product_id']],
-        'forecast-types'    => [[Forecast::class, 'forecast_type_id']],
-        'forecast-results'  => [[Forecast::class, 'result_id']],
+        'forecast-types' => [[Forecast::class, 'forecast_type_id']],
+        'forecast-results' => [[Forecast::class, 'result_id']],
         // 3rd element = parent column to match on (defaults to 'id').
         // social_media_reminders.package stores the package name, not a FK id.
-        'packages'          => [[SocialMediaReminder::class, 'package', 'name']],
+        'packages' => [[SocialMediaReminder::class, 'package', 'name']],
     ];
 
     public function index(string $entity)
     {
         [$model] = $this->resolve($entity);
         $modelTable = (new $model)->getTable();
-        $sources    = self::$usageMap[$entity];
+        $sources = self::$usageMap[$entity];
 
         $subParts = array_map(function ($src) use ($modelTable) {
             $childTable = (new $src[0])->getTable();
-            $parentCol  = $src[2] ?? 'id';
+            $parentCol = $src[2] ?? 'id';
+
             return "(SELECT COUNT(*) FROM {$childTable} WHERE {$src[1]} = {$modelTable}.{$parentCol})";
         }, $sources);
         $usageExpr = implode(' + ', $subParts);
@@ -93,7 +94,7 @@ class AdminController extends Controller
     {
         [$model] = $this->resolve($entity);
 
-        $rules     = array_merge(['name' => 'required|string|max:255'], self::$extraFields[$entity] ?? []);
+        $rules = array_merge(['name' => 'required|string|max:255'], self::$extraFields[$entity] ?? []);
         $validated = $request->validate($rules);
 
         if ($model::where('name', $validated['name'])->exists()) {
@@ -101,7 +102,7 @@ class AdminController extends Controller
         }
 
         if ($entity === 'departments') {
-            $validated['code']  = $this->generateDepartmentCode($validated['name']);
+            $validated['code'] = $this->generateDepartmentCode($validated['name']);
             $validated['color'] = $validated['color'] ?? '#1d4ed8';
         }
 
@@ -121,7 +122,7 @@ class AdminController extends Controller
         [$model] = $this->resolve($entity);
         $item = $model::findOrFail($id);
 
-        $rules     = array_merge(['name' => 'required|string|max:255'], self::$extraFields[$entity] ?? []);
+        $rules = array_merge(['name' => 'required|string|max:255'], self::$extraFields[$entity] ?? []);
         $validated = $request->validate($rules);
 
         if ($model::where('name', $validated['name'])->where('id', '!=', $id)->exists()) {
@@ -168,6 +169,7 @@ class AdminController extends Controller
             $this->audit('deleted', $entity, $item->id, $item->name, ['name' => $item->name], null, $request);
 
             $item->delete();
+
             return response()->json(['status' => 'success']);
         });
     }
@@ -178,9 +180,9 @@ class AdminController extends Controller
         $table = (new $model)->getTable();
 
         $validated = $request->validate([
-            'keep_id'     => "nullable|integer|exists:{$table},id",
-            'new_name'    => 'nullable|string|max:255',
-            'merge_ids'   => 'required|array|min:1',
+            'keep_id' => "nullable|integer|exists:{$table},id",
+            'new_name' => 'nullable|string|max:255',
+            'merge_ids' => 'required|array|min:1',
             'merge_ids.*' => "integer|exists:{$table},id",
         ]);
 
@@ -192,7 +194,7 @@ class AdminController extends Controller
 
         return DB::transaction(function () use ($model, $entity, $validated, $request) {
             // If both are given, new_name wins — mint a fresh row rather than reuse an existing one.
-            if (!empty($validated['new_name'])) {
+            if (! empty($validated['new_name'])) {
                 if ($model::where('name', $validated['new_name'])->exists()) {
                     throw ValidationException::withMessages(['new_name' => ['This entry already exists.']]);
                 }
@@ -221,7 +223,7 @@ class AdminController extends Controller
                 foreach (self::$usageMap[$entity] as $src) {
                     [$childModel, $col] = $src;
                     $childTable = (new $childModel)->getTable();
-                    $parentCol  = $src[2] ?? 'id';
+                    $parentCol = $src[2] ?? 'id';
 
                     $sourceValues = $mergedItems->pluck($parentCol)->all();
                     if (empty($sourceValues)) {
@@ -241,10 +243,10 @@ class AdminController extends Controller
                     if ($moves->isNotEmpty()) {
                         $reassignments[] = [
                             'child_table' => $childTable,
-                            'column'      => $col,
-                            'parent_col'  => $parentCol,
-                            'keep_value'  => $keep->{$parentCol},
-                            'moves'       => $moves,
+                            'column' => $col,
+                            'parent_col' => $parentCol,
+                            'keep_value' => $keep->{$parentCol},
+                            'moves' => $moves,
                         ];
                     }
 
@@ -288,11 +290,11 @@ class AdminController extends Controller
         $base = strtoupper(preg_replace('/[^A-Za-z0-9]/', '', $name));
         $base = $base !== '' ? substr($base, 0, 10) : 'DEPT';
 
-        $code   = $base;
+        $code = $base;
         $suffix = 1;
         while (Department::where('code', $code)->exists()) {
             $suffixStr = (string) $suffix;
-            $code = substr($base, 0, 10 - strlen($suffixStr)) . $suffixStr;
+            $code = substr($base, 0, 10 - strlen($suffixStr)).$suffixStr;
             $suffix++;
         }
 
@@ -301,9 +303,10 @@ class AdminController extends Controller
 
     private function resolve(string $entity): array
     {
-        if (!array_key_exists($entity, self::$map)) {
+        if (! array_key_exists($entity, self::$map)) {
             abort(404, "Unknown admin entity: {$entity}");
         }
+
         return self::$map[$entity];
     }
 
@@ -312,15 +315,15 @@ class AdminController extends Controller
         ?array $old, ?array $new, Request $request, ?array $revertData = null
     ): void {
         AdminAuditLog::create([
-            'user_id'     => $request->user()?->id,
-            'action'      => $action,
-            'entity_type' => 'lookup:' . $entityType,
-            'entity_id'   => (string) $entityId,
+            'user_id' => $request->user()?->id,
+            'action' => $action,
+            'entity_type' => 'lookup:'.$entityType,
+            'entity_id' => (string) $entityId,
             'entity_name' => $entityName,
-            'old_values'  => $old,
-            'new_values'  => $new,
+            'old_values' => $old,
+            'new_values' => $new,
             'revert_data' => $revertData,
-            'ip_address'  => $request->ip(),
+            'ip_address' => $request->ip(),
         ]);
     }
 
@@ -348,7 +351,7 @@ class AdminController extends Controller
             // Keyed two ways because `moves` (captured in merge()) is grouped by whatever
             // the child FK actually stores — the lookup row's id for every entity except
             // 'packages', which stores the name string instead (see $usageMap).
-            $idMapById   = [];
+            $idMapById = [];
             $idMapByName = [];
             foreach ($revertData['merged_items'] as $item) {
                 if ($model::where('name', $item['name'])->exists()) {
@@ -361,17 +364,17 @@ class AdminController extends Controller
                     $createData['code'] = $this->generateDepartmentCode($item['name']);
                 }
                 $created = $model::create($createData);
-                $idMapById[$item['id']]     = $created;
+                $idMapById[$item['id']] = $created;
                 $idMapByName[$item['name']] = $created;
             }
 
             $recreatedCount = 0;
             foreach ($revertData['reassignments'] ?? [] as $r) {
                 $keepValue = $r['keep_value'];
-                $idMap     = $r['parent_col'] === 'name' ? $idMapByName : $idMapById;
+                $idMap = $r['parent_col'] === 'name' ? $idMapByName : $idMapById;
                 foreach ($r['moves'] as $originalValue => $ids) {
                     $newRow = $idMap[$originalValue] ?? null;
-                    if (!$newRow || empty($ids)) {
+                    if (! $newRow || empty($ids)) {
                         continue;
                     }
                     $newValue = $r['parent_col'] === 'name' ? $newRow->name : $newRow->id;
@@ -397,15 +400,15 @@ class AdminController extends Controller
                 null,
                 [
                     'reverted_log_id' => $log->id,
-                    'recreated'       => collect($idMapById)->map(fn ($m) => ['id' => $m->id, 'name' => $m->name])->values()->all(),
+                    'recreated' => collect($idMapById)->map(fn ($m) => ['id' => $m->id, 'name' => $m->name])->values()->all(),
                 ],
                 $request
             );
 
             return response()->json([
-                'status'         => 'success',
-                'recreated'      => count($idMapById),
-                'records_moved'  => $recreatedCount,
+                'status' => 'success',
+                'recreated' => count($idMapById),
+                'records_moved' => $recreatedCount,
             ]);
         });
     }

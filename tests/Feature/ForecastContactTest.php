@@ -95,6 +95,6 @@ class ForecastContactTest extends TestCase
             'id' => $forecast->id,
             'contact_id' => $keep->id,
         ]);
-        $this->assertDatabaseMissing('contacts', ['id' => $merged->id]);
+        $this->assertSoftDeleted('contacts', ['id' => $merged->id]);
     }
 }

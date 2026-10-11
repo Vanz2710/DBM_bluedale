@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Models\ContactEditGrant;
-use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -24,7 +23,7 @@ class ContactEditGrantController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'user_id'        => 'required|exists:users,id',
+            'user_id' => 'required|exists:users,id',
             'target_user_id' => 'required|exists:users,id|different:user_id',
         ]);
 
@@ -41,6 +40,7 @@ class ContactEditGrantController extends Controller
     public function destroy(string $id)
     {
         ContactEditGrant::findOrFail($id)->delete();
+
         return response()->json(['status' => 'success']);
     }
 }

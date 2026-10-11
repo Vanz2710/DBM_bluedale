@@ -25,17 +25,17 @@ class EmailAudienceSeeder extends Seeder
             ['name' => 'Leads',            'type' => 'dynamic', 'filters' => ['tag' => 'Lead'],     'description' => 'Contacts tagged as leads.'],
             ['name' => 'Existing Clients', 'type' => 'dynamic', 'filters' => ['tag' => 'Client'],   'description' => 'Contacts tagged as clients.'],
             ['name' => 'VIP Clients',      'type' => 'dynamic', 'filters' => ['tag' => 'VIP'],      'description' => 'Your most important contacts.'],
-            ['name' => 'Inactive Clients', 'type' => 'dynamic', 'filters' => ['activity' => 'none'],'description' => 'Contacts who never opened an email.'],
+            ['name' => 'Inactive Clients', 'type' => 'dynamic', 'filters' => ['activity' => 'none'], 'description' => 'Contacts who never opened an email.'],
         ];
 
         foreach ($groups as $group) {
             EmailAudienceGroup::firstOrCreate(
                 ['name' => $group['name']],
                 [
-                    'type'        => $group['type'],
-                    'filters'     => $group['filters'],
+                    'type' => $group['type'],
+                    'filters' => $group['filters'],
                     'description' => $group['description'],
-                    'is_system'   => true,
+                    'is_system' => true,
                 ]
             );
         }

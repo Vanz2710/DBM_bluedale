@@ -26,15 +26,15 @@ class LookupController extends Controller
         // (`_v2`) so any previously-cached broken value is bypassed.
         $data = Cache::remember('lookups_v2', 3600, function () {
             return [
-                'statuses'          => ContactStatus::orderBy('name')->get()->toArray(),
-                'industries'        => ContactIndustry::orderBy('name')->get()->toArray(),
-                'categories'        => ContactCategory::orderBy('name')->get()->toArray(),
-                'types'             => ContactType::orderBy('name')->get()->toArray(),
-                'areas'             => ContactArea::orderBy('name')->get()->toArray(),
-                'tasks'             => Task::orderBy('name')->get()->toArray(),
+                'statuses' => ContactStatus::orderBy('name')->get()->toArray(),
+                'industries' => ContactIndustry::orderBy('name')->get()->toArray(),
+                'categories' => ContactCategory::orderBy('name')->get()->toArray(),
+                'types' => ContactType::orderBy('name')->get()->toArray(),
+                'areas' => ContactArea::orderBy('name')->get()->toArray(),
+                'tasks' => Task::orderBy('name')->get()->toArray(),
                 'forecast_products' => ForecastProduct::orderBy('name')->get()->toArray(),
-                'forecast_types'    => ForecastType::orderBy('name')->get()->toArray(),
-                'forecast_results'  => ForecastResult::orderBy('name')->get()->toArray(),
+                'forecast_types' => ForecastType::orderBy('name')->get()->toArray(),
+                'forecast_results' => ForecastResult::orderBy('name')->get()->toArray(),
             ];
         });
 

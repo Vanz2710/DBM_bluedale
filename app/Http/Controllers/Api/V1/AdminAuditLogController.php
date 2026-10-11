@@ -14,16 +14,16 @@ class AdminAuditLogController extends Controller
     {
         $query = $this->filteredQuery($request);
 
-        $perPage   = min((int) $request->input('per_page', 50), 200);
+        $perPage = min((int) $request->input('per_page', 50), 200);
         $paginated = $query->paginate($perPage);
 
         return response()->json([
             'data' => $paginated->items(),
             'meta' => [
                 'current_page' => $paginated->currentPage(),
-                'last_page'    => $paginated->lastPage(),
-                'per_page'     => $paginated->perPage(),
-                'total'        => $paginated->total(),
+                'last_page' => $paginated->lastPage(),
+                'per_page' => $paginated->perPage(),
+                'total' => $paginated->total(),
             ],
         ]);
     }
@@ -32,15 +32,15 @@ class AdminAuditLogController extends Controller
     {
         $logs = $this->filteredQuery($request)->limit(10000)->get();
 
-        $filename = 'Audit_Log_Export_' . now()->format('Y-m-d') . '.csv';
-        $headers  = [
-            'Content-Type'        => 'text/csv; charset=utf-8',
+        $filename = 'Audit_Log_Export_'.now()->format('Y-m-d').'.csv';
+        $headers = [
+            'Content-Type' => 'text/csv; charset=utf-8',
             'Content-Disposition' => "attachment; filename={$filename}",
         ];
 
         $callback = function () use ($logs) {
             $out = fopen('php://output', 'w');
-            fputs($out, chr(0xEF) . chr(0xBB) . chr(0xBF));
+            fwrite($out, chr(0xEF).chr(0xBB).chr(0xBF));
             fputcsv($out, ['Date', 'Time', 'Actor', 'Action', 'Entity Type', 'Entity Name', 'IP Address']);
             foreach ($logs as $log) {
                 fputcsv($out, Csv::row([
@@ -80,10 +80,10 @@ class AdminAuditLogController extends Controller
             $term = "%{$q}%";
             $query->where(function ($sq) use ($term) {
                 $sq->whereHas('actor', fn ($a) => $a->where('name', 'like', $term))
-                   ->orWhere('entity_name', 'like', $term)
-                   ->orWhere('entity_type', 'like', $term)
-                   ->orWhere('action', 'like', $term)
-                   ->orWhere('ip_address', 'like', $term);
+                    ->orWhere('entity_name', 'like', $term)
+                    ->orWhere('entity_type', 'like', $term)
+                    ->orWhere('action', 'like', $term)
+                    ->orWhere('ip_address', 'like', $term);
             });
         }
 

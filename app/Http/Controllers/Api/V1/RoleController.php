@@ -12,20 +12,21 @@ class RoleController extends Controller
     public function index()
     {
         $roles = Role::with('permissions:id,name')->get(['id', 'name', 'description']);
+
         return response()->json(['data' => $roles]);
     }
 
     public function store(Request $request)
     {
         $request->validate([
-            'name'        => 'required|string|unique:roles,name',
+            'name' => 'required|string|unique:roles,name',
             'description' => 'nullable|string|max:255',
         ]);
 
         $role = Role::create([
-            'name'        => $request->name,
+            'name' => $request->name,
             'description' => $request->description,
-            'guard_name'  => 'web',
+            'guard_name' => 'web',
         ]);
 
         $this->audit('created', 'role', $role->id, $role->name,
@@ -37,7 +38,7 @@ class RoleController extends Controller
     public function update(Request $request, Role $role)
     {
         $request->validate([
-            'name'        => 'required|string|unique:roles,name,' . $role->id,
+            'name' => 'required|string|unique:roles,name,'.$role->id,
             'description' => 'nullable|string|max:255',
         ]);
 
@@ -50,7 +51,7 @@ class RoleController extends Controller
         $old = $role->only('name', 'description');
 
         $role->update([
-            'name'        => $request->name,
+            'name' => $request->name,
             'description' => $request->description,
         ]);
 
@@ -70,6 +71,7 @@ class RoleController extends Controller
             ['name' => $role->name, 'description' => $role->description], null, $request);
 
         $role->delete();
+
         return response()->json(['status' => 'success']);
     }
 
@@ -88,7 +90,7 @@ class RoleController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'data'   => $role->load('permissions:id,name'),
+            'data' => $role->load('permissions:id,name'),
         ]);
     }
 
@@ -97,14 +99,14 @@ class RoleController extends Controller
         ?array $old, ?array $new, Request $request
     ): void {
         AdminAuditLog::create([
-            'user_id'     => $request->user()?->id,
-            'action'      => $action,
+            'user_id' => $request->user()?->id,
+            'action' => $action,
             'entity_type' => $entityType,
-            'entity_id'   => (string) $entityId,
+            'entity_id' => (string) $entityId,
             'entity_name' => $entityName,
-            'old_values'  => $old,
-            'new_values'  => $new,
-            'ip_address'  => $request->ip(),
+            'old_values' => $old,
+            'new_values' => $new,
+            'ip_address' => $request->ip(),
         ]);
     }
 }

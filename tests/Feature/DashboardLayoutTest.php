@@ -106,7 +106,7 @@ class DashboardLayoutTest extends TestCase
         $user = $this->verifiedUser();
         Sanctum::actingAs($user);
 
-        $first  = [['i' => 'w-1', 'x' => 0, 'y' => 0, 'w' => 6, 'h' => 4, 'type' => 'KpiStatsWidget']];
+        $first = [['i' => 'w-1', 'x' => 0, 'y' => 0, 'w' => 6, 'h' => 4, 'type' => 'KpiStatsWidget']];
         $second = [['i' => 'w-2', 'x' => 0, 'y' => 0, 'w' => 12, 'h' => 5, 'type' => 'RevenueChartWidget']];
 
         $this->putJson('/api/v1/user/dashboard-layout', ['layout' => $first])->assertOk();

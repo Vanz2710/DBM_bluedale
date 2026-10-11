@@ -27,7 +27,7 @@ return new class extends Migration
             ->get()
             ->each(function ($row) use (&$groups) {
                 if ($row->start_date && $row->end_date) {
-                    $key = $row->advertising_product_id . '|' . $row->company_name . '|' . $row->start_date . '|' . $row->end_date;
+                    $key = $row->advertising_product_id.'|'.$row->company_name.'|'.$row->start_date.'|'.$row->end_date;
                     $groupId = $groups[$key] ??= (string) Str::uuid();
                 } else {
                     $groupId = (string) Str::uuid();

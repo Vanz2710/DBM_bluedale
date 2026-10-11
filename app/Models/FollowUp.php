@@ -10,8 +10,8 @@ class FollowUp extends Model
 {
     protected static function booted(): void
     {
-        static::creating(fn($m) => $m->created_by = Auth::id());
-        static::updating(fn($m) => $m->updated_by  = Auth::id());
+        static::creating(fn ($m) => $m->created_by = Auth::id());
+        static::updating(fn ($m) => $m->updated_by = Auth::id());
 
         static::saved(function (FollowUp $followUp) {
             if ($followUp->completion_status === 'completed') {
@@ -34,7 +34,7 @@ class FollowUp extends Model
 
     protected $casts = [
         'followup_date' => 'date',
-        'completed_at'  => 'datetime',
+        'completed_at' => 'datetime',
     ];
 
     public function todo()

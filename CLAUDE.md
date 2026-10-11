@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## UI Design Standards
 
-**Every new Vue page or component MUST follow `UI_DESIGN_STANDARDS.md` exactly.**
+**Every new Vue page or component MUST follow `docs/ui-design-standards.md` exactly.**
 Read that file before writing any frontend code. Key rules:
 - Use CSS variables (`var(--text-1)`, `var(--surface)`, `var(--primary)`, etc.) — never hardcode hex equivalents
 - Page title: `28px / 800 weight`, subtitle: `13.5px / var(--text-3)`

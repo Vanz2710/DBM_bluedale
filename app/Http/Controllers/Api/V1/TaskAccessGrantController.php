@@ -24,7 +24,7 @@ class TaskAccessGrantController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'user_id'        => 'required|exists:users,id',
+            'user_id' => 'required|exists:users,id',
             'target_user_id' => 'required|exists:users,id|different:user_id',
         ]);
 
@@ -50,6 +50,7 @@ class TaskAccessGrantController extends Controller
     public function destroy(string $id)
     {
         TaskAccessGrant::findOrFail($id)->delete();
+
         return response()->json(['status' => 'success']);
     }
 }

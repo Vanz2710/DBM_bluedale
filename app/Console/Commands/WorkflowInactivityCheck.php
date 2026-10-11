@@ -9,12 +9,13 @@ use Illuminate\Console\Command;
 class WorkflowInactivityCheck extends Command
 {
     protected $signature = 'workflow:inactivity-check';
+
     protected $description = 'Create follow-up tasks for contacts with no activity in 30+ days';
 
     public function handle(): int
     {
         $cutoff = now()->subDays(30)->toDateString();
-        $today  = now()->toDateString();
+        $today = now()->toDateString();
 
         $contacts = Contact::query()
             ->withMax('todos', 'todo_date')
@@ -24,6 +25,7 @@ class WorkflowInactivityCheck extends Command
                 if ($latest === null) {
                     return $contact->created_at->lt(now()->subDays(30));
                 }
+
                 return $latest < $cutoff;
             });
 
@@ -41,12 +43,12 @@ class WorkflowInactivityCheck extends Command
             }
 
             ToDo::create([
-                'contact_id'        => $contact->id,
-                'user_id'           => $contact->user_id,
-                'task_id'           => null,
-                'todo_date'         => $today,
-                'date_created'      => $today,
-                'todo_remark'       => 'Auto: No activity for 30+ days — re-engage',
+                'contact_id' => $contact->id,
+                'user_id' => $contact->user_id,
+                'task_id' => null,
+                'todo_date' => $today,
+                'date_created' => $today,
+                'todo_remark' => 'Auto: No activity for 30+ days — re-engage',
                 'completion_status' => 'pending',
             ]);
 

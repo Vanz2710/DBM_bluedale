@@ -47,21 +47,21 @@ class AdminLookupMergeTest extends TestCase
     {
         $user = $this->actingAdmin();
 
-        $keep   = ContactStatus::create(['name' => 'TG - Project']);
+        $keep = ContactStatus::create(['name' => 'TG - Project']);
         $mergeA = ContactStatus::create(['name' => 'KV4L']);
         $mergeB = ContactStatus::create(['name' => 'JHTG']);
 
         $contact = Contact::create(['name' => 'Acme Media', 'status_id' => $mergeA->id]);
         $forecast = Forecast::create([
-            'contact_id'        => $contact->id,
-            'user_id'           => $user->id,
+            'contact_id' => $contact->id,
+            'user_id' => $user->id,
             'contact_status_id' => $mergeB->id,
-            'amount'            => 1000,
-            'forecast_date'     => '2026-07-01',
+            'amount' => 1000,
+            'forecast_date' => '2026-07-01',
         ]);
 
         $this->postJson('/api/v1/admin/statuses/merge', [
-            'keep_id'   => $keep->id,
+            'keep_id' => $keep->id,
             'merge_ids' => [$mergeA->id, $mergeB->id],
         ])->assertOk()
             ->assertJsonPath('merged', 2)
@@ -83,7 +83,7 @@ class AdminLookupMergeTest extends TestCase
         $contactB = Contact::create(['name' => 'Client B', 'type_id' => $typeB->id]);
 
         $res = $this->postJson('/api/v1/admin/types/merge', [
-            'new_name'  => 'KLTG - Beyond',
+            'new_name' => 'KLTG - Beyond',
             'merge_ids' => [$typeA->id, $typeB->id],
         ])->assertOk()
             ->assertJsonPath('merged', 2);
@@ -102,13 +102,13 @@ class AdminLookupMergeTest extends TestCase
         $this->actingAdmin();
 
         $basic = SocialMediaPackage::create(['name' => 'Basic']);
-        $pro   = SocialMediaPackage::create(['name' => 'Pro']);
+        $pro = SocialMediaPackage::create(['name' => 'Pro']);
 
         $reminder1 = SocialMediaReminder::create(['company_name' => 'Co A', 'package' => 'Basic', 'month' => '2026-07']);
         $reminder2 = SocialMediaReminder::create(['company_name' => 'Co B', 'package' => 'Pro', 'month' => '2026-07']);
 
         $this->postJson('/api/v1/admin/packages/merge', [
-            'new_name'  => 'Standard',
+            'new_name' => 'Standard',
             'merge_ids' => [$basic->id, $pro->id],
         ])->assertOk()->assertJsonPath('merged', 2);
 
@@ -129,7 +129,7 @@ class AdminLookupMergeTest extends TestCase
         PerformanceTarget::create(['user_id' => $user->id, 'task_id' => $taskB->id, 'weekly_target' => 3]);
 
         $this->postJson('/api/v1/admin/tasks/merge', [
-            'keep_id'   => $taskA->id,
+            'keep_id' => $taskA->id,
             'merge_ids' => [$taskB->id],
         ])->assertStatus(422)->assertJsonValidationErrors('merge_ids');
 
@@ -143,16 +143,16 @@ class AdminLookupMergeTest extends TestCase
     {
         $this->actingAdmin();
 
-        $keep   = ContactStatus::create(['name' => 'Region Alpha']);
+        $keep = ContactStatus::create(['name' => 'Region Alpha']);
         $mergeA = ContactStatus::create(['name' => 'Region Beta']);
         $mergeB = ContactStatus::create(['name' => 'Region Gamma']);
 
         $contactKeep = Contact::create(['name' => 'Alpha Client', 'status_id' => $keep->id]);
-        $contactA    = Contact::create(['name' => 'Beta Client', 'status_id' => $mergeA->id]);
-        $contactB    = Contact::create(['name' => 'Gamma Client', 'status_id' => $mergeB->id]);
+        $contactA = Contact::create(['name' => 'Beta Client', 'status_id' => $mergeA->id]);
+        $contactB = Contact::create(['name' => 'Gamma Client', 'status_id' => $mergeB->id]);
 
         $this->postJson('/api/v1/admin/statuses/merge', [
-            'keep_id'   => $keep->id,
+            'keep_id' => $keep->id,
             'merge_ids' => [$mergeA->id, $mergeB->id],
         ])->assertOk();
 
@@ -182,12 +182,12 @@ class AdminLookupMergeTest extends TestCase
     {
         $this->actingAdmin();
 
-        $keep  = ContactStatus::create(['name' => 'TG - Project']);
+        $keep = ContactStatus::create(['name' => 'TG - Project']);
         $merge = ContactStatus::create(['name' => 'KV4L']);
         Contact::create(['name' => 'Acme Media', 'status_id' => $merge->id]);
 
         $this->postJson('/api/v1/admin/statuses/merge', [
-            'keep_id'   => $keep->id,
+            'keep_id' => $keep->id,
             'merge_ids' => [$merge->id],
         ])->assertOk();
 
@@ -205,13 +205,13 @@ class AdminLookupMergeTest extends TestCase
 
         // Simulates a merge log written by the old code path, before revert_data existed.
         $log = AdminAuditLog::create([
-            'user_id'     => $user->id,
-            'action'      => 'merged',
+            'user_id' => $user->id,
+            'action' => 'merged',
             'entity_type' => 'lookup:statuses',
-            'entity_id'   => '1',
+            'entity_id' => '1',
             'entity_name' => 'KLTG Beyond',
-            'old_values'  => ['merged_items' => [['id' => 99, 'name' => 'KLTG Raw']]],
-            'new_values'  => ['kept_item' => ['id' => 1, 'name' => 'KLTG Beyond']],
+            'old_values' => ['merged_items' => [['id' => 99, 'name' => 'KLTG Raw']]],
+            'new_values' => ['kept_item' => ['id' => 1, 'name' => 'KLTG Beyond']],
             'revert_data' => null,
         ]);
 
@@ -224,15 +224,15 @@ class AdminLookupMergeTest extends TestCase
     {
         $this->actingAdmin();
 
-        $keep   = ContactStatus::create(['name' => 'TG - Project']);
+        $keep = ContactStatus::create(['name' => 'TG - Project']);
         $mergeA = ContactStatus::create(['name' => 'KV4L']);
-        $other  = ContactStatus::create(['name' => 'Somewhere Else']);
+        $other = ContactStatus::create(['name' => 'Somewhere Else']);
 
         $contactA = Contact::create(['name' => 'Acme Media', 'status_id' => $mergeA->id]);
         $contactB = Contact::create(['name' => 'Beta Corp', 'status_id' => $mergeA->id]);
 
         $this->postJson('/api/v1/admin/statuses/merge', [
-            'keep_id'   => $keep->id,
+            'keep_id' => $keep->id,
             'merge_ids' => [$mergeA->id],
         ])->assertOk();
 
@@ -255,12 +255,12 @@ class AdminLookupMergeTest extends TestCase
         $this->actingAdmin();
 
         $basic = SocialMediaPackage::create(['name' => 'Basic']);
-        $pro   = SocialMediaPackage::create(['name' => 'Pro']);
+        $pro = SocialMediaPackage::create(['name' => 'Pro']);
         $reminder1 = SocialMediaReminder::create(['company_name' => 'Co A', 'package' => 'Basic', 'month' => '2026-07']);
         $reminder2 = SocialMediaReminder::create(['company_name' => 'Co B', 'package' => 'Pro', 'month' => '2026-07']);
 
         $this->postJson('/api/v1/admin/packages/merge', [
-            'new_name'  => 'Standard',
+            'new_name' => 'Standard',
             'merge_ids' => [$basic->id, $pro->id],
         ])->assertOk();
 

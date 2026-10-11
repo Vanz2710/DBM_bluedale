@@ -10,7 +10,9 @@ use Illuminate\Validation\Rule;
 class SocialMediaReminderController extends Controller
 {
     private const CONTENT_STATUSES = ['pending', 'wfa', 'approved'];
+
     private const POSTING_STATUSES = ['pending', 'wfa', 'approved', 'scheduling', 'posted'];
+
     private const REPORT_STATUSES = ['pending', 'wfa', 'done', 'completed'];
 
     public function index(Request $request)

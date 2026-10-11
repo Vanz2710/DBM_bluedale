@@ -13,8 +13,8 @@ class Deal extends Model
 
     protected static function booted(): void
     {
-        static::creating(fn($m) => $m->created_by = Auth::id());
-        static::updating(fn($m) => $m->updated_by  = Auth::id());
+        static::creating(fn ($m) => $m->created_by = Auth::id());
+        static::updating(fn ($m) => $m->updated_by = Auth::id());
     }
 
     protected $fillable = [
@@ -32,7 +32,7 @@ class Deal extends Model
 
     protected $casts = [
         'expected_close_date' => 'date',
-        'value'               => 'decimal:2',
+        'value' => 'decimal:2',
     ];
 
     public function contact()

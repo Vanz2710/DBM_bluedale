@@ -87,7 +87,7 @@ class RolesAndPermissionsSeeder extends Seeder
         // admin: full CRM access + admin tools, no RBAC management
         $adminExcluded = ['manage roles', 'manage permissions', 'manage users'];
         $admin = Role::firstOrCreate(['name' => 'admin', 'guard_name' => 'web']);
-        $admin->syncPermissions(\array_filter($names, fn($p) => !\in_array($p, $adminExcluded)));
+        $admin->syncPermissions(\array_filter($names, fn ($p) => ! \in_array($p, $adminExcluded)));
 
         // user: full day-to-day CRM work + common marketing tools, no admin tools
         $user = Role::firstOrCreate(['name' => 'user', 'guard_name' => 'web']);

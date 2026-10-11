@@ -3,42 +3,42 @@
 return [
 
     'company' => [
-        'name'    => 'Bluedale Integrated (M) Sdn. Bhd.',
-        'reg_no'  => '(Co. # 535305-K)',
+        'name' => 'Bluedale Integrated (M) Sdn. Bhd.',
+        'reg_no' => '(Co. # 535305-K)',
         'address' => 'No.31-2, Block F2, Level 2, Jalan PJU 1/42A, Dataran Prima, 47301 Petaling Jaya, Selangor Darul Ehsan, Malaysia',
-        'tel'     => '+(6)03 - 7886 9219',
-        'fax'     => '+(6)03 - 7887 8212',
+        'tel' => '+(6)03 - 7886 9219',
+        'fax' => '+(6)03 - 7887 8212',
         'website' => 'www.bluedale.com.my',
-        'email'   => env('PROPOSAL_COMPANY_EMAIL', 'enquiry@bluedale.com.my'),
+        'email' => env('PROPOSAL_COMPANY_EMAIL', 'enquiry@bluedale.com.my'),
         'group_label' => 'A Member of Bluedale Group of Companies',
     ],
 
     'signatory' => [
-        'name'        => 'NURUL ASYIQIN JAAFAR',
-        'title'       => 'Assistant Business Manager',
-        'mobile'      => '+6014- 907 253',
+        'name' => 'NURUL ASYIQIN JAAFAR',
+        'title' => 'Assistant Business Manager',
+        'mobile' => '+6014- 907 253',
         'signature_label' => 'Asyiqin',
     ],
 
     // Default pricing tiers (RM per pc/site per month). Override per request.
     'pricing' => [
         'Lamp Post Bunting' => [
-            'normal_price'   => 180,    // shown in banner
-            'promo_price'    => 120,    // shown as header rate
+            'normal_price' => 180,    // shown in banner
+            'promo_price' => 120,    // shown as header rate
             'per_unit_label' => 'pcs',
-            'sst_rate'       => 0.08,
+            'sst_rate' => 0.08,
         ],
         'Temp Board' => [
-            'normal_price'   => 6000,
-            'promo_price'    => 4800,
+            'normal_price' => 6000,
+            'promo_price' => 4800,
             'per_unit_label' => 'site',
-            'sst_rate'       => 0.08,
+            'sst_rate' => 0.08,
         ],
         'Billboard' => [
-            'normal_price'   => 6000,
-            'promo_price'    => 4800,
+            'normal_price' => 6000,
+            'promo_price' => 4800,
             'per_unit_label' => 'site',
-            'sst_rate'       => 0.08,
+            'sst_rate' => 0.08,
         ],
     ],
 

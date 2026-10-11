@@ -6,6 +6,7 @@ use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\Cell\DataType;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Style\Border;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -24,17 +25,17 @@ class XlsxExport
      * except the Task Manager calendar grid uses (Contacts, To-Dos, Follow-Ups,
      * Site Availability, Task Manager table).
      *
-     * @param array<int,string> $columns ordered column keys (a 'no' key is auto-numbered, not read from $getVal)
-     * @param array<string,string> $labels column key => header label
-     * @param array<string,int> $widths column key => width in points, same unit the old HTML export used
-     * @param iterable $rows any iterable of row source objects/arrays
-     * @param callable(mixed,string):mixed $getVal fn($row, string $col): mixed
+     * @param  array<int,string>  $columns  ordered column keys (a 'no' key is auto-numbered, not read from $getVal)
+     * @param  array<string,string>  $labels  column key => header label
+     * @param  array<string,int>  $widths  column key => width in points, same unit the old HTML export used
+     * @param  iterable  $rows  any iterable of row source objects/arrays
+     * @param  callable(mixed,string):mixed  $getVal  fn($row, string $col): mixed
      */
     public static function flatTable(string $sheetName, array $columns, array $labels, array $widths, iterable $rows, callable $getVal): Spreadsheet
     {
         self::raiseLimitsForLargeExport();
 
-        $spreadsheet = new Spreadsheet();
+        $spreadsheet = new Spreadsheet;
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle($sheetName);
 
@@ -48,8 +49,8 @@ class XlsxExport
             $sheet->getColumnDimension($letter)->setWidth(max(8, ($widths[$col] ?? 100) / 7));
         }
         $sheet->getStyle("A1:{$lastColLetter}1")->applyFromArray([
-            'font'    => ['bold' => true],
-            'fill'    => ['fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID, 'startColor' => ['rgb' => 'F1F5F9']],
+            'font' => ['bold' => true],
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'F1F5F9']],
             'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => '000000']]],
         ]);
         $sheet->freezePane('A2');
@@ -67,7 +68,7 @@ class XlsxExport
         }
 
         if ($rowNum > 2) {
-            $sheet->getStyle("A2:{$lastColLetter}" . ($rowNum - 1))->applyFromArray([
+            $sheet->getStyle("A2:{$lastColLetter}".($rowNum - 1))->applyFromArray([
                 'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'CCCCCC']]],
             ]);
         }

@@ -12,7 +12,7 @@ return new class extends Migration
         // forecasts only had composite (contact_id, forecast_date) / (user_id, forecast_date) indexes,
         // so admin-scoped queries that filter/sort by forecast_date alone couldn't use an index.
         $existing = collect(DB::select('SHOW INDEX FROM forecasts'))->pluck('Key_name');
-        if (!$existing->contains('forecasts_forecast_date_index')) {
+        if (! $existing->contains('forecasts_forecast_date_index')) {
             Schema::table('forecasts', function (Blueprint $table) {
                 $table->index('forecast_date', 'forecasts_forecast_date_index');
             });

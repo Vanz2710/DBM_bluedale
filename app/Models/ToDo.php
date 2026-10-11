@@ -10,8 +10,8 @@ class ToDo extends Model
 {
     protected static function booted(): void
     {
-        static::creating(fn($m) => $m->created_by = Auth::id());
-        static::updating(fn($m) => $m->updated_by  = Auth::id());
+        static::creating(fn ($m) => $m->created_by = Auth::id());
+        static::updating(fn ($m) => $m->updated_by = Auth::id());
 
         static::saved(function (ToDo $todo) {
             if ($todo->completion_status === 'completed' && $todo->contact_id) {
@@ -36,7 +36,7 @@ class ToDo extends Model
     protected $fillable = ['contact_id', 'user_id', 'task_id', 'todo_date', 'date_created', 'todo_remark', 'completion_status', 'completed_at'];
 
     protected $casts = [
-        'todo_date'    => 'date',
+        'todo_date' => 'date',
         'date_created' => 'date',
         'completed_at' => 'datetime',
     ];
