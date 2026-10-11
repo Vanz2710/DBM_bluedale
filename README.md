@@ -9,23 +9,12 @@ A production-grade, multi-user Customer Relationship Management (CRM) system bui
 > **Note:** The UI prioritizes clean data visualization, responsive layouts, and progressive disclosure to handle high information density across three distinct permission tiers without visual clutter.
 
 ### Authentication
-<img width="1023" height="484" alt="image" src="https://github.com/user-attachments/assets/51ffb572-ca0b-40a6-ba53-3f8eb3697508" />
+<img width="1023" height="484" alt="Login screen" src="docs/screenshots/login.png" />
 *A clean, modern authentication gateway for the Bluedale CRM workspace.*
 
-### Management Dashboard
-<img width="1024" height="487" alt="image" src="https://github.com/user-attachments/assets/175cfd01-7177-4821-aa51-7770bf3cadbd" />
-*The primary administrative view featuring interactive pipeline visualizations, recent contact activity, and pending task overviews.*
-
-### Data Management & Progressive Disclosure
-<img width="1575" height="743" alt="image" src="https://github.com/user-attachments/assets/7278c4e3-19f0-43c6-a4e8-234820cc6414" />
-*The main contacts directory supporting over 15,000 records. Features a guided user tour and robust filtering (Date Range, Status, Industry) without cluttering the primary view.*
-
-<img width="1024" height="486" alt="image" src="https://github.com/user-attachments/assets/8ee7fd71-eaf6-4622-848c-e14ac38c7e41" />
+### Progressive Disclosure
+<img width="1024" height="486" alt="Add New Contact modal" src="docs/screenshots/contact-form-modal.png" />
 *Step-by-step modal forms keep the user in the context of their current task without requiring full-page reloads.*
-
-### Detailed Record View
-<img width="1543" height="763" alt="image" src="https://github.com/user-attachments/assets/77922cc4-c1fe-40d1-978c-91e09a214705" />
-*A comprehensive, single-page view for individual accounts, displaying contact tags, monthly activity heatmaps, assigned personnel, and actionable to-do lists.*
 
 ---
 
