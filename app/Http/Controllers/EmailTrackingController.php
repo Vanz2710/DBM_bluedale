@@ -24,7 +24,7 @@ class EmailTrackingController extends Controller
             $recipient->increment('open_count');
             $recipient->forceFill([
                 'opened_at' => $recipient->opened_at ?? now(),
-                'status'    => in_array($recipient->status, ['clicked', 'unsubscribed']) ? $recipient->status : 'opened',
+                'status' => in_array($recipient->status, ['clicked', 'unsubscribed']) ? $recipient->status : 'opened',
             ])->save();
 
             $this->log($recipient, 'open', $request);
@@ -32,21 +32,21 @@ class EmailTrackingController extends Controller
         }
 
         return response(self::PIXEL, 200, [
-            'Content-Type'  => 'image/gif',
+            'Content-Type' => 'image/gif',
             'Cache-Control' => 'no-store, no-cache, must-revalidate',
-            'Pragma'        => 'no-cache',
+            'Pragma' => 'no-cache',
         ]);
     }
 
     public function click(string $token, Request $request)
     {
         $encoded = (string) $request->query('u', '');
-        $sig     = (string) $request->query('s', '');
-        $url     = base64_decode($encoded, true);
+        $sig = (string) $request->query('s', '');
+        $url = base64_decode($encoded, true);
 
         abort_if($url === false, 404);
 
-        $expected = hash_hmac('sha256', $token . '|' . $url, config('app.key'));
+        $expected = hash_hmac('sha256', $token.'|'.$url, config('app.key'));
         abort_unless(hash_equals($expected, $sig), 403, 'Invalid tracking link.');
 
         $recipient = EmailCampaignRecipient::where('token', $token)->first();
@@ -55,8 +55,8 @@ class EmailTrackingController extends Controller
             $recipient->increment('click_count');
             $recipient->forceFill([
                 'clicked_at' => $recipient->clicked_at ?? now(),
-                'opened_at'  => $recipient->opened_at ?? now(),
-                'status'     => $recipient->status === 'unsubscribed' ? 'unsubscribed' : 'clicked',
+                'opened_at' => $recipient->opened_at ?? now(),
+                'status' => $recipient->status === 'unsubscribed' ? 'unsubscribed' : 'clicked',
             ])->save();
 
             $this->log($recipient, 'click', $request, $url);
@@ -69,25 +69,25 @@ class EmailTrackingController extends Controller
     public function unsubscribePage(string $token)
     {
         $recipient = EmailCampaignRecipient::where('token', $token)->first();
-        abort_if(!$recipient, 404);
+        abort_if(! $recipient, 404);
 
         return view('email.unsubscribe', [
-            'token'        => $token,
-            'email'        => $recipient->email,
-            'done'         => $recipient->status === 'unsubscribed',
+            'token' => $token,
+            'email' => $recipient->email,
+            'done' => $recipient->status === 'unsubscribed',
         ]);
     }
 
     public function unsubscribe(string $token, Request $request)
     {
         $recipient = EmailCampaignRecipient::where('token', $token)->first();
-        abort_if(!$recipient, 404);
+        abort_if(! $recipient, 404);
 
         $recipient->update(['status' => 'unsubscribed']);
 
         if ($recipient->contact) {
             $recipient->contact->update([
-                'status'          => 'unsubscribed',
+                'status' => 'unsubscribed',
                 'unsubscribed_at' => now(),
             ]);
         }
@@ -98,20 +98,20 @@ class EmailTrackingController extends Controller
         return view('email.unsubscribe', [
             'token' => $token,
             'email' => $recipient->email,
-            'done'  => true,
+            'done' => true,
         ]);
     }
 
     private function log(EmailCampaignRecipient $recipient, string $event, Request $request, ?string $url = null): void
     {
         EmailLog::create([
-            'email_campaign_id'           => $recipient->email_campaign_id,
+            'email_campaign_id' => $recipient->email_campaign_id,
             'email_campaign_recipient_id' => $recipient->id,
-            'email_contact_id'            => $recipient->email_contact_id,
-            'event'                       => $event,
-            'url'                         => $url,
-            'ip_address'                  => $request->ip(),
-            'user_agent'                  => substr((string) $request->userAgent(), 0, 500),
+            'email_contact_id' => $recipient->email_contact_id,
+            'event' => $event,
+            'url' => $url,
+            'ip_address' => $request->ip(),
+            'user_agent' => substr((string) $request->userAgent(), 0, 500),
         ]);
     }
 }

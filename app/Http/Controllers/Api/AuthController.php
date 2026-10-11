@@ -17,7 +17,8 @@ use Illuminate\Validation\ValidationException;
 class AuthController extends Controller
 {
     private const INACTIVITY_DAYS = 14;
-    private const MAX_ATTEMPTS    = 3;
+
+    private const MAX_ATTEMPTS = 3;
 
     /**
      * A real bcrypt hash (cost 12) of a random throwaway value, used only to burn
@@ -37,7 +38,7 @@ class AuthController extends Controller
         $user = User::where('username', $request->username)->first();
 
         // Timing-safe: always run bcrypt even when user not found to prevent username enumeration.
-        if (!$user) {
+        if (! $user) {
             Hash::check($request->password, self::DUMMY_HASH);
             throw ValidationException::withMessages([
                 'username' => ['The provided credentials are incorrect.'],
@@ -48,21 +49,22 @@ class AuthController extends Controller
         if ($user->permanently_locked) {
             return response()->json([
                 'message' => 'This account has been permanently locked after too many failed login attempts. Please contact your administrator.',
-                'status'  => 'permanently_locked',
+                'status' => 'permanently_locked',
             ], 403);
         }
 
         // Temporary lockout — check if it is still active.
         if ($user->locked_until && $user->locked_until->isFuture()) {
             $minutesLeft = (int) now()->diffInMinutes($user->locked_until, false);
+
             return response()->json([
                 'message' => "Too many failed login attempts. Your account is locked for {$minutesLeft} more minute(s).",
-                'status'  => 'temporarily_locked',
+                'status' => 'temporarily_locked',
             ], 429);
         }
 
         // Password check — wrong credentials, then track the failure.
-        if (!Hash::check($request->password, $user->password)) {
+        if (! Hash::check($request->password, $user->password)) {
             $this->handleFailedLogin($user);
             throw ValidationException::withMessages([
                 'username' => ['The provided credentials are incorrect.'],
@@ -73,8 +75,8 @@ class AuthController extends Controller
         if ($user->failed_login_attempts > 0 || $user->locked_until) {
             $user->update([
                 'failed_login_attempts' => 0,
-                'locked_until'          => null,
-                'lockout_level'         => 0,
+                'locked_until' => null,
+                'lockout_level' => 0,
             ]);
         }
 
@@ -86,15 +88,15 @@ class AuthController extends Controller
         }
 
         // Block and notify admin on first login attempt by an unapproved user
-        if (!$user->is_approved) {
-            if (!$user->access_requested_at) {
+        if (! $user->is_approved) {
+            if (! $user->access_requested_at) {
                 $user->update(['access_requested_at' => now()]);
                 $this->notifyAdmins(new UserPendingApproval($user));
             }
 
             return response()->json([
                 'message' => 'Your account is pending admin approval. The admin has been notified and will grant access shortly.',
-                'status'  => 'pending_approval',
+                'status' => 'pending_approval',
             ], 403);
         }
 
@@ -102,7 +104,7 @@ class AuthController extends Controller
         if ($user->inactivity_flagged_at) {
             return response()->json([
                 'message' => 'Your account has been temporarily locked due to extended inactivity. For security purposes, a notification has been sent to the administrator. Please speak with the person in charge to regain access.',
-                'status'  => 'inactivity_flagged',
+                'status' => 'inactivity_flagged',
             ], 403);
         }
 
@@ -113,7 +115,7 @@ class AuthController extends Controller
 
             return response()->json([
                 'message' => 'Your account has been temporarily locked due to extended inactivity. For security purposes, a notification has been sent to the administrator. Please speak with the person in charge to regain access.',
-                'status'  => 'inactivity_flagged',
+                'status' => 'inactivity_flagged',
             ], 403);
         }
 
@@ -132,13 +134,14 @@ class AuthController extends Controller
 
         return response()->json([
             'token' => $token,
-            'user'  => $this->userPayload($user),
+            'user' => $this->userPayload($user),
         ]);
     }
 
     public function logout(Request $request)
     {
         $request->user()->currentAccessToken()->delete();
+
         return response()->json(['status' => 'success']);
     }
 
@@ -153,13 +156,13 @@ class AuthController extends Controller
         $user->refresh();
 
         $attempts = $user->failed_login_attempts;
-        $level    = $user->lockout_level;
+        $level = $user->lockout_level;
 
         // Super-admins are exempt from permanent lock — a locked-out super-admin
         // has no one to unlock them, making the system completely inaccessible.
         $isSuperAdmin = $user->roles->pluck('name')->contains('super-admin');
 
-        if (!$isSuperAdmin && $attempts >= self::MAX_ATTEMPTS * 3 && $level < 3) {
+        if (! $isSuperAdmin && $attempts >= self::MAX_ATTEMPTS * 3 && $level < 3) {
             $user->update(['permanently_locked' => true, 'lockout_level' => 3]);
             $this->notifyAdmins(new BruteForceAccountLocked($user));
         } elseif ($attempts >= self::MAX_ATTEMPTS * 2 && $level < 2) {
@@ -175,6 +178,7 @@ class AuthController extends Controller
 
         if ($configuredEmail) {
             Notification::route('mail', $configuredEmail)->notify($notification);
+
             return;
         }
 
@@ -191,17 +195,17 @@ class AuthController extends Controller
     private function userPayload(User $user): array
     {
         return [
-            'id'             => $user->id,
-            'name'           => $user->name,
-            'username'       => $user->username,
-            'email'          => $user->email,
+            'id' => $user->id,
+            'name' => $user->name,
+            'username' => $user->username,
+            'email' => $user->email,
             'email_verified' => $user->email_verified_at !== null,
-            'roles'          => $user->getRoleNames(),
-            'permissions'    => $user->hasRole('super-admin')
+            'roles' => $user->getRoleNames(),
+            'permissions' => $user->hasRole('super-admin')
                 ? null
                 : $user->getAllPermissions()->pluck('name'),
-            'last_login_at'  => $user->last_login_at,
-            'login_count'    => $user->login_count,
+            'last_login_at' => $user->last_login_at,
+            'login_count' => $user->login_count,
         ];
     }
 }

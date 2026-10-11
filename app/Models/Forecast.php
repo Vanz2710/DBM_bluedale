@@ -23,8 +23,8 @@ class Forecast extends Model
     ];
 
     protected $casts = [
-        'amount'              => 'decimal:2',
-        'forecast_date'       => 'date',
+        'amount' => 'decimal:2',
+        'forecast_date' => 'date',
         'forecast_updatedate' => 'date',
     ];
 

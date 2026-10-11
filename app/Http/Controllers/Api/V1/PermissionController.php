@@ -13,6 +13,7 @@ class PermissionController extends Controller
     public function index()
     {
         $permissions = Permission::orderBy('name')->get(['id', 'name', 'description']);
+
         return response()->json(['data' => $permissions]);
     }
 }

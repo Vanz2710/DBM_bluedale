@@ -16,13 +16,14 @@ class AdminAuditLog extends Model
     // revert_data can hold thousands of record ids for a large merge — never ship it
     // to the list/export views, which only need to know whether a revert is possible.
     protected $hidden = ['revert_data'];
+
     protected $appends = ['has_revert_data'];
 
     protected function casts(): array
     {
         return [
-            'old_values'  => 'array',
-            'new_values'  => 'array',
+            'old_values' => 'array',
+            'new_values' => 'array',
             'revert_data' => 'array',
             'reverted_at' => 'datetime',
         ];
@@ -31,7 +32,7 @@ class AdminAuditLog extends Model
     protected function hasRevertData(): Attribute
     {
         return Attribute::make(
-            get: fn () => !empty($this->revert_data['merged_items'] ?? null),
+            get: fn () => ! empty($this->revert_data['merged_items'] ?? null),
         );
     }
 

@@ -30,12 +30,12 @@ return new class extends Migration
                 ? strtolower(explode('@', $user->email)[0])
                 : strtolower(preg_replace('/[^a-z0-9_]/', '_', str_replace(' ', '_', $user->name)));
 
-            $base     = preg_replace('/[^a-z0-9_]/', '', $base) ?: 'user';
+            $base = preg_replace('/[^a-z0-9_]/', '', $base) ?: 'user';
             $username = $base;
-            $suffix   = 1;
+            $suffix = 1;
 
             while (DB::table('users')->where('username', $username)->where('id', '!=', $user->id)->exists()) {
-                $username = $base . '_' . $suffix++;
+                $username = $base.'_'.$suffix++;
             }
 
             DB::table('users')->where('id', $user->id)->update(['username' => $username]);

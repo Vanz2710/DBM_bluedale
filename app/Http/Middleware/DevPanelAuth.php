@@ -9,10 +9,10 @@ class DevPanelAuth
 {
     public function handle(Request $request, Closure $next): mixed
     {
-        $key      = config('app.dev_master_key', '');
+        $key = config('app.dev_master_key', '');
         $provided = $request->header('X-Dev-K', '');
 
-        if (!$key || !$provided || !hash_equals($key, $provided)) {
+        if (! $key || ! $provided || ! hash_equals($key, $provided)) {
             abort(404);
         }
 

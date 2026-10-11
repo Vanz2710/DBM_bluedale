@@ -10,10 +10,14 @@ use App\Models\ContactIndustry;
 use App\Models\ContactStatus;
 use App\Models\ContactType;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
+use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
+use PhpOffice\PhpSpreadsheet\IOFactory;
+use PhpOffice\PhpSpreadsheet\Shared\Date;
 
 class ImportController extends Controller
 {
@@ -78,6 +82,7 @@ class ImportController extends Controller
     private function normalize(string $raw, string $field): string
     {
         $lower = strtolower(trim($raw));
+
         return $this->canonicalAliases[$field][$lower] ?? trim($raw);
     }
 
@@ -108,9 +113,9 @@ class ImportController extends Controller
     private function resolveImportPath(string $tempPath): ?string
     {
         $importsDir = realpath(Storage::disk('local')->path('imports'));
-        $fullPath   = realpath(Storage::disk('local')->path($tempPath));
+        $fullPath = realpath(Storage::disk('local')->path($tempPath));
 
-        if (!$importsDir || !$fullPath || !str_starts_with($fullPath, $importsDir . DIRECTORY_SEPARATOR)) {
+        if (! $importsDir || ! $fullPath || ! str_starts_with($fullPath, $importsDir.DIRECTORY_SEPARATOR)) {
             return null;
         }
 
@@ -119,7 +124,7 @@ class ImportController extends Controller
 
     public function preview(Request $request)
     {
-        if (!class_exists(\PhpOffice\PhpSpreadsheet\IOFactory::class)) {
+        if (! class_exists(IOFactory::class)) {
             return response()->json(['error' => 'PhpSpreadsheet not installed. Run: composer require phpoffice/phpspreadsheet'], 422);
         }
 
@@ -129,15 +134,15 @@ class ImportController extends Controller
 
         try {
             $path = $request->file('file')->store('imports', 'local');
-            if (!$path) {
+            if (! $path) {
                 return response()->json(['error' => 'Failed to store uploaded file. Check storage permissions.'], 422);
             }
 
             $fullPath = Storage::disk('local')->path($path);
 
-            $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($fullPath);
+            $spreadsheet = IOFactory::load($fullPath);
             $sheet = $spreadsheet->getActiveSheet();
-            $highestCol = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString($sheet->getHighestDataColumn());
+            $highestCol = Coordinate::columnIndexFromString($sheet->getHighestDataColumn());
 
             // Auto-detect header row — the row with the most filled cells in the first 20 rows
             $headerRow = 1;
@@ -145,33 +150,40 @@ class ImportController extends Controller
             for ($r = 1; $r <= min(20, $sheet->getHighestDataRow()); $r++) {
                 $filled = 0;
                 for ($c = 1; $c <= $highestCol; $c++) {
-                    $letter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($c);
-                    if (trim((string)$sheet->getCell($letter . $r)->getValue()) !== '') $filled++;
+                    $letter = Coordinate::stringFromColumnIndex($c);
+                    if (trim((string) $sheet->getCell($letter.$r)->getValue()) !== '') {
+                        $filled++;
+                    }
                 }
-                if ($filled > $maxFilled) { $maxFilled = $filled; $headerRow = $r; }
+                if ($filled > $maxFilled) {
+                    $maxFilled = $filled;
+                    $headerRow = $r;
+                }
             }
 
             $headers = [];
             for ($c = 1; $c <= $highestCol; $c++) {
-                $letter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($c);
-                $val = trim((string)$sheet->getCell($letter . $headerRow)->getValue());
-                if ($val !== '') $headers[$letter] = $val;
+                $letter = Coordinate::stringFromColumnIndex($c);
+                $val = trim((string) $sheet->getCell($letter.$headerRow)->getValue());
+                if ($val !== '') {
+                    $headers[$letter] = $val;
+                }
             }
 
             return response()->json([
-                'temp_path'  => $path,
+                'temp_path' => $path,
                 'header_row' => $headerRow,
                 'data_start' => $headerRow + 1,
-                'headers'    => $headers,
+                'headers' => $headers,
             ]);
         } catch (\Exception $e) {
-            return response()->json(['error' => 'Failed to read file: ' . $e->getMessage()], 422);
+            return response()->json(['error' => 'Failed to read file: '.$e->getMessage()], 422);
         }
     }
 
     public function process(Request $request)
     {
-        if (!class_exists(\PhpOffice\PhpSpreadsheet\IOFactory::class)) {
+        if (! class_exists(IOFactory::class)) {
             return response()->json(['error' => 'PhpSpreadsheet not installed. Run: composer require phpoffice/phpspreadsheet'], 422);
         }
 
@@ -187,96 +199,112 @@ class ImportController extends Controller
             // never contain '/'. The lookahead additionally rejects a bare '.' or '..'
             // tail (e.g. "imports/.."), which the character class alone would allow
             // through as a parent-directory reference.
-            'temp_path'  => ['required', 'string', 'regex:/^imports\/(?!\.{1,2}$)[a-zA-Z0-9._-]+$/'],
+            'temp_path' => ['required', 'string', 'regex:/^imports\/(?!\.{1,2}$)[a-zA-Z0-9._-]+$/'],
             'data_start' => 'required|integer|min:1|max:1000',
-            'mapping'    => 'required|array|max:50',
-            'mapping.*'  => ['nullable', 'string', Rule::in($allowedFields)],
+            'mapping' => 'required|array|max:50',
+            'mapping.*' => ['nullable', 'string', Rule::in($allowedFields)],
         ]);
 
         ini_set('memory_limit', '512M');
 
         $fullPath = $this->resolveImportPath($request->input('temp_path'));
-        if (!$fullPath) {
+        if (! $fullPath) {
             return response()->json(['error' => 'Uploaded file not found.'], 422);
         }
 
-        $mapping   = $request->input('mapping');
-        $dataStart = (int)$request->input('data_start');
+        $mapping = $request->input('mapping');
+        $dataStart = (int) $request->input('data_start');
 
-        $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($fullPath);
-        $sheet       = $spreadsheet->getActiveSheet();
-        $highestRow  = $sheet->getHighestDataRow();
+        $spreadsheet = IOFactory::load($fullPath);
+        $sheet = $spreadsheet->getActiveSheet();
+        $highestRow = $sheet->getHighestDataRow();
 
         // Resolve name column
         $nameCol = null;
         foreach ($mapping as $col => $field) {
-            if ($field === 'name') { $nameCol = $col; break; }
+            if ($field === 'name') {
+                $nameCol = $col;
+                break;
+            }
         }
-        if (!$nameCol) {
+        if (! $nameCol) {
             return response()->json(['error' => 'No column mapped to Company Name.'], 422);
         }
 
         // Pre-fetch existing contact names for duplicate detection
-        $existing = Contact::pluck('name')->map(fn($n) => strtolower(trim($n)))->flip()->all();
+        $existing = Contact::pluck('name')->map(fn ($n) => strtolower(trim($n)))->flip()->all();
 
         // In-memory FK maps with lowercase keys for case-insensitive lookup
         // (DB unique indexes are case-insensitive; PHP array lookups are case-sensitive)
-        $toLower = fn($id, $n) => [strtolower(trim($n)) => $id];
-        $statusMap   = ContactStatus::pluck('id', 'name')->mapWithKeys($toLower)->all();
-        $typeMap     = ContactType::pluck('id', 'name')->mapWithKeys($toLower)->all();
+        $toLower = fn ($id, $n) => [strtolower(trim($n)) => $id];
+        $statusMap = ContactStatus::pluck('id', 'name')->mapWithKeys($toLower)->all();
+        $typeMap = ContactType::pluck('id', 'name')->mapWithKeys($toLower)->all();
         $industryMap = ContactIndustry::pluck('id', 'name')->mapWithKeys($toLower)->all();
         $categoryMap = ContactCategory::pluck('id', 'name')->mapWithKeys($toLower)->all();
         // Build case-insensitive user map: lowercase(name) → id
         $userMap = User::pluck('id', 'name')->mapWithKeys(
-            fn($id, $name) => [strtolower(trim($name)) => $id]
+            fn ($id, $name) => [strtolower(trim($name)) => $id]
         )->all();
 
         // Pre-compute PIC column letters once — not per row
-        $picNameCol  = array_search('pic_name',     $mapping) ?: null;
-        $picEmailCol = array_search('email',        $mapping) ?: null;
+        $picNameCol = array_search('pic_name', $mapping) ?: null;
+        $picEmailCol = array_search('email', $mapping) ?: null;
         $picPhoneCol = array_search('phone_mobile', $mapping) ?: null;
-        $picFields   = ['pic_name', 'email', 'phone_mobile'];
+        $picFields = ['pic_name', 'email', 'phone_mobile'];
 
         $imported = 0;
-        $skipped  = 0;
-        $failed   = 0;
-        $errors   = [];
+        $skipped = 0;
+        $failed = 0;
+        $errors = [];
 
         DB::beginTransaction();
         try {
             for ($row = $dataStart; $row <= $highestRow; $row++) {
                 try {
-                    $name = mb_substr(trim((string)$sheet->getCell($nameCol . $row)->getValue()), 0, 255);
-                    if ($name === '' || $this->isPlaceholder($name)) continue;
+                    $name = mb_substr(trim((string) $sheet->getCell($nameCol.$row)->getValue()), 0, 255);
+                    if ($name === '' || $this->isPlaceholder($name)) {
+                        continue;
+                    }
 
-                    if (isset($existing[strtolower($name)])) { $skipped++; continue; }
+                    if (isset($existing[strtolower($name)])) {
+                        $skipped++;
 
-                    $data        = ['name' => $name];
+                        continue;
+                    }
+
+                    $data = ['name' => $name];
                     $dateCreated = null;
 
                     foreach ($mapping as $col => $field) {
-                        if ($field === 'name' || $field === '' || in_array($field, $picFields)) continue;
+                        if ($field === 'name' || $field === '' || in_array($field, $picFields)) {
+                            continue;
+                        }
 
-                        $cellObj = $sheet->getCell($col . $row);
+                        $cellObj = $sheet->getCell($col.$row);
                         $cellVal = $cellObj->getValue();
 
                         // Handle Excel date serial numbers for date fields
                         if ($field === 'date_created' && is_numeric($cellVal) && $cellVal > 1) {
                             try {
-                                $dt = \PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject((float)$cellVal);
-                                $dateCreated = \Carbon\Carbon::instance($dt)->format('Y-m-d H:i:s');
-                            } catch (\Exception $e) {}
+                                $dt = Date::excelToDateTimeObject((float) $cellVal);
+                                $dateCreated = Carbon::instance($dt)->format('Y-m-d H:i:s');
+                            } catch (\Exception $e) {
+                            }
+
                             continue;
                         }
 
-                        $raw = trim((string)$cellVal);
-                        if ($this->isPlaceholder($raw)) continue;
+                        $raw = trim((string) $cellVal);
+                        if ($this->isPlaceholder($raw)) {
+                            continue;
+                        }
 
                         switch ($field) {
                             case 'date_created':
                                 try {
-                                    $dateCreated = \Carbon\Carbon::parse($raw)->format('Y-m-d H:i:s');
-                                } catch (\Exception $e) {}
+                                    $dateCreated = Carbon::parse($raw)->format('Y-m-d H:i:s');
+                                } catch (\Exception $e) {
+                                }
                                 break;
                             case 'address':
                                 $data['address'] = mb_substr($raw, 0, 255);
@@ -285,32 +313,32 @@ class ImportController extends Controller
                                 $data['remark'] = mb_substr($raw, 0, 800);
                                 break;
                             case 'status':
-                                $val  = $this->normalize($raw, 'status');
+                                $val = $this->normalize($raw, 'status');
                                 $lval = strtolower($val);
-                                if (!isset($statusMap[$lval])) {
+                                if (! isset($statusMap[$lval])) {
                                     $statusMap[$lval] = ContactStatus::firstOrCreate(['name' => $val])->id;
                                 }
                                 $data['status_id'] = $statusMap[$lval];
                                 break;
                             case 'client_type':
-                                $val  = $this->normalize($raw, 'client_type');
+                                $val = $this->normalize($raw, 'client_type');
                                 $lval = strtolower($val);
-                                if (!isset($typeMap[$lval])) {
+                                if (! isset($typeMap[$lval])) {
                                     $typeMap[$lval] = ContactType::firstOrCreate(['name' => $val])->id;
                                 }
                                 $data['type_id'] = $typeMap[$lval];
                                 break;
                             case 'industry':
-                                $val  = $this->normalize($raw, 'industry');
+                                $val = $this->normalize($raw, 'industry');
                                 $lval = strtolower($val);
-                                if (!isset($industryMap[$lval])) {
+                                if (! isset($industryMap[$lval])) {
                                     $industryMap[$lval] = ContactIndustry::firstOrCreate(['name' => $val])->id;
                                 }
                                 $data['industry_id'] = $industryMap[$lval];
                                 break;
                             case 'category':
                                 $lval = strtolower($raw);
-                                if (!isset($categoryMap[$lval])) {
+                                if (! isset($categoryMap[$lval])) {
                                     $categoryMap[$lval] = ContactCategory::firstOrCreate(['name' => $raw])->id;
                                 }
                                 $data['category_id'] = $categoryMap[$lval];
@@ -331,19 +359,23 @@ class ImportController extends Controller
                     }
 
                     // PIC — strip "(N) " prefix left by old CRM multi-PIC export format
-                    $picName  = $picNameCol  ? $this->stripPicPrefix((string)$sheet->getCell($picNameCol  . $row)->getValue()) : '';
-                    $picEmail = $picEmailCol ? $this->stripPicPrefix((string)$sheet->getCell($picEmailCol . $row)->getValue()) : '';
-                    $picPhone = $picPhoneCol ? $this->stripPicPrefix((string)$sheet->getCell($picPhoneCol . $row)->getValue()) : '';
+                    $picName = $picNameCol ? $this->stripPicPrefix((string) $sheet->getCell($picNameCol.$row)->getValue()) : '';
+                    $picEmail = $picEmailCol ? $this->stripPicPrefix((string) $sheet->getCell($picEmailCol.$row)->getValue()) : '';
+                    $picPhone = $picPhoneCol ? $this->stripPicPrefix((string) $sheet->getCell($picPhoneCol.$row)->getValue()) : '';
 
-                    if ($this->isPlaceholder($picPhone)) $picPhone = '';
-                    if ($this->isPlaceholder($picEmail) || !filter_var($picEmail, FILTER_VALIDATE_EMAIL)) $picEmail = '';
+                    if ($this->isPlaceholder($picPhone)) {
+                        $picPhone = '';
+                    }
+                    if ($this->isPlaceholder($picEmail) || ! filter_var($picEmail, FILTER_VALIDATE_EMAIL)) {
+                        $picEmail = '';
+                    }
 
                     if ($picName || $picEmail || $picPhone) {
                         ContactIncharge::create([
-                            'contact_id'   => $contact->id,
-                            'name'         => $picName  ? mb_substr($picName,  0, 255) : null,
-                            'email'        => $picEmail ?: null,
-                            'phone_mobile' => $picPhone ? mb_substr($picPhone, 0,  50) : null,
+                            'contact_id' => $contact->id,
+                            'name' => $picName ? mb_substr($picName, 0, 255) : null,
+                            'email' => $picEmail ?: null,
+                            'phone_mobile' => $picPhone ? mb_substr($picPhone, 0, 50) : null,
                         ]);
                     }
 
@@ -361,6 +393,7 @@ class ImportController extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
             Storage::disk('local')->delete($request->input('temp_path'));
+
             return response()->json(['error' => $e->getMessage()], 500);
         }
 

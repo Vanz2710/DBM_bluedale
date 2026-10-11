@@ -12,6 +12,7 @@ class UserSignatureController extends Controller
     public function getOwn(Request $request)
     {
         $sig = UserSignature::where('user_id', $request->user()->id)->first();
+
         return response()->json(['signature_data' => $sig?->signature_data]);
     }
 
@@ -33,12 +34,12 @@ class UserSignatureController extends Controller
     {
         $signatures = UserSignature::with('user:id,name,email')
             ->get()
-            ->map(fn($s) => [
-                'user_id'        => $s->user_id,
-                'user_name'      => $s->user->name ?? '—',
-                'user_email'     => $s->user->email ?? '—',
+            ->map(fn ($s) => [
+                'user_id' => $s->user_id,
+                'user_name' => $s->user->name ?? '—',
+                'user_email' => $s->user->email ?? '—',
                 'signature_data' => $s->signature_data,
-                'updated_at'     => $s->updated_at->toDateTimeString(),
+                'updated_at' => $s->updated_at->toDateTimeString(),
             ]);
 
         return response()->json($signatures);
@@ -47,6 +48,7 @@ class UserSignatureController extends Controller
     public function deleteFor(User $user)
     {
         UserSignature::where('user_id', $user->id)->delete();
+
         return response()->json(['ok' => true]);
     }
 }

@@ -17,10 +17,10 @@ class SystemAlert extends Model
         foreach ($adminIds as $adminId) {
             static::create([
                 'for_user_id' => $adminId,
-                'type'        => $type,
-                'title'       => $title,
-                'body'        => $body,
-                'link'        => $link,
+                'type' => $type,
+                'title' => $title,
+                'body' => $body,
+                'link' => $link,
             ]);
         }
     }

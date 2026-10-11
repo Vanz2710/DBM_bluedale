@@ -7,7 +7,6 @@ use App\Models\EmailCampaign;
 use App\Models\EmailCampaignRecipient;
 use App\Models\EmailContact;
 use App\Models\EmailLog;
-use Illuminate\Support\Carbon;
 
 class EmailAnalyticsController extends Controller
 {
@@ -17,24 +16,24 @@ class EmailAnalyticsController extends Controller
      */
     public function dashboard()
     {
-        $totalSent    = (int) EmailCampaign::sum('sent_count');
-        $totalOpened  = (int) EmailCampaign::sum('opened_count');
+        $totalSent = (int) EmailCampaign::sum('sent_count');
+        $totalOpened = (int) EmailCampaign::sum('opened_count');
         $totalClicked = (int) EmailCampaign::sum('clicked_count');
 
         return response()->json([
             'stats' => [
-                'total_contacts'     => EmailContact::count(),
+                'total_contacts' => EmailContact::count(),
                 'active_subscribers' => EmailContact::where('status', 'subscribed')->count(),
-                'total_campaigns'    => EmailCampaign::count(),
-                'emails_sent'        => $totalSent,
-                'open_rate'          => $totalSent > 0 ? round($totalOpened / $totalSent * 100, 1) : 0,
-                'click_rate'         => $totalSent > 0 ? round($totalClicked / $totalSent * 100, 1) : 0,
-                'unsubscribed'       => EmailContact::where('status', 'unsubscribed')->count(),
+                'total_campaigns' => EmailCampaign::count(),
+                'emails_sent' => $totalSent,
+                'open_rate' => $totalSent > 0 ? round($totalOpened / $totalSent * 100, 1) : 0,
+                'click_rate' => $totalSent > 0 ? round($totalClicked / $totalSent * 100, 1) : 0,
+                'unsubscribed' => EmailContact::where('status', 'unsubscribed')->count(),
             ],
-            'performance'      => $this->performanceSeries(),
+            'performance' => $this->performanceSeries(),
             'recent_campaigns' => $this->recentCampaigns(),
-            'top_campaigns'    => $this->topCampaigns(),
-            'timeline'         => $this->timeline(),
+            'top_campaigns' => $this->topCampaigns(),
+            'timeline' => $this->timeline(),
         ]);
     }
 
@@ -48,14 +47,14 @@ class EmailAnalyticsController extends Controller
             ->get(['name', 'sent_count', 'opened_count', 'clicked_count', 'open_rate', 'click_rate', 'sent_at']);
 
         return response()->json([
-            'trend' => $sent->map(fn($c) => [
-                'name'       => $c->name,
-                'open_rate'  => $c->open_rate ?? 0,
+            'trend' => $sent->map(fn ($c) => [
+                'name' => $c->name,
+                'open_rate' => $c->open_rate ?? 0,
                 'click_rate' => $c->click_rate ?? 0,
-                'date'       => $c->sent_at?->toDateString(),
+                'date' => $c->sent_at?->toDateString(),
             ])->values(),
-            'comparison'          => $this->topCampaigns(8),
-            'audience_growth'     => $this->audienceGrowth(),
+            'comparison' => $this->topCampaigns(8),
+            'audience_growth' => $this->audienceGrowth(),
             'most_active_contacts' => $this->mostActiveContacts(),
         ]);
     }
@@ -78,12 +77,12 @@ class EmailAnalyticsController extends Controller
         }
 
         foreach ($rows as $row) {
-            if (!isset($series[$row->d])) {
+            if (! isset($series[$row->d])) {
                 continue;
             }
             match ($row->event) {
-                'sent'  => $series[$row->d]['sent'] = $row->c,
-                'open'  => $series[$row->d]['opened'] = $row->c,
+                'sent' => $series[$row->d]['sent'] = $row->c,
+                'open' => $series[$row->d]['opened'] = $row->c,
                 'click' => $series[$row->d]['clicked'] = $row->c,
                 default => null,
             };
@@ -98,16 +97,16 @@ class EmailAnalyticsController extends Controller
             ->orderByDesc('updated_at')
             ->limit($limit)
             ->get()
-            ->map(fn($c) => [
-                'id'             => $c->id,
-                'name'           => $c->name,
-                'status'         => $c->status,
-                'audience'       => $c->audienceGroup?->name,
+            ->map(fn ($c) => [
+                'id' => $c->id,
+                'name' => $c->name,
+                'status' => $c->status,
+                'audience' => $c->audienceGroup?->name,
                 'audience_count' => $c->audience_count,
-                'sent_count'     => $c->sent_count,
-                'open_rate'      => $c->open_rate,
-                'click_rate'     => $c->click_rate,
-                'date'           => ($c->sent_at ?? $c->updated_at)?->toISOString(),
+                'sent_count' => $c->sent_count,
+                'open_rate' => $c->open_rate,
+                'click_rate' => $c->click_rate,
+                'date' => ($c->sent_at ?? $c->updated_at)?->toISOString(),
             ])->all();
     }
 
@@ -117,10 +116,10 @@ class EmailAnalyticsController extends Controller
             ->orderByDesc('open_rate')
             ->limit($limit)
             ->get()
-            ->map(fn($c) => [
-                'name'       => $c->name,
+            ->map(fn ($c) => [
+                'name' => $c->name,
                 'sent_count' => $c->sent_count,
-                'open_rate'  => $c->open_rate ?? 0,
+                'open_rate' => $c->open_rate ?? 0,
                 'click_rate' => $c->click_rate ?? 0,
             ])->all();
     }
@@ -130,12 +129,12 @@ class EmailAnalyticsController extends Controller
         return EmailCampaign::orderByDesc('updated_at')
             ->limit($limit)
             ->get()
-            ->map(fn($c) => [
-                'id'     => $c->id,
-                'name'   => $c->name,
+            ->map(fn ($c) => [
+                'id' => $c->id,
+                'name' => $c->name,
                 'status' => $c->status,
-                'count'  => $c->audience_count,
-                'at'     => $c->updated_at?->toISOString(),
+                'count' => $c->audience_count,
+                'at' => $c->updated_at?->toISOString(),
             ])->all();
     }
 
@@ -164,10 +163,10 @@ class EmailAnalyticsController extends Controller
             ->orderByRaw('sum(open_count) + sum(click_count) desc')
             ->limit($limit)
             ->get()
-            ->map(fn($r) => [
-                'email'  => $r->email,
-                'name'   => $r->name,
-                'opens'  => (int) $r->opens,
+            ->map(fn ($r) => [
+                'email' => $r->email,
+                'name' => $r->name,
+                'opens' => (int) $r->opens,
                 'clicks' => (int) $r->clicks,
             ])->all();
     }

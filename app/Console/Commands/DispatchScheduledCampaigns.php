@@ -21,6 +21,7 @@ class DispatchScheduledCampaigns extends Command
 
         if ($due->isEmpty()) {
             $this->info('No campaigns due.');
+
             return self::SUCCESS;
         }
 

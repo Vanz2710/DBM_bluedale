@@ -16,6 +16,7 @@ class ToDoController extends Controller
             ->where('contact_id', $contactId)
             ->orderByDesc('todo_date')
             ->get();
+
         return response()->json(['data' => $todos]);
     }
 
@@ -24,11 +25,11 @@ class ToDoController extends Controller
         Contact::findOrFail($contactId);
 
         $validated = $request->validate([
-            'user_id'      => 'nullable|exists:users,id',
-            'task_id'      => 'nullable|exists:tasks,id',
-            'todo_date'    => 'required|date',
+            'user_id' => 'nullable|exists:users,id',
+            'task_id' => 'nullable|exists:tasks,id',
+            'todo_date' => 'required|date',
             'date_created' => 'nullable|date',
-            'todo_remark'  => 'nullable|string',
+            'todo_remark' => 'nullable|string',
         ]);
 
         if (empty($validated['date_created'])) {
@@ -48,20 +49,22 @@ class ToDoController extends Controller
         $todo = ToDo::where('contact_id', $contactId)->findOrFail($id);
 
         $validated = $request->validate([
-            'user_id'      => 'nullable|exists:users,id',
-            'task_id'      => 'nullable|exists:tasks,id',
-            'todo_date'    => 'required|date',
+            'user_id' => 'nullable|exists:users,id',
+            'task_id' => 'nullable|exists:tasks,id',
+            'todo_date' => 'required|date',
             'date_created' => 'nullable|date',
-            'todo_remark'  => 'nullable|string',
+            'todo_remark' => 'nullable|string',
         ]);
 
         $todo->update($validated);
+
         return response()->json(['status' => 'success', 'data' => $todo->fresh(['task', 'user'])]);
     }
 
     public function destroy(string $contactId, string $id)
     {
         ToDo::where('contact_id', $contactId)->findOrFail($id)->delete();
+
         return response()->json(['status' => 'success']);
     }
 }

@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-use App\Models\Contact;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
@@ -25,26 +24,26 @@ use Spatie\Permission\Traits\HasRoles;
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use HasApiTokens, HasFactory, Notifiable, HasRoles, SoftDeletes;
+    use HasApiTokens, HasFactory, HasRoles, Notifiable, SoftDeletes;
 
     protected function casts(): array
     {
         return [
-            'email_verified_at'   => 'datetime',
-            'approved_at'         => 'datetime',
+            'email_verified_at' => 'datetime',
+            'approved_at' => 'datetime',
             'access_requested_at' => 'datetime',
-            'last_login_at'       => 'datetime',
-            'password'            => 'hashed',
-            'settings'            => 'array',
-            'dashboard_layout'    => 'array',
-            'is_approved'         => 'boolean',
-            'login_count'            => 'integer',
-            'inactivity_flagged_at'  => 'datetime',
-        'blocked_at'             => 'datetime',
-            'locked_until'           => 'datetime',
-            'failed_login_attempts'  => 'integer',
-            'lockout_level'          => 'integer',
-            'permanently_locked'     => 'boolean',
+            'last_login_at' => 'datetime',
+            'password' => 'hashed',
+            'settings' => 'array',
+            'dashboard_layout' => 'array',
+            'is_approved' => 'boolean',
+            'login_count' => 'integer',
+            'inactivity_flagged_at' => 'datetime',
+            'blocked_at' => 'datetime',
+            'locked_until' => 'datetime',
+            'failed_login_attempts' => 'integer',
+            'lockout_level' => 'integer',
+            'permanently_locked' => 'boolean',
         ];
     }
 

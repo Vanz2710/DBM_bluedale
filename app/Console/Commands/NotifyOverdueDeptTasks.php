@@ -10,6 +10,7 @@ use Illuminate\Console\Command;
 class NotifyOverdueDeptTasks extends Command
 {
     protected $signature = 'dept:notify-overdue';
+
     protected $description = 'Notify assignees and admins on newly overdue department tasks';
 
     public function handle(): int
@@ -28,15 +29,16 @@ class NotifyOverdueDeptTasks extends Command
 
         if ($tasks->isEmpty()) {
             $this->info('No newly overdue tasks.');
+
             return Command::SUCCESS;
         }
 
         $adminIds = User::role(['admin', 'super-admin'])->pluck('id');
-        $created  = 0;
+        $created = 0;
 
         foreach ($tasks as $task) {
             $assigneeName = $task->assignee?->name ?? 'Unassigned';
-            $deptName     = $task->department?->name;
+            $deptName = $task->department?->name;
 
             // Personal nudge straight to whoever the work actually belongs to —
             // previously only admins were told a task was overdue, so the assignee
@@ -45,7 +47,7 @@ class NotifyOverdueDeptTasks extends Command
                 DeptNotification::create([
                     'user_id' => $task->assigned_to,
                     'task_id' => $task->id,
-                    'type'    => 'overdue',
+                    'type' => 'overdue',
                     'message' => "Your task \"{$task->title}\" is overdue.",
                 ]);
                 $created++;
@@ -58,11 +60,13 @@ class NotifyOverdueDeptTasks extends Command
             $adminMessage .= ' is overdue.';
 
             foreach ($adminIds as $adminId) {
-                if ($adminId === $task->assigned_to) continue; // already got the personal version above
+                if ($adminId === $task->assigned_to) {
+                    continue;
+                } // already got the personal version above
                 DeptNotification::create([
                     'user_id' => $adminId,
                     'task_id' => $task->id,
-                    'type'    => 'overdue',
+                    'type' => 'overdue',
                     'message' => $adminMessage,
                 ]);
                 $created++;
@@ -70,6 +74,7 @@ class NotifyOverdueDeptTasks extends Command
         }
 
         $this->info("Overdue check complete. {$created} notification(s) sent for {$tasks->count()} task(s).");
+
         return Command::SUCCESS;
     }
 }

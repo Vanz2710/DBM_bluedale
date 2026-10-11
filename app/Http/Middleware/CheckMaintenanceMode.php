@@ -11,9 +11,9 @@ class CheckMaintenanceMode
 {
     public function handle(Request $request, Closure $next): mixed
     {
-        if (Cache::remember('__maint', 30, fn() => SystemSetting::get('maintenance_mode')) === '1') {
+        if (Cache::remember('__maint', 30, fn () => SystemSetting::get('maintenance_mode')) === '1') {
             return response()->json([
-                'error'   => 'maintenance',
+                'error' => 'maintenance',
                 'message' => SystemSetting::get('maintenance_message')
                     ?: 'System is currently under maintenance. Please try again later.',
             ], 503);

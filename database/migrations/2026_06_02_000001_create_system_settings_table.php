@@ -20,12 +20,12 @@ return new class extends Migration
 
         DB::table('system_settings')->insert([
             [
-                'key'         => 'admin_notification_email',
-                'value'       => config('mail.from.address'),
-                'label'       => 'Admin Notification Email',
+                'key' => 'admin_notification_email',
+                'value' => config('mail.from.address'),
+                'label' => 'Admin Notification Email',
                 'description' => 'Email address that receives system alert notifications (inactivity lockouts, new user approval requests).',
-                'created_at'  => now(),
-                'updated_at'  => now(),
+                'created_at' => now(),
+                'updated_at' => now(),
             ],
         ]);
     }

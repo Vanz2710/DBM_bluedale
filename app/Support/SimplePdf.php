@@ -9,8 +9,7 @@ class SimplePdf
     public function __construct(
         private readonly float $width = 595.28,
         private readonly float $height = 841.89,
-    ) {
-    }
+    ) {}
 
     public function text(float $x, float $y, string $text, int $size = 10, bool $bold = false): void
     {
@@ -73,7 +72,7 @@ class SimplePdf
             ),
             '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',
             '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>',
-            "<< /Length " . strlen($stream) . " >>\nstream\n{$stream}endstream",
+            '<< /Length '.strlen($stream)." >>\nstream\n{$stream}endstream",
         ];
 
         $pdf = "%PDF-1.4\n";
@@ -86,14 +85,14 @@ class SimplePdf
         }
 
         $xrefOffset = strlen($pdf);
-        $pdf .= "xref\n0 " . (count($objects) + 1) . "\n";
+        $pdf .= "xref\n0 ".(count($objects) + 1)."\n";
         $pdf .= "0000000000 65535 f \n";
 
         for ($i = 1; $i <= count($objects); $i++) {
             $pdf .= sprintf("%010d 00000 n \n", $offsets[$i]);
         }
 
-        $pdf .= "trailer\n<< /Size " . (count($objects) + 1) . " /Root 1 0 R >>\n";
+        $pdf .= "trailer\n<< /Size ".(count($objects) + 1)." /Root 1 0 R >>\n";
         $pdf .= "startxref\n{$xrefOffset}\n%%EOF";
 
         return $pdf;
@@ -107,7 +106,7 @@ class SimplePdf
         $line = '';
 
         foreach ($words as $word) {
-            $candidate = trim($line . ' ' . $word);
+            $candidate = trim($line.' '.$word);
             if (strlen($candidate) > $maxChars && $line !== '') {
                 $lines[] = $line;
                 $line = $word;

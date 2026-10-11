@@ -13,11 +13,11 @@ class Csv
      */
     public static function safe(mixed $value): mixed
     {
-        if (!is_string($value) || $value === '') {
+        if (! is_string($value) || $value === '') {
             return $value;
         }
 
-        return preg_match('/^[=+\-@]/', $value) ? "'" . $value : $value;
+        return preg_match('/^[=+\-@]/', $value) ? "'".$value : $value;
     }
 
     /**

@@ -24,31 +24,31 @@ return new class extends Migration
             }
 
             // Add new columns
-            if (!Schema::hasColumn('email_campaigns', 'preview_text')) {
+            if (! Schema::hasColumn('email_campaigns', 'preview_text')) {
                 $table->string('preview_text', 255)->nullable()->after('subject');
             }
-            if (!Schema::hasColumn('email_campaigns', 'sender_name')) {
+            if (! Schema::hasColumn('email_campaigns', 'sender_name')) {
                 $table->string('sender_name', 255)->nullable()->after('preview_text');
             }
-            if (!Schema::hasColumn('email_campaigns', 'scheduled_at')) {
+            if (! Schema::hasColumn('email_campaigns', 'scheduled_at')) {
                 $table->timestamp('scheduled_at')->nullable()->after('status');
             }
-            if (!Schema::hasColumn('email_campaigns', 'sent_at')) {
+            if (! Schema::hasColumn('email_campaigns', 'sent_at')) {
                 $table->timestamp('sent_at')->nullable()->after('scheduled_at');
             }
-            if (!Schema::hasColumn('email_campaigns', 'audience_count')) {
+            if (! Schema::hasColumn('email_campaigns', 'audience_count')) {
                 $table->unsignedInteger('audience_count')->default(0)->after('sent_at');
             }
-            if (!Schema::hasColumn('email_campaigns', 'open_rate')) {
+            if (! Schema::hasColumn('email_campaigns', 'open_rate')) {
                 $table->decimal('open_rate', 5, 2)->nullable()->after('sent_count');
             }
-            if (!Schema::hasColumn('email_campaigns', 'click_rate')) {
+            if (! Schema::hasColumn('email_campaigns', 'click_rate')) {
                 $table->decimal('click_rate', 5, 2)->nullable()->after('open_rate');
             }
-            if (!Schema::hasColumn('email_campaigns', 'brevo_campaign_id')) {
+            if (! Schema::hasColumn('email_campaigns', 'brevo_campaign_id')) {
                 $table->unsignedBigInteger('brevo_campaign_id')->nullable()->after('click_rate');
             }
-            if (!Schema::hasColumn('email_campaigns', 'brevo_list_id')) {
+            if (! Schema::hasColumn('email_campaigns', 'brevo_list_id')) {
                 $table->unsignedBigInteger('brevo_list_id')->nullable()->after('brevo_campaign_id');
             }
 

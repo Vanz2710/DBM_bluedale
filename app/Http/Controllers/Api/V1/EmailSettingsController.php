@@ -18,17 +18,17 @@ class EmailSettingsController extends Controller
     public function update(Request $request)
     {
         $data = $request->validate([
-            'smtp_host'        => 'nullable|string|max:255',
-            'smtp_port'        => 'nullable|integer|min:1|max:65535',
-            'smtp_username'    => 'nullable|string|max:255',
-            'smtp_password'    => 'nullable|string|max:500',
-            'smtp_encryption'  => 'nullable|in:tls,ssl,none',
-            'from_name'        => 'nullable|string|max:255',
-            'from_email'       => 'nullable|email|max:255',
-            'reply_to'         => 'nullable|email|max:255',
-            'company_name'     => 'nullable|string|max:255',
-            'company_address'  => 'nullable|string|max:500',
-            'email_footer'     => 'nullable|string|max:1000',
+            'smtp_host' => 'nullable|string|max:255',
+            'smtp_port' => 'nullable|integer|min:1|max:65535',
+            'smtp_username' => 'nullable|string|max:255',
+            'smtp_password' => 'nullable|string|max:500',
+            'smtp_encryption' => 'nullable|in:tls,ssl,none',
+            'from_name' => 'nullable|string|max:255',
+            'from_email' => 'nullable|email|max:255',
+            'reply_to' => 'nullable|email|max:255',
+            'company_name' => 'nullable|string|max:255',
+            'company_address' => 'nullable|string|max:500',
+            'email_footer' => 'nullable|string|max:1000',
             'tracking_enabled' => 'nullable|boolean',
         ]);
 
@@ -56,7 +56,7 @@ class EmailSettingsController extends Controller
 
         $settings = EmailSetting::current();
 
-        if (!$settings->isConfigured()) {
+        if (! $settings->isConfigured()) {
             return response()->json(['message' => 'Add an SMTP host and sender email before testing.'], 422);
         }
 
@@ -72,10 +72,10 @@ class EmailSettingsController extends Controller
                 }
             );
         } catch (\Throwable $e) {
-            return response()->json(['message' => 'SMTP test failed: ' . $e->getMessage()], 422);
+            return response()->json(['message' => 'SMTP test failed: '.$e->getMessage()], 422);
         }
 
-        return response()->json(['message' => 'Test email sent to ' . $request->input('email') . '.']);
+        return response()->json(['message' => 'Test email sent to '.$request->input('email').'.']);
     }
 
     /**
@@ -85,19 +85,19 @@ class EmailSettingsController extends Controller
     private function present(EmailSetting $s): array
     {
         return [
-            'smtp_host'        => $s->smtp_host,
-            'smtp_port'        => $s->smtp_port,
-            'smtp_username'    => $s->smtp_username,
+            'smtp_host' => $s->smtp_host,
+            'smtp_port' => $s->smtp_port,
+            'smtp_username' => $s->smtp_username,
             'smtp_password_set' => filled($s->smtp_password),
-            'smtp_encryption'  => $s->smtp_encryption ?? 'none',
-            'from_name'        => $s->from_name,
-            'from_email'       => $s->from_email,
-            'reply_to'         => $s->reply_to,
-            'company_name'     => $s->company_name,
-            'company_address'  => $s->company_address,
-            'email_footer'     => $s->email_footer,
+            'smtp_encryption' => $s->smtp_encryption ?? 'none',
+            'from_name' => $s->from_name,
+            'from_email' => $s->from_email,
+            'reply_to' => $s->reply_to,
+            'company_name' => $s->company_name,
+            'company_address' => $s->company_address,
+            'email_footer' => $s->email_footer,
             'tracking_enabled' => $s->tracking_enabled,
-            'configured'       => $s->isConfigured(),
+            'configured' => $s->isConfigured(),
             'tracking_base_url' => rtrim(config('app.url'), '/'),
         ];
     }

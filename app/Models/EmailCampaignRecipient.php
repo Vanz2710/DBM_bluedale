@@ -15,8 +15,8 @@ class EmailCampaignRecipient extends Model
     ];
 
     protected $casts = [
-        'sent_at'    => 'datetime',
-        'opened_at'  => 'datetime',
+        'sent_at' => 'datetime',
+        'opened_at' => 'datetime',
         'clicked_at' => 'datetime',
     ];
 

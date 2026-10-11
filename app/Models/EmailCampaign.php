@@ -22,9 +22,9 @@ class EmailCampaign extends Model
 
     protected $casts = [
         'scheduled_at' => 'datetime',
-        'sent_at'      => 'datetime',
-        'open_rate'    => 'float',
-        'click_rate'   => 'float',
+        'sent_at' => 'datetime',
+        'open_rate' => 'float',
+        'click_rate' => 'float',
     ];
 
     public function user(): BelongsTo

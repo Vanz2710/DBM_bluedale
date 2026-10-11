@@ -56,7 +56,7 @@ class BrevoService
             'recipients' => ['listIds' => [$data['list_id']]],
         ];
 
-        if (!empty($data['scheduled_at'])) {
+        if (! empty($data['scheduled_at'])) {
             $payload['scheduledAt'] = $data['scheduled_at'];
         }
 

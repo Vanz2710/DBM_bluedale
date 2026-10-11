@@ -22,13 +22,13 @@ class CampaignSender
     public function configureMailer(EmailSetting $settings): void
     {
         config()->set('mail.mailers.email_module', [
-            'transport'    => 'smtp',
-            'host'         => $settings->smtp_host,
-            'port'         => $settings->smtp_port ?: 587,
-            'encryption'   => $settings->smtp_encryption ?: null,
-            'username'     => $settings->smtp_username,
-            'password'     => $settings->smtp_password,
-            'timeout'      => 30,
+            'transport' => 'smtp',
+            'host' => $settings->smtp_host,
+            'port' => $settings->smtp_port ?: 587,
+            'encryption' => $settings->smtp_encryption ?: null,
+            'username' => $settings->smtp_username,
+            'password' => $settings->smtp_password,
+            'timeout' => 30,
             'local_domain' => parse_url(config('app.url'), PHP_URL_HOST) ?: null,
         ]);
 
@@ -43,7 +43,7 @@ class CampaignSender
     {
         $settings = EmailSetting::current();
 
-        if (!$settings->isConfigured()) {
+        if (! $settings->isConfigured()) {
             throw new \RuntimeException('SMTP is not configured. Open Email Settings and add your SMTP host and sender email first.');
         }
 
@@ -68,7 +68,7 @@ class CampaignSender
         $this->refreshCounters($campaign);
 
         $campaign->update([
-            'status'  => 'sent',
+            'status' => 'sent',
             'sent_at' => $campaign->sent_at ?? now(),
         ]);
 
@@ -115,7 +115,7 @@ class CampaignSender
     {
         $settings = EmailSetting::current();
 
-        if (!$settings->isConfigured()) {
+        if (! $settings->isConfigured()) {
             throw new \RuntimeException('SMTP is not configured. Open Email Settings and add your SMTP host and sender email first.');
         }
 
@@ -126,7 +126,7 @@ class CampaignSender
 
         Mail::mailer('email_module')->html($html, function ($message) use ($campaign, $email, $settings) {
             $message->to($email)
-                ->subject('[TEST] ' . ($campaign->subject ?: $campaign->name))
+                ->subject('[TEST] '.($campaign->subject ?: $campaign->name))
                 ->from(
                     $campaign->sender_email ?: $settings->from_email,
                     $campaign->sender_name ?: $settings->from_name
@@ -141,21 +141,21 @@ class CampaignSender
     {
         $r = $campaign->recipients();
 
-        $sent        = (clone $r)->whereIn('status', ['sent', 'delivered', 'opened', 'clicked'])->count();
-        $opened      = (clone $r)->whereIn('status', ['opened', 'clicked'])->count();
-        $clicked     = (clone $r)->where('status', 'clicked')->count();
-        $bounced     = (clone $r)->where('status', 'bounced')->count();
+        $sent = (clone $r)->whereIn('status', ['sent', 'delivered', 'opened', 'clicked'])->count();
+        $opened = (clone $r)->whereIn('status', ['opened', 'clicked'])->count();
+        $clicked = (clone $r)->where('status', 'clicked')->count();
+        $bounced = (clone $r)->where('status', 'bounced')->count();
         $unsubscribed = (clone $r)->where('status', 'unsubscribed')->count();
 
         $campaign->update([
-            'sent_count'         => $sent,
-            'delivered_count'    => $sent,
-            'opened_count'       => $opened,
-            'clicked_count'      => $clicked,
-            'bounced_count'      => $bounced,
+            'sent_count' => $sent,
+            'delivered_count' => $sent,
+            'opened_count' => $opened,
+            'clicked_count' => $clicked,
+            'bounced_count' => $bounced,
             'unsubscribed_count' => $unsubscribed,
-            'open_rate'          => $sent > 0 ? round($opened / $sent * 100, 2) : null,
-            'click_rate'         => $sent > 0 ? round($clicked / $sent * 100, 2) : null,
+            'open_rate' => $sent > 0 ? round($opened / $sent * 100, 2) : null,
+            'click_rate' => $sent > 0 ? round($clicked / $sent * 100, 2) : null,
         ]);
     }
 
@@ -173,17 +173,17 @@ class CampaignSender
      */
     private function mergeTags(string $body, ?EmailCampaignRecipient $recipient, string $email): string
     {
-        $name    = $recipient?->name ?: '';
-        $first   = $name ? Str::before($name, ' ') : 'there';
+        $name = $recipient?->name ?: '';
+        $first = $name ? Str::before($name, ' ') : 'there';
         $company = $recipient?->contact?->company ?? '';
-        $phone   = $recipient?->contact?->phone ?? '';
+        $phone = $recipient?->contact?->phone ?? '';
 
         return strtr($body, [
-            '{{first_name}}'   => $first,
-            '{{full_name}}'    => $name ?: 'there',
-            '{{email}}'        => $email,
+            '{{first_name}}' => $first,
+            '{{full_name}}' => $name ?: 'there',
+            '{{email}}' => $email,
             '{{company_name}}' => $company,
-            '{{phone}}'        => $phone,
+            '{{phone}}' => $phone,
         ]);
     }
 
@@ -206,12 +206,12 @@ class CampaignSender
 
         $pixel = '';
         if ($trackingOn) {
-            $pixel = '<img src="' . $base . '/email/track/open/' . $recipient->token . '.png" width="1" height="1" alt="" style="display:none">';
+            $pixel = '<img src="'.$base.'/email/track/open/'.$recipient->token.'.png" width="1" height="1" alt="" style="display:none">';
         }
 
         $unsubscribe = '';
         if ($recipient) {
-            $unsubscribe = '<a href="' . $base . '/email/unsubscribe/' . $recipient->token . '" style="color:#94a3b8">Unsubscribe</a>';
+            $unsubscribe = '<a href="'.$base.'/email/unsubscribe/'.$recipient->token.'" style="color:#94a3b8">Unsubscribe</a>';
         }
 
         $footer = e($settings->email_footer ?: ($settings->company_name ?? ''));
@@ -252,12 +252,12 @@ class CampaignSender
                 return $m[0];
             }
 
-            $sig = hash_hmac('sha256', $token . '|' . $url, config('app.key'));
-            $tracked = $base . '/email/track/click/' . $token
-                . '?u=' . urlencode(base64_encode($url))
-                . '&s=' . $sig;
+            $sig = hash_hmac('sha256', $token.'|'.$url, config('app.key'));
+            $tracked = $base.'/email/track/click/'.$token
+                .'?u='.urlencode(base64_encode($url))
+                .'&s='.$sig;
 
-            return 'href="' . $tracked . '"';
+            return 'href="'.$tracked.'"';
         }, $html);
     }
 
@@ -268,32 +268,34 @@ class CampaignSender
     private function inlineImages(string $html): string
     {
         return preg_replace_callback('/<img([^>]*?)src="([^"]+)"([^>]*?)>/i', function ($m) {
-            $src  = $m[2];
+            $src = $m[2];
             $path = $this->storageUrlToPath($src);
             if ($path && file_exists($path)) {
                 $mime = mime_content_type($path);
-                $src  = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($path));
+                $src = 'data:'.$mime.';base64,'.base64_encode(file_get_contents($path));
             }
-            return '<img' . $m[1] . 'src="' . $src . '"' . $m[3] . '>';
+
+            return '<img'.$m[1].'src="'.$src.'"'.$m[3].'>';
         }, $html);
     }
 
     private function storageUrlToPath(string $url): ?string
     {
-        if (!str_contains($url, '/storage/email-images/')) {
+        if (! str_contains($url, '/storage/email-images/')) {
             return null;
         }
         $filename = basename(parse_url($url, PHP_URL_PATH));
-        return storage_path('app/public/email-images/' . $filename);
+
+        return storage_path('app/public/email-images/'.$filename);
     }
 
     private function log(EmailCampaign $campaign, EmailCampaignRecipient $recipient, string $event): void
     {
         EmailLog::create([
-            'email_campaign_id'           => $campaign->id,
+            'email_campaign_id' => $campaign->id,
             'email_campaign_recipient_id' => $recipient->id,
-            'email_contact_id'            => $recipient->email_contact_id,
-            'event'                       => $event,
+            'email_contact_id' => $recipient->email_contact_id,
+            'event' => $event,
         ]);
     }
 }

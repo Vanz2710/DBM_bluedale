@@ -28,36 +28,36 @@ class AudienceResolver
      */
     public function applyFilters(Builder $query, array $filters): Builder
     {
-        if (!empty($filters['company'])) {
-            $query->where('company', 'like', '%' . $filters['company'] . '%');
+        if (! empty($filters['company'])) {
+            $query->where('company', 'like', '%'.$filters['company'].'%');
         }
 
-        if (!empty($filters['status'])) {
+        if (! empty($filters['status'])) {
             $query->where('status', $filters['status']);
         }
 
-        if (!empty($filters['tag_id'])) {
-            $query->whereHas('tags', fn($q) => $q->where('email_tags.id', $filters['tag_id']));
+        if (! empty($filters['tag_id'])) {
+            $query->whereHas('tags', fn ($q) => $q->where('email_tags.id', $filters['tag_id']));
         }
 
-        if (!empty($filters['tag'])) {
-            $query->whereHas('tags', fn($q) => $q->where('email_tags.name', $filters['tag']));
+        if (! empty($filters['tag'])) {
+            $query->whereHas('tags', fn ($q) => $q->where('email_tags.name', $filters['tag']));
         }
 
-        if (!empty($filters['created_after'])) {
+        if (! empty($filters['created_after'])) {
             $query->whereDate('created_at', '>=', $filters['created_after']);
         }
 
-        if (!empty($filters['created_before'])) {
+        if (! empty($filters['created_before'])) {
             $query->whereDate('created_at', '<=', $filters['created_before']);
         }
 
-        if (!empty($filters['activity'])) {
+        if (! empty($filters['activity'])) {
             match ($filters['activity']) {
-                'opened'  => $query->whereHas('recipients', fn($q) => $q->whereIn('status', ['opened', 'clicked'])),
-                'clicked' => $query->whereHas('recipients', fn($q) => $q->where('status', 'clicked')),
-                'none'    => $query->whereDoesntHave('recipients'),
-                default   => null,
+                'opened' => $query->whereHas('recipients', fn ($q) => $q->whereIn('status', ['opened', 'clicked'])),
+                'clicked' => $query->whereHas('recipients', fn ($q) => $q->where('status', 'clicked')),
+                'none' => $query->whereDoesntHave('recipients'),
+                default => null,
             };
         }
 

@@ -17,11 +17,11 @@ class RoundRobinAssigner
                 return null;
             }
 
-            $state  = RoundRobinState::lockForUpdate()->first();
+            $state = RoundRobinState::lockForUpdate()->first();
             $lastId = $state?->last_user_id;
 
             // Pick the first user whose id is strictly greater than lastId; wrap to start if none
-            $nextId = $userIds->first(fn($id) => $id > $lastId) ?? $userIds->first();
+            $nextId = $userIds->first(fn ($id) => $id > $lastId) ?? $userIds->first();
 
             if ($state) {
                 $state->update(['last_user_id' => $nextId]);

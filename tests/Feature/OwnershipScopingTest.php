@@ -28,7 +28,9 @@ class OwnershipScopingTest extends TestCase
     use RefreshDatabase;
 
     private User $alex;
+
     private User $sam;
+
     private Contact $samsContact;
 
     protected function setUp(): void
@@ -38,7 +40,7 @@ class OwnershipScopingTest extends TestCase
         $this->seed(RolesAndPermissionsSeeder::class);
 
         $this->alex = $this->userWithRole('user');
-        $this->sam  = $this->userWithRole('user');
+        $this->sam = $this->userWithRole('user');
 
         $this->samsContact = Contact::create(['name' => 'Globex Trading', 'user_id' => $this->sam->id]);
     }
@@ -55,22 +57,22 @@ class OwnershipScopingTest extends TestCase
     {
         return Deal::create([
             'contact_id' => $this->samsContact->id,
-            'user_id'    => $this->sam->id,
-            'title'      => "Sam's deal",
-            'stage'      => 'Negotiation',
-            'value'      => 50000,
-            'status'     => 'open',
+            'user_id' => $this->sam->id,
+            'title' => "Sam's deal",
+            'stage' => 'Negotiation',
+            'value' => 50000,
+            'status' => 'open',
         ]);
     }
 
     private function samsProject(): Project
     {
         return Project::create([
-            'contact_id'        => $this->samsContact->id,
-            'user_id'           => $this->sam->id,
-            'project_name'      => "Sam's project",
+            'contact_id' => $this->samsContact->id,
+            'user_id' => $this->sam->id,
+            'project_name' => "Sam's project",
             'project_startdate' => '2026-01-01',
-            'project_enddate'   => '2026-06-30',
+            'project_enddate' => '2026-06-30',
         ]);
     }
 
@@ -100,10 +102,10 @@ class OwnershipScopingTest extends TestCase
         Sanctum::actingAs($this->alex);
 
         $this->putJson("/api/v1/deals/{$deal->id}", [
-            'title'      => 'Hijacked',
-            'stage'      => 'Lost',
+            'title' => 'Hijacked',
+            'stage' => 'Lost',
             'contact_id' => $this->samsContact->id,
-            'status'     => 'lost',
+            'status' => 'lost',
         ])->assertNotFound();
 
         $this->assertDatabaseHas('deals', ['id' => $deal->id, 'title' => "Sam's deal", 'status' => 'open']);
@@ -145,17 +147,17 @@ class OwnershipScopingTest extends TestCase
         Sanctum::actingAs($this->alex);
 
         $this->putJson("/api/v1/projects/{$project->id}", [
-            'project_name'      => 'Hijacked',
+            'project_name' => 'Hijacked',
             'project_startdate' => '2026-01-01',
-            'project_enddate'   => '2026-06-30',
-            'contact_id'        => $this->samsContact->id,
+            'project_enddate' => '2026-06-30',
+            'contact_id' => $this->samsContact->id,
         ])->assertNotFound();
 
         // Ownership must not silently move to whoever made the edit.
         $this->assertDatabaseHas('projects', [
-            'id'           => $project->id,
+            'id' => $project->id,
             'project_name' => "Sam's project",
-            'user_id'      => $this->sam->id,
+            'user_id' => $this->sam->id,
         ]);
     }
 
@@ -174,12 +176,12 @@ class OwnershipScopingTest extends TestCase
     public function test_user_cannot_view_another_users_forecast(): void
     {
         $forecast = Forecast::create([
-            'contact_id'       => $this->samsContact->id,
-            'user_id'          => $this->sam->id,
-            'product_id'       => ForecastProduct::create(['name' => 'Billboard'])->id,
+            'contact_id' => $this->samsContact->id,
+            'user_id' => $this->sam->id,
+            'product_id' => ForecastProduct::create(['name' => 'Billboard'])->id,
             'forecast_type_id' => ForecastType::create(['name' => 'A1'])->id,
-            'amount'           => 25000,
-            'forecast_date'    => '2026-06-15',
+            'amount' => 25000,
+            'forecast_date' => '2026-06-15',
         ]);
         Sanctum::actingAs($this->alex);
 

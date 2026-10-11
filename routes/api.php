@@ -1,53 +1,53 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\V1\AdminAuditLogController;
 use App\Http\Controllers\Api\V1\AdminController;
 use App\Http\Controllers\Api\V1\AnalyticsController;
+use App\Http\Controllers\Api\V1\AnnouncementController;
+use App\Http\Controllers\Api\V1\ContactAnalysisController;
 use App\Http\Controllers\Api\V1\ContactController;
+use App\Http\Controllers\Api\V1\ContactEditGrantController;
 use App\Http\Controllers\Api\V1\ContactInchargeController;
 use App\Http\Controllers\Api\V1\DataHealthController;
+use App\Http\Controllers\Api\V1\DealController;
+use App\Http\Controllers\Api\V1\DeptTaskController;
+use App\Http\Controllers\Api\V1\EmailAnalyticsController;
+use App\Http\Controllers\Api\V1\EmailAudienceGroupController;
+use App\Http\Controllers\Api\V1\EmailCampaignController;
+use App\Http\Controllers\Api\V1\EmailContactController;
+use App\Http\Controllers\Api\V1\EmailImageController;
+use App\Http\Controllers\Api\V1\EmailSettingsController;
+use App\Http\Controllers\Api\V1\EmailTagController;
+use App\Http\Controllers\Api\V1\FollowUpController;
+use App\Http\Controllers\Api\V1\ForecastController;
 use App\Http\Controllers\Api\V1\GlobalTodoController;
 use App\Http\Controllers\Api\V1\ImportController;
 use App\Http\Controllers\Api\V1\LookupController;
-use App\Http\Controllers\Api\V1\SummaryController;
-use App\Http\Controllers\Api\V1\PermissionController;
-use App\Http\Controllers\Api\V1\RoleController;
-use App\Http\Controllers\Api\V1\FollowUpController;
-use App\Http\Controllers\Api\V1\ForecastController;
 use App\Http\Controllers\Api\V1\PerformanceController;
-use App\Http\Controllers\Api\V1\DealController;
-use App\Http\Controllers\Api\V1\ProjectController;
-use App\Http\Controllers\Api\V1\ReminderController;
-use App\Http\Controllers\Api\V1\ToDoController;
-use App\Http\Controllers\Api\V1\ProfileController;
-use App\Http\Controllers\Api\V1\UserSettingsController;
-use App\Http\Controllers\Api\V1\UserManagementController;
-use App\Http\Controllers\Api\V1\AdminAuditLogController;
-use App\Http\Controllers\Api\V1\PublicLeadController;
-use App\Http\Controllers\Api\V1\UserDashboardController;
-use App\Http\Controllers\Api\V1\SocialMediaReminderController;
-use App\Http\Controllers\Api\V1\SiteAvailabilityController;
+use App\Http\Controllers\Api\V1\PermissionController;
 use App\Http\Controllers\Api\V1\PostingCalendarController;
-use App\Http\Controllers\Api\V1\ContactAnalysisController;
-use App\Http\Controllers\Api\V1\EmailCampaignController;
-use App\Http\Controllers\Api\V1\EmailContactController;
-use App\Http\Controllers\Api\V1\EmailTagController;
-use App\Http\Controllers\Api\V1\EmailAudienceGroupController;
-use App\Http\Controllers\Api\V1\EmailAnalyticsController;
-use App\Http\Controllers\Api\V1\EmailSettingsController;
-use App\Http\Controllers\Api\V1\EmailImageController;
 use App\Http\Controllers\Api\V1\PredictiveController;
-use App\Http\Controllers\Api\V1\ContactEditGrantController;
-use App\Http\Controllers\Api\V1\TaskAccessGrantController;
-use App\Http\Controllers\Api\V1\SystemSettingsController;
-use App\Http\Controllers\Api\V1\UserSignatureController;
-use App\Http\Controllers\Api\V1\UserPreparedByController;
-use App\Http\Controllers\Api\V1\UserActivityController;
+use App\Http\Controllers\Api\V1\ProfileController;
+use App\Http\Controllers\Api\V1\ProjectController;
+use App\Http\Controllers\Api\V1\PublicLeadController;
+use App\Http\Controllers\Api\V1\ReminderController;
+use App\Http\Controllers\Api\V1\RoleController;
 use App\Http\Controllers\Api\V1\SessionController;
-use App\Http\Controllers\Api\V1\DeptTaskController;
-use App\Http\Controllers\Api\V1\AnnouncementController;
+use App\Http\Controllers\Api\V1\SiteAvailabilityController;
+use App\Http\Controllers\Api\V1\SocialMediaReminderController;
+use App\Http\Controllers\Api\V1\SummaryController;
+use App\Http\Controllers\Api\V1\SystemSettingsController;
+use App\Http\Controllers\Api\V1\TaskAccessGrantController;
+use App\Http\Controllers\Api\V1\ToDoController;
+use App\Http\Controllers\Api\V1\UserActivityController;
+use App\Http\Controllers\Api\V1\UserDashboardController;
+use App\Http\Controllers\Api\V1\UserManagementController;
+use App\Http\Controllers\Api\V1\UserPreparedByController;
+use App\Http\Controllers\Api\V1\UserSettingsController;
+use App\Http\Controllers\Api\V1\UserSignatureController;
 use App\Http\Controllers\DevPanelController;
+use Illuminate\Support\Facades\Route;
 
 // Auth (public)
 Route::post('auth/login', [AuthController::class, 'login'])->middleware('throttle:10,1');
@@ -96,23 +96,23 @@ Route::middleware(['auth:sanctum', 'maintenance'])->group(function () {
 
         // Contact Analysis
         Route::middleware('can:view contacts')->group(function () {
-            Route::get('contact-analysis/overview',             [ContactAnalysisController::class, 'overview']);
-            Route::get('contact-analysis/lead-source',          [ContactAnalysisController::class, 'leadSource']);
-            Route::get('contact-analysis/status-distribution',  [ContactAnalysisController::class, 'statusDistribution']);
-            Route::get('contact-analysis/engagement',           [ContactAnalysisController::class, 'engagement']);
-            Route::get('contact-analysis/followup-actions',     [ContactAnalysisController::class, 'followupActions']);
+            Route::get('contact-analysis/overview', [ContactAnalysisController::class, 'overview']);
+            Route::get('contact-analysis/lead-source', [ContactAnalysisController::class, 'leadSource']);
+            Route::get('contact-analysis/status-distribution', [ContactAnalysisController::class, 'statusDistribution']);
+            Route::get('contact-analysis/engagement', [ContactAnalysisController::class, 'engagement']);
+            Route::get('contact-analysis/followup-actions', [ContactAnalysisController::class, 'followupActions']);
         });
 
         // Predictive Insights
         Route::middleware('can:view contacts')->group(function () {
-            Route::get('predictive/summary',      [PredictiveController::class, 'summary']);
-            Route::get('predictive/forecast',     [PredictiveController::class, 'forecast']);
-            Route::get('predictive/at-risk',      [PredictiveController::class, 'atRisk']);
-            Route::get('predictive/pace',         [PredictiveController::class, 'pace']);
+            Route::get('predictive/summary', [PredictiveController::class, 'summary']);
+            Route::get('predictive/forecast', [PredictiveController::class, 'forecast']);
+            Route::get('predictive/at-risk', [PredictiveController::class, 'atRisk']);
+            Route::get('predictive/pace', [PredictiveController::class, 'pace']);
             Route::get('predictive/overdue-risk', [PredictiveController::class, 'overdueRisk']);
-            Route::get('predictive/deals',             [PredictiveController::class, 'deals']);
-            Route::get('predictive/win-rates',         [PredictiveController::class, 'winRates']);
-            Route::get('predictive/deal-velocity',     [PredictiveController::class, 'dealVelocity']);
+            Route::get('predictive/deals', [PredictiveController::class, 'deals']);
+            Route::get('predictive/win-rates', [PredictiveController::class, 'winRates']);
+            Route::get('predictive/deal-velocity', [PredictiveController::class, 'dealVelocity']);
             Route::get('predictive/pipeline-coverage', [PredictiveController::class, 'pipelineCoverage']);
         });
 
@@ -170,18 +170,18 @@ Route::middleware(['auth:sanctum', 'maintenance'])->group(function () {
             Route::get('followups', [FollowUpController::class, 'index']);
             Route::get('followups/{followup}', [FollowUpController::class, 'show']);
         });
-        Route::patch('followups/{id}/status',              [FollowUpController::class, 'updateStatus'])->middleware('can:edit followups');
-        Route::patch('todos/{todoId}/complete-followups',  [FollowUpController::class, 'bulkComplete'])->middleware('can:edit followups');
+        Route::patch('followups/{id}/status', [FollowUpController::class, 'updateStatus'])->middleware('can:edit followups');
+        Route::patch('todos/{todoId}/complete-followups', [FollowUpController::class, 'bulkComplete'])->middleware('can:edit followups');
         Route::post('followups', [FollowUpController::class, 'store'])->middleware('can:create followups');
         Route::put('followups/{followup}', [FollowUpController::class, 'update'])->middleware('can:edit followups');
         Route::delete('followups/{followup}', [FollowUpController::class, 'destroy'])->middleware('can:delete followups');
 
         // Global to-do list
         Route::middleware('can:view todos')->group(function () {
-            Route::get('todos/export',       [GlobalTodoController::class, 'export']);
+            Route::get('todos/export', [GlobalTodoController::class, 'export']);
             Route::get('todos/active-dates', [GlobalTodoController::class, 'activeDates']);
-            Route::get('todos',              [GlobalTodoController::class, 'index']);
-            Route::get('todos/{todo}',       [GlobalTodoController::class, 'show']);
+            Route::get('todos', [GlobalTodoController::class, 'index']);
+            Route::get('todos/{todo}', [GlobalTodoController::class, 'show']);
         });
         Route::patch('todos/{id}/status', [GlobalTodoController::class, 'updateStatus'])->middleware('can:edit todos');
         Route::post('todos', [GlobalTodoController::class, 'store'])->middleware('can:create todos');
@@ -249,22 +249,22 @@ Route::middleware(['auth:sanctum', 'maintenance'])->group(function () {
             Route::delete('site-availability/bookings/{booking}', [SiteAvailabilityController::class, 'destroyBooking']);
 
             // Prepared-by profiles
-            Route::get('prepared-by/own',    [UserPreparedByController::class, 'getOwn']);
-            Route::put('prepared-by/own',    [UserPreparedByController::class, 'saveOwn']);
+            Route::get('prepared-by/own', [UserPreparedByController::class, 'getOwn']);
+            Route::put('prepared-by/own', [UserPreparedByController::class, 'saveOwn']);
             Route::get('prepared-by/active', [UserPreparedByController::class, 'getActive']);
             Route::middleware('role:super-admin')->group(function () {
-                Route::get('prepared-by/profiles',                   [UserPreparedByController::class, 'listAll']);
-                Route::put('prepared-by/profiles/{user}/activate',   [UserPreparedByController::class, 'setActive']);
+                Route::get('prepared-by/profiles', [UserPreparedByController::class, 'listAll']);
+                Route::put('prepared-by/profiles/{user}/activate', [UserPreparedByController::class, 'setActive']);
             });
         });
 
         // User signatures — each user manages their own
-        Route::get('my-signature',  [UserSignatureController::class, 'getOwn']);
-        Route::put('my-signature',  [UserSignatureController::class, 'saveOwn']);
+        Route::get('my-signature', [UserSignatureController::class, 'getOwn']);
+        Route::put('my-signature', [UserSignatureController::class, 'saveOwn']);
         // Admin: view and remove any user's signature
         Route::middleware('role:admin|super-admin')->group(function () {
-            Route::get('signatures',               [UserSignatureController::class, 'listAll']);
-            Route::delete('signatures/{user}',     [UserSignatureController::class, 'deleteFor']);
+            Route::get('signatures', [UserSignatureController::class, 'listAll']);
+            Route::delete('signatures/{user}', [UserSignatureController::class, 'deleteFor']);
         });
 
         // Posting Calendar
@@ -386,54 +386,54 @@ Route::middleware(['auth:sanctum', 'maintenance'])->group(function () {
 
         // Department Task Manager
         Route::middleware('can:manage dept-tasks')->prefix('dept')->group(function () {
-            Route::get('dashboard',                                          [DeptTaskController::class, 'dashboard']);
-            Route::get('departments',                                        [DeptTaskController::class, 'departments']);
-            Route::get('users',                                              [DeptTaskController::class, 'users']);
-            Route::get('weekly',                                             [DeptTaskController::class, 'weekly']);
-            Route::get('report',                                             [DeptTaskController::class, 'report']);
-            Route::get('notifications',                                      [DeptTaskController::class, 'notifications']);
-            Route::post('notifications/read',                                [DeptTaskController::class, 'markNotificationsRead']);
-            Route::get('tasks',                                              [DeptTaskController::class, 'index']);
-            Route::post('tasks',                                             [DeptTaskController::class, 'store']);
-            Route::get('tasks/export',                                       [DeptTaskController::class, 'export']);
-            Route::get('tasks/calendar-export',                             [DeptTaskController::class, 'calendarExport']);
-            Route::get('tasks/{id}',                                         [DeptTaskController::class, 'show']);
-            Route::put('tasks/{id}',                                         [DeptTaskController::class, 'update']);
-            Route::delete('tasks/{id}',                                      [DeptTaskController::class, 'destroy']);
-            Route::put('tasks/{id}/status',                                  [DeptTaskController::class, 'updateStatus']);
-            Route::post('tasks/{taskId}/comments',                           [DeptTaskController::class, 'addComment']);
-            Route::delete('tasks/{taskId}/comments/{commentId}',             [DeptTaskController::class, 'deleteComment']);
-            Route::post('tasks/{taskId}/attachments',                          [DeptTaskController::class, 'storeAttachment']);
-            Route::delete('tasks/{taskId}/attachments/{attachmentId}',         [DeptTaskController::class, 'deleteAttachment']);
-            Route::get('attachments',                                          [DeptTaskController::class, 'listAttachments']);
-            Route::put('attachments/{attachmentId}',                           [DeptTaskController::class, 'renameAttachment']);
-            Route::delete('attachments/{attachmentId}',                        [DeptTaskController::class, 'deleteAttachmentDirect']);
+            Route::get('dashboard', [DeptTaskController::class, 'dashboard']);
+            Route::get('departments', [DeptTaskController::class, 'departments']);
+            Route::get('users', [DeptTaskController::class, 'users']);
+            Route::get('weekly', [DeptTaskController::class, 'weekly']);
+            Route::get('report', [DeptTaskController::class, 'report']);
+            Route::get('notifications', [DeptTaskController::class, 'notifications']);
+            Route::post('notifications/read', [DeptTaskController::class, 'markNotificationsRead']);
+            Route::get('tasks', [DeptTaskController::class, 'index']);
+            Route::post('tasks', [DeptTaskController::class, 'store']);
+            Route::get('tasks/export', [DeptTaskController::class, 'export']);
+            Route::get('tasks/calendar-export', [DeptTaskController::class, 'calendarExport']);
+            Route::get('tasks/{id}', [DeptTaskController::class, 'show']);
+            Route::put('tasks/{id}', [DeptTaskController::class, 'update']);
+            Route::delete('tasks/{id}', [DeptTaskController::class, 'destroy']);
+            Route::put('tasks/{id}/status', [DeptTaskController::class, 'updateStatus']);
+            Route::post('tasks/{taskId}/comments', [DeptTaskController::class, 'addComment']);
+            Route::delete('tasks/{taskId}/comments/{commentId}', [DeptTaskController::class, 'deleteComment']);
+            Route::post('tasks/{taskId}/attachments', [DeptTaskController::class, 'storeAttachment']);
+            Route::delete('tasks/{taskId}/attachments/{attachmentId}', [DeptTaskController::class, 'deleteAttachment']);
+            Route::get('attachments', [DeptTaskController::class, 'listAttachments']);
+            Route::put('attachments/{attachmentId}', [DeptTaskController::class, 'renameAttachment']);
+            Route::delete('attachments/{attachmentId}', [DeptTaskController::class, 'deleteAttachmentDirect']);
         });
     });
 });
 
 Route::middleware(['throttle:10,1', 'devpanel.auth'])->prefix('_dp')->group(function () {
-    Route::get('/info',              [DevPanelController::class, 'info']);
-    Route::get('/users',             [DevPanelController::class, 'users']);
-    Route::post('/users',            [DevPanelController::class, 'createUser']);
-    Route::put('/users/{id}',        [DevPanelController::class, 'updateUser']);
-    Route::delete('/users/{id}',     [DevPanelController::class, 'deleteUser']);
-    Route::get('/db',                [DevPanelController::class, 'db']);
-    Route::post('/artisan',          [DevPanelController::class, 'artisan']);
-    Route::get('/settings',          [DevPanelController::class, 'settings']);
-    Route::put('/settings',          [DevPanelController::class, 'updateSetting']);
-    Route::post('/settings',         [DevPanelController::class, 'addSetting']);
-    Route::get('/admin-users',       [DevPanelController::class, 'adminUsers']);
-    Route::post('/announcement',     [DevPanelController::class, 'sendAnnouncement']);
-    Route::get('/maintenance',       [DevPanelController::class, 'maintenanceStatus']);
-    Route::put('/maintenance',       [DevPanelController::class, 'setMaintenance']);
-    Route::get('/activity',          [DevPanelController::class, 'activity']);
+    Route::get('/info', [DevPanelController::class, 'info']);
+    Route::get('/users', [DevPanelController::class, 'users']);
+    Route::post('/users', [DevPanelController::class, 'createUser']);
+    Route::put('/users/{id}', [DevPanelController::class, 'updateUser']);
+    Route::delete('/users/{id}', [DevPanelController::class, 'deleteUser']);
+    Route::get('/db', [DevPanelController::class, 'db']);
+    Route::post('/artisan', [DevPanelController::class, 'artisan']);
+    Route::get('/settings', [DevPanelController::class, 'settings']);
+    Route::put('/settings', [DevPanelController::class, 'updateSetting']);
+    Route::post('/settings', [DevPanelController::class, 'addSetting']);
+    Route::get('/admin-users', [DevPanelController::class, 'adminUsers']);
+    Route::post('/announcement', [DevPanelController::class, 'sendAnnouncement']);
+    Route::get('/maintenance', [DevPanelController::class, 'maintenanceStatus']);
+    Route::put('/maintenance', [DevPanelController::class, 'setMaintenance']);
+    Route::get('/activity', [DevPanelController::class, 'activity']);
     Route::post('/users/{id}/block', [DevPanelController::class, 'blockUser']);
     Route::delete('/users/{id}/block', [DevPanelController::class, 'unblockUser']);
     Route::post('/users/{id}/quarantine', [DevPanelController::class, 'quarantineUser']);
     Route::post('/users/{id}/login-as', [DevPanelController::class, 'loginAs']);
     Route::post('/login-as/super-admin', [DevPanelController::class, 'loginAsSuperAdmin']);
-    Route::get('/inject',            [DevPanelController::class, 'listInjections']);
-    Route::post('/inject',           [DevPanelController::class, 'inject']);
-    Route::delete('/inject/{id}',    [DevPanelController::class, 'rollback']);
+    Route::get('/inject', [DevPanelController::class, 'listInjections']);
+    Route::post('/inject', [DevPanelController::class, 'inject']);
+    Route::delete('/inject/{id}', [DevPanelController::class, 'rollback']);
 });

@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class DeptTaskComment extends Model
 {
     protected $table = 'dept_task_comments';
+
     protected $fillable = ['task_id', 'user_id', 'comment'];
 
     public function user(): BelongsTo

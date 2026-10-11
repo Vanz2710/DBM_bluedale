@@ -18,7 +18,7 @@ class PostingCalendarController extends Controller
             ->orderBy('time');
 
         if ($request->filled('month')) {
-            $query->where('date', 'like', $request->month . '%');
+            $query->where('date', 'like', $request->month.'%');
         }
 
         if ($request->filled('platform')) {
@@ -26,10 +26,10 @@ class PostingCalendarController extends Controller
         }
 
         if ($request->filled('search')) {
-            $term = '%' . $request->search . '%';
+            $term = '%'.$request->search.'%';
             $query->where(function ($q) use ($term) {
                 $q->where('title', 'like', $term)
-                  ->orWhere('client', 'like', $term);
+                    ->orWhere('client', 'like', $term);
             });
         }
 
@@ -39,18 +39,19 @@ class PostingCalendarController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate([
-            'title'    => 'required|string|max:255',
+            'title' => 'required|string|max:255',
             'platform' => 'required|in:FB,IG,TikTok,LinkedIn,Website',
-            'client'   => 'nullable|string|max:255',
-            'date'     => 'required|date_format:Y-m-d',
-            'time'     => 'nullable|date_format:H:i',
-            'status'   => 'required|in:planned,design,approval,scheduled,posted',
+            'client' => 'nullable|string|max:255',
+            'date' => 'required|date_format:Y-m-d',
+            'time' => 'nullable|date_format:H:i',
+            'status' => 'required|in:planned,design,approval,scheduled,posted',
         ]);
 
-        $userId   = $request->user()->id;
+        $userId = $request->user()->id;
         $reminder = PostingCalendarReminder::create(['user_id' => $userId, ...$data]);
 
         Cache::forget("reminders_posting_{$userId}");
+
         return response()->json($reminder, 201);
     }
 
@@ -61,12 +62,12 @@ class PostingCalendarController extends Controller
         }
 
         $data = $request->validate([
-            'title'    => 'sometimes|string|max:255',
+            'title' => 'sometimes|string|max:255',
             'platform' => 'sometimes|in:FB,IG,TikTok,LinkedIn,Website',
-            'client'   => 'nullable|string|max:255',
-            'date'     => 'sometimes|date_format:Y-m-d',
-            'time'     => 'nullable|date_format:H:i',
-            'status'   => 'sometimes|in:planned,design,approval,scheduled,posted',
+            'client' => 'nullable|string|max:255',
+            'date' => 'sometimes|date_format:Y-m-d',
+            'time' => 'nullable|date_format:H:i',
+            'status' => 'sometimes|in:planned,design,approval,scheduled,posted',
         ]);
 
         $postingCalendarReminder->update($data);
@@ -83,6 +84,7 @@ class PostingCalendarController extends Controller
 
         $postingCalendarReminder->delete();
         Cache::forget("reminders_posting_{$request->user()->id}");
+
         return response()->json(null, 204);
     }
 }

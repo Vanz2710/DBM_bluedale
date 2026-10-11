@@ -29,8 +29,8 @@ class UserManagementController extends Controller
             $term = "%{$q}%";
             $query->where(function ($sq) use ($term) {
                 $sq->where('name', 'like', $term)
-                   ->orWhere('username', 'like', $term)
-                   ->orWhere('email', 'like', $term);
+                    ->orWhere('username', 'like', $term)
+                    ->orWhere('email', 'like', $term);
             });
         }
 
@@ -63,21 +63,21 @@ class UserManagementController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'name'                  => 'required|string|max:255',
-            'username'              => ['required', 'string', 'max:50', 'unique:users,username', 'regex:/^[a-zA-Z0-9_]+$/'],
-            'email'                 => 'nullable|email|unique:users,email',
-            'password'              => ['required', Password::min(8)->mixedCase()->numbers()->symbols(), 'confirmed'],
+            'name' => 'required|string|max:255',
+            'username' => ['required', 'string', 'max:50', 'unique:users,username', 'regex:/^[a-zA-Z0-9_]+$/'],
+            'email' => 'nullable|email|unique:users,email',
+            'password' => ['required', Password::min(8)->mixedCase()->numbers()->symbols(), 'confirmed'],
             'password_confirmation' => 'required',
-            'role'                  => 'nullable|string|exists:roles,name',
+            'role' => 'nullable|string|exists:roles,name',
         ]);
 
         $user = User::create([
-            'name'              => $request->name,
-            'username'          => $request->username,
-            'email'             => $request->email ?: null,
-            'password'          => Hash::make($request->password),
-            'is_approved'       => true,
-            'approved_at'       => now(),
+            'name' => $request->name,
+            'username' => $request->username,
+            'email' => $request->email ?: null,
+            'password' => Hash::make($request->password),
+            'is_approved' => true,
+            'approved_at' => now(),
             'email_verified_at' => now(),
         ]);
 
@@ -92,23 +92,23 @@ class UserManagementController extends Controller
         ], $request);
 
         return response()->json([
-            'status'  => 'success',
+            'status' => 'success',
             'message' => 'User created. They can log in immediately.',
-            'data'    => $user->load('roles:id,name'),
+            'data' => $user->load('roles:id,name'),
         ], 201);
     }
 
     public function update(Request $request, User $user)
     {
         $request->validate([
-            'name'                  => 'sometimes|required|string|max:255',
-            'username'              => ['sometimes', 'required', 'string', 'max:50', 'regex:/^[a-zA-Z0-9_]+$/', 'unique:users,username,' . $user->id],
-            'email'                 => 'sometimes|nullable|email|unique:users,email,' . $user->id,
-            'password'              => ['sometimes', 'nullable', Password::min(8)->mixedCase()->numbers()->symbols(), 'confirmed'],
+            'name' => 'sometimes|required|string|max:255',
+            'username' => ['sometimes', 'required', 'string', 'max:50', 'regex:/^[a-zA-Z0-9_]+$/', 'unique:users,username,'.$user->id],
+            'email' => 'sometimes|nullable|email|unique:users,email,'.$user->id,
+            'password' => ['sometimes', 'nullable', Password::min(8)->mixedCase()->numbers()->symbols(), 'confirmed'],
             'password_confirmation' => 'required_with:password',
         ]);
 
-        $old  = $user->only('name', 'username', 'email');
+        $old = $user->only('name', 'username', 'email');
         $data = $request->only('name', 'username');
 
         // Allow explicit clearing of email
@@ -125,8 +125,8 @@ class UserManagementController extends Controller
         Cache::forget('lookups_v2');
 
         $profileFields = $request->only('name', 'username', 'email');
-        $oldProfile    = array_intersect_key($old, $profileFields);
-        if (!empty($profileFields) && $profileFields != $oldProfile) {
+        $oldProfile = array_intersect_key($old, $profileFields);
+        if (! empty($profileFields) && $profileFields != $oldProfile) {
             $this->audit('updated', 'user', $user->id, $user->name, $old, $profileFields, $request);
         }
         if ($request->filled('password')) {
@@ -135,7 +135,7 @@ class UserManagementController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'data'   => $user->load('roles:id,name'),
+            'data' => $user->load('roles:id,name'),
         ]);
     }
 
@@ -154,10 +154,10 @@ class UserManagementController extends Controller
             + $user->forecasts()->count()
             + ToDo::where('user_id', $user->id)->count();
 
-        if ($ownsWork > 0 && !$request->filled('reassign_to')) {
+        if ($ownsWork > 0 && ! $request->filled('reassign_to')) {
             return response()->json([
                 'message' => 'This user owns records. Select a colleague to reassign their work to before deleting.',
-                'code'    => 'reassign_required',
+                'code' => 'reassign_required',
             ], 422);
         }
 
@@ -191,7 +191,7 @@ class UserManagementController extends Controller
     public function bulkDelete(Request $request)
     {
         $request->validate([
-            'user_ids'   => 'required|array|min:1',
+            'user_ids' => 'required|array|min:1',
             'user_ids.*' => 'integer|exists:users,id',
         ]);
 
@@ -201,13 +201,15 @@ class UserManagementController extends Controller
 
         foreach ($request->user_ids as $userId) {
             $user = User::find($userId);
-            if (!$user) {
+            if (! $user) {
                 $skipped[] = ['id' => $userId, 'name' => null, 'reason' => 'User not found.'];
+
                 continue;
             }
 
             if ($user->id === $actorId) {
                 $skipped[] = ['id' => $user->id, 'name' => $user->name, 'reason' => 'You cannot delete your own account.'];
+
                 continue;
             }
 
@@ -222,6 +224,7 @@ class UserManagementController extends Controller
 
             if ($ownsWork > 0) {
                 $skipped[] = ['id' => $user->id, 'name' => $user->name, 'reason' => 'Owns records — delete individually to reassign their work first.'];
+
                 continue;
             }
 
@@ -232,12 +235,12 @@ class UserManagementController extends Controller
             $deleted[] = $user->id;
         }
 
-        if (!empty($deleted)) {
+        if (! empty($deleted)) {
             Cache::forget('lookups_v2');
         }
 
         return response()->json([
-            'status'  => 'success',
+            'status' => 'success',
             'deleted' => $deleted,
             'skipped' => $skipped,
         ]);
@@ -268,8 +271,8 @@ class UserManagementController extends Controller
     public function approve(Request $request, User $user)
     {
         $user->update([
-            'is_approved'    => true,
-            'approved_at'    => now(),
+            'is_approved' => true,
+            'approved_at' => now(),
             'approved_by_id' => $request->user()->id,
         ]);
 
@@ -282,10 +285,10 @@ class UserManagementController extends Controller
     public function unlockUser(Request $request, User $user)
     {
         $user->update([
-            'permanently_locked'    => false,
+            'permanently_locked' => false,
             'failed_login_attempts' => 0,
-            'locked_until'          => null,
-            'lockout_level'         => 0,
+            'locked_until' => null,
+            'lockout_level' => 0,
         ]);
 
         $this->audit('unlocked', 'user', $user->id, $user->name,
@@ -297,25 +300,25 @@ class UserManagementController extends Controller
     public function syncRoles(Request $request, User $user)
     {
         $request->validate([
-            'roles'   => 'required|array',
+            'roles' => 'required|array',
             'roles.*' => 'string|exists:roles,name',
         ]);
 
-        $actor          = $request->user();
-        $actorIsSuper   = $actor->hasRole('super-admin');
-        $wasSuper       = $user->hasRole('super-admin');
-        $willBeSuper    = in_array('super-admin', $request->roles);
+        $actor = $request->user();
+        $actorIsSuper = $actor->hasRole('super-admin');
+        $wasSuper = $user->hasRole('super-admin');
+        $willBeSuper = in_array('super-admin', $request->roles);
 
         // Only a super-admin may grant or revoke the super-admin role. This stops a
         // plain admin (who otherwise bypasses gate checks) from self-promoting or
         // tampering with super-admin accounts.
-        if (!$actorIsSuper && ($willBeSuper || $wasSuper)) {
+        if (! $actorIsSuper && ($willBeSuper || $wasSuper)) {
             return response()->json(['message' => 'Only a super-admin can grant or change the super-admin role.'], 403);
         }
 
         // Prevent stripping super-admin from the last super-admin in the system
         $isLastSuperAdmin = $wasSuper
-            && !$willBeSuper
+            && ! $willBeSuper
             && User::role('super-admin')->where('id', '!=', $user->id)->count() === 0;
 
         if ($isLastSuperAdmin) {
@@ -330,30 +333,31 @@ class UserManagementController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'data'   => $user->load('roles:id,name'),
+            'data' => $user->load('roles:id,name'),
         ]);
     }
 
     public function bulkAssignRole(Request $request)
     {
         $request->validate([
-            'user_ids'   => 'required|array|min:1',
+            'user_ids' => 'required|array|min:1',
             'user_ids.*' => 'integer|exists:users,id',
-            'role'       => 'required|string|exists:roles,name',
+            'role' => 'required|string|exists:roles,name',
         ]);
 
-        $actor        = $request->user();
+        $actor = $request->user();
         $actorIsSuper = $actor->hasRole('super-admin');
-        $role         = $request->role;
-        $willBeSuper  = $role === 'super-admin';
+        $role = $request->role;
+        $willBeSuper = $role === 'super-admin';
 
         $updated = [];
         $skipped = [];
 
         foreach ($request->user_ids as $userId) {
             $user = User::find($userId);
-            if (!$user) {
+            if (! $user) {
                 $skipped[] = ['id' => $userId, 'name' => null, 'reason' => 'User not found.'];
+
                 continue;
             }
 
@@ -361,17 +365,19 @@ class UserManagementController extends Controller
 
             // Same protection as the single-user syncRoles(): only a super-admin may
             // grant OR revoke the super-admin role.
-            if (!$actorIsSuper && ($willBeSuper || $wasSuper)) {
+            if (! $actorIsSuper && ($willBeSuper || $wasSuper)) {
                 $skipped[] = ['id' => $user->id, 'name' => $user->name, 'reason' => 'Only a super-admin can grant or change the super-admin role.'];
+
                 continue;
             }
 
             $isLastSuperAdmin = $wasSuper
-                && !$willBeSuper
+                && ! $willBeSuper
                 && User::role('super-admin')->where('id', '!=', $user->id)->count() === 0;
 
             if ($isLastSuperAdmin) {
                 $skipped[] = ['id' => $user->id, 'name' => $user->name, 'reason' => 'Cannot remove super-admin from the last super-admin account.'];
+
                 continue;
             }
 
@@ -385,10 +391,10 @@ class UserManagementController extends Controller
         }
 
         return response()->json([
-            'status'  => 'success',
+            'status' => 'success',
             'updated' => $updated,
             'skipped' => $skipped,
-            'data'    => User::whereIn('id', $updated)->with('roles:id,name')->get(),
+            'data' => User::whereIn('id', $updated)->with('roles:id,name')->get(),
         ]);
     }
 
@@ -397,14 +403,14 @@ class UserManagementController extends Controller
         ?array $old, ?array $new, Request $request
     ): void {
         AdminAuditLog::create([
-            'user_id'     => $request->user()?->id,
-            'action'      => $action,
+            'user_id' => $request->user()?->id,
+            'action' => $action,
             'entity_type' => $entityType,
-            'entity_id'   => (string) $entityId,
+            'entity_id' => (string) $entityId,
             'entity_name' => $entityName,
-            'old_values'  => $old,
-            'new_values'  => $new,
-            'ip_address'  => $request->ip(),
+            'old_values' => $old,
+            'new_values' => $new,
+            'ip_address' => $request->ip(),
         ]);
     }
 }

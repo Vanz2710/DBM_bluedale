@@ -18,18 +18,23 @@ class DeptTask extends Model
     ];
 
     protected $casts = [
-        'due_date'             => 'date',
+        'due_date' => 'date',
         'next_recurrence_date' => 'date',
-        'is_recurring'         => 'boolean',
-        'is_important'         => 'boolean',
+        'is_recurring' => 'boolean',
+        'is_important' => 'boolean',
     ];
 
     protected $appends = ['is_overdue'];
 
     public function getIsOverdueAttribute(): bool
     {
-        if (!$this->due_date) return false;
-        if (in_array($this->status, ['completed', 'cancelled'])) return false;
+        if (! $this->due_date) {
+            return false;
+        }
+        if (in_array($this->status, ['completed', 'cancelled'])) {
+            return false;
+        }
+
         // Date-only comparison — a task due today is not overdue until tomorrow.
         // (isPast() compares against the current time, which flags it overdue
         // the instant the clock passes midnight on the due date itself.)
@@ -61,13 +66,25 @@ class DeptTask extends Model
         return $this->hasMany(DeptTaskAttachment::class, 'task_id')->latest();
     }
 
-    public function scopePending($query)   { return $query->where('status', 'pending'); }
-    public function scopeInProgress($query){ return $query->where('status', 'in_progress'); }
-    public function scopeCompleted($query) { return $query->where('status', 'completed'); }
+    public function scopePending($query)
+    {
+        return $query->where('status', 'pending');
+    }
+
+    public function scopeInProgress($query)
+    {
+        return $query->where('status', 'in_progress');
+    }
+
+    public function scopeCompleted($query)
+    {
+        return $query->where('status', 'completed');
+    }
+
     public function scopeOverdue($query)
     {
         return $query->whereNotIn('status', ['completed', 'cancelled'])
-                     ->whereNotNull('due_date')
-                     ->where('due_date', '<', Carbon::today());
+            ->whereNotNull('due_date')
+            ->where('due_date', '<', Carbon::today());
     }
 }

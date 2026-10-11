@@ -34,6 +34,7 @@ class DemoDataSeeder extends Seeder
     {
         if (app()->environment('production')) {
             $this->command?->error('DemoDataSeeder refuses to run in production.');
+
             return;
         }
 
@@ -45,7 +46,7 @@ class DemoDataSeeder extends Seeder
             $this->seedContacts($users['demo_alex'], $users['demo_sam']);
         });
 
-        $this->command?->info('Demo logins (username / password ' . self::PASSWORD . '):');
+        $this->command?->info('Demo logins (username / password '.self::PASSWORD.'):');
         $this->command?->table(
             ['Username', 'Name', 'Email', 'Role'],
             [
@@ -71,21 +72,21 @@ class DemoDataSeeder extends Seeder
         foreach ($defs as [$username, $name, $email, $spatieRole, $deptRole, $jobTitle]) {
             $user = User::withTrashed()->firstOrNew(['username' => $username]);
             $user->forceFill([
-                'name'                  => $name,
-                'email'                 => $email,
-                'password'              => self::PASSWORD,
-                'job_title'             => $jobTitle,
-                'phone'                 => null,
-                'role'                  => $deptRole,
-                'email_verified_at'     => now(),
-                'is_approved'           => true,
-                'approved_at'           => now(),
-                'blocked_at'            => null,
+                'name' => $name,
+                'email' => $email,
+                'password' => self::PASSWORD,
+                'job_title' => $jobTitle,
+                'phone' => null,
+                'role' => $deptRole,
+                'email_verified_at' => now(),
+                'is_approved' => true,
+                'approved_at' => now(),
+                'blocked_at' => null,
                 'failed_login_attempts' => 0,
-                'locked_until'          => null,
-                'lockout_level'         => 0,
-                'permanently_locked'    => false,
-                'deleted_at'            => null,
+                'locked_until' => null,
+                'lockout_level' => 0,
+                'permanently_locked' => false,
+                'deleted_at' => null,
             ])->save();
 
             $user->syncRoles([$spatieRole]);
@@ -97,13 +98,13 @@ class DemoDataSeeder extends Seeder
 
     private function seedContacts(User $alex, User $sam): void
     {
-        $statusIds   = ContactStatus::query()->pluck('id')->all();
-        $typeIds     = ContactType::query()->pluck('id')->all();
+        $statusIds = ContactStatus::query()->pluck('id')->all();
+        $typeIds = ContactType::query()->pluck('id')->all();
         $categoryIds = ContactCategory::query()->pluck('id')->all();
         $industryIds = ContactIndustry::query()->pluck('id')->all();
-        $taskIds     = Task::query()->pluck('id')->all();
+        $taskIds = Task::query()->pluck('id')->all();
 
-        $pick = fn(array $ids, int $i) => $ids ? $ids[$i % count($ids)] : null;
+        $pick = fn (array $ids, int $i) => $ids ? $ids[$i % count($ids)] : null;
 
         // [company, person in charge, remark]
         $contacts = [
@@ -143,12 +144,12 @@ class DemoDataSeeder extends Seeder
             $contact = Contact::firstOrCreate(
                 ['name' => $company],
                 [
-                    'address'     => (100 + $i) . ' Example Street, Demo City',
-                    'remark'      => $remark,
+                    'address' => (100 + $i).' Example Street, Demo City',
+                    'remark' => $remark,
                     'lead_source' => $i % 3 === 0 ? 'Website' : ($i % 3 === 1 ? 'Referral' : 'Walk-in'),
-                    'user_id'     => $owner->id,
-                    'status_id'   => $pick($statusIds, $i),
-                    'type_id'     => $pick($typeIds, $i),
+                    'user_id' => $owner->id,
+                    'status_id' => $pick($statusIds, $i),
+                    'type_id' => $pick($typeIds, $i),
                     'category_id' => $pick($categoryIds, $i),
                     'industry_id' => $pick($industryIds, $i),
                 ]
@@ -160,66 +161,66 @@ class DemoDataSeeder extends Seeder
 
             $slug = strtolower(preg_replace('/[^a-z]+/i', '.', trim($person)));
             $contact->incharges()->create([
-                'name'         => $person,
-                'email'        => "{$slug}@example.test",
+                'name' => $person,
+                'email' => "{$slug}@example.test",
                 'phone_mobile' => sprintf('+1-555-01%02d', $i),
                 'phone_office' => null,
             ]);
 
             [$stage, $probability, $status] = $stages[$i % count($stages)];
             Deal::create([
-                'contact_id'          => $contact->id,
-                'user_id'             => $owner->id,
-                'title'               => "{$company} – advertising package",
-                'stage'               => $stage,
-                'value'               => 2500 + ($i * 1750),
-                'probability'         => $probability,
+                'contact_id' => $contact->id,
+                'user_id' => $owner->id,
+                'title' => "{$company} – advertising package",
+                'stage' => $stage,
+                'value' => 2500 + ($i * 1750),
+                'probability' => $probability,
                 'expected_close_date' => $today->copy()->addDays(7 + $i * 4),
-                'status'              => $status,
-                'lost_reason'         => $status === 'lost' ? 'Demo: chose a cheaper option' : null,
-                'notes'               => 'Demo deal – fictional data.',
+                'status' => $status,
+                'lost_reason' => $status === 'lost' ? 'Demo: chose a cheaper option' : null,
+                'notes' => 'Demo deal – fictional data.',
             ]);
 
             // One overdue/completed to-do and one upcoming to-do per contact.
             $past = ToDo::create([
-                'contact_id'        => $contact->id,
-                'user_id'           => $owner->id,
-                'task_id'           => $pick($taskIds, $i),
-                'todo_date'         => $today->copy()->subDays(3 + $i),
-                'date_created'      => $today->copy()->subDays(10 + $i),
-                'todo_remark'       => "Intro call with {$person}",
+                'contact_id' => $contact->id,
+                'user_id' => $owner->id,
+                'task_id' => $pick($taskIds, $i),
+                'todo_date' => $today->copy()->subDays(3 + $i),
+                'date_created' => $today->copy()->subDays(10 + $i),
+                'todo_remark' => "Intro call with {$person}",
                 'completion_status' => $i % 3 === 0 ? 'pending' : 'completed',
-                'completed_at'      => $i % 3 === 0 ? null : $today->copy()->subDays(2 + $i),
+                'completed_at' => $i % 3 === 0 ? null : $today->copy()->subDays(2 + $i),
             ]);
 
             $upcoming = ToDo::create([
-                'contact_id'        => $contact->id,
-                'user_id'           => $owner->id,
-                'task_id'           => $pick($taskIds, $i + 1),
-                'todo_date'         => $today->copy()->addDays(1 + $i),
-                'date_created'      => $today->copy()->subDays(1),
-                'todo_remark'       => 'Send updated quotation',
+                'contact_id' => $contact->id,
+                'user_id' => $owner->id,
+                'task_id' => $pick($taskIds, $i + 1),
+                'todo_date' => $today->copy()->addDays(1 + $i),
+                'date_created' => $today->copy()->subDays(1),
+                'todo_remark' => 'Send updated quotation',
                 'completion_status' => 'pending',
-                'completed_at'      => null,
+                'completed_at' => null,
             ]);
 
             FollowUp::create([
-                'todo_id'           => $past->id,
-                'followup_date'     => $today->copy()->subDays(1 + ($i % 4)),
-                'action_type'       => $actionTypes[$i % count($actionTypes)],
-                'note'              => 'Demo follow-up – discussed requirements.',
+                'todo_id' => $past->id,
+                'followup_date' => $today->copy()->subDays(1 + ($i % 4)),
+                'action_type' => $actionTypes[$i % count($actionTypes)],
+                'note' => 'Demo follow-up – discussed requirements.',
                 'completion_status' => 'completed',
-                'completed_at'      => $today->copy()->subDays(1 + ($i % 4)),
+                'completed_at' => $today->copy()->subDays(1 + ($i % 4)),
             ]);
 
             if ($i % 2 === 1) {
                 FollowUp::create([
-                    'todo_id'           => $upcoming->id,
-                    'followup_date'     => $today->copy()->addDays(2 + $i),
-                    'action_type'       => $actionTypes[($i + 2) % count($actionTypes)],
-                    'note'              => 'Demo follow-up – check on quotation.',
+                    'todo_id' => $upcoming->id,
+                    'followup_date' => $today->copy()->addDays(2 + $i),
+                    'action_type' => $actionTypes[($i + 2) % count($actionTypes)],
+                    'note' => 'Demo follow-up – check on quotation.',
                     'completion_status' => 'pending',
-                    'completed_at'      => null,
+                    'completed_at' => null,
                 ]);
             }
         }

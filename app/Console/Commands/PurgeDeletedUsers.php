@@ -16,7 +16,7 @@ class PurgeDeletedUsers extends Command
 
     public function handle(): int
     {
-        $days   = (int) ($this->option('days') ?: config('app.deleted_user_retention_days', 30));
+        $days = (int) ($this->option('days') ?: config('app.deleted_user_retention_days', 30));
         $cutoff = now()->subDays($days);
         $dryRun = (bool) $this->option('dry-run');
 
@@ -26,10 +26,11 @@ class PurgeDeletedUsers extends Command
 
         if ($candidates->isEmpty()) {
             $this->info("No soft-deleted users older than {$days} day(s) to purge.");
+
             return self::SUCCESS;
         }
 
-        $purged  = 0;
+        $purged = 0;
         $skipped = 0;
 
         foreach ($candidates as $user) {
@@ -47,12 +48,14 @@ class PurgeDeletedUsers extends Command
             if ($ownsWork > 0) {
                 $skipped++;
                 $this->warn("SKIP #{$user->id} {$user->name} — still owns {$ownsWork} record(s); reassign them before it can be purged.");
+
                 continue;
             }
 
             if ($dryRun) {
                 $this->line("WOULD PURGE #{$user->id} {$user->name} (deleted {$user->deleted_at->toDateString()})");
                 $purged++;
+
                 continue;
             }
 

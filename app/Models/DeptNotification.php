@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class DeptNotification extends Model
 {
     protected $table = 'dept_notifications';
+
     protected $fillable = ['user_id', 'task_id', 'type', 'message', 'read_at'];
 
     protected $casts = [

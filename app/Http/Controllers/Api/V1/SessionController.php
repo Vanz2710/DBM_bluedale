@@ -14,12 +14,12 @@ class SessionController extends Controller
         $sessions = $request->user()->tokens()
             ->orderByDesc('last_used_at')
             ->get(['id', 'name', 'last_used_at', 'created_at'])
-            ->map(fn($t) => [
-                'id'           => $t->id,
-                'name'         => $t->name,
+            ->map(fn ($t) => [
+                'id' => $t->id,
+                'name' => $t->name,
                 'last_used_at' => $t->last_used_at,
-                'created_at'   => $t->created_at,
-                'is_current'   => $t->id === $currentId,
+                'created_at' => $t->created_at,
+                'is_current' => $t->id === $currentId,
             ]);
 
         return response()->json(['data' => $sessions]);
@@ -35,7 +35,7 @@ class SessionController extends Controller
 
         $deleted = $request->user()->tokens()->where('id', $id)->delete();
 
-        if (!$deleted) {
+        if (! $deleted) {
             return response()->json(['message' => 'Session not found.'], 404);
         }
 
@@ -46,6 +46,7 @@ class SessionController extends Controller
     {
         $currentId = $request->user()->currentAccessToken()->id;
         $request->user()->tokens()->where('id', '!=', $currentId)->delete();
+
         return response()->json(['status' => 'success']);
     }
 }

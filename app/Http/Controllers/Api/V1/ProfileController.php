@@ -20,9 +20,9 @@ class ProfileController extends Controller
     {
         $user = $request->user();
         $data = $request->validate([
-            'name'      => 'required|string|max:255',
-            'email'     => 'required|email|max:255|unique:users,email,' . $user->id,
-            'phone'     => 'nullable|string|max:50',
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|max:255|unique:users,email,'.$user->id,
+            'phone' => 'nullable|string|max:50',
             'job_title' => 'nullable|string|max:100',
         ]);
 
@@ -34,14 +34,14 @@ class ProfileController extends Controller
     public function changePassword(Request $request)
     {
         $request->validate([
-            'current_password'      => 'required',
-            'password'              => ['required', Password::min(8)->mixedCase()->numbers()->symbols(), 'confirmed'],
+            'current_password' => 'required',
+            'password' => ['required', Password::min(8)->mixedCase()->numbers()->symbols(), 'confirmed'],
             'password_confirmation' => 'required',
         ]);
 
         $user = $request->user();
 
-        if (!Hash::check($request->current_password, $user->password)) {
+        if (! Hash::check($request->current_password, $user->password)) {
             throw ValidationException::withMessages([
                 'current_password' => ['The current password is incorrect.'],
             ]);
@@ -58,10 +58,10 @@ class ProfileController extends Controller
             ->delete();
 
         SystemAlert::notifyAdmins(
-            type:  'password_change',
-            title: 'Password changed — ' . $user->name,
-            body:  $user->name . ' (' . $user->username . ') changed their password.',
-            link:  '/admin/rbac',
+            type: 'password_change',
+            title: 'Password changed — '.$user->name,
+            body: $user->name.' ('.$user->username.') changed their password.',
+            link: '/admin/rbac',
         );
 
         return response()->json(['message' => 'Password changed successfully.']);
@@ -70,18 +70,18 @@ class ProfileController extends Controller
     private function payload($user): array
     {
         return [
-            'id'          => $user->id,
-            'name'        => $user->name,
-            'email'       => $user->email,
-            'phone'       => $user->phone,
-            'job_title'   => $user->job_title,
-            'roles'       => $user->getRoleNames(),
+            'id' => $user->id,
+            'name' => $user->name,
+            'email' => $user->email,
+            'phone' => $user->phone,
+            'job_title' => $user->job_title,
+            'roles' => $user->getRoleNames(),
             // null for super-admin (full access via Gate::before bypass, no DB permissions stored)
             'permissions' => $user->hasRole('super-admin')
                 ? null
                 : $user->getAllPermissions()->pluck('name')->sort()->values(),
-            'created_at'  => $user->created_at?->toDateTimeString(),
-            'updated_at'  => $user->updated_at?->toDateTimeString(),
+            'created_at' => $user->created_at?->toDateTimeString(),
+            'updated_at' => $user->updated_at?->toDateTimeString(),
         ];
     }
 }

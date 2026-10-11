@@ -30,10 +30,18 @@ class ContactController extends Controller
         if ($search = $request->input('search', $request->input('q'))) {
             $query->where('name', 'like', "%{$search}%");
         }
-        if ($v = $request->input('status_id'))      $query->where('status_id', $v);
-        if ($v = $request->input('industry_id'))    $query->where('industry_id', $v);
-        if ($v = $request->input('category_id'))    $query->where('category_id', $v);
-        if ($v = $request->input('type_id'))        $query->where('type_id', $v);
+        if ($v = $request->input('status_id')) {
+            $query->where('status_id', $v);
+        }
+        if ($v = $request->input('industry_id')) {
+            $query->where('industry_id', $v);
+        }
+        if ($v = $request->input('category_id')) {
+            $query->where('category_id', $v);
+        }
+        if ($v = $request->input('type_id')) {
+            $query->where('type_id', $v);
+        }
         if ($request->input('user') === 'unassigned') {
             $query->whereNull('user_id');
         } elseif ($v = $request->input('user_id')) {
@@ -41,25 +49,27 @@ class ContactController extends Controller
         }
 
         $allowedSort = ['name', 'created_at', 'updated_at'];
-        $sortBy  = in_array($request->input('sort_by'), $allowedSort) ? $request->input('sort_by') : 'name';
+        $sortBy = in_array($request->input('sort_by'), $allowedSort) ? $request->input('sort_by') : 'name';
         $sortDir = $request->input('sort_dir') === 'desc' ? 'desc' : 'asc';
 
         $contacts = $query->orderBy($sortBy, $sortDir)->paginate(min((int) $request->input('per_page', 100), 500));
 
         $me = Auth::user();
-        if (!$me->hasAnyRole(['admin', 'super-admin'])) {
+        if (! $me->hasAnyRole(['admin', 'super-admin'])) {
             $grantedOwnerIds = ContactEditGrant::where('user_id', $me->id)
                 ->pluck('target_user_id')
-                ->map(fn($id) => (int) $id)
+                ->map(fn ($id) => (int) $id)
                 ->toArray();
             $contacts->getCollection()->transform(function ($c) use ($me, $grantedOwnerIds) {
                 $c->can_edit = (int) $c->user_id === (int) $me->id
                     || \in_array((int) $c->user_id, $grantedOwnerIds);
+
                 return $c;
             });
         } else {
             $contacts->getCollection()->transform(function ($c) {
                 $c->can_edit = true;
+
                 return $c;
             });
         }
@@ -81,10 +91,10 @@ class ContactController extends Controller
 
     public function daily(Request $request)
     {
-        $date     = $request->input('date');
+        $date = $request->input('date');
         $dateFrom = $request->input('date_from');
-        $dateTo   = $request->input('date_to');
-        $perPage  = min((int) $request->input('per_page', 100), 500);
+        $dateTo = $request->input('date_to');
+        $perPage = min((int) $request->input('per_page', 100), 500);
 
         $query = Contact::with(['status', 'type', 'industry', 'category', 'user']);
 
@@ -95,36 +105,50 @@ class ContactController extends Controller
         if ($date) {
             $query->whereDate('created_at', $date);
         } elseif ($dateFrom || $dateTo) {
-            if ($dateFrom) $query->whereDate('created_at', '>=', $dateFrom);
-            if ($dateTo)   $query->whereDate('created_at', '<=', $dateTo);
+            if ($dateFrom) {
+                $query->whereDate('created_at', '>=', $dateFrom);
+            }
+            if ($dateTo) {
+                $query->whereDate('created_at', '<=', $dateTo);
+            }
         }
 
         if ($search = $request->input('search')) {
             $query->where('name', 'like', "%{$search}%");
         }
-        if ($v = $request->input('user_id'))     $query->where('user_id', $v);
-        if ($v = $request->input('status_id'))   $query->where('status_id', $v);
-        if ($v = $request->input('type_id'))     $query->where('type_id', $v);
-        if ($v = $request->input('category_id')) $query->where('category_id', $v);
+        if ($v = $request->input('user_id')) {
+            $query->where('user_id', $v);
+        }
+        if ($v = $request->input('status_id')) {
+            $query->where('status_id', $v);
+        }
+        if ($v = $request->input('type_id')) {
+            $query->where('type_id', $v);
+        }
+        if ($v = $request->input('category_id')) {
+            $query->where('category_id', $v);
+        }
 
         $this->applyContactSort($query, $request->input('sort'));
 
         $contacts = $query->paginate($perPage);
 
         $me = Auth::user();
-        if (!$me->hasAnyRole(['admin', 'super-admin'])) {
+        if (! $me->hasAnyRole(['admin', 'super-admin'])) {
             $grantedOwnerIds = ContactEditGrant::where('user_id', $me->id)
                 ->pluck('target_user_id')
-                ->map(fn($id) => (int) $id)
+                ->map(fn ($id) => (int) $id)
                 ->toArray();
             $contacts->getCollection()->transform(function ($c) use ($me, $grantedOwnerIds) {
                 $c->can_edit = (int) $c->user_id === (int) $me->id
                     || \in_array((int) $c->user_id, $grantedOwnerIds);
+
                 return $c;
             });
         } else {
             $contacts->getCollection()->transform(function ($c) {
                 $c->can_edit = true;
+
                 return $c;
             });
         }
@@ -136,8 +160,8 @@ class ContactController extends Controller
     {
         $withIncharges = $request->boolean('with_incharges');
 
-        $ALLOWED = ['no','date_added','user','status','type','industry','company','category','address','remarks','pic_names','pic_emails','pic_mobiles','pic_offices'];
-        $LABELS  = [
+        $ALLOWED = ['no', 'date_added', 'user', 'status', 'type', 'industry', 'company', 'category', 'address', 'remarks', 'pic_names', 'pic_emails', 'pic_mobiles', 'pic_offices'];
+        $LABELS = [
             'no' => 'No', 'date_added' => 'Date Added', 'user' => 'User',
             'status' => 'Status', 'type' => 'Type', 'industry' => 'Industry',
             'company' => 'Company Name', 'category' => 'Category',
@@ -153,7 +177,7 @@ class ContactController extends Controller
         ];
 
         $requested = array_filter(explode(',', $request->input('cols', '')));
-        $selected  = !empty($requested) ? array_values(array_intersect($ALLOWED, $requested)) : $ALLOWED;
+        $selected = ! empty($requested) ? array_values(array_intersect($ALLOWED, $requested)) : $ALLOWED;
 
         $query = Contact::with(['status', 'type', 'industry', 'category', 'user']);
         if ($withIncharges) {
@@ -161,46 +185,62 @@ class ContactController extends Controller
         }
         if ($ids = $request->input('ids')) {
             $idArr = array_values(array_filter(array_map('intval', explode(',', $ids))));
-            if (!empty($idArr)) $query->whereIn('id', $idArr);
+            if (! empty($idArr)) {
+                $query->whereIn('id', $idArr);
+            }
         } else {
-            if ($v = $request->input('date_from'))   $query->whereDate('created_at', '>=', $v);
-            if ($v = $request->input('date_to'))     $query->whereDate('created_at', '<=', $v);
-            if ($v = $request->input('search'))      $query->where('name', 'like', "%{$v}%");
-            if ($v = $request->input('user_id'))     $query->where('user_id', $v);
-            if ($v = $request->input('status_id'))   $query->where('status_id', $v);
-            if ($v = $request->input('type_id'))     $query->where('type_id', $v);
-            if ($v = $request->input('category_id')) $query->where('category_id', $v);
+            if ($v = $request->input('date_from')) {
+                $query->whereDate('created_at', '>=', $v);
+            }
+            if ($v = $request->input('date_to')) {
+                $query->whereDate('created_at', '<=', $v);
+            }
+            if ($v = $request->input('search')) {
+                $query->where('name', 'like', "%{$v}%");
+            }
+            if ($v = $request->input('user_id')) {
+                $query->where('user_id', $v);
+            }
+            if ($v = $request->input('status_id')) {
+                $query->where('status_id', $v);
+            }
+            if ($v = $request->input('type_id')) {
+                $query->where('type_id', $v);
+            }
+            if ($v = $request->input('category_id')) {
+                $query->where('category_id', $v);
+            }
         }
         $this->applyContactSort($query, $request->input('sort'));
 
-        $format   = $request->input('format') === 'csv' ? 'csv' : 'xls';
-        $filename = 'Contacts_' . now()->format('Y-m-d') . '.' . ($format === 'csv' ? 'csv' : 'xlsx');
-        $labels   = $LABELS;
-        $widths   = $WIDTHS;
+        $format = $request->input('format') === 'csv' ? 'csv' : 'xls';
+        $filename = 'Contacts_'.now()->format('Y-m-d').'.'.($format === 'csv' ? 'csv' : 'xlsx');
+        $labels = $LABELS;
+        $widths = $WIDTHS;
 
-        $getVal = fn($c, $col) => match ($col) {
-            'no'          => null, // filled by reference in chunk
-            'date_added'  => $c->created_at?->format('d/m/Y') ?? '',
-            'user'        => $c->user?->name ?? '',
-            'status'      => $c->status?->name ?? '',
-            'type'        => $c->type?->name ?? '',
-            'industry'    => $c->industry?->name ?? '',
-            'company'     => $c->name ?? '',
-            'category'    => $c->category?->name ?? '',
-            'address'     => $c->address ?? '',
-            'remarks'     => $c->remark ?? '',
-            'pic_names'   => ($c->incharges ?? collect())->pluck('name')->filter()->implode('; '),
-            'pic_emails'  => ($c->incharges ?? collect())->pluck('email')->filter()->implode('; '),
+        $getVal = fn ($c, $col) => match ($col) {
+            'no' => null, // filled by reference in chunk
+            'date_added' => $c->created_at?->format('d/m/Y') ?? '',
+            'user' => $c->user?->name ?? '',
+            'status' => $c->status?->name ?? '',
+            'type' => $c->type?->name ?? '',
+            'industry' => $c->industry?->name ?? '',
+            'company' => $c->name ?? '',
+            'category' => $c->category?->name ?? '',
+            'address' => $c->address ?? '',
+            'remarks' => $c->remark ?? '',
+            'pic_names' => ($c->incharges ?? collect())->pluck('name')->filter()->implode('; '),
+            'pic_emails' => ($c->incharges ?? collect())->pluck('email')->filter()->implode('; '),
             'pic_mobiles' => ($c->incharges ?? collect())->pluck('phone_mobile')->filter()->implode('; '),
             'pic_offices' => ($c->incharges ?? collect())->pluck('phone_office')->filter()->implode('; '),
-            default       => '',
+            default => '',
         };
 
         if ($format === 'csv') {
             return response()->stream(function () use ($query, $selected, $labels, $getVal) {
                 $handle = fopen('php://output', 'w');
                 fwrite($handle, "\xEF\xBB\xBF");
-                fputcsv($handle, array_map(fn($k) => $labels[$k] ?? $k, $selected));
+                fputcsv($handle, array_map(fn ($k) => $labels[$k] ?? $k, $selected));
                 $no = 1;
                 $query->chunk(300, function ($contacts) use ($handle, $selected, $getVal, &$no) {
                     foreach ($contacts as $c) {
@@ -214,13 +254,14 @@ class ContactController extends Controller
                 });
                 fclose($handle);
             }, 200, [
-                'Content-Type'        => 'text/csv; charset=UTF-8',
+                'Content-Type' => 'text/csv; charset=UTF-8',
                 'Content-Disposition' => "attachment; filename=\"{$filename}\"",
-                'X-Accel-Buffering'   => 'no',
+                'X-Accel-Buffering' => 'no',
             ]);
         }
 
         $spreadsheet = XlsxExport::flatTable('Contacts', $selected, $labels, $widths, $query->lazy(300), $getVal);
+
         return XlsxExport::download($spreadsheet, $filename);
     }
 
@@ -229,27 +270,27 @@ class ContactController extends Controller
         $me = Auth::user();
 
         $validated = $request->validate([
-            'name'        => 'required|string|max:500|unique:contacts,name',
-            'address'     => 'nullable|string|max:255',
-            'remark'      => 'nullable|string|max:800',
+            'name' => 'required|string|max:500|unique:contacts,name',
+            'address' => 'nullable|string|max:255',
+            'remark' => 'nullable|string|max:800',
             'lead_source' => 'nullable|string|max:50',
-            'status_id'   => 'nullable|exists:contact_statuses,id',
-            'type_id'     => 'nullable|exists:contact_types,id',
+            'status_id' => 'nullable|exists:contact_statuses,id',
+            'type_id' => 'nullable|exists:contact_types,id',
             'category_id' => 'nullable|exists:contact_categories,id',
             'industry_id' => 'nullable|exists:contact_industries,id',
-            'area_id'     => 'nullable|exists:contact_areas,id',
-            'user_id'     => 'nullable|exists:users,id',
-            'created_at'  => 'nullable|date',
+            'area_id' => 'nullable|exists:contact_areas,id',
+            'user_id' => 'nullable|exists:users,id',
+            'created_at' => 'nullable|date',
         ]);
 
         // Admins can assign to any user; regular users always own their own contacts
-        if (!$me->hasAnyRole(['admin', 'super-admin']) || empty($validated['user_id'])) {
+        if (! $me->hasAnyRole(['admin', 'super-admin']) || empty($validated['user_id'])) {
             $validated['user_id'] = $me->id;
         }
 
         // Allow user-specified created_at date
         $contact = new Contact($validated);
-        if (!empty($validated['created_at'])) {
+        if (! empty($validated['created_at'])) {
             $contact->created_at = $validated['created_at'];
             $contact->updated_at = $validated['created_at'];
         }
@@ -258,8 +299,8 @@ class ContactController extends Controller
         // Create first PIC from contact fields if provided
         if ($request->filled('pic_name')) {
             $contact->incharges()->create([
-                'name'         => $request->input('pic_name'),
-                'email'        => $request->input('pic_email'),
+                'name' => $request->input('pic_name'),
+                'email' => $request->input('pic_email'),
                 'phone_mobile' => $request->input('pic_phone'),
                 'phone_office' => $request->input('pic_office'),
             ]);
@@ -274,8 +315,8 @@ class ContactController extends Controller
     {
         $contact = Contact::with([
             'status', 'type', 'industry', 'category', 'user', 'incharges',
-            'todos' => fn($q) => $q->with(['task', 'user', 'followUps' => fn($fq) => $fq->orderByDesc('followup_date')])->orderByDesc('todo_date')->limit(200),
-            'forecasts' => fn($q) => $q->with('product', 'forecastType', 'result', 'user', 'contactStatus', 'contactType')
+            'todos' => fn ($q) => $q->with(['task', 'user', 'followUps' => fn ($fq) => $fq->orderByDesc('followup_date')])->orderByDesc('todo_date')->limit(200),
+            'forecasts' => fn ($q) => $q->with('product', 'forecastType', 'result', 'user', 'contactStatus', 'contactType')
                 ->orderByDesc('forecast_date')
                 ->limit(200),
         ])->findOrFail($id);
@@ -298,31 +339,31 @@ class ContactController extends Controller
         $contact = Contact::findOrFail($id);
 
         $me = Auth::user();
-        if (!$me->hasAnyRole(['admin', 'super-admin'])) {
-            $owned   = (int) $contact->user_id === (int) $me->id;
-            $granted = !$owned && ContactEditGrant::where('user_id', $me->id)
+        if (! $me->hasAnyRole(['admin', 'super-admin'])) {
+            $owned = (int) $contact->user_id === (int) $me->id;
+            $granted = ! $owned && ContactEditGrant::where('user_id', $me->id)
                 ->where('target_user_id', $contact->user_id)
                 ->exists();
-            if (!$owned && !$granted) {
+            if (! $owned && ! $granted) {
                 return response()->json(['message' => 'You can only edit your own contacts.'], 403);
             }
         }
 
         $validated = $request->validate([
-            'name'        => "sometimes|required|string|max:500|unique:contacts,name,{$id}",
-            'address'     => 'nullable|string|max:255',
-            'remark'      => 'nullable|string|max:800',
+            'name' => "sometimes|required|string|max:500|unique:contacts,name,{$id}",
+            'address' => 'nullable|string|max:255',
+            'remark' => 'nullable|string|max:800',
             'lead_source' => 'nullable|string|max:50',
-            'status_id'   => 'nullable|exists:contact_statuses,id',
-            'type_id'     => 'nullable|exists:contact_types,id',
+            'status_id' => 'nullable|exists:contact_statuses,id',
+            'type_id' => 'nullable|exists:contact_types,id',
             'category_id' => 'nullable|exists:contact_categories,id',
             'industry_id' => 'nullable|exists:contact_industries,id',
-            'area_id'     => 'nullable|exists:contact_areas,id',
-            'user_id'     => 'nullable|exists:users,id',
+            'area_id' => 'nullable|exists:contact_areas,id',
+            'user_id' => 'nullable|exists:users,id',
         ]);
 
         // Only admins can reassign contact ownership
-        if (isset($validated['user_id']) && !$me->hasAnyRole(['admin', 'super-admin'])) {
+        if (isset($validated['user_id']) && ! $me->hasAnyRole(['admin', 'super-admin'])) {
             unset($validated['user_id']);
         }
 
@@ -330,7 +371,7 @@ class ContactController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'data'   => $contact->load(['status', 'type', 'industry', 'category', 'user']),
+            'data' => $contact->load(['status', 'type', 'industry', 'category', 'user']),
         ]);
     }
 
@@ -339,20 +380,20 @@ class ContactController extends Controller
         $contact = Contact::findOrFail($id);
 
         $me = Auth::user();
-        if (!$me->hasAnyRole(['admin', 'super-admin'])) {
-            $owned   = (int) $contact->user_id === (int) $me->id;
-            $granted = !$owned && ContactEditGrant::where('user_id', $me->id)
+        if (! $me->hasAnyRole(['admin', 'super-admin'])) {
+            $owned = (int) $contact->user_id === (int) $me->id;
+            $granted = ! $owned && ContactEditGrant::where('user_id', $me->id)
                 ->where('target_user_id', $contact->user_id)
                 ->exists();
-            if (!$owned && !$granted) {
+            if (! $owned && ! $granted) {
                 return response()->json(['message' => 'You can only edit your own contacts.'], 403);
             }
         }
 
-        $contact->update(['is_permanently_closed' => !$contact->is_permanently_closed]);
+        $contact->update(['is_permanently_closed' => ! $contact->is_permanently_closed]);
 
         return response()->json([
-            'status'                => 'success',
+            'status' => 'success',
             'is_permanently_closed' => $contact->is_permanently_closed,
         ]);
     }
@@ -362,14 +403,17 @@ class ContactController extends Controller
         $name = $request->input('name', '');
         $excludeId = $request->input('exclude_id');
         $query = Contact::where('name', $name);
-        if ($excludeId) $query->where('id', '!=', $excludeId);
+        if ($excludeId) {
+            $query->where('id', '!=', $excludeId);
+        }
+
         return response()->json(['exists' => $query->exists()]);
     }
 
     public function findDuplicates()
     {
         $user = Auth::user();
-        if (!$user->hasAnyRole(['admin', 'super-admin'])) {
+        if (! $user->hasAnyRole(['admin', 'super-admin'])) {
             return response()->json(['message' => 'Forbidden'], 403);
         }
 
@@ -386,9 +430,9 @@ class ContactController extends Controller
             ->orderBy('name')
             ->orderBy('created_at')
             ->get()
-            ->each(fn($c) => $c->phone = $c->whatsapp_phone);
+            ->each(fn ($c) => $c->phone = $c->whatsapp_phone);
 
-        $grouped = $contacts->groupBy('name')->map(fn($g) => $g->values())->values();
+        $grouped = $contacts->groupBy('name')->map(fn ($g) => $g->values())->values();
 
         return response()->json(['data' => $grouped, 'group_count' => $grouped->count()]);
     }
@@ -396,19 +440,19 @@ class ContactController extends Controller
     public function bulkReassign(Request $request)
     {
         $user = Auth::user();
-        if (!$user->hasAnyRole(['admin', 'super-admin'])) {
+        if (! $user->hasAnyRole(['admin', 'super-admin'])) {
             return response()->json(['message' => 'Forbidden'], 403);
         }
 
         $validated = $request->validate([
-            'from_user_id'  => 'required|integer|exists:users,id',
-            'to_user_id'    => 'required|integer|exists:users,id|different:from_user_id',
-            'contact_ids'   => 'nullable|array',
+            'from_user_id' => 'required|integer|exists:users,id',
+            'to_user_id' => 'required|integer|exists:users,id|different:from_user_id',
+            'contact_ids' => 'nullable|array',
             'contact_ids.*' => 'integer|exists:contacts,id',
         ]);
 
         $scoped = fn () => Contact::where('user_id', $validated['from_user_id'])
-            ->when(!empty($validated['contact_ids']), fn ($q) => $q->whereIn('id', $validated['contact_ids']));
+            ->when(! empty($validated['contact_ids']), fn ($q) => $q->whereIn('id', $validated['contact_ids']));
 
         $count = $scoped()->count();
         $scoped()->update(['user_id' => $validated['to_user_id']]);
@@ -421,17 +465,18 @@ class ContactController extends Controller
         $contact = Contact::findOrFail($id);
 
         $me = Auth::user();
-        if (!$me->hasAnyRole(['admin', 'super-admin'])) {
-            $owned   = (int) $contact->user_id === (int) $me->id;
-            $granted = !$owned && ContactEditGrant::where('user_id', $me->id)
+        if (! $me->hasAnyRole(['admin', 'super-admin'])) {
+            $owned = (int) $contact->user_id === (int) $me->id;
+            $granted = ! $owned && ContactEditGrant::where('user_id', $me->id)
                 ->where('target_user_id', $contact->user_id)
                 ->exists();
-            if (!$owned && !$granted) {
+            if (! $owned && ! $granted) {
                 return response()->json(['message' => 'You can only delete your own contacts.'], 403);
             }
         }
 
         $contact->delete();
+
         return response()->json(['status' => 'success']);
     }
 
@@ -441,24 +486,24 @@ class ContactController extends Controller
         // Admin/super-admin always allowed; a non-admin needs the specific delegated
         // permission (see ContactDuplicates.vue) rather than plain "edit contacts" —
         // merging permanently deletes contact records, so it stays behind its own gate.
-        if (!$user->hasRole(['admin', 'super-admin']) && !$user->can('manage duplicates')) {
+        if (! $user->hasRole(['admin', 'super-admin']) && ! $user->can('manage duplicates')) {
             return response()->json(['message' => 'Forbidden'], 403);
         }
 
         $validated = $request->validate([
-            'keep_id'     => 'required|exists:contacts,id',
-            'merge_ids'   => 'required|array|min:1',
+            'keep_id' => 'required|exists:contacts,id',
+            'merge_ids' => 'required|array|min:1',
             'merge_ids.*' => 'exists:contacts,id',
         ]);
 
-        $keepId   = $validated['keep_id'];
-        $mergeIds = array_values(array_filter($validated['merge_ids'], fn($id) => $id != $keepId));
+        $keepId = $validated['keep_id'];
+        $mergeIds = array_values(array_filter($validated['merge_ids'], fn ($id) => $id != $keepId));
 
         if (empty($mergeIds)) {
             return response()->json(['status' => 'success', 'merged' => 0]);
         }
 
-        $keptContact    = Contact::find($keepId);
+        $keptContact = Contact::find($keepId);
         $mergedContacts = Contact::whereIn('id', $mergeIds)->get(['id', 'name']);
 
         DB::transaction(function () use ($keepId, $mergeIds) {
@@ -471,14 +516,14 @@ class ContactController extends Controller
         });
 
         AdminAuditLog::create([
-            'user_id'     => $request->user()?->id,
-            'action'      => 'merged',
+            'user_id' => $request->user()?->id,
+            'action' => 'merged',
             'entity_type' => 'contact',
-            'entity_id'   => (string) $keepId,
+            'entity_id' => (string) $keepId,
             'entity_name' => $keptContact?->name,
-            'old_values'  => ['merged_contacts' => $mergedContacts->map(fn ($c) => ['id' => $c->id, 'name' => $c->name])->all()],
-            'new_values'  => ['kept_contact' => ['id' => $keepId, 'name' => $keptContact?->name]],
-            'ip_address'  => $request->ip(),
+            'old_values' => ['merged_contacts' => $mergedContacts->map(fn ($c) => ['id' => $c->id, 'name' => $c->name])->all()],
+            'new_values' => ['kept_contact' => ['id' => $keepId, 'name' => $keptContact?->name]],
+            'ip_address' => $request->ip(),
         ]);
 
         return response()->json(['status' => 'success', 'merged' => count($mergeIds)]);

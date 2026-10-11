@@ -19,11 +19,21 @@ class SummaryController extends Controller
         if ($v = $request->input('search')) {
             $query->where('name', 'like', "%{$v}%");
         }
-        if ($v = $request->input('status_id'))   $query->where('status_id', $v);
-        if ($v = $request->input('type_id'))     $query->where('type_id', $v);
-        if ($v = $request->input('industry_id')) $query->where('industry_id', $v);
-        if ($v = $request->input('category_id')) $query->where('category_id', $v);
-        if ($v = $request->input('user_id'))     $query->where('user_id', $v);
+        if ($v = $request->input('status_id')) {
+            $query->where('status_id', $v);
+        }
+        if ($v = $request->input('type_id')) {
+            $query->where('type_id', $v);
+        }
+        if ($v = $request->input('industry_id')) {
+            $query->where('industry_id', $v);
+        }
+        if ($v = $request->input('category_id')) {
+            $query->where('category_id', $v);
+        }
+        if ($v = $request->input('user_id')) {
+            $query->where('user_id', $v);
+        }
 
         $perPage = min((int) $request->input('per_page', 50), 200);
         $paginated = $query->orderBy('name')->paginate($perPage);
@@ -42,8 +52,8 @@ class SummaryController extends Controller
         foreach ($todoRows as $t) {
             $month = (int) $t->todo_date->format('n');
             $taskMap[$t->contact_id][$month][] = [
-                'date'   => $t->todo_date->format('d-m-Y'),
-                'task'   => $t->task->name ?? '',
+                'date' => $t->todo_date->format('d-m-Y'),
+                'task' => $t->task->name ?? '',
                 'remark' => $t->todo_remark ?? '',
                 'status' => $t->completion_status,
             ];
@@ -51,14 +61,14 @@ class SummaryController extends Controller
 
         $data = $paginated->getCollection()->map(function ($c) use ($taskMap) {
             return [
-                'id'       => $c->id,
-                'name'     => $c->name,
-                'user'     => $c->user?->name,
-                'status'   => $c->status?->name,
-                'type'     => $c->type?->name,
+                'id' => $c->id,
+                'name' => $c->name,
+                'user' => $c->user?->name,
+                'status' => $c->status?->name,
+                'type' => $c->type?->name,
                 'category' => $c->category?->name,
                 'industry' => $c->industry?->name,
-                'months'   => $taskMap[$c->id] ?? [],
+                'months' => $taskMap[$c->id] ?? [],
             ];
         });
 
@@ -66,10 +76,10 @@ class SummaryController extends Controller
             'data' => $data,
             'meta' => [
                 'current_page' => $paginated->currentPage(),
-                'last_page'    => $paginated->lastPage(),
-                'total'        => $paginated->total(),
-                'per_page'     => $paginated->perPage(),
-                'from'         => $paginated->firstItem(),
+                'last_page' => $paginated->lastPage(),
+                'total' => $paginated->total(),
+                'per_page' => $paginated->perPage(),
+                'from' => $paginated->firstItem(),
             ],
         ]);
     }
