@@ -31,3 +31,23 @@ Homestead.json
 Homestead.yaml
 Thumbs.db
 *.tar.gz
+
+# Build/deploy artefacts and database dumps
+*.zip
+*.sql
+*.tmp.*
+
+# Personal AI-assistant config and per-tool skill copies
+/.claude/settings.local.json
+/.claude/skills/
+/.agent/
+/.codebuddy/
+/.continue/
+/.gemini/
+/.kiro/
+/.opencode/
+/.qoder/
+/.roo/
+/.trae/
+/.windsurf/
+/.github/prompts/
